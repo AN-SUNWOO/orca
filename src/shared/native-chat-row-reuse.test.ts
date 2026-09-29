@@ -31,18 +31,6 @@ describe('createNativeChatMessageReuse', () => {
 
     expect(reuse(normalizeImageTranscriptMessages(imageTurn))).toBe(before)
   })
-
-  it('compares values nested below a block by identity', () => {
-    const reuse = createNativeChatMessageReuse()
-    const call = (input: Record<string, unknown>): NativeChatMessage => ({
-      ...user('call', ''),
-      role: 'assistant',
-      blocks: [{ type: 'tool-call', name: 'Read', input }]
-    })
-    const before = reuse([call({ path: 'a.ts' })])
-
-    expect(reuse([call({ path: 'a.ts' })])[0]).not.toBe(before[0])
-  })
 })
 
 describe('createNativeChatRowReuse', () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createNativeChatRowReuse } from '../../../src/shared/native-chat-row-reuse'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { MobileNativeChatTurnRow } from './use-mobile-native-chat-turn-disclosure'
@@ -13,8 +13,13 @@ export function useMobileNativeChatRowProps(
   resolveTurnRow: (index: number, message: NativeChatMessage) => MobileNativeChatTurnRow
 ): readonly MobileNativeChatTurnRow[] {
   const [reuseTurnRows] = useState(createTurnRowReuse)
-  return reuseTurnRows(
-    listMessages.map((message, index) => resolveTurnRow(index, message)),
-    (index) => listMessages[index]!.id
+  // Why: the view re-renders on every composer keystroke; only row or turn changes need this pass.
+  return useMemo(
+    () =>
+      reuseTurnRows(
+        listMessages.map((message, index) => resolveTurnRow(index, message)),
+        (index) => listMessages[index]!.id
+      ),
+    [reuseTurnRows, listMessages, resolveTurnRow]
   )
 }

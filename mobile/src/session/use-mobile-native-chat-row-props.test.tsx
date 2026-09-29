@@ -1,6 +1,6 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { NativeChatSettledTurns } from '../../../src/shared/native-chat-turn-status'
 import { useMobileNativeChatRowProps } from './use-mobile-native-chat-row-props'
@@ -33,7 +33,7 @@ function Harness({
     settledTurns,
     scopeKey: 'host\0worktree\0tab-a'
   })
-  rendered = useMobileNativeChatRowProps(messages, turns.resolveRow)
+  rendered = useMobileNativeChatRowProps(turns.listMessages, turns.resolveRow)
   return null
 }
 
@@ -87,5 +87,25 @@ describe('useMobileNativeChatRowProps', () => {
     show([...history, row('a2', 'assistant', 'Hello'), row('u3', 'user', 'more')], 9)
     expect(rows()[0]).not.toBe(before[0])
     expect(rows()[0]?.turnStatus).toMatchObject({ workedSeconds: 9 })
+  })
+
+  it('skips resolving rows on a render that changed neither the rows nor the resolver', () => {
+    const resolveTurnRow = vi.fn((): MobileNativeChatTurnRow => ({
+      turnStatus: null,
+      turnExpanded: false,
+      activeTurnIsWorking: false
+    }))
+    // Stands in for the view re-rendering on a composer keystroke.
+    function Static({ composerText }: { composerText: string }): string {
+      rendered = useMobileNativeChatRowProps(history, resolveTurnRow)
+      return composerText
+    }
+    act(() => {
+      renderer = create(createElement(Static, { composerText: 'h' }))
+    })
+    const calls = resolveTurnRow.mock.calls.length
+    act(() => renderer?.update(createElement(Static, { composerText: 'hi' })))
+
+    expect(resolveTurnRow.mock.calls.length).toBe(calls)
   })
 })

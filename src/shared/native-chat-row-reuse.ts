@@ -1,12 +1,14 @@
 import type { NativeChatMessage } from './native-chat-types'
 
-function isObject(value: unknown): value is object {
+type Fields = Readonly<Record<string, unknown>>
+
+function isFields(value: unknown): value is Fields {
   return typeof value === 'object' && value !== null
 }
 
 /** Same values `depth` objects down, identity below: re-deriving a row rebuilds its
  *  containers (a folded run's block list, an image turn's blocks) around unchanged values. */
-function sameValues(left: object, right: object, depth: number): boolean {
+function sameValues(left: Fields, right: Fields, depth: number): boolean {
   if (left === right) {
     return true
   }
@@ -14,11 +16,11 @@ function sameValues(left: object, right: object, depth: number): boolean {
   return (
     keys.length === Object.keys(right).length &&
     keys.every((key) => {
-      const a: unknown = Reflect.get(left, key)
-      const b: unknown = Reflect.get(right, key)
+      const a = left[key]
+      const b = right[key]
       return (
         Object.hasOwn(right, key) &&
-        (a === b || (depth > 0 && isObject(a) && isObject(b) && sameValues(a, b, depth - 1)))
+        (a === b || (depth > 0 && isFields(a) && isFields(b) && sameValues(a, b, depth - 1)))
       )
     })
   )
@@ -26,7 +28,7 @@ function sameValues(left: object, right: object, depth: number): boolean {
 
 /** Hands back the previous call's row for every id whose values are unchanged, and the
  *  previous array when every row's are, so memoized renderers skip what a batch left alone. */
-export function createNativeChatRowReuse<Row extends object>(
+export function createNativeChatRowReuse<Row extends Fields>(
   depth: number
 ): (rows: Row[], idOf: (index: number) => string) => Row[] {
   let previous: Row[] = []

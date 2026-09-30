@@ -12,18 +12,27 @@ function sameValues(left: Fields, right: Fields, depth: number): boolean {
   if (left === right) {
     return true
   }
+  // Folding rebuilds block lists every batch; an index loop skips Object.keys' allocations.
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) {
+      return false
+    }
+    for (let index = 0; index < left.length; index++) {
+      if (!sameValue(left[index], right[index], depth)) {
+        return false
+      }
+    }
+    return true
+  }
   const keys = Object.keys(left)
   return (
     keys.length === Object.keys(right).length &&
-    keys.every((key) => {
-      const a = left[key]
-      const b = right[key]
-      return (
-        Object.hasOwn(right, key) &&
-        (a === b || (depth > 0 && isFields(a) && isFields(b) && sameValues(a, b, depth - 1)))
-      )
-    })
+    keys.every((key) => Object.hasOwn(right, key) && sameValue(left[key], right[key], depth))
   )
+}
+
+function sameValue(a: unknown, b: unknown, depth: number): boolean {
+  return a === b || (depth > 0 && isFields(a) && isFields(b) && sameValues(a, b, depth - 1))
 }
 
 /** Hands back the previous call's row for every id whose values are unchanged, and the

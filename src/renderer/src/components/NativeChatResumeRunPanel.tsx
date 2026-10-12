@@ -41,11 +41,11 @@ function finishedDescription(everyChatResumed: boolean, byUpdate: boolean): stri
   return byUpdate
     ? translate(
         'auto.components.NativeChatResumeRunPanel.finishedPartialUpdate',
-        'These chats were working when Orca installed an update. The ones Orca resumed were restored where they stopped, with their full context, and asked to check what they were doing before carrying on. Your own prompts weren’t re-sent. Chats that need you are at the top.'
+        'These chats were working when Orca installed an update. The ones Orca resumed were restored where they stopped, with their full context, and asked to check what they were doing before carrying on. Your own prompts weren’t re-sent. Check the list for chats that still need attention or can be resumed.'
       )
     : translate(
         'auto.components.NativeChatResumeRunPanel.finishedPartial',
-        'These chats were working when Orca closed. The ones Orca resumed were restored where they stopped, with their full context, and asked to check what they were doing before carrying on. Your own prompts weren’t re-sent. Chats that need you are at the top.'
+        'These chats were working when Orca closed. The ones Orca resumed were restored where they stopped, with their full context, and asked to check what they were doing before carrying on. Your own prompts weren’t re-sent. Check the list for chats that still need attention or can be resumed.'
       )
 }
 
@@ -82,11 +82,13 @@ export function useResumeRunPanel({
   run,
   rows,
   failureFor,
+  selectableIds,
   open
 }: {
   run: ResumeRun | null
   rows: readonly ResumeCandidate[]
   failureFor: (sessionId: string) => ResumeFailure | undefined
+  selectableIds: ReadonlySet<string>
   open: boolean
 }): ResumeRunPanel | null {
   // Each opening starts on All, as the dialog's own ticks start from their defaults.
@@ -135,8 +137,8 @@ export function useResumeRunPanel({
       />
     ),
     rows: view.rows,
-    // Counted over every row, not the filtered ones, so changing tabs never moves the layout.
-    choosing: view.counts.all > view.statusBySession.size,
+    // Current selection ignores the filter, so changing tabs never moves the layout.
+    choosing: [...selectableIds].some((sessionId) => !view.statusBySession.has(sessionId)),
     startedBy: run.startedBy,
     renderStatus: (sessionId, title) => {
       const status = view.statusBySession.get(sessionId)

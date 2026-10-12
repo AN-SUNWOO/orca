@@ -147,6 +147,7 @@ export function NativeChatResumeOnRestartModal(): React.JSX.Element | null {
     run,
     rows,
     failureFor,
+    selectableIds,
     open
   })
   useEffect(() => {
@@ -373,7 +374,7 @@ export function NativeChatResumeOnRestartModal(): React.JSX.Element | null {
               </span>
             </label>
           )}
-          {rows.length === 0 ? (
+          {rows.length === 0 || (run?.inFlight === false && !choosing) ? (
             <Button ref={resumeButtonRef} variant="default" size="sm" onClick={snooze}>
               {translate('auto.components.NativeChatResumeOnRestartModal.done', 'Done')}
             </Button>

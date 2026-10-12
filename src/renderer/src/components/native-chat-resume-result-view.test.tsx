@@ -5,6 +5,8 @@ import { NativeChatResumeOnRestartModal } from './NativeChatResumeOnRestartModal
 import { NativeChatResumeStatusSegment } from './status-bar/NativeChatResumeStatusSegment'
 import {
   createResumeModalFixture,
+  failure,
+  offered,
   type RestartRpc,
   type ResumeStatusStream
 } from './native-chat-resume-modal.test-support'
@@ -31,7 +33,7 @@ vi.mock('sonner', () => ({ toast: vi.fn() }))
 
 const { mount, button, fakeHost } = createResumeModalFixture(rpc, statusStream)
 const dialog = () => document.querySelector('[role="dialog"]')
-const tree = () => document.querySelector('[role="tree"]')
+const tree = () => document.querySelector<HTMLElement>('[role="tree"]')
 
 async function mountSurfaces(): Promise<void> {
   await mount(
@@ -57,6 +59,70 @@ it('shows a finished resume as a result, in the past tense, once nothing is left
   expect(dialog()?.textContent).not.toContain("Don't ask again")
   // The user pressed Resume, so nothing says it happened on its own.
   expect(dialog()?.textContent).not.toContain('automatically')
+})
+
+it('reopens a collapsed result group with tree keys', async () => {
+  fakeHost()
+  await mountSurfaces()
+  expect(button('Collapse workspace').tabIndex).toBe(-1)
+  await act(async () => button('Resume 2 chats').click())
+  await act(async () => lastToastShow()?.())
+  const disclosure = button('Collapse workspace')
+  const press = async (key: string) =>
+    act(async () => {
+      document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    })
+  expect(disclosure.tabIndex).toBe(0)
+  tree()?.focus()
+  await press('ArrowDown')
+  expect(document.activeElement).toBe(disclosure)
+  await press('ArrowLeft')
+  expect(disclosure.getAttribute('aria-expanded')).toBe('false')
+  expect(document.activeElement).toBe(disclosure)
+  await press('ArrowRight')
+  expect(disclosure.getAttribute('aria-expanded')).toBe('true')
+  expect(document.activeElement).toBe(disclosure)
+})
+
+it('shows a settled nonretryable failure as a result with a Done action', async () => {
+  const failed = { ...failure('a'), outcome: 'unconfirmed' as const, retryable: false }
+  let acted = false
+  rpc.mockImplementation(async (_target, method) => {
+    if (method === 'agentSession.restartResumable') {
+      return { sessions: acted ? [] : [offered[0]], failed: acted ? [failed] : [] }
+    }
+    acted = true
+    return {
+      sessions: [],
+      failed: [failed],
+      continued: [{ sessionId: 'a', outcome: 'unknown' }]
+    }
+  })
+  await mountSurfaces()
+  await act(async () => button('Resume 1 chat').click())
+  await act(async () => lastToastShow()?.())
+  expect(dialog()?.textContent).toContain('Resumed 0 of 1 chat')
+  expect(tree()?.textContent).not.toContain('Select all')
+  expect(tree()?.querySelectorAll('[role="checkbox"]')).toHaveLength(0)
+  expect(button('Open chat')).toBeTruthy()
+  expect(button('Dismiss "Prompt a" in workspace')).toBeTruthy()
+  expect(button('Done').disabled).toBe(false)
+  expect(dialog()?.textContent).not.toContain('Resume 0 chats')
+})
+
+it('does not place an untouched offer in the Need you filter', async () => {
+  fakeHost()
+  await mountSurfaces()
+  const secondChat = document.querySelector<HTMLElement>(
+    '[role="checkbox"][aria-label*="Prompt b"]'
+  )
+  await act(async () => secondChat?.click())
+  await act(async () => button('Resume 1 chat').click())
+  await act(async () => lastToastShow()?.())
+  expect(dialog()?.textContent).toContain('Check the list for chats that still need attention')
+  expect(dialog()?.textContent).not.toContain('Chats that need you are at the top')
+  expect(button('Need you0')).toBeTruthy()
+  expect(button('Resume 1 chat')).toBeTruthy()
 })
 
 it('says a launch resumed on its own and links to the setting', async () => {

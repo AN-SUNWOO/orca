@@ -1,26 +1,26 @@
 /**
- * Tree keys. On a row's checkbox: Up/Down step between the enabled checkboxes, Home/End jump to the
- * first/last, Left collapses and Right expands the node through its own disclosure; Space toggles
- * natively. On the tree itself (its Tab stop): Down/Home enter at the first checkbox, Up/End at
- * the last.
+ * Tree keys. Picker checkboxes and result disclosures share arrow navigation; native Space/Enter
+ * still acts on the focused control. The picker keeps its disclosures outside the Tab order.
  */
 export function moveInTree(event: React.KeyboardEvent<HTMLElement>): void {
   const target = event.target
   if (!(target instanceof HTMLElement)) {
     return
   }
-  const boxes = [
-    ...event.currentTarget.querySelectorAll<HTMLElement>('[role="checkbox"]:not(:disabled)')
+  const controls = [
+    ...event.currentTarget.querySelectorAll<HTMLElement>(
+      '[role="checkbox"]:not(:disabled), button[aria-expanded][tabindex="0"]'
+    )
   ]
   const onTree = target === event.currentTarget
-  if (!onTree && target.getAttribute('role') !== 'checkbox') {
+  if (!onTree && !controls.includes(target)) {
     return
   }
   const jump =
     event.key === 'Home' || (onTree && event.key === 'ArrowDown')
-      ? boxes[0]
+      ? controls[0]
       : event.key === 'End' || (onTree && event.key === 'ArrowUp')
-        ? boxes.at(-1)
+        ? controls.at(-1)
         : undefined
   if (jump) {
     event.preventDefault()
@@ -32,12 +32,12 @@ export function moveInTree(event: React.KeyboardEvent<HTMLElement>): void {
   }
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault()
-    boxes[boxes.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)]?.focus()
+    controls[controls.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)]?.focus()
     return
   }
   if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
     event.preventDefault()
-    // Rows are flat treeitems, so the nearest one is this checkbox's own node.
+    // Rows are flat treeitems, so the nearest one owns this control's disclosure.
     const disclosure = target
       .closest('[role="treeitem"]')
       ?.querySelector<HTMLButtonElement>('button[aria-expanded]')

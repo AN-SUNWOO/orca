@@ -92,11 +92,10 @@ export function ResumeTreeRow({
           <span className="flex min-w-0 flex-1 items-center gap-1.5 pl-1">{children}</span>
         </Content>
         {expanded !== undefined && (
-          // Laid over its slot rather than inside the label, so pressing it never toggles the
-          // checkbox. Off the tab order: Left/Right on the row's checkbox do the same.
+          // Picker keys use the checkbox; result groups expose the native disclosure button.
           <button
             type="button"
-            tabIndex={-1}
+            tabIndex={selecting ? -1 : 0}
             aria-expanded={expanded}
             aria-label={
               expanded
@@ -113,6 +112,10 @@ export function ResumeTreeRow({
             }
             onClick={(event) => {
               onExpandedChange?.(!expanded)
+              if (!selecting) {
+                event.currentTarget.focus()
+                return
+              }
               // A pointer press focuses the arrow, where no tree key works; hand focus to the
               // row's checkbox, or to the tree when that is disabled.
               const row = event.currentTarget.closest('[role="treeitem"]')
@@ -120,7 +123,7 @@ export function ResumeTreeRow({
               const next = box ?? row?.closest<HTMLElement>('[role="tree"]')
               next?.focus()
             }}
-            className="group/disclosure absolute top-1/2 flex size-4.5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/8"
+            className="group/disclosure absolute top-1/2 flex size-4.5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/8 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             style={{ left: column + indent }}
           >
             <ChevronRight className="size-3 transition-transform group-aria-expanded/disclosure:rotate-90 motion-reduce:transition-none" />

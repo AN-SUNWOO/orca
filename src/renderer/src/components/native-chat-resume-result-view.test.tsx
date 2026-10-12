@@ -11,6 +11,7 @@ import {
   type ResumeStatusStream
 } from './native-chat-resume-modal.test-support'
 import { lastToastShow } from './native-chat-resume-toast.test-support'
+import { dontAskAgain } from './native-chat-resume-on-restart-modal.test-support'
 import { useAppStore } from '../store'
 
 const rpc: Mock<RestartRpc> = vi.hoisted(() => vi.fn<RestartRpc>())
@@ -59,6 +60,36 @@ it('shows a finished resume as a result, in the past tense, once nothing is left
   expect(dialog()?.textContent).not.toContain("Don't ask again")
   // The user pressed Resume, so nothing says it happened on its own.
   expect(dialog()?.textContent).not.toContain('automatically')
+})
+
+it('does not restore a hidden picker preference when closing a run', async () => {
+  const host = fakeHost()
+  host.hold('a', 'b')
+  await mountSurfaces()
+  await act(async () => dontAskAgain().click())
+  await act(async () => button('Resume 2 chats').click())
+  expect(useAppStore.getState().settings?.nativeChatResumeWorkOnRestart).toBe(true)
+
+  await act(async () => button('Resuming chats 0/2').click())
+  expect(dialog()?.textContent).not.toContain("Don't ask again")
+  await act(async () =>
+    useAppStore.getState().updateSettings({ nativeChatResumeWorkOnRestart: false })
+  )
+  await act(async () => button('Close').click())
+  const afterInFlightClose = useAppStore.getState().settings?.nativeChatResumeWorkOnRestart
+
+  await host.release('a', 'b')
+  await act(async () => lastToastShow()?.())
+  expect(dialog()?.textContent).toContain('Resumed 2 of 2 chats')
+  expect(dialog()?.textContent).not.toContain("Don't ask again")
+  await act(async () =>
+    useAppStore.getState().updateSettings({ nativeChatResumeWorkOnRestart: false })
+  )
+  await act(async () => button('Done').click())
+  expect([
+    afterInFlightClose,
+    useAppStore.getState().settings?.nativeChatResumeWorkOnRestart
+  ]).toEqual([false, false])
 })
 
 it('reopens a collapsed result group with tree keys', async () => {

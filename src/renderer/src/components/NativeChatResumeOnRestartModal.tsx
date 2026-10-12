@@ -162,12 +162,12 @@ export function NativeChatResumeOnRestartModal(): React.JSX.Element | null {
     setOverrides((current) => new Map(current).set(sessionId, checked))
   }, [])
 
-  /** Applied on whichever action the user takes, so the box means the same thing every way out. */
+  /** Only the picker owns this choice; run actions must not replay a hidden checkbox. */
   const persistPreference = useCallback(async (): Promise<void> => {
-    if (dontAskAgain) {
+    if (dontAskAgain && run === null) {
       await updateSettings({ nativeChatResumeWorkOnRestart: true }).catch(() => undefined)
     }
-  }, [dontAskAgain, updateSettings])
+  }, [dontAskAgain, run, updateSettings])
 
   // Never closes the dialog: only the user's own ways out do, and the store once nothing is left.
   const resume = useCallback(

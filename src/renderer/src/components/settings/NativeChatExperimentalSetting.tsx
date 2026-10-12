@@ -8,6 +8,7 @@ import { NativeChatSupportedAgents } from './NativeChatSupportedAgents'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsSwitch } from './SettingsFormControls'
 import { getExperimentalSearchEntry } from './experimental-search'
+import { NATIVE_CHAT_RESUME_SETTING_SECTION_ID } from './native-chat-resume-setting-target'
 
 type NativeChatExperimentalSettingProps = {
   settings: GlobalSettings
@@ -64,7 +65,10 @@ export function NativeChatExperimentalSetting({
         <div className="ml-4 space-y-4 border-l border-border pl-4">
           {/* Only structured sessions have a resume cursor to continue from. */}
           {structuredChatActive ? (
-            <div className="flex items-start justify-between gap-4">
+            <div
+              id={NATIVE_CHAT_RESUME_SETTING_SECTION_ID}
+              className="flex items-start justify-between gap-4"
+            >
               <div className="min-w-0 shrink space-y-0.5">
                 <Label>
                   {translate(

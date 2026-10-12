@@ -2154,7 +2154,8 @@
         "expandNode": "Expand {{value0}}",
         "selectMachine": "Select all chats on {{value0}}",
         "sshHost": "SSH",
-        "done": "Done"
+        "done": "Done",
+        "resultListLabel": "Chats in this resume"
       },
       "StarNagCard": {
         "92b0f9d921": "is authenticated and try again.",
@@ -17894,7 +17895,11 @@
         "resumingTitleOne": "Resuming 1 chat",
         "resumingTitle": "Resuming {{value0}} chats",
         "description": "Each chat is restored with its full context and asked to check where it stopped. You can close this; the status bar keeps track.",
-        "resumedTitleOne": "Resumed {{value0}} of 1 chat"
+        "resumedTitleOne": "Resumed {{value0}} of 1 chat",
+        "finished": "These chats were working when Orca closed. Orca restored each one where it stopped, with its full context, and asked the agent to check what it was doing before carrying on. Your own prompts weren’t re-sent.",
+        "finishedUpdate": "These chats were working when Orca installed an update. Orca restored each one where it stopped, with its full context, and asked the agent to check what it was doing before carrying on. Your own prompts weren’t re-sent.",
+        "finishedPartial": "These chats were working when Orca closed. The ones Orca resumed were restored where they stopped, with their full context, and asked to check what they were doing before carrying on. Your own prompts weren’t re-sent. Chats that need you are at the top.",
+        "finishedPartialUpdate": "These chats were working when Orca installed an update. The ones Orca resumed were restored where they stopped, with their full context, and asked to check what they were doing before carrying on. Your own prompts weren’t re-sent. Chats that need you are at the top."
       },
       "NativeChatResumeRunStatusIcon": {
         "waitingForReply": "Waiting for a reply",
@@ -17914,6 +17919,11 @@
         "attention": "Need you",
         "running": "Running {{value0}}",
         "filter": "Show chats"
+      },
+      "NativeChatResumeAutoNote": {
+        "resuming": "Resuming automatically after the restart.",
+        "resumed": "Resumed automatically after the restart.",
+        "changeInSettings": "Change in Settings"
       }
     },
     "i18n": {

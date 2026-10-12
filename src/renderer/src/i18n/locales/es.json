@@ -17530,7 +17530,8 @@
         "expandNode": "Expandir {{value0}}",
         "selectMachine": "Seleccionar todos los chats en {{value0}}",
         "sshHost": "SSH",
-        "done": "Listo"
+        "done": "Listo",
+        "resultListLabel": "Chats de esta reanudación"
       },
       "NativeChatResumeOutcomeRow": {
         "openChat": "Abrir chat",
@@ -17636,7 +17637,11 @@
         "resumedTitleOne": "{{value0}} de 1 chat reanudado",
         "resumingTitleOne": "Reanudando 1 chat",
         "resumingTitle": "Reanudando {{value0}} chats",
-        "description": "Cada chat se restaura con todo su contexto y se le pide que revise dónde se detuvo. Puedes cerrar esto; la barra de estado sigue el progreso."
+        "description": "Cada chat se restaura con todo su contexto y se le pide que revise dónde se detuvo. Puedes cerrar esto; la barra de estado sigue el progreso.",
+        "finished": "Estos chats estaban trabajando cuando Orca se cerró. Orca restauró cada uno donde se detuvo, con todo su contexto, y pidió al agente que revisara lo que estaba haciendo antes de continuar. Tus propios mensajes no se reenviaron.",
+        "finishedUpdate": "Estos chats estaban trabajando cuando Orca instaló una actualización. Orca restauró cada uno donde se detuvo, con todo su contexto, y pidió al agente que revisara lo que estaba haciendo antes de continuar. Tus propios mensajes no se reenviaron.",
+        "finishedPartial": "Estos chats estaban trabajando cuando Orca se cerró. Los que Orca reanudó se restauraron donde se detuvieron, con todo su contexto, y se les pidió revisar lo que estaban haciendo antes de continuar. Tus propios mensajes no se reenviaron. Los chats que te necesitan están arriba.",
+        "finishedPartialUpdate": "Estos chats estaban trabajando cuando Orca instaló una actualización. Los que Orca reanudó se restauraron donde se detuvieron, con todo su contexto, y se les pidió revisar lo que estaban haciendo antes de continuar. Tus propios mensajes no se reenviaron. Los chats que te necesitan están arriba."
       },
       "NativeChatResumeRunStatusIcon": {
         "waitingForReply": "Esperando respuesta",
@@ -17656,6 +17661,11 @@
         "attention": "Requieren tu atención",
         "running": "En curso desde hace {{value0}}",
         "filter": "Mostrar chats"
+      },
+      "NativeChatResumeAutoNote": {
+        "resuming": "Reanudando automáticamente tras el reinicio.",
+        "resumed": "Reanudados automáticamente tras el reinicio.",
+        "changeInSettings": "Cambiar en Ajustes"
       }
     },
     "i18n": {

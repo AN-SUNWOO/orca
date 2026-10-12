@@ -17548,7 +17548,8 @@
         "expandNode": "展开 {{value0}}",
         "selectMachine": "选择 {{value0}} 上的全部聊天",
         "sshHost": "SSH",
-        "done": "完成"
+        "done": "完成",
+        "resultListLabel": "本次恢复的聊天"
       },
       "linear-issue-attribute-filter-coverage-notice": {
         "statusPartialTeamCoverage": "过滤 {{value1}} 团队状态中的 {{value0}} — 不包括其余团队的问题。",
@@ -17650,7 +17651,11 @@
         "resumedTitleOne": "已恢复 {{value0}}/1 个聊天",
         "resumingTitleOne": "正在恢复 1 个聊天",
         "resumingTitle": "正在恢复 {{value0}} 个聊天",
-        "description": "每个聊天都会带着完整上下文恢复，并被要求检查它停在了哪里。你可以关闭此窗口，状态栏会继续显示进度。"
+        "description": "每个聊天都会带着完整上下文恢复，并被要求检查它停在了哪里。你可以关闭此窗口，状态栏会继续显示进度。",
+        "finished": "Orca 关闭时这些聊天正在工作。Orca 已将每个聊天恢复到停止的位置并保留完整上下文，并让智能体在继续之前先检查它之前在做什么。你自己的提示没有被重新发送。",
+        "finishedUpdate": "Orca 安装更新时这些聊天正在工作。Orca 已将每个聊天恢复到停止的位置并保留完整上下文，并让智能体在继续之前先检查它之前在做什么。你自己的提示没有被重新发送。",
+        "finishedPartial": "Orca 关闭时这些聊天正在工作。Orca 恢复的聊天已回到停止的位置并保留完整上下文，并被要求在继续之前先检查之前在做什么。你自己的提示没有被重新发送。需要你处理的聊天在最上方。",
+        "finishedPartialUpdate": "Orca 安装更新时这些聊天正在工作。Orca 恢复的聊天已回到停止的位置并保留完整上下文，并被要求在继续之前先检查之前在做什么。你自己的提示没有被重新发送。需要你处理的聊天在最上方。"
       },
       "NativeChatResumeRunStatusIcon": {
         "waitingForReply": "等待回复",
@@ -17670,6 +17675,11 @@
         "attention": "需要处理",
         "running": "已运行 {{value0}}",
         "filter": "显示聊天"
+      },
+      "NativeChatResumeAutoNote": {
+        "resuming": "重启后正在自动恢复。",
+        "resumed": "重启后已自动恢复。",
+        "changeInSettings": "在设置中更改"
       }
     },
     "i18n": {

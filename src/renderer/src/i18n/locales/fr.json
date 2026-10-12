@@ -17651,7 +17651,8 @@
         "expandNode": "Développer {{value0}}",
         "selectMachine": "Sélectionner toutes les discussions sur {{value0}}",
         "sshHost": "SSH",
-        "done": "Terminé"
+        "done": "Terminé",
+        "resultListLabel": "Discussions de cette reprise"
       },
       "linear-issue-attribute-filter-coverage-notice": {
         "statusPartialTeamCoverage": "Filtrage des statuts des équipes {{value0}} sur {{value1}} : les problèmes des équipes restantes ne sont pas inclus.",
@@ -17738,7 +17739,11 @@
         "resumedTitleOne": "{{value0}} discussion sur 1 reprise",
         "resumingTitleOne": "Reprise d’une discussion",
         "resumingTitle": "Reprise de {{value0}} discussions",
-        "description": "Chaque discussion est restaurée avec tout son contexte, et l’agent vérifie où il s’était arrêté. Vous pouvez fermer cette fenêtre ; la barre d’état suit la progression."
+        "description": "Chaque discussion est restaurée avec tout son contexte, et l’agent vérifie où il s’était arrêté. Vous pouvez fermer cette fenêtre ; la barre d’état suit la progression.",
+        "finished": "Ces discussions étaient en cours quand Orca s’est fermé. Orca a restauré chacune là où elle s’était arrêtée, avec tout son contexte, et a demandé à l’agent de vérifier ce qu’il faisait avant de continuer. Vos propres messages n’ont pas été renvoyés.",
+        "finishedUpdate": "Ces discussions étaient en cours quand Orca a installé une mise à jour. Orca a restauré chacune là où elle s’était arrêtée, avec tout son contexte, et a demandé à l’agent de vérifier ce qu’il faisait avant de continuer. Vos propres messages n’ont pas été renvoyés.",
+        "finishedPartial": "Ces discussions étaient en cours quand Orca s’est fermé. Celles qu’Orca a reprises ont été restaurées là où elles s’étaient arrêtées, avec tout leur contexte, et invitées à vérifier ce qu’elles faisaient avant de continuer. Vos propres messages n’ont pas été renvoyés. Les discussions qui ont besoin de vous sont en haut.",
+        "finishedPartialUpdate": "Ces discussions étaient en cours quand Orca a installé une mise à jour. Celles qu’Orca a reprises ont été restaurées là où elles s’étaient arrêtées, avec tout leur contexte, et invitées à vérifier ce qu’elles faisaient avant de continuer. Vos propres messages n’ont pas été renvoyés. Les discussions qui ont besoin de vous sont en haut."
       },
       "NativeChatResumeRunStatusIcon": {
         "waitingForReply": "En attente de réponse",
@@ -17758,6 +17763,11 @@
         "attention": "À traiter",
         "running": "En cours depuis {{value0}}",
         "filter": "Afficher les discussions"
+      },
+      "NativeChatResumeAutoNote": {
+        "resuming": "Reprise automatique après le redémarrage.",
+        "resumed": "Reprises automatiquement après le redémarrage.",
+        "changeInSettings": "Modifier dans les paramètres"
       }
     },
     "i18n": {

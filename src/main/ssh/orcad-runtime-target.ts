@@ -1,7 +1,7 @@
 import type { NodeRuntimeTarget } from '../../shared/node-runtime-pin'
 import { resolveOrcadDeploymentTargetFacts } from './orcad-deployment-target'
 import { OrcadHostUnsupportedError } from './orcad-host-unavailable'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { pinnedRuntimeTargetForHost } from './ssh-relay-runtime-ladder'
 import type { RemoteHostPlatform } from './ssh-remote-platform'
 
@@ -10,7 +10,7 @@ import type { RemoteHostPlatform } from './ssh-remote-platform'
  * picks rung A or B: the host's own target, or its compat runtime below the default's glibc floor.
  */
 export async function resolveOrcadRuntimeTarget(options: {
-  conn: SshConnection
+  conn: OrcadHostTransport
   host: RemoteHostPlatform
   signal?: AbortSignal
   exec?: (command: string) => Promise<string>

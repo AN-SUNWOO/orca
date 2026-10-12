@@ -22,7 +22,7 @@ import {
   ORCAD_RUNTIMES_DIRNAME,
   orcadNodeRuntimeExecutable
 } from '../../shared/orcad-artifacts'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { shellEscape } from './ssh-connection-utils'
 import { execCommand } from './ssh-relay-deploy-helpers'
 import { isUnconfirmedSshCommandTermination } from './ssh-relay-exec-command'
@@ -253,7 +253,7 @@ export type EnsuredRemoteNodeRuntime = {
  * when needed, and returns its executable and whether this call uploaded it.
  */
 export async function ensureRemoteOrcadNodeRuntime(options: {
-  conn: SshConnection
+  conn: OrcadHostTransport
   host: RemoteHostPlatform
   slotDir: string
   target: NodeRuntimeTarget

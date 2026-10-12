@@ -11,7 +11,7 @@ import {
   type OrcadStdioBridgeMode
 } from './orcad-stdio-bridge-script'
 import { OrcadStdioBridgeDecoder, type OrcadStdioBridgeSignal } from './orcad-stdio-bridge-stream'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { isWindowsRemoteHost } from './ssh-remote-platform'
 import { detectRemoteHostPlatform } from './ssh-remote-platform-detection'
 
@@ -27,7 +27,7 @@ const MAX_STDERR_TAIL_CHARS = 2_000
 const COMMAND_NOT_FOUND_EXITS: ReadonlySet<number | null> = new Set([127, 9009])
 
 export async function resolveOrcadStdioBridge(
-  conn: SshConnection,
+  conn: OrcadHostTransport,
   port: number
 ): Promise<OrcadStdioBridge> {
   const host = await detectRemoteHostPlatform(conn)
@@ -47,7 +47,7 @@ export async function resolveOrcadStdioBridge(
 }
 
 export function openOrcadStdioBridgeChannel(
-  conn: SshConnection,
+  conn: OrcadHostTransport,
   bridge: OrcadStdioBridge
 ): Promise<ClientChannel> {
   return conn.exec(bridge.command, { wrapCommand: bridge.wrapCommand })
@@ -66,7 +66,7 @@ function closeQuietly(channel: ClientChannel): void {
  * exit the host reported without one is proof it can't run; anything else is unverifiable.
  */
 export async function checkOrcadStdioBridge(
-  conn: SshConnection,
+  conn: OrcadHostTransport,
   bridge: OrcadStdioBridge,
   timeoutMs = ORCAD_STDIO_BRIDGE_CHECK_TIMEOUT_MS
 ): Promise<'running' | 'unverifiable'> {

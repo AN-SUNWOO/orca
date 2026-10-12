@@ -13,7 +13,7 @@
  * published and collected at once; a busy lock skips the pass rather than waiting.
  */
 import { randomInt } from 'node:crypto'
-import type { SshConnection } from './ssh-connection'
+import type { RemoteInstallTransport } from './remote-install-transport'
 import { RUNTIME_STORE_STAGE_PREFIX } from './orcad-remote-node-runtime'
 import { inventoryRemoteInstallDirs } from './remote-install-model'
 import {
@@ -158,7 +158,7 @@ export function parseSweptRuntimeStages(output: string): string[] {
 }
 
 function exec(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   host: RemoteHostPlatform,
   command: string,
   signal?: AbortSignal
@@ -168,7 +168,7 @@ function exec(
 }
 
 async function readInventory(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   host: RemoteHostPlatform,
   remoteHome: string,
   signal?: AbortSignal
@@ -190,7 +190,7 @@ async function readInventory(
  * unconfirmed SSH termination is rethrown so the caller stops its cleanup chain.
  */
 export async function gcRemoteNodeRuntimeStore(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   host: RemoteHostPlatform,
   remoteHome: string,
   options: { currentPins: readonly string[]; signal?: AbortSignal }
@@ -207,7 +207,7 @@ export async function gcRemoteNodeRuntimeStore(
 }
 
 async function collectHoldingStoreLock(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   host: RemoteHostPlatform,
   remoteHome: string,
   store: string,
@@ -285,7 +285,7 @@ async function collectHoldingStoreLock(
 }
 
 async function moveTree(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   host: RemoteHostPlatform,
   source: string,
   destination: string,
@@ -305,7 +305,7 @@ async function moveTree(
 }
 
 async function restoreTree(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   host: RemoteHostPlatform,
   tombstone: string,
   entryDir: string,
@@ -321,7 +321,7 @@ async function restoreTree(
 }
 
 async function removeTree(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   host: RemoteHostPlatform,
   path: string,
   signal?: AbortSignal

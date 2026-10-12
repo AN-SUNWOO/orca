@@ -37,7 +37,6 @@ import {
 } from './orcad-migration-terminal-gate'
 import { createManagedOrcadEnvironment } from './orcad-runtime-deployment'
 import { retainOrcadMigrationSource } from './orcad-migration-source-retention'
-import { hasRegisteredDirectSshAuthority } from './ssh-target-registry'
 
 export type OrcadManagedConversionArgs = {
   sshTargetId: string
@@ -47,7 +46,7 @@ export type OrcadManagedConversionArgs = {
   /** The destination's T6-9 catalog client, reached through the server's tunnel. */
   destinationFor: (environment: KnownRuntimeEnvironment) => OrcadMigrationDestinationCatalog
   /** Releases the direct SSH session after the terminal check, before the fence. */
-  releaseDirectSession: (sshTargetId: string) => Promise<void>
+  releaseDirectSession?: (sshTargetId: string) => Promise<void>
   now?: () => Date
   signal?: AbortSignal
 }
@@ -154,7 +153,7 @@ async function fenceOrResume(
     return refuse(terminalProof.verdict, 'orcad_migration_terminals', terminalProof.reason)
   }
   retireProvenExitedLeases(store, target.id, terminalProof)
-  await args.releaseDirectSession(target.id)
+  await args.releaseDirectSession?.(target.id)
   const result = await runTargetLifecycle(target.id, () =>
     fenceOrcadMigrationSource({
       userDataPath,
@@ -164,7 +163,6 @@ async function fenceOrResume(
       destinationEnvironmentId: randomUUID(),
       destinationName: args.name,
       terminalProof,
-      hasDirectSshAuthority: hasRegisteredDirectSshAuthority,
       now: args.now,
       signal: args.signal
     })

@@ -13,7 +13,7 @@
  * terminal daemon was forked from. Every version an in-flight activation journal names is
  * pinned too, and an unreadable journal skips the pass entirely.
  */
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { execCommand } from './ssh-relay-deploy-helpers'
 import { isUnconfirmedSshCommandTermination } from './ssh-relay-exec-command'
 import { ORCAD_INSTALL_MODEL } from './remote-install-model'
@@ -32,7 +32,7 @@ import { orcadWindowsHomeOpCommand } from './orcad-remote-windows-node'
 import { ORCAD_WINDOWS_LIVENESS_MANY_MARKER } from './orcad-windows-host-script'
 
 export type OrcadGcOptions = {
-  conn: SshConnection
+  conn: OrcadHostTransport
   host: RemoteHostPlatform
   remoteHome: string
   /** Absolute path of the version dir this client just used; never a candidate. */

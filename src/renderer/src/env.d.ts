@@ -77,6 +77,8 @@ declare module 'monaco-editor/esm/vs/base/common/lifecycle.js' {
 }
 
 declare global {
+  /** Full commit the build was made from, stamped by the renderer build. */
+  const ORCA_BUILD_COMMIT: string
   var MonacoEnvironment:
     | {
         getWorker(workerId: string, label: string): Worker

@@ -5,6 +5,10 @@
 export const SSH_HOST_NOT_SERVED_MESSAGE =
   'Remote connection dropped. Click Reconnect on the SSH target before retrying.'
 
+/** The wording SSH review-head fetches have always used. */
+export const SSH_GIT_RECONNECT_MESSAGE =
+  'SSH Git provider is not available. Reconnect to this target and try again.'
+
 /** The wording project registration on an SSH target has always used. */
 export function sshTargetNotConnectedMessage(connectionId: string): string {
   return `SSH connection "${connectionId}" not found or not connected`

@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NODE_RUNTIME_ASSETS, NODE_RUNTIME_PIN } from '../../shared/node-runtime-pin'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { execCommand } from './ssh-relay-deploy-helpers'
 import { uploadRelayDirectory } from './ssh-relay-install-transfers'
 import {
@@ -31,7 +31,7 @@ const asset = NODE_RUNTIME_ASSETS[target]
 const relayDir = 'C:/Users/u/.orca-remote/relay-0.1.0+abcdef012345'
 const runtimeDir = remoteNodeRuntimeDir(host, relayDir, target)
 const stageDir = `C:/Users/u/.orca-remote/runtimes/.stage-node-${asset.executableSha256}-0011`
-const conn = {} as SshConnection
+const conn: OrcadHostTransport = Object.create(null)
 
 function promoteScript(): string {
   return decodeRemotePowerShellScript(

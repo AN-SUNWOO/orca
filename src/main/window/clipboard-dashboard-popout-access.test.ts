@@ -39,8 +39,7 @@ vi.mock('electron', () => ({
 vi.mock('./dashboard-popout-window', () => ({ isDashboardPopoutRenderer }))
 vi.mock('./clipboard-remote-file-copy', () => ({
   cleanupExpiredRemoteClipboardFiles: vi.fn(async () => undefined),
-  scheduleLegacyRemoteClipboardFileCleanup: vi.fn(),
-  writeRemoteFileToClipboard: vi.fn()
+  scheduleLegacyRemoteClipboardFileCleanup: vi.fn()
 }))
 
 import {

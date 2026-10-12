@@ -40,7 +40,7 @@ import {
 } from './orcad-deployment-target'
 import { remoteNodeRuntimeDir } from './orcad-remote-node-runtime'
 import { fileSha256, materializeNodeRuntimeArchive } from './pinned-runtime-materializer'
-import type { SshConnection } from './ssh-connection'
+import type { RemoteInstallTransport } from './remote-install-transport'
 import { PINNED_RUNTIME_REFUSALS, type PinnedRuntimeRefusal } from './ssh-relay-runtime-self-test'
 import {
   recordPinnedRuntimeRefusal,
@@ -211,7 +211,7 @@ export function isPinnedRuntimeRefusal(reason: string): reason is PinnedRuntimeR
  * descending would launch a second daemon beside a running pinned one, stranding its sessions.
  */
 export async function resolvePinnedRelayTargetFacts(options: {
-  conn: SshConnection
+  conn: RemoteInstallTransport
   host: RemoteHostPlatform
   signal?: AbortSignal
 }): Promise<OrcadDeploymentTargetFacts> {
@@ -226,7 +226,7 @@ export async function resolvePinnedRelayTargetFacts(options: {
 }
 
 export async function planPinnedNodeRelay(options: {
-  conn: SshConnection
+  conn: RemoteInstallTransport
   host: RemoteHostPlatform
   baseVersion: string
   targetId: string

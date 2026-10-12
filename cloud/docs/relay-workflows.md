@@ -227,6 +227,14 @@ director's serving digest and C34's runtime digest with the one `image-digest` i
 first rolled to the director's image as a migration-only same-cap wave. Once its canary promoted
 it, it moved to the same-cap general list and the fleet pool list together, so the same-cap job now
 rolls it as a general cell and a rollback restores it general. It is a declared rehome source.
+
+C35 is a seventh Asia cell at the C34 shape in `asia-east2-a`, starting a third zone round. It is
+its own topology wave on image F (`sha256:41cba995…`), registers alone as migration-only, and then
+the director is configured with `cell-ids` set to C35. It has no promotion wave yet: the Asia admission
+script and workflow refuse `promote` for it. It is a declared rehome source, sits in the same-cap
+migration-only list, and stays out of the fleet pool list. Its pool of 16 leaves 3 connections
+under the usable Cloud SQL ceiling (`relay-cloud-sql-connection-budget.mjs`). Promoting it takes its
+own reviewed change adding a promotion wave and canary entry, as C34 did.
 Rollback returns
 Asia cells to migration-only; it does not destroy the network or use
 existing-only. The production topology dispatch remains unavailable until the

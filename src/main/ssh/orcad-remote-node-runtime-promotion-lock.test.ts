@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import {
   ensureRemoteOrcadNodeRuntime,
   NODE_RUNTIME_PROMOTE_TIMEOUT_MS,
@@ -17,7 +17,7 @@ vi.mock('./ssh-relay-deploy-helpers', () => ({ execCommand: vi.fn() }))
 vi.mock('./ssh-relay-install-transfers', () => ({ uploadRelayDirectory: vi.fn(async () => {}) }))
 
 // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: every remote call goes through the mocked execCommand.
-const conn = {} as SshConnection
+const conn = {} as OrcadHostTransport
 const host = getRemoteHostPlatform('linux-x64')
 const store = '/home/u/.orca-remote/runtimes'
 const lock = `${store}/${RUNTIME_STORE_LOCK_NAME}`

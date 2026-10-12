@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { REVIEW_HEAD_FETCH_TIMEOUT_MS } from '../../shared/review-head-tracking-ref'
-import {
-  getPullRequestPushTargetMock,
-  gitExecFileAsyncMock,
-  getSshGitProviderMock
-} from './worktrees-test-module-mocks'
-import { handlers, setupWorktreeHandlers, store } from './worktrees-test-harness'
+import { getPullRequestPushTargetMock, gitExecFileAsyncMock } from './worktrees-test-module-mocks'
+import { handlers, setupWorktreeHandlers } from './worktrees-test-harness'
 import { ORIGIN_HEAD_COMPONENT, ORIGIN_REMOTE_URL } from './worktrees-test-fixtures'
 import type { WorktreeRuntimeStub } from './worktrees-test-runtime-stub'
 
@@ -32,18 +28,11 @@ vi.mock('../github/client', async () =>
 vi.mock('../source-control/hosted-review', async () =>
   (await import('./worktrees-test-module-mocks')).hostedReviewModuleMock()
 )
-vi.mock('../providers/ssh-git-dispatch', async () =>
-  (await import('./worktrees-test-module-mocks')).sshGitDispatchModuleMock()
-)
 vi.mock('../providers/ssh-filesystem-dispatch', async () =>
   (await import('./worktrees-test-module-mocks')).sshFilesystemDispatchModuleMock()
 )
 vi.mock('./worktree-symlinks', async () =>
   (await import('./worktrees-test-module-mocks')).worktreeSymlinksModuleMock()
-)
-vi.mock('./ssh', async () => (await import('./worktrees-test-module-mocks')).sshModuleMock())
-vi.mock('../ssh/ssh-target-registry', async () =>
-  (await import('./worktrees-test-module-mocks')).sshTargetRegistryModuleMock()
 )
 vi.mock('../hooks', async () => (await import('./worktrees-test-module-mocks')).hooksModuleMock())
 vi.mock('../setup-runner-script-text', async (importOriginal) =>
@@ -96,142 +85,6 @@ describe('registerWorktreeHandlers', () => {
 
   beforeEach(() => {
     runtimeStub = setupWorktreeHandlers()
-  })
-
-  it('fetches the same-repo PR head via the SSH tracking-ref RPC, not git.exec', async () => {
-    const fetchRemoteTrackingRef = vi.fn(async () => {})
-    const exec = vi.fn(async (args: string[]) => {
-      if (args[0] === 'remote') {
-        return { stdout: 'origin\n', stderr: '' }
-      }
-      if (args[0] === 'rev-parse') {
-        return { stdout: 'def456\n', stderr: '' }
-      }
-      return { stdout: '', stderr: '' }
-    })
-    getSshGitProviderMock.mockReturnValue({ exec, fetchRemoteTrackingRef })
-    store.getRepo.mockReturnValue({
-      id: 'repo-1',
-      path: '/workspace/repo',
-      displayName: 'repo',
-      badgeColor: '#000',
-      addedAt: 0,
-      connectionId: 'conn-1',
-      worktreeBaseRef: null
-    })
-
-    const result = await handlers['worktrees:resolvePrBase'](null, {
-      repoId: 'repo-1',
-      prNumber: 42,
-      headRefName: 'feature/add-feature',
-      isCrossRepository: false
-    })
-
-    expect(fetchRemoteTrackingRef).toHaveBeenCalledWith(
-      '/workspace/repo',
-      'origin',
-      'feature/add-feature',
-      'refs/remotes/origin/feature/add-feature'
-    )
-    expect(exec).not.toHaveBeenCalledWith(expect.arrayContaining(['fetch']), expect.anything())
-    expect(result).toMatchObject({
-      baseBranch: 'def456',
-      headSha: 'def456',
-      branchNameOverride: 'feature/add-feature',
-      pushTarget: { remoteName: 'origin', branchName: 'feature/add-feature' }
-    })
-  })
-
-  it('fetches a fork PR head via the SSH pull-head RPC, not git.exec', async () => {
-    const durableLocalRef = `refs/orca/pull/${ORIGIN_HEAD_COMPONENT}/42`
-    const fetchGitHubPullRequestHead = vi.fn(async () => durableLocalRef)
-    const exec = vi.fn(async (args: string[]) => {
-      if (args[0] === 'remote') {
-        return { stdout: 'origin\n', stderr: '' }
-      }
-      if (args[0] === 'rev-parse' && args[2] === `${durableLocalRef}^{commit}`) {
-        return { stdout: 'fork-head-sha\n', stderr: '' }
-      }
-      throw new Error(`unexpected git call: ${args.join(' ')}`)
-    })
-    getSshGitProviderMock.mockReturnValue({
-      exec,
-      fetchGitHubPullRequestHead,
-      fetchRemoteTrackingRef: vi.fn()
-    })
-    store.getRepo.mockReturnValue({
-      id: 'repo-1',
-      path: '/workspace/repo',
-      displayName: 'repo',
-      badgeColor: '#000',
-      addedAt: 0,
-      connectionId: 'conn-1',
-      worktreeBaseRef: null
-    })
-
-    const result = await handlers['worktrees:resolvePrBase'](null, {
-      repoId: 'repo-1',
-      prNumber: 42,
-      headRefName: 'contributor/fix',
-      isCrossRepository: true
-    })
-
-    expect(fetchGitHubPullRequestHead).toHaveBeenCalledWith('/workspace/repo', 'origin', 42)
-    expect(exec).not.toHaveBeenCalledWith(expect.arrayContaining(['fetch']), expect.anything())
-    expect(result).toMatchObject({
-      baseBranch: 'fork-head-sha',
-      headSha: 'fork-head-sha',
-      branchNameOverride: 'contributor/fix'
-    })
-  })
-
-  it('fetches a fork PR head from origin, not the first remote, over SSH', async () => {
-    const durableLocalRef = `refs/orca/pull/${ORIGIN_HEAD_COMPONENT}/42`
-    const fetchGitHubPullRequestHead = vi.fn(async () => durableLocalRef)
-    // Why: `fork` is listed first, but fork PR heads live on the hosting remote (origin).
-    const exec = vi.fn(async (args: string[]) => {
-      if (args[0] === 'remote' && args[1] === 'get-url') {
-        return {
-          stdout: `git@github.com:org/${args[2] === 'origin' ? 'repo' : 'fork'}.git\n`,
-          stderr: ''
-        }
-      }
-      if (args[0] === 'remote') {
-        return { stdout: 'fork\norigin\n', stderr: '' }
-      }
-      if (args[0] === 'rev-parse' && args[2] === `${durableLocalRef}^{commit}`) {
-        return { stdout: 'fork-head-sha\n', stderr: '' }
-      }
-      throw new Error(`unexpected git call: ${args.join(' ')}`)
-    })
-    getSshGitProviderMock.mockReturnValue({
-      exec,
-      fetchGitHubPullRequestHead,
-      fetchRemoteTrackingRef: vi.fn()
-    })
-    store.getRepo.mockReturnValue({
-      id: 'repo-1',
-      path: '/workspace/repo',
-      displayName: 'repo',
-      badgeColor: '#000',
-      addedAt: 0,
-      connectionId: 'conn-1',
-      worktreeBaseRef: null
-    })
-
-    const result = await handlers['worktrees:resolvePrBase'](null, {
-      repoId: 'repo-1',
-      prNumber: 42,
-      headRefName: 'contributor/fix',
-      isCrossRepository: true
-    })
-
-    expect(fetchGitHubPullRequestHead).toHaveBeenCalledWith('/workspace/repo', 'origin', 42)
-    expect(result).toMatchObject({
-      baseBranch: 'fork-head-sha',
-      headSha: 'fork-head-sha',
-      branchNameOverride: 'contributor/fix'
-    })
   })
 
   it('resolves a fork PR base even when push-target discovery fails', async () => {

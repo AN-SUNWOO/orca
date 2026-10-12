@@ -6,7 +6,7 @@ vi.mock('./ssh-relay-deploy-helpers', () => ({
 }))
 
 import { execCommand } from './ssh-relay-deploy-helpers'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { getRemoteHostPlatform } from './ssh-remote-platform'
 import { orcadLivenessProbeCommand, type OrcadLaunchSpec } from './orcad-remote-launch'
 import {
@@ -57,9 +57,9 @@ const spec: OrcadLaunchSpec = {
   activationRoot: `${base}/.orcad-activation-transaction`
 }
 
-function windowsConn(): { conn: SshConnection; writes: [string, string][] } {
+function windowsConn(): { conn: OrcadHostTransport; writes: [string, string][] } {
   const writes: [string, string][] = []
-  const conn: SshConnection = Object.assign(Object.create(null), {
+  const conn: OrcadHostTransport = Object.assign(Object.create(null), {
     writeFile: async (path: string, contents: string) => {
       writes.push([path, contents])
     }

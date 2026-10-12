@@ -11,7 +11,7 @@ import { getLocalGitOptionsForRegisteredWorktree } from '../ipc/local-worktree-r
 import { listMarkdownDocuments } from '../ipc/markdown-documents'
 import type { Store } from '../persistence'
 import { runBundledRipgrepTextSearch } from '../ripgrep/bundled-ripgrep-text-search'
-import { parseWslPath } from '../wsl'
+import { resolveBundledRipgrepWslRouting } from '../ripgrep/bundled-ripgrep-wsl-routing'
 import type { IFilesystemProvider } from './filesystem-provider-contract'
 
 export type LocalFilesystemProviderOptions = {
@@ -134,17 +134,16 @@ export function createLocalFilesystemProvider(
         signal
       )
       throwIfSignalAborted(signal)
-      const { wslDistro } = getLocalGitOptionsForRegisteredWorktree(
-        store,
-        searchOptions.rootPath,
-        rootPath
+      const { wslDistro, wslDistroForOutput } = resolveBundledRipgrepWslRouting(
+        rootPath,
+        getLocalGitOptionsForRegisteredWorktree(store, searchOptions.rootPath, rootPath).wslDistro
       )
       return runBundledRipgrepTextSearch({
         options: searchOptions,
         rootPath,
         resultRootPath: rootPath,
         wslDistro,
-        wslDistroForOutput: parseWslPath(rootPath)?.distro ?? wslDistro,
+        wslDistroForOutput,
         signal,
         // Why: request abort owns cancellation; only the renderer IPC search keeps a by-id registry.
         onSpawn: () => () => undefined

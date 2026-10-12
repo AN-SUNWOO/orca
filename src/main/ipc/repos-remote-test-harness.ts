@@ -28,9 +28,9 @@ export type ReposIpcMocks = {
     | 'getSshTarget'
     | 'getSshTargets',
     ReposIpcSpy
-  > & { updateRepo: Mock<(repoId: string, updates: Record<string, unknown>) => unknown> }
-  mockGitProvider: { exec: ReposGitArgvSpy }
-  mockFilesystemProvider: Record<'readDir', ReposIpcSpy>
+  > & {
+    updateRepo: Mock<(repoId: string, updates: Record<string, unknown>) => unknown>
+  }
   gitSpawnMock: ReposIpcSpy
   gitSpawnAfterWindowsEnvironmentReadyMock: ReposIpcSpy
   gitExecFileAsyncMock: ReposGitArgvSpy
@@ -58,13 +58,6 @@ export function createReposIpcMocks(): ReposIpcMocks {
       moveProjectToGroup: vi.fn(),
       getSshTarget: vi.fn(),
       getSshTargets: vi.fn().mockReturnValue([])
-    },
-    // Why: SSH targets are not served; suites assert these stand-ins are never reached.
-    mockGitProvider: {
-      exec: vi.fn().mockResolvedValue({ stdout: '', stderr: '' })
-    },
-    mockFilesystemProvider: {
-      readDir: vi.fn().mockResolvedValue([])
     },
     gitSpawnMock: vi.fn(),
     gitSpawnAfterWindowsEnvironmentReadyMock: vi.fn(),
@@ -137,29 +130,6 @@ export function worktreeRootPreparationModuleMock(mocks: ReposIpcMocks): Record<
   return { prepareLocalWorktreeRootForRepo: mocks.prepareLocalWorktreeRootForRepoMock }
 }
 
-export function sshGitDispatchModuleMock(mocks: ReposIpcMocks): Record<string, unknown> {
-  return {
-    getSshGitProviderGeneration: () => 0,
-    getSshGitProvider: vi.fn().mockImplementation((id: string) => {
-      if (id === 'conn-1') {
-        return mocks.mockGitProvider
-      }
-      return undefined
-    })
-  }
-}
-
-export function sshFilesystemDispatchModuleMock(mocks: ReposIpcMocks): Record<string, unknown> {
-  return {
-    getSshFilesystemProvider: vi.fn().mockImplementation((id: string) => {
-      if (id === 'conn-1') {
-        return mocks.mockFilesystemProvider
-      }
-      return undefined
-    })
-  }
-}
-
 export type RepoHandlerHarness = {
   handlers: Map<string, (_event: unknown, args: unknown) => unknown>
   mockWindow: { isDestroyed: () => boolean; webContents: { send: ReposIpcSpy } }
@@ -201,8 +171,6 @@ export function resetProjectGroupMocks(
   mocks.mockStore.updateProjectHostSetup.mockReset()
   mocks.mockStore.getRepos.mockReset()
   mocks.mockStore.getRepos.mockReturnValue([])
-  mocks.mockFilesystemProvider.readDir.mockReset()
-  mocks.mockFilesystemProvider.readDir.mockResolvedValue([])
   mocks.listWorktreeGraphMock.mockReset()
   mocks.listWorktreeGraphMock.mockResolvedValue([])
   vi.mocked(gitRepo.isGitRepo).mockReset()

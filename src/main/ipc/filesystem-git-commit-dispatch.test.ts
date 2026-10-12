@@ -6,7 +6,6 @@ import {
   store,
   WORKTREE_FEATURE_PATH,
   commitChangesMock,
-  getSshGitProviderMock,
   resolveCommitMessageSettingsMock,
   generatePullRequestFieldsFromContextMock,
   getPullRequestDraftContextMock,
@@ -26,10 +25,6 @@ vi.mock(
   async () => (await import('./filesystem-test-harness')).crashBreadcrumbMock
 )
 vi.mock(
-  '../local-downloaded-folder-promotion',
-  async () => (await import('./filesystem-test-harness')).folderPromotionMock
-)
-vi.mock(
   '../git/status',
   async () => (await import('./filesystem-test-harness')).gitStatusModuleMock
 )
@@ -41,10 +36,6 @@ vi.mock('../git/worktree', async () => (await import('./filesystem-test-harness'
 vi.mock(
   '../providers/ssh-filesystem-dispatch',
   async () => (await import('./filesystem-test-harness')).sshFilesystemDispatchMock
-)
-vi.mock(
-  '../providers/ssh-git-dispatch',
-  async () => (await import('./filesystem-test-harness')).sshGitDispatchMock
 )
 vi.mock(
   '../text-generation/commit-message-text-generation',
@@ -94,7 +85,6 @@ describe('registerFilesystemHandlers', () => {
 
   it('refuses ssh git:commit as not served instead of running local commitChanges', async () => {
     const sshCommitMock = vi.fn().mockResolvedValue({ success: true })
-    getSshGitProviderMock.mockReturnValue({ commit: sshCommitMock })
 
     registerFilesystemHandlers(store as never)
 
@@ -114,7 +104,6 @@ describe('registerFilesystemHandlers', () => {
 
   it('rejects git:remoteCommitUrl with a short hash before SSH dispatch', async () => {
     const sshRemoteCommitUrlMock = vi.fn()
-    getSshGitProviderMock.mockReturnValue({ getRemoteCommitUrl: sshRemoteCommitUrlMock })
 
     registerFilesystemHandlers(store as never)
 
@@ -144,7 +133,6 @@ describe('registerFilesystemHandlers', () => {
 
   it('rejects git:commit with whitespace-only message before SSH dispatch', async () => {
     const sshCommitMock = vi.fn().mockResolvedValue({ success: true })
-    getSshGitProviderMock.mockReturnValue({ commit: sshCommitMock })
 
     registerFilesystemHandlers(store as never)
 

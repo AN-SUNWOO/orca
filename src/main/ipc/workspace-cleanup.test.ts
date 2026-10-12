@@ -16,7 +16,6 @@ const {
   getStatusMock,
   gitExecFileAsyncMock,
   getLocalProjectWorktreeGitOptionsMock,
-  getSshGitProviderMock,
   listRegisteredPtysMock
 } = vi.hoisted(() => ({
   lstatMock: vi.fn(),
@@ -25,7 +24,6 @@ const {
   getStatusMock: vi.fn(),
   gitExecFileAsyncMock: vi.fn(),
   getLocalProjectWorktreeGitOptionsMock: vi.fn(),
-  getSshGitProviderMock: vi.fn(),
   listRegisteredPtysMock: vi.fn()
 }))
 
@@ -52,11 +50,6 @@ vi.mock('../git/status', () => ({
 
 vi.mock('../git/runner', () => ({
   gitExecFileAsync: gitExecFileAsyncMock
-}))
-
-vi.mock('../providers/ssh-git-dispatch', () => ({
-  getSshGitProvider: getSshGitProviderMock,
-  SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE: 'SSH git provider unavailable'
 }))
 
 vi.mock('../project-runtime-git-options', () => ({
@@ -163,7 +156,6 @@ describe('workspace cleanup scan', () => {
     getStatusMock.mockReset()
     gitExecFileAsyncMock.mockReset()
     getLocalProjectWorktreeGitOptionsMock.mockReset().mockReturnValue({})
-    getSshGitProviderMock.mockReset()
     listRegisteredPtysMock.mockReset()
     listRegisteredPtysMock.mockReturnValue([])
     lstatMock.mockResolvedValue({ mtimeMs: 0 })
@@ -185,7 +177,6 @@ describe('workspace cleanup scan', () => {
       upstreamStatus: { hasUpstream: true, ahead: 0, behind: 0 }
     } satisfies GitStatusResult)
     gitExecFileAsyncMock.mockResolvedValue({ stdout: '0\n', stderr: '' })
-    getSshGitProviderMock.mockReturnValue(undefined)
   })
 
   afterEach(() => {
@@ -425,67 +416,6 @@ describe('workspace cleanup scan', () => {
     expect(lstatMock).toHaveBeenCalledTimes(2)
     expect(lstatMock).toHaveBeenCalledWith('/repo-feature-b')
     expect(lstatMock).toHaveBeenCalledWith(path.join('/repo-feature-b', '.git'))
-  })
-
-  it('scans connected remote workspaces through the SSH git provider', async () => {
-    const provider = {
-      listWorktrees: vi.fn().mockResolvedValue([
-        {
-          path: '/remote/repo-feature',
-          head: 'abc123',
-          branch: 'refs/heads/feature',
-          isBare: false,
-          isMainWorktree: false
-        }
-      ]),
-      getStatus: vi.fn().mockResolvedValue({
-        entries: [],
-        conflictOperation: 'unknown',
-        upstreamStatus: { hasUpstream: true, ahead: 0, behind: 0 }
-      } satisfies GitStatusResult)
-    }
-    getSshGitProviderMock.mockReturnValue(provider)
-
-    const result = await scanWorkspaceCleanup(
-      makeStore({
-        repos: [{ ...REPO, connectionId: 'ssh-1' }]
-      })
-    )
-
-    expect(provider.listWorktrees).toHaveBeenCalledWith('/repo', {
-      signal: expect.any(AbortSignal)
-    })
-    expect(provider.getStatus).toHaveBeenCalledWith('/remote/repo-feature', {
-      includeLineStats: false,
-      signal: expect.any(AbortSignal)
-    })
-    expect(result.errors).toEqual([])
-    expect(result.candidates[0]).toMatchObject({
-      connectionId: 'ssh-1',
-      tier: 'ready',
-      selectedByDefault: true,
-      reasons: ['idle-clean']
-    })
-  })
-
-  it('skips connected remote workspaces that fail during broad scans', async () => {
-    const provider = {
-      listWorktrees: vi.fn().mockRejectedValue(new Error('ssh timeout')),
-      getStatus: vi.fn()
-    }
-    getSshGitProviderMock.mockReturnValue(provider)
-
-    const result = await scanWorkspaceCleanup(
-      makeStore({
-        repos: [{ ...REPO, connectionId: 'ssh-1' }]
-      })
-    )
-
-    expect(provider.listWorktrees).toHaveBeenCalledWith('/repo', {
-      signal: expect.any(AbortSignal)
-    })
-    expect(result.errors).toEqual([])
-    expect(result.candidates).toEqual([])
   })
 
   it('filters out recent workspaces before running git status', async () => {

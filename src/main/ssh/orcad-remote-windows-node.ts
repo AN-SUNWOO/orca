@@ -18,7 +18,7 @@ import {
 } from '../../shared/orcad-artifacts'
 import { pinnedNodeRuntimeAsset, type NodeRuntimeTarget } from '../../shared/node-runtime-pin'
 import { randomUUID } from 'node:crypto'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { execCommand, isUnconfirmedSshCommandTermination } from './ssh-relay-deploy-helpers'
 import { RELAY_REMOTE_DIR } from './relay-protocol'
 import { joinRemotePath, remoteDirname, type RemoteHostPlatform } from './ssh-remote-platform'
@@ -142,7 +142,7 @@ export function orcadWindowsHomeOpCommand(
 }
 
 // Content-addressed paths this connection already saw on the host.
-const stagedHostScripts = new WeakMap<SshConnection, Set<string>>()
+const stagedHostScripts = new WeakMap<OrcadHostTransport, Set<string>>()
 
 /**
  * Stages the host script before any host op. The name is content-addressed, so it is written
@@ -150,7 +150,7 @@ const stagedHostScripts = new WeakMap<SshConnection, Set<string>>()
  * a truncated script.
  */
 export async function installOrcadWindowsHostScript(
-  target: { conn: SshConnection; host: RemoteHostPlatform; signal?: AbortSignal },
+  target: { conn: OrcadHostTransport; host: RemoteHostPlatform; signal?: AbortSignal },
   baseDir: string
 ): Promise<void> {
   const scriptPath = orcadWindowsHostScriptPath(target.host, baseDir)

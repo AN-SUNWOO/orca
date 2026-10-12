@@ -313,13 +313,15 @@ export class AgentSessionRecordStore {
   recordOperationOutcome = (
     args: Parameters<typeof settleAgentSessionOperationInto>[1],
     options?: JournalWriteOptions
-  ): Promise<void> =>
-    this.transact((draft) => settleAgentSessionOperationInto(draft, args), options)
+  ) => this.transact((draft) => settleAgentSessionOperationInto(draft, args), options)
 
   /** That settlement, or an accepted row inserted if absent, committed by the journal write that
    *  makes it true. It changes only the ledger, so no record listener is owed. */
   operationOutcomeReceipt = (args: Parameters<typeof agentSessionOperationOutcomeReceipt>[1]) =>
     agentSessionOperationOutcomeReceipt(this.transactions, args)
+
+  commitOperationReceipt = (...args: Parameters<AgentSessionStoreTransactions['commitReceipt']>) =>
+    this.transactions.commitReceipt(...args)
 
   readCommandReceipt = (...args: Parameters<AgentSessionStoreTransactions['readCommandReceipt']>) =>
     this.transactions.readCommandReceipt(...args)

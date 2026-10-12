@@ -15,7 +15,7 @@ import {
 import { OrcadStdioBridgeBase64Encoder, OrcadStdioBridgeDecoder } from './orcad-stdio-bridge-stream'
 import { spawnLocalBridgeChannel, startEchoServer } from './orcad-stdio-bridge-test-channel'
 import { ORCAD_WINDOWS_HOST_SCRIPT } from './orcad-windows-host-script'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 
 const POSIX = process.platform !== 'win32'
 let echo: { server: Server; port: number }
@@ -67,9 +67,9 @@ function posixHome(withRuntime: boolean): string {
   return home
 }
 
-function connectionRunning(channel: () => ClientChannel): SshConnection {
+function connectionRunning(channel: () => ClientChannel): OrcadHostTransport {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the check calls only exec.
-  return { exec: async () => channel() } as unknown as SshConnection
+  return { exec: async () => channel() } as unknown as OrcadHostTransport
 }
 
 const posixBridge = (port: number): OrcadStdioBridge => ({
@@ -227,7 +227,7 @@ describe('checking a bridge before the tunnel relies on it', () => {
       exec: async () => {
         throw new Error('open failed')
       }
-    } as unknown as SshConnection
+    } as unknown as OrcadHostTransport
     await expect(checkOrcadStdioBridge(conn, posixBridge(1))).resolves.toBe('unverifiable')
   })
 })

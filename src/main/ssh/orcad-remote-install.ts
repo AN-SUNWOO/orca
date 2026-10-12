@@ -6,7 +6,7 @@ import { ensureRemoteOrcadNodeRuntime } from './orcad-remote-node-runtime'
 import { execCommand } from './ssh-relay-deploy-helpers'
 import { isUnconfirmedSshCommandTermination } from './ssh-relay-exec-command'
 import { shellEscape } from './ssh-connection-utils'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { joinRemotePath, type RemoteHostPlatform } from './ssh-remote-platform'
 import { ORCAD_INSTALL_MODEL } from './remote-install-model'
 import { acquireInstallLock } from './ssh-relay-install-lock'
@@ -24,7 +24,7 @@ import {
 /** Install the bytes under `orcad-<version>/`, using the relay's install transaction. */
 export async function installOrcadBundle(
   options: {
-    conn: SshConnection
+    conn: OrcadHostTransport
     host: RemoteHostPlatform
     localOrcadDir: string
     target: NodeRuntimeTarget

@@ -60,25 +60,6 @@ describe('ServeReadinessPublisher', () => {
     )
   })
 
-  it('prints a verified phone link for mobile pairing and none for runtime pairing', () => {
-    const mobile: ServeReadiness = {
-      ...ready,
-      pairing: {
-        available: true,
-        url: 'orca://pair?code=secret',
-        endpoint: 'wss://orca.example.test/runtime',
-        deviceId: 'device-1',
-        webClientUrl: null,
-        scope: 'mobile',
-        qr: null
-      }
-    }
-    const human = renderServeReadiness(mobile, { mode: 'human' })
-    expect(human).toContain('Pairing URL: orca://pair?code=secret')
-    expect(human).toContain('Phone pairing link: https://www.onorca.dev/pair#secret')
-    expect(renderServeReadiness(ready, { mode: 'human' })).not.toContain('Phone pairing link')
-  })
-
   it('publishes a versioned JSON contract with explicit endpoints and pairing availability', () => {
     expect(JSON.parse(renderServeReadiness(ready, { mode: 'json' }))).toEqual({
       type: 'orca_server_ready',

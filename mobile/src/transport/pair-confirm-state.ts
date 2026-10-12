@@ -1,4 +1,3 @@
-import { deriveHostFingerprint } from '../notifications/push-host-fingerprint'
 import { parsePairingCode } from './pairing'
 import type { PairingOffer } from './types'
 
@@ -17,12 +16,4 @@ export function resolvePairConfirmRouteState(code: string | undefined): PairConf
   }
 
   return { kind: 'ready', offer, errorMessage: '' }
-}
-
-/** What the user checks against the desktop before pairing; a verified link proves the app, not the host. */
-export function describePairingHost(offer: PairingOffer): {
-  endpoint: string
-  keyFingerprint: string | null
-} {
-  return { endpoint: offer.endpoint, keyFingerprint: deriveHostFingerprint(offer.publicKeyB64) }
 }

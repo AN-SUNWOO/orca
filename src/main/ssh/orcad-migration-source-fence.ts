@@ -83,7 +83,6 @@ export async function fenceOrcadMigrationSource(args: {
   destinationName: string
   /** Taken by the caller while the relay could still answer; see orcad-migration-terminal-gate. */
   terminalProof: OrcadMigrationTerminalVerdict
-  hasDirectSshAuthority: (targetId: string) => boolean
   now?: () => Date
   signal?: AbortSignal
 }): Promise<OrcadMigrationFenceResult> {
@@ -110,9 +109,6 @@ export async function fenceOrcadMigrationSource(args: {
       'orcad_migration_terminals',
       args.terminalProof.reason
     )
-  }
-  if (args.hasDirectSshAuthority(target.id)) {
-    return refuse('live', 'orcad_migration_direct_ssh_connected', 'Disconnect this SSH host first.')
   }
   const preflight = preflightOrcadMigrationExport(args.store, target.id)
   if (!preflight.claimable) {

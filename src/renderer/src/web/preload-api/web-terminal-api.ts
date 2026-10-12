@@ -45,6 +45,9 @@ export function createPtyApi(): NonNullable<Partial<PreloadApi>['pty']> {
     disableCodexSharedServerAutoStart: () => Promise.resolve(false),
     stopCodexSharedServer: () => Promise.resolve(false),
     openedBeforeClaudeAccounts: () => Promise.resolve(false),
+    // Why: the paired host owns its daemons; this client has none to stop.
+    readNewerDaemonHeldScreen: () => Promise.resolve(null),
+    reopenNewerDaemonTerminals: () => Promise.resolve({ reopened: false }),
     getCwd: () => Promise.resolve('~'),
     getSize: () => Promise.resolve(null),
     listSessions: () => Promise.resolve([]),

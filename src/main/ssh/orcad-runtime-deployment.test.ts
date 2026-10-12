@@ -26,7 +26,6 @@ const mocks = vi.hoisted(() => {
     state,
     events: new Array<string>(),
     connect: vi.fn(),
-    hasDirectAuthority: vi.fn(),
     resolveContext: vi.fn(),
     recover: vi.fn(),
     readRecord: vi.fn(),
@@ -41,8 +40,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('./ssh-target-registry', () => ({
   getSshConnectionManager: () => ({ connect: mocks.connect }),
-  getSshTargetRegistryStore: () => mocks.state.store,
-  hasRegisteredDirectSshAuthority: mocks.hasDirectAuthority
+  getSshTargetRegistryStore: () => mocks.state.store
 }))
 vi.mock('./orcad-remote-context', () => ({ resolveOrcadRemoteContext: mocks.resolveContext }))
 vi.mock('./orcad-activation-recovery', () => ({ recoverInterruptedOrcadActivation: mocks.recover }))
@@ -133,7 +131,6 @@ beforeEach(() => {
   userDataPath = mkdtempSync(join(tmpdir(), 'orcad-deployment-test-'))
   target = { id: 'ssh-1', label: 'Builder', host: 'builder', port: 22, username: 'dev' }
   setupStore()
-  mocks.hasDirectAuthority.mockReturnValue(false)
   mocks.connect.mockImplementation(async () => {
     mocks.events.push('connect')
     return {}
@@ -312,9 +309,7 @@ describe('createManagedOrcadEnvironment', () => {
     expect(mocks.connect).not.toHaveBeenCalled()
   })
 
-  it('refuses a connected direct SSH session and a taken server name', async () => {
-    mocks.hasDirectAuthority.mockReturnValueOnce(true)
-    await expect(deploy()).rejects.toThrow('Disconnect this SSH host')
+  it('refuses a taken server name', async () => {
     await deploy()
     target = { ...target, id: 'ssh-2', orcadFence: undefined }
     await expect(

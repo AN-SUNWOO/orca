@@ -21,23 +21,14 @@ vi.mock('./registered-worktree-roots-cache', () =>
 vi.mock('../worktree-root-preparation', () =>
   moduleMocks.worktreeRootPreparationModuleMock(reposMocks)
 )
-vi.mock('../providers/ssh-git-dispatch', () => moduleMocks.sshGitDispatchModuleMock(reposMocks))
-vi.mock('../providers/ssh-filesystem-dispatch', () =>
-  moduleMocks.sshFilesystemDispatchModuleMock(reposMocks)
-)
 
 import { registerRepoHandlers } from './repos'
 import { clearGitCapabilityStateForTests } from '../git/git-capability-state'
 import { resetSshProviderAuthorities } from '../ssh/ssh-provider-authority'
 import { createRepoHandlerHarness } from './repos-remote-test-harness'
 
-const {
-  handleMock,
-  mockStore,
-  mockGitProvider,
-  gitExecFileAsyncMock,
-  prepareLocalWorktreeRootForRepoMock
-} = reposMocks
+const { handleMock, mockStore, gitExecFileAsyncMock, prepareLocalWorktreeRootForRepoMock } =
+  reposMocks
 
 beforeEach(() => {
   clearGitCapabilityStateForTests()
@@ -50,7 +41,6 @@ describe('repos:getGitUsername', () => {
   beforeEach(() => {
     captureHandlers(handleMock)
     mockStore.getRepo.mockReset()
-    mockGitProvider.exec.mockReset()
     gitExecFileAsyncMock.mockReset()
     mockWindow.webContents.send.mockReset()
     prepareLocalWorktreeRootForRepoMock.mockReset().mockResolvedValue(undefined)
@@ -72,7 +62,6 @@ describe('repos:getGitUsername', () => {
     const username = await handlers.get('repos:getGitUsername')!(null, { repoId: 'repo-ssh' })
 
     expect(username).toBe('')
-    expect(mockGitProvider.exec).not.toHaveBeenCalled()
     expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
   })
 })

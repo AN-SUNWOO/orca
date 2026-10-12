@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ExecutionHostNotDispatchableError } from '../providers/execution-host-provider-dispatch'
-import { SSH_FILESYSTEM_PROVIDER_UNAVAILABLE_MESSAGE } from '../providers/ssh-filesystem-dispatch'
+import { SSH_HOST_NOT_SERVED_MESSAGE } from '../providers/ssh-host-not-served-error'
 import { RuntimeFileSearch, type RuntimeFileSearchHost } from './runtime-file-search'
 
 function createSearch(executionHostId: 'local' | 'ssh:unavailable' | 'runtime:other' = 'local') {
@@ -62,7 +62,7 @@ describe('RuntimeFileSearch', () => {
   it('preserves distinct search and listing results for unavailable SSH hosts', async () => {
     const { search, requireStore } = createSearch('ssh:unavailable')
     await expect(search.searchRuntimeFiles('folder-1', { query: 'needle' })).rejects.toThrow(
-      SSH_FILESYSTEM_PROVIDER_UNAVAILABLE_MESSAGE
+      SSH_HOST_NOT_SERVED_MESSAGE
     )
     await expect(search.listRuntimeFiles('folder-1')).resolves.toEqual([])
     await expect(search.searchQuickOpenFilePaths('folder-1', 'needle', 10)).resolves.toEqual({

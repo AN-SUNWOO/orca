@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto'
 import { open, writeFile } from 'node:fs/promises'
 import { SshHostNotServedError } from '../../providers/ssh-host-not-served-error'
 import { sanitizeLocalDownloadFilename } from '../../local-download-filename'
-import { registerFilesystemDownloadFolderHandlers } from '../filesystem-download-folder'
 import { abortWhenRendererGone } from '../renderer-lifetime-abort'
 import type { FilesystemHandlerContext } from './filesystem-handler-context'
 import {
@@ -36,7 +35,14 @@ export function registerFilesystemDownloadHandlers(context: FilesystemHandlerCon
     }
   )
 
-  registerFilesystemDownloadFolderHandlers()
+  ipcMain.handle(
+    'fs:downloadFolder',
+    async (_event, args: { dirPath?: string; connectionId?: string }): Promise<never> => {
+      validateRequiredString(args?.dirPath, 'dirPath')
+      const connectionId = validateRequiredString(args?.connectionId, 'connectionId')
+      throw new SshHostNotServedError(connectionId)
+    }
+  )
 
   ipcMain.handle(
     'fs:saveDownloadedFile',

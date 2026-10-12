@@ -3,7 +3,6 @@ import {
   encodePairingOffer,
   decodePairingOffer,
   parsePairingCode,
-  toVerifiedPairingLink,
   type PairingOffer
 } from './pairing'
 
@@ -130,17 +129,6 @@ describe('parsePairingCode', () => {
   it('returns null for garbage input', () => {
     expect(parsePairingCode('not a pairing code')).toBeNull()
     expect(parsePairingCode('https://example.com')).toBeNull()
-  })
-
-  it('parses the verified https pairing link a phone receives', () => {
-    const link = toVerifiedPairingLink(encodePairingOffer(offer))
-    expect(link).toMatch(/^https:\/\/www\.onorca\.dev\/pair#/)
-    expect(parsePairingCode(link!)).toEqual(offer)
-    expect(decodePairingOffer(link!)).toEqual(offer)
-  })
-
-  it('returns no verified link for a URL without a pairing code', () => {
-    expect(toVerifiedPairingLink('orca://pair')).toBeNull()
   })
 
   it('returns null for valid base64 of unrelated JSON', () => {

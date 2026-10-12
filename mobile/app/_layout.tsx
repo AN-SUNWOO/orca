@@ -4,10 +4,11 @@ import { readNativeNotificationData } from '../src/notifications/native-notifica
 import { setNotificationViewingWorkspace } from '../src/notifications/notification-viewing-policy'
 import { useCallback, useEffect, useRef } from 'react'
 import { View, StyleSheet } from 'react-native'
-import { Stack, useGlobalSearchParams, usePathname } from 'expo-router'
+import { Stack, useRouter, useGlobalSearchParams, usePathname } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
+import * as Linking from 'expo-linking'
 import { colors } from '../src/theme/mobile-theme'
 import { OrcaLogo } from '../src/components/OrcaLogo'
 import { RpcClientProvider } from '../src/transport/client-context'
@@ -21,6 +22,7 @@ import {
 import { startPushTokenSync } from '../src/notifications/push-registration'
 import { ensureDesktopNotificationChannel } from '../src/notifications/desktop-notification-channel'
 import { loadHostCatalog } from '../src/transport/host-store'
+import { extractPairingCodeFromUrl } from '../src/transport/pairing'
 import { recoverMobileRelayPairing } from '../src/transport/mobile-relay-pairing-recovery'
 import { appUpdateChecker } from '../src/app-update/app-update-runtime'
 
@@ -41,6 +43,7 @@ Notifications.setNotificationHandler({
 })
 
 export default function RootLayout() {
+  const router = useRouter()
   const pathname = usePathname()
   const { hostId, worktreeId } = useGlobalSearchParams<{ hostId?: string; worktreeId?: string }>()
   useEffect(() => {
@@ -66,6 +69,32 @@ export default function RootLayout() {
   // Cold start, then foreground and timer checks on the desktop updater's cadence.
   useEffect(() => appUpdateChecker.start(), [])
   useEffect(() => startAndroidForegroundPushPresentation(), [])
+
+  // Why: route `orca://pair?...` deep links to the confirm screen so
+  // the same pairing flow runs whether the link arrived via QR scan,
+  // paste, AirDrop, Messages, or `xcrun simctl openurl`. getInitialURL
+  // covers cold-start (link tapped while app was closed); the listener
+  // covers warm-start (link tapped while app is in memory).
+  useEffect(() => {
+    function handleUrl(url: string) {
+      const code = extractPairingCodeFromUrl(url)
+      if (code) {
+        // Why: Android camera launches can leave Expo Router's unmatched
+        // `orca://pair` route underneath this screen; replacing keeps cancel
+        // and edge-back from revealing the router error page.
+        router.replace({ pathname: '/pair-confirm', params: { code } })
+      }
+    }
+
+    void Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleUrl(url)
+      }
+    })
+
+    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url))
+    return () => sub.remove()
+  }, [router])
 
   // ─── Notification tap routing ───
   // Why: iOS delivers local notification taps through expo-notifications,

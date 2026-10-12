@@ -14,7 +14,7 @@ import { detectRemoteHostPlatform } from './ssh-remote-platform-detection'
 import { prepareWindowsOrcadHost } from './orcad-windows-host-preparation'
 import { resolveOrcadRemoteContext } from './orcad-remote-context'
 import { getRemoteHostPlatform } from './ssh-remote-platform'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import {
   readBoundedOrcadRemoteRecord,
   writeAtomicOrcadRemoteRecord
@@ -35,7 +35,7 @@ import { parseOrcadReadinessOutput } from './orcad-remote-launch'
 const mockExec = vi.mocked(execCommand)
 const linux = getRemoteHostPlatform('linux-x64')
 const windows = getRemoteHostPlatform('win32-x64')
-const conn: SshConnection = Object.create(null)
+const conn: OrcadHostTransport = Object.create(null)
 const target = { conn, host: linux }
 const BUILD_HASH = 'abc123def4567890'
 

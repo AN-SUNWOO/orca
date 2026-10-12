@@ -5,7 +5,7 @@
 // host definitively refuses SFTP, POSIX hosts fall back to exec-channel stdin.
 
 import type { SFTPWrapper } from 'ssh2'
-import type { SshConnection } from './ssh-connection'
+import type { RemoteInstallTransport } from './remote-install-transport'
 import { writeStringViaSftp } from './sftp-upload'
 import { uploadDirectory } from './ssh-relay-deploy-helpers'
 import { raceSftpFileTransferWithAbort } from './ssh-file-transfer-abort'
@@ -32,7 +32,7 @@ export type RelayTransferOptions = {
 }
 
 export async function uploadRelayDirectory(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   localRelayDir: string,
   shellRemoteDir: string,
   hostPlatform: RemoteHostPlatform,
@@ -52,7 +52,7 @@ export async function uploadRelayDirectory(
 }
 
 async function uploadRelayDirectoryTransfer(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   localRelayDir: string,
   shellRemoteDir: string,
   hostPlatform: RemoteHostPlatform,
@@ -79,7 +79,7 @@ async function uploadRelayDirectoryTransfer(
 }
 
 export async function writeRelayFile(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   hostPlatform: RemoteHostPlatform,
   shellRemotePath: string,
   contents: string,
@@ -96,7 +96,7 @@ export async function writeRelayFile(
 }
 
 async function writeRelayFileTransfer(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   hostPlatform: RemoteHostPlatform,
   shellRemotePath: string,
   contents: string,
@@ -121,7 +121,7 @@ async function writeRelayFileTransfer(
 }
 
 async function runSftpFallbackTransfer(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   options: RelayTransferOptions | undefined,
   transfer: (sftp: SFTPWrapper) => Promise<void>
 ): Promise<void> {
@@ -179,20 +179,23 @@ export function classifySftpFailureForExecFallback(error: unknown): SftpExecFall
 }
 
 /** Exec stdin needs a POSIX shell; the system-SSH transport never used SFTP for these writes. */
-function canFallBackToExecStdin(conn: SshConnection, hostPlatform: RemoteHostPlatform): boolean {
+function canFallBackToExecStdin(
+  conn: RemoteInstallTransport,
+  hostPlatform: RemoteHostPlatform
+): boolean {
   return !isWindowsRemoteHost(hostPlatform) && conn.usesSystemSshTransport?.() !== true
 }
 
 // Why per connect generation: a refused subsystem is a host verdict, but a reconnect may reach
 // a different host behind the same alias.
-const sftpUnavailableGeneration = new WeakMap<SshConnection, number>()
+const sftpUnavailableGeneration = new WeakMap<RemoteInstallTransport, number>()
 
-function connectGeneration(conn: SshConnection): number {
+function connectGeneration(conn: RemoteInstallTransport): number {
   return conn.getConnectGeneration?.() ?? 0
 }
 
 async function transferWithExecStdinFallback(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   hostPlatform: RemoteHostPlatform,
   remotePath: string,
   signal: AbortSignal | undefined,

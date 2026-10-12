@@ -1,4 +1,3 @@
-import { extractVerifiedPairingLinkCode } from '../../../src/shared/verified-pairing-link'
 import { PairingOfferSchema, type PairingOffer } from './types'
 
 // Why: this file mirrors src/shared/pairing.ts (which is covered by CI
@@ -18,14 +17,10 @@ export function decodePairingUrl(url: string): PairingOffer | null {
   }
 }
 
-// Why: in-app QR scan and paste never pass through the OS link dispatcher, so
-// they keep accepting the custom scheme that old desktops emit. OS-delivered
-// links go through incoming-pairing-link.ts, which refuses custom-scheme codes.
+// Why: system camera apps hand us the raw custom-scheme URL. Keeping
+// extraction here makes QR scan, paste, and external deep-link flows
+// accept the same URL shapes.
 export function extractPairingCodeFromUrl(url: string): string | null {
-  const verifiedCode = extractVerifiedPairingLinkCode(url)
-  if (verifiedCode) {
-    return verifiedCode
-  }
   const trimmed = url.trim()
   const match = /^orca:\/\/([^/?#]*)([^?#]*)?/i.exec(trimmed)
   if (!match) {
@@ -54,8 +49,8 @@ export function extractPairingCodeFromUrl(url: string): string | null {
   return null
 }
 
-// Why: accept an `orca://pair?...` URL, a verified https link, or the bare
-// base64 string so the paste-pair flow can take whichever the user actually
+// Why: accept either an `orca://pair?...` URL or the bare base64
+// string so the paste-pair flow can take whichever the user actually
 // copied from desktop.
 export function parsePairingCode(input: string): PairingOffer | null {
   const trimmed = input.trim()
@@ -63,7 +58,7 @@ export function parsePairingCode(input: string): PairingOffer | null {
     return null
   }
   try {
-    if (/^(?:orca|https):\/\//i.test(trimmed)) {
+    if (/^orca:\/\//i.test(trimmed)) {
       return decodePairingUrl(trimmed)
     }
     return decodePairingBase64(trimmed)

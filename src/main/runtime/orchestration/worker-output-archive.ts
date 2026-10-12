@@ -12,7 +12,6 @@ import {
   redactWorkerTerminalLines
 } from './worker-transcript-payload'
 import { readWorkerTranscript } from './worker-transcript-read'
-import { getSshFilesystemProvider } from '../../providers/ssh-filesystem-dispatch'
 import { isWslHookRelayConnectionId } from '../../../shared/wsl-hook-relay-contract'
 import { captureStructuredWorkerArchive } from '../rpc/methods/orchestration-structured-worker-lifecycle'
 import type { WorkerStructuredJournalArchive } from './structured-worker-journal-archive'
@@ -106,11 +105,9 @@ export async function captureWorkerOutputArchive(args: {
   if (session) {
     transcriptFallbackReason = 'transcript_unreadable'
     const isWslSession = isWslHookRelayConnectionId(session.connectionId)
-    const remoteConnectionId = session.connectionId && !isWslSession ? session.connectionId : null
-    const remoteFilesystemProvider = remoteConnectionId
-      ? getSshFilesystemProvider(remoteConnectionId)
-      : undefined
-    if ((isWslSession && !session.wslDistro) || (remoteConnectionId && !remoteFilesystemProvider)) {
+    // Why: this process serves no SSH filesystem, so an SSH worker's transcript is unreachable.
+    const isSshSession = Boolean(session.connectionId) && !isWslSession
+    if ((isWslSession && !session.wslDistro) || isSshSession) {
       transcriptFallbackReason = 'remote_capability_unavailable'
     } else {
       const snapshot = await readWorkerTranscript({
@@ -118,8 +115,7 @@ export async function captureWorkerOutputArchive(args: {
         sessionId: session.providerSession.id,
         transcriptPath: session.providerSession.transcriptPath,
         wslDistro: session.wslDistro,
-        limit: MAX_WORKER_TRANSCRIPT_MESSAGE_LIMIT,
-        filesystemProvider: remoteFilesystemProvider
+        limit: MAX_WORKER_TRANSCRIPT_MESSAGE_LIMIT
       }).catch(() => null)
       if (snapshot?.ok && snapshot.messages.length > 0) {
         return {

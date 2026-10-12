@@ -8,7 +8,6 @@ import { pasteTerminalClipboard } from './terminal-clipboard-paste'
 import type { TerminalPasteSource, TerminalPasteTextOptions } from './terminal-paste-coordinator'
 import { formatTerminalPasteExecutionError } from './terminal-paste-errors'
 import { resolveTerminalPasteRuntime } from './terminal-paste-runtime'
-import { getTerminalPasteSshRemotePlatform } from './terminal-paste-ssh-platform'
 import { isTerminalPanePasteTargetCurrent } from './terminal-paste-target-state'
 import { pasteTextIntoTerminalPane } from './terminal-pane-paste-dispatch'
 import { scheduleImagePasteWebglAtlasRecovery } from './terminal-webgl-atlas-recovery'
@@ -49,7 +48,6 @@ export const executeTerminalPaneMenuPasteText = async (
   text: string,
   options?: TerminalPasteTextOptions
 ): Promise<boolean> => {
-  const connectionId = getConnectionId(context.worktreeId) ?? null
   const transport = context.paneTransportsRef.current.get(pane.id)
   const ptyId = transport?.getPtyId() ?? null
   const isTargetMounted = (): boolean => isPanePasteTargetMounted(context, pane, transport, ptyId)
@@ -61,8 +59,6 @@ export const executeTerminalPaneMenuPasteText = async (
     runtime: resolveTerminalPasteRuntime({
       platform: getShortcutPlatform(),
       ptyId,
-      connectionId,
-      remotePlatform: getTerminalPasteSshRemotePlatform(connectionId),
       transport,
       isWindowsConpty: context.forceBracketedMultilineTextPaste
     }),

@@ -8,7 +8,7 @@ import {
 import { useAppStore } from '../../store'
 import type { ClaudeRateLimitAccountsState } from '../../../../shared/managed-account-types'
 import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
-import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { defaultScopeHost } from '@/lib/default-creation-host'
 import {
   fetchProviderAccountsSnapshot,
   selectClaudeProviderAccount
@@ -81,7 +81,8 @@ export function ClaudeSwitcherMenu({
   const settings = useAppStore((s) => s.settings)
   const runtimeEnvironments = useAppStore((s) => s.runtimeEnvironments)
   const hasActiveRuntimeEnvironment = Boolean(settings?.activeRuntimeEnvironmentId?.trim())
-  const runtimeTarget = useMemo(() => getActiveRuntimeTarget(settings), [settings])
+  // Why: the status bar has no host picker; it shows the default scope host's accounts.
+  const runtimeTarget = useMemo(() => defaultScopeHost(settings), [settings])
   const providerAccountHostLabel = hasActiveRuntimeEnvironment
     ? (runtimeEnvironments.find(
         (environment) => environment.id === settings?.activeRuntimeEnvironmentId?.trim()
@@ -107,7 +108,11 @@ export function ClaudeSwitcherMenu({
   const activeRuntimeEnvironmentId = settings?.activeRuntimeEnvironmentId?.trim() || null
   // Why: keyed on owner id, not settings identity, so routine settings mutations don't re-run the remote snapshot fetch.
   const loadAccounts = useCallback(async () => {
-    const snapshot = await fetchProviderAccountsSnapshot({ activeRuntimeEnvironmentId })
+    const snapshot = await fetchProviderAccountsSnapshot(
+      activeRuntimeEnvironmentId
+        ? { kind: 'environment', environmentId: activeRuntimeEnvironmentId }
+        : { kind: 'local' }
+    )
     // Why: a failed Claude half is a substituted empty roster; keep prior state.
     if (snapshot.failedProviders?.includes('claude')) {
       console.error('Claude account list failed; keeping previous status bar state.')
@@ -164,7 +169,7 @@ export function ClaudeSwitcherMenu({
     }
     setIsSwitching(true)
     try {
-      const next = await selectClaudeProviderAccount(settings, {
+      const next = await selectClaudeProviderAccount(runtimeTarget, {
         accountId,
         runtime: target.runtime,
         wslDistro: target.wslDistro

@@ -1,3 +1,4 @@
+import type { SpawnIntent } from '../../shared/host-spawn-admission'
 import type {
   AgentProviderSessionMetadata,
   SleepingAgentLaunchConfig
@@ -57,6 +58,8 @@ export type PtyApi = {
     replacesPtyId?: string
     // Which tab and leaf a fresh PTY joins; older mains ignore it.
     placement?: TerminalPanePlacement
+    // Visible restores are `user-resume`, hidden ones `automatic-restore`; the fork gate validates.
+    spawnIntent?: SpawnIntent
     // Why: main fires `agent_started` only on spawn success, so launch metadata rides this field (telemetry-plan.md §Agent launch semantics).
     telemetry?: { agent_kind: AgentKind; launch_source: LaunchSource; request_kind: RequestKind }
   }) => Promise<{

@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { constants } from 'node:os'
 import { spawnProcess } from '@orca/process-host'
 import { resolveOrcadInstallRoot } from './orcad-app-paths'
+import { ORCAD_EXIT_CONFIGURATION } from './orcad-configuration-exit'
 import {
   ORCAD_NODE_RUNTIME_MARKER_FILENAME,
   ORCAD_SERVER_TARGET_FILENAME,
@@ -136,7 +137,7 @@ export function handoffToBundledOrcad(): boolean {
   child.once('error', (error) => {
     cleanup()
     console.error('orcad: could not start the bundled runtime:', error.message)
-    process.exit(78)
+    process.exit(ORCAD_EXIT_CONFIGURATION)
   })
   child.once('exit', (code, signal) => {
     cleanup()

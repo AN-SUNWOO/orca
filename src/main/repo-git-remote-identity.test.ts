@@ -49,34 +49,13 @@ describe('probeGitRemoteIdentity', () => {
     })
   })
 
-  it('routes each SSH host to its own git provider', async () => {
-    const m4air = registerHost('m4air')
-    const openclaw = registerHost(
-      'openclaw',
-      'origin\tgit@gitlab.example.com:team/other.git (fetch)\n'
-    )
+  it('reports unavailable for an SSH host, even with a registered git provider', async () => {
+    const exec = registerHost('builder')
 
-    await expect(probeGitRemoteIdentity('/repos/orca', 'ssh:m4air')).resolves.toEqual({
-      status: 'resolved',
-      identity: gitlabIdentity
-    })
-    await expect(probeGitRemoteIdentity('/repos/orca', 'ssh:openclaw')).resolves.toEqual({
-      status: 'resolved',
-      identity: {
-        canonicalKey: 'gitlab.example.com/team/other',
-        remoteName: 'origin',
-        remoteUrl: 'git@gitlab.example.com:team/other.git'
-      }
-    })
-    expect(m4air).toHaveBeenCalledTimes(1)
-    expect(openclaw).toHaveBeenCalledTimes(1)
-    expect(gitExecFileAsync).not.toHaveBeenCalled()
-  })
-
-  it('reports unavailable when the SSH host has no connected git provider', async () => {
     await expect(probeGitRemoteIdentity('/repos/orca', 'ssh:builder')).resolves.toEqual({
       status: 'unavailable'
     })
+    expect(exec).not.toHaveBeenCalled()
     expect(gitExecFileAsync).not.toHaveBeenCalled()
   })
 
@@ -101,30 +80,6 @@ describe('probeGitRemoteIdentity', () => {
     })
   })
 
-  it('reports unavailable when a connected SSH provider cannot reach the host', async () => {
-    const exec = vi.fn().mockRejectedValue(new Error('ssh: connect to host builder: down'))
-    registerSshGitProvider('builder', { exec } as never)
-    registered.push('builder')
-
-    await expect(probeGitRemoteIdentity('/repos/orca', 'ssh:builder')).resolves.toEqual({
-      status: 'unavailable'
-    })
-    expect(exec).toHaveBeenCalledWith(
-      ['remote', '-v'],
-      '/repos/orca',
-      expect.objectContaining({ timeoutMs: expect.any(Number) })
-    )
-    expect(gitExecFileAsync).not.toHaveBeenCalled()
-  })
-
-  it('settles on no-remote for an SSH repo git answered for with no remotes', async () => {
-    registerHost('builder', '')
-
-    await expect(probeGitRemoteIdentity('/repos/orca', 'ssh:builder')).resolves.toEqual({
-      status: 'no-remote'
-    })
-  })
-
   it('bounds the local probe with a deadline and forwards the caller signal', async () => {
     vi.mocked(gitExecFileAsync).mockResolvedValue({ stdout: gitlabRemote, stderr: '' })
     const controller = new AbortController()
@@ -141,21 +96,6 @@ describe('probeGitRemoteIdentity', () => {
     )
     const [, options] = vi.mocked(gitExecFileAsync).mock.calls[0]
     expect(options.timeout).toBeGreaterThan(0)
-  })
-
-  it('bounds the SSH probe under the relay request timeout and forwards the caller signal', async () => {
-    const exec = registerHost('builder')
-    const controller = new AbortController()
-
-    await probeGitRemoteIdentity('/repos/orca', 'ssh:builder', { signal: controller.signal })
-
-    expect(exec).toHaveBeenCalledWith(
-      ['remote', '-v'],
-      '/repos/orca',
-      expect.objectContaining({ timeoutMs: expect.any(Number), signal: controller.signal })
-    )
-    const relayRequestTimeoutMs = 30_000
-    expect(exec.mock.calls[0][2].timeoutMs).toBeLessThan(relayRequestTimeoutMs)
   })
 
   it('maps a timed-out local probe to unavailable, never no-remote', async () => {

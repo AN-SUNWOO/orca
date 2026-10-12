@@ -171,7 +171,7 @@ export class OrcaRuntimeWithMaybeHydrateHeadlessFromRenderer extends OrcaRuntime
     data: string,
     outputSequence: number,
     forwardQueryReplies = false
-  ): Promise<void> {
+  ): void {
     const state = this.getOrCreateHeadlessTerminal(ptyId)
     const completion = state.writeChain.then(async () => {
       // Why: the ingestion-time ownership decision is closed over this
@@ -205,8 +205,6 @@ export class OrcaRuntimeWithMaybeHydrateHeadlessFromRenderer extends OrcaRuntime
       }
       state.outputSequence = outputSequence
     })
-    // Legacy callers remain best-effort; bounded SSH admission observes the raw receipt.
     state.writeChain = completion.catch(() => {})
-    return completion
   }
 }

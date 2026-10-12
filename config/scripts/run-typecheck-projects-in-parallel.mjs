@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawnProcess } from '@orca/process-host'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { availableParallelism, totalmem } from 'node:os'
@@ -59,30 +59,72 @@ export function planTypecheckBatches(projects, { budgetGib, parallelism }) {
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
 
-export function resolveProjectCompiler(config, root = repoRoot) {
+export function resolveProjectCompilerInfo(config, root = repoRoot) {
   const require = createRequire(join(root, dirname(config), 'package.json'))
   const manifestPath = require.resolve('typescript/package.json')
-  const { bin } = JSON.parse(readFileSync(manifestPath, 'utf8'))
-  return join(dirname(manifestPath), typeof bin === 'string' ? bin : bin.tsc)
+  const { bin, version } = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  return { program: join(dirname(manifestPath), typeof bin === 'string' ? bin : bin.tsc), version }
 }
 
-function checkProject(config) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      process.execPath,
-      [resolveProjectCompiler(config), '--noEmit', '-p', config],
-      {
-        cwd: repoRoot,
-        stdio: 'inherit'
-      }
-    )
+export function resolveProjectCompiler(config, root = repoRoot) {
+  return resolveProjectCompilerInfo(config, root).program
+}
 
+export function parseTypecheckOptions(args) {
+  const options = { compiler: 'native', bunConcurrency: 1, bunThreads: 4 }
+  for (const argument of args) {
+    if (argument === '--compiler=bun' || argument === '--compiler=native') {
+      options.compiler = argument.slice('--compiler='.length)
+    } else if (argument.startsWith('--bun-concurrency=')) {
+      options.bunConcurrency = Number(argument.slice('--bun-concurrency='.length))
+    } else if (argument.startsWith('--bun-threads=')) {
+      options.bunThreads = Number(argument.slice('--bun-threads='.length))
+    } else {
+      throw new Error(`Unknown typecheck option: ${argument}`)
+    }
+  }
+  for (const value of [options.bunConcurrency, options.bunThreads]) {
+    if (!Number.isInteger(value) || value < 1 || value > 4) {
+      throw new Error('Bun concurrency and threads must be integers from 1 to 4')
+    }
+  }
+  return options
+}
+
+export function typecheckBatches(projects, { compiler, bunConcurrency, memoryBytes, parallelism }) {
+  return planTypecheckBatches(
+    compiler === 'bun' ? projects.map((project) => ({ ...project, heapGib: 4 })) : projects,
+    {
+      budgetGib: admissibleHeapGib(memoryBytes),
+      parallelism: compiler === 'bun' ? Math.min(parallelism, bunConcurrency) : parallelism
+    }
+  )
+}
+
+function checkProject(config, { compiler, bunThreads, root }) {
+  return new Promise((resolve, reject) => {
+    const installedCompiler = resolveProjectCompilerInfo(config, root)
+    // Bun 1.4.3 targets TypeScript 7.0.2; compiler upgrades require a new parity comparison.
+    if (compiler === 'bun' && installedCompiler.version !== '7.0.2') {
+      throw new Error(
+        `Bun CI compiler targets TypeScript 7.0.2, but ${config} resolves ${installedCompiler.version}`
+      )
+    }
+    const child = spawnProcess({
+      program: compiler === 'bun' ? 'bun' : process.execPath,
+      args:
+        compiler === 'bun'
+          ? ['check', '-p', config, '--threads', String(bunThreads), '--no-pretty', '--all']
+          : [installedCompiler.program, '--noEmit', '-p', config],
+      cwd: root,
+      stdio: 'inherit'
+    })
     child.on('error', reject)
-    child.on('exit', (code, signal) => {
+    child.on('close', (code, signal) => {
       if (signal) {
-        reject(new Error(`tsc ${config} exited with signal ${signal}`))
+        reject(new Error(`${compiler} ${config} exited with signal ${signal}`))
       } else if (code !== 0) {
-        reject(new Error(`tsc ${config} exited with code ${code}`))
+        reject(new Error(`${compiler} ${config} exited with code ${code}`))
       } else {
         resolve()
       }
@@ -90,28 +132,33 @@ function checkProject(config) {
   })
 }
 
-async function runTypecheckProjects() {
-  const batches = planTypecheckBatches(TYPECHECK_PROJECTS, {
-    budgetGib: admissibleHeapGib(totalmem()),
-    parallelism: availableParallelism()
-  })
-
+export async function runTypecheckProjects({
+  compiler = 'native',
+  bunConcurrency = 1,
+  bunThreads = 4,
+  root = repoRoot,
+  projects = TYPECHECK_PROJECTS,
+  memoryBytes = totalmem(),
+  parallelism = availableParallelism()
+} = {}) {
+  const batches = typecheckBatches(projects, { compiler, bunConcurrency, memoryBytes, parallelism })
   // Every batch runs even after one fails, so a single broken project still reports the rest.
   const failures = []
   for (const batch of batches) {
-    const results = await Promise.allSettled(batch.map((project) => checkProject(project.config)))
+    const results = await Promise.allSettled(
+      batch.map((project) => checkProject(project.config, { compiler, bunThreads, root }))
+    )
     for (const result of results) {
       if (result.status === 'rejected') {
         failures.push(result.reason)
       }
     }
   }
-
   return failures
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const failures = await runTypecheckProjects()
+  const failures = await runTypecheckProjects(parseTypecheckOptions(process.argv.slice(2)))
   if (failures.length > 0) {
     for (const failure of failures) {
       console.error(failure.message ?? failure)

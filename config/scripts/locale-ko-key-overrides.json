@@ -92,8 +92,14 @@
   "auto.components.GitHubItemDialog.dc1ca081a8": {
     "ko": "열림"
   },
+  "auto.components.GitHubItemDialog.e15a8b77ef": {
+    "ko": "이 검사에는 인라인 세부정보가 없습니다."
+  },
   "auto.components.GitHubItemDialog.e31651a224": {
     "ko": "실패한 체크 다시 실행"
+  },
+  "auto.components.GitHubItemDialog.e45324fbed": {
+    "ko": "검사 세부정보를 로드하지 못했습니다."
   },
   "auto.components.GitHubItemDialog.e463ec935f": {
     "ko": "체크 재실행 요청됨"
@@ -281,6 +287,9 @@
   "auto.components.PullRequestPage.6885c619e7": {
     "ko": "repos 경로가 없으면 답글을 달 수 없습니다."
   },
+  "auto.components.PullRequestPage.6b1d5ee3e4": {
+    "ko": "이 검사에는 인라인 세부정보가 없습니다."
+  },
   "auto.components.PullRequestPage.710e47aa06": {
     "ko": "PR이 다시 열렸습니다"
   },
@@ -328,6 +337,9 @@
   },
   "auto.components.PullRequestPage.ddfd42f460": {
     "ko": "agent를 시작하기 전에 프롬프트를 검토하세요."
+  },
+  "auto.components.PullRequestPage.e04c027d98": {
+    "ko": "검사 세부정보를 로드하지 못했습니다."
   },
   "auto.components.PullRequestPage.e1f3641bfd": {
     "ko": "소스 브랜치"
@@ -1793,6 +1805,9 @@
   "auto.components.right.sidebar.GitHistoryPanel.9289ba0cb9": {
     "ko": "refs란 무엇인가요?"
   },
+  "auto.components.right.sidebar.GitHubPRStackMap.316039b5db": {
+    "ko": "검사 결과 대기 중"
+  },
   "auto.components.right.sidebar.PortsPanel.0f1d8cd324": {
     "ko": "바인딩"
   },
@@ -1921,6 +1936,9 @@
   },
   "auto.components.right.sidebar.gitlab.mr.merge.state.49ac4fec10": {
     "ko": "검사 실패"
+  },
+  "auto.components.right.sidebar.gitlab.mr.merge.state.bf628700f6": {
+    "ko": "파이프라인이 성공해야 합니다"
   },
   "auto.components.right.sidebar.index.8bc2bbc3a0": {
     "ko": "탐색기"
@@ -4385,15 +4403,6 @@
   "auto.components.sidebar.add.repo.local.start.actions.runtimeBrowseDescription": {
     "ko": "이 호스트의 기존 Git 리포지토리 또는 폴더"
   },
-  "auto.components.sidebar.add.repo.local.start.actions.sshBrowseDescription": {
-    "ko": "이 SSH 호스트의 기존 Git 리포지토리 또는 폴더"
-  },
-  "auto.components.sidebar.add.repo.local.start.actions.sshBrowseTitle": {
-    "ko": "SSH 호스트에서 프로젝트 열기"
-  },
-  "auto.components.sidebar.add.repo.local.start.actions.sshCreateUnavailable": {
-    "ko": "아직 SSH 호스트에서는 사용할 수 없습니다."
-  },
   "auto.components.sidebar.index.b826a98b6f": {
     "ko": "사용 중"
   },
@@ -5002,6 +5011,9 @@
   },
   "auto.web.WebConnect.4a4c017be1": {
     "ko": "엔드포인트:"
+  },
+  "checksPanel.unlinked.description": {
+    "ko": "이 워크스페이스에서는 PR #{{number}}이(가) 숨겨져 있습니다. 검사와 리뷰 세부정보를 복원하려면 다시 연결하세요."
   },
   "components.native-chat.approval.allow": {
     "ko": "허용"

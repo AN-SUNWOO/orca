@@ -30,28 +30,7 @@ export function registerFilesystemGitDiffHandlers(context: FilesystemHandlerCont
         connectionId?: string
       }
     ): Promise<GitDiffResult> => {
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        const results = await route.provider.getBranchDiff(
-          args.worktreePath,
-          args.compare.mergeBase,
-          {
-            includePatch: true,
-            headOid: args.compare.headOid,
-            filePath: args.filePath,
-            oldPath: args.oldPath
-          }
-        )
-        return (
-          results[0] ?? {
-            kind: 'text',
-            originalContent: '',
-            modifiedContent: '',
-            originalIsBinary: false,
-            modifiedIsBinary: false
-          }
-        )
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const filePath = validateGitRelativeFilePath(worktreePath, args.filePath)
       const oldPath = args.oldPath
@@ -90,15 +69,7 @@ export function registerFilesystemGitDiffHandlers(context: FilesystemHandlerCont
     ): Promise<GitDiffResult> => {
       const commitOid = validateFullGitObjectId(args.commitOid, 'commitOid')
       const parentOid = args.parentOid ? validateFullGitObjectId(args.parentOid, 'parentOid') : null
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return route.provider.getCommitDiff(args.worktreePath, {
-          commitOid,
-          parentOid,
-          filePath: args.filePath,
-          oldPath: args.oldPath
-        })
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const filePath = validateGitRelativeFilePath(worktreePath, args.filePath)
       const oldPath = args.oldPath

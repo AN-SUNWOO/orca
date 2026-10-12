@@ -139,7 +139,7 @@ export async function loadIpcEventsHarness(
     isWebRuntimeSessionActive: vi.fn(() => false)
   }))
   vi.doMock('@/lib/focus-terminal-tab-surface', () => ({ focusTerminalTabSurface: vi.fn() }))
-  vi.doMock('@/runtime/sync-runtime-graph', () => ({
+  vi.doMock('@/runtime/mounted-terminal-tab-registry', () => ({
     focusRuntimeTerminalSurface: vi.fn(() => false)
   }))
   vi.doMock('@/lib/activate-tab-and-focus-pane', () => ({ activateTabAndFocusPane: vi.fn() }))
@@ -241,8 +241,7 @@ export async function loadIpcEventsHarness(
         }),
         mobile: createApiNamespaceStub({
           consumePendingUnpairedDeviceAuthFailure: () => Promise.resolve(false)
-        }),
-        remoteWorkspace: createApiNamespaceStub({ clientId: () => Promise.resolve(null) })
+        })
       } as Record<string, unknown>,
       { get: (target, prop: string) => target[prop] ?? createApiNamespaceStub() }
     )

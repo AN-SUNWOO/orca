@@ -10,8 +10,7 @@ import type {
   LocalFilesystemProvider,
   LocalFilesystemProviderOptions
 } from '../providers/local-filesystem-provider'
-import { SSH_FILESYSTEM_PROVIDER_UNAVAILABLE_MESSAGE } from '../providers/ssh-filesystem-dispatch'
-import type { IFilesystemProvider } from '../providers/types'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 
 export type ResolvedRuntimeFileWorktree = Worktree & { git: GitWorktreeInfo }
 
@@ -46,11 +45,8 @@ export type RuntimeFileExplorerPath = {
  */
 export type RuntimeFileRoute =
   | { kind: 'local'; createProvider: typeof createLocalFilesystemProvider }
-  /** `provider: null` is "remote and currently unreachable" — never "read it here". */
-  | { kind: 'ssh'; connectionId: string; provider: IFilesystemProvider | null }
-
-/** The remote half of the route, for leaf helpers that only ever run against an SSH host. */
-export type RuntimeFileSshRoute = Extract<RuntimeFileRoute, { kind: 'ssh' }>
+  /** An SSH target this process does not serve; it fails or reports empty, never reads here. */
+  | { kind: 'ssh'; connectionId: string }
 
 export function runtimeFileRouteForTarget(target: {
   executionHostId: ExecutionHostId
@@ -60,7 +56,7 @@ export function runtimeFileRouteForTarget(target: {
     case 'local':
       return { kind: 'local', createProvider: route.createProvider }
     case 'ssh':
-      return { kind: 'ssh', connectionId: route.connectionId, provider: route.provider }
+      return { kind: 'ssh', connectionId: route.connectionId }
     case 'runtime':
       throw new ExecutionHostNotDispatchableError(route.hostId)
   }
@@ -69,31 +65,26 @@ export function runtimeFileRouteForTarget(target: {
 /** What a runtime command supplies for local work; path authorization is always the store's. */
 export type RuntimeLocalFileHost = Omit<LocalFilesystemProviderOptions, 'resolveAuthorizedPath'>
 
-/**
- * A provider for the target's own host. Local authorizes against `host`'s store; an unreachable SSH
- * host and a `runtime:` host both throw.
- */
-export function requireRuntimeFileProvider(
-  target: { executionHostId: ExecutionHostId },
-  host: RuntimeLocalFileHost,
-  route: RuntimeFileRoute = runtimeFileRouteForTarget(target)
-): LocalFilesystemProvider {
+/** The local route for work this process runs itself; `ssh:` and `runtime:` hosts throw. */
+export function requireLocalRuntimeFileRoute(target: {
+  executionHostId: ExecutionHostId
+}): Extract<RuntimeFileRoute, { kind: 'local' }> {
+  const route = runtimeFileRouteForTarget(target)
   if (route.kind === 'ssh') {
-    return requireSshRuntimeFileProvider(route)
+    throw new SshHostNotServedError(route.connectionId)
   }
-  return route.createProvider({
-    requireStore: () => host.requireStore(),
-    resolveAuthorizedPath,
-    onTextSearchSpawn: host.onTextSearchSpawn
-  })
+  return route
 }
 
-/** For the commands whose local arm keeps its own limits or result shape. */
-export function requireSshRuntimeFileProvider(route: RuntimeFileSshRoute): IFilesystemProvider {
-  if (!route.provider) {
-    throw new Error(SSH_FILESYSTEM_PROVIDER_UNAVAILABLE_MESSAGE)
-  }
-  return route.provider
+/** A provider for the target's own host, authorized against `host`'s store. */
+export function requireRuntimeFileProvider(
+  target: { executionHostId: ExecutionHostId },
+  host: RuntimeLocalFileHost
+): LocalFilesystemProvider {
+  return requireLocalRuntimeFileRoute(target).createProvider({
+    requireStore: () => host.requireStore(),
+    resolveAuthorizedPath
+  })
 }
 
 /**

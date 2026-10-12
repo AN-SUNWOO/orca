@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { OptionalFiniteNumber, OptionalString, requiredString } from './rpc-param-primitives'
 import { isTuiAgent } from '../tui-agent-config'
+import { SpawnIntentParam } from './agent-session-params'
 import {
   canonicalizeWindowsShellOverride,
   isSupportedWindowsShellOverride,
@@ -193,6 +194,7 @@ export const TerminalCreateParams = z.object({
   presentation: z.enum(['background', 'focused']).optional(),
   tabId: OptionalString,
   leafId: OptionalString,
+  spawnIntent: SpawnIntentParam.optional(),
   // Why refused at the boundary rather than at spawn: only the host knows the allowlist, and a
   // relay-side throw reaches the caller as an opaque spawn failure after the round trip.
   shell: z

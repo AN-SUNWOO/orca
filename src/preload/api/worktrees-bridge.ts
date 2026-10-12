@@ -1,9 +1,5 @@
 import { ipcRenderer } from 'electron'
 import type {
-  HostLineageSnapshot,
-  ListDesktopLineageForHostArgs
-} from '../../shared/host-lineage-contract'
-import type {
   WorktreeBaseStatusEvent,
   WorktreeRemoteBranchConflictEvent
 } from '../../shared/worktree/base-ref-drift-types'
@@ -59,9 +55,6 @@ export const worktreesApi = {
   updateMeta: (args) => ipcRenderer.invoke('worktrees:updateMeta', args),
 
   listLineage: () => ipcRenderer.invoke('worktrees:listLineage'),
-
-  listLineageForHost: (args: ListDesktopLineageForHostArgs): Promise<HostLineageSnapshot> =>
-    ipcRenderer.invoke('worktrees:listLineageForHost', args),
 
   updateLineage: (args) => ipcRenderer.invoke('worktrees:updateLineage', args),
 

@@ -7,9 +7,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createIssueCommandRunnerScriptMock,
   getSshFilesystemProviderMock,
-  getSshGitProviderMock
+  getSshGitProviderMock,
+  addWorktreeMock,
+  getActiveMultiplexerMock,
+  listWorktreesMock
 } from './worktrees-test-module-mocks'
 import { handlers, setupWorktreeHandlers, store } from './worktrees-test-harness'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 
 vi.mock('electron', async () =>
   (await import('./worktrees-test-module-mocks')).electronModuleMock()
@@ -92,6 +96,30 @@ vi.mock('../runtime/worktree-teardown', async () =>
   (await import('./worktrees-test-module-mocks')).worktreeTeardownModuleMock()
 )
 vi.mock('./pty', async () => (await import('./worktrees-test-module-mocks')).ptyModuleMock())
+
+const REMOTE_REPO_PATH = '/remote/repo'
+
+function makeRepo(fields: Record<string, unknown>) {
+  return {
+    id: 'repo-1',
+    path: REMOTE_REPO_PATH,
+    displayName: 'repo',
+    badgeColor: '#000',
+    addedAt: 0,
+    worktreeBaseRef: 'origin/main',
+    ...fields
+  }
+}
+
+function useRepo(repo: ReturnType<typeof makeRepo>): void {
+  store.getRepos.mockReturnValue([repo])
+  store.getRepo.mockReturnValue(repo)
+  store.setWorktreeMeta.mockImplementation((_worktreeId: string, meta: unknown) => meta)
+  getActiveMultiplexerMock.mockReturnValue({
+    request: vi.fn().mockResolvedValue(undefined),
+    notify: vi.fn()
+  })
+}
 
 describe('registerWorktreeHandlers', () => {
   beforeEach(() => {
@@ -367,5 +395,64 @@ describe('registerWorktreeHandlers', () => {
       '/remote/repo/.orca/issue-command',
       'local command\n'
     )
+  })
+})
+
+describe('worktrees:create execution host routing', () => {
+  beforeEach(() => {
+    setupWorktreeHandlers()
+  })
+
+  it('refuses a row that names an SSH host only as executionHostId instead of creating locally', async () => {
+    // No `connectionId`: the raw read answered "local" and ran `git worktree add` on the client
+    // against `/remote/repo`. The host is not served here, so the create refuses.
+    useRepo(makeRepo({ executionHostId: 'ssh:target-a' }))
+
+    await expect(
+      handlers['worktrees:create'](null, { repoId: 'repo-1', name: 'wt' })
+    ).rejects.toThrow(SshHostNotServedError)
+
+    expect(addWorktreeMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses a runtime row with no nested SSH target instead of creating locally', async () => {
+    useRepo(makeRepo({ executionHostId: 'runtime:env-1' }))
+
+    await expect(
+      handlers['worktrees:create'](null, { repoId: 'repo-1', name: 'wt' })
+    ).rejects.toThrow('not dispatched by this process')
+
+    expect(addWorktreeMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses a runtime row that also names a nested SSH target', async () => {
+    // `target-a` names a target inside env-1, never one on this machine.
+    useRepo(makeRepo({ executionHostId: 'runtime:env-1', connectionId: 'target-a' }))
+
+    await expect(
+      handlers['worktrees:create'](null, { repoId: 'repo-1', name: 'wt' })
+    ).rejects.toThrow('not dispatched by this process')
+
+    expect(addWorktreeMock).not.toHaveBeenCalled()
+  })
+
+  it('answers local for a row that declares itself local while carrying a connection', async () => {
+    // A contradictory row: `getRepoSshConnectionId` lets `local` win, and the runtime sibling has
+    // always read it that way. The raw field sent it remote, so the two entry points disagreed.
+    useRepo(
+      makeRepo({ path: '/workspace/repo', executionHostId: 'local', connectionId: 'target-a' })
+    )
+    listWorktreesMock.mockResolvedValue([
+      {
+        path: '/workspace/wt',
+        head: 'abc123',
+        branch: 'wt',
+        isBare: false,
+        isMainWorktree: false
+      }
+    ])
+    await handlers['worktrees:create'](null, { repoId: 'repo-1', name: 'wt' })
+
+    expect(addWorktreeMock).toHaveBeenCalledTimes(1)
   })
 })

@@ -66,15 +66,14 @@ export function excludeReplacedPaneOwner(
 export function swapReplacedPaneBinding(
   store: Store,
   binding: PersistPtyBindingArgs,
-  replaced: ReplacedPaneOwner,
-  hostId: string | undefined
+  replaced: ReplacedPaneOwner
 ): () => PersistPtyBindingArgs | null {
   return () => {
     const bound =
-      store.getWorkspaceSession(hostId).terminalLayoutsByTabId?.[binding.tabId]?.ptyIdsByLeafId?.[
+      store.getWorkspaceSession().terminalLayoutsByTabId?.[binding.tabId]?.ptyIdsByLeafId?.[
         binding.leafId
       ]
-    // Unbound is ok: the renderer's pre-connect clear can withdraw it (split tab, SSH lease ended).
+    // Unbound is ok: the renderer's pre-connect clear can withdraw it (split tab).
     return bound === undefined || bound === replaced.ptyId ? binding : null
   }
 }

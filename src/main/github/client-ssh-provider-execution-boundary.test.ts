@@ -155,24 +155,6 @@ describe('getPRForBranch SSH execution boundary', () => {
     expect(outcome).toMatchObject({ kind: 'no-pr' })
   })
 
-  it('rev-parses HEAD through the SSH provider when it is registered', async () => {
-    const sshGitProvider = {
-      exec: vi.fn(async (args: string[]) =>
-        args[0] === 'rev-parse' && args[1] === 'HEAD'
-          ? { stdout: `${MERGED_HEAD_OID}\n`, stderr: '' }
-          : { stdout: '', stderr: '' }
-      )
-    }
-    getSshGitProviderMock.mockReturnValue(sshGitProvider)
-    mockMergedBranchPRLookup()
-
-    const pr = await getPRForBranch('/remote/repo', MERGED_BRANCH, null, 'ssh-1')
-
-    expect(sshGitProvider.exec).toHaveBeenCalledWith(['rev-parse', 'HEAD'], '/remote/repo')
-    expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
-    expect(pr).toMatchObject({ number: 5875, state: 'merged', headSha: MERGED_HEAD_OID })
-  })
-
   it('rev-parses HEAD through the local runtime for a WSL repository', async () => {
     mockMergedBranchPRLookup()
     gitExecFileAsyncMock.mockResolvedValue({ stdout: `${MERGED_HEAD_OID}\n`, stderr: '' })
@@ -225,25 +207,6 @@ describe('getPRForBranch SSH execution boundary', () => {
 
     expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
     expect(outcome).toMatchObject({ kind: 'upstream-error', errorType: 'unknown' })
-  })
-
-  it('reads tracked upstreams through the SSH provider when it is registered', async () => {
-    const forEachRefArgs = ['for-each-ref', '--format=%(refname)%00%(upstream)', 'refs/heads']
-    const sshGitProvider = {
-      exec: vi.fn(async (args: string[]) =>
-        args[0] === 'for-each-ref'
-          ? { stdout: `${MERGED_BRANCH}\0origin/contributor/original\n`, stderr: '' }
-          : { stdout: '', stderr: '' }
-      )
-    }
-    getSshGitProviderMock.mockReturnValue(sshGitProvider)
-    mockUpstreamOnlyPRLookup()
-
-    const pr = await getPRForBranch('/remote/repo', MERGED_BRANCH, null, 'ssh-1')
-
-    expect(sshGitProvider.exec).toHaveBeenCalledWith(forEachRefArgs, '/remote/repo')
-    expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
-    expect(pr).toMatchObject({ number: 78, title: 'Hydrated upstream branch PR' })
   })
 
   it('reads tracked upstreams through the local runtime for a WSL repository', async () => {

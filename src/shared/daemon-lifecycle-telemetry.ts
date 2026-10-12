@@ -3,7 +3,7 @@
 // subprocess and never crosses into the app, so every reason here is one the app
 // itself decides: a startup replace, or an observed death→respawn.
 
-// Startup launcher replaced a still-connectable daemon (each maps 1:1 to a `daemon-init.ts` decision).
+// Startup launcher replaced a still-connectable daemon (each maps 1:1 to a `daemon-replacement-preflight.ts` decision).
 export const DAEMON_REPLACE_REASONS = [
   'unhealthy_resolver',
   'stale_bundle',

@@ -1,3 +1,4 @@
+import type { SpawnIntent } from '../../../../shared/host-spawn-admission'
 import type { IPtyProvider, PtySpawnOptions, PtySpawnResult } from '../../../providers/types'
 import type { CodexPaneHomeRoute } from '../../../codex/codex-pane-account-registry'
 import type { CodexAccountSelectionTarget } from '../../../codex-accounts/runtime-selection'
@@ -33,7 +34,6 @@ export type RuntimePtySpawnState = {
   callerRequestedSessionId: string | undefined
   requestedSessionId: string | undefined
   sessionId: string | undefined
-  effectiveSessionRelayId: string | undefined
   effectiveSessionAppId: string | undefined
   isNewDaemonSession: boolean
   expectedWslDistro: string | null
@@ -119,6 +119,7 @@ export type RuntimePtySpawnArgs = {
     surface: AgentSessionSurfaceBinding
   }
   agentSessionCreateOperationId?: string
+  spawnIntent?: SpawnIntent
   signal?: AbortSignal
   refuseSleptWorktree?: boolean
   onPtySpawnCommitted?: () => void
@@ -155,7 +156,6 @@ export function createRuntimePtySpawnState(
     callerRequestedSessionId: undefined,
     requestedSessionId: undefined,
     sessionId: undefined,
-    effectiveSessionRelayId: undefined,
     effectiveSessionAppId: undefined,
     isNewDaemonSession: false,
     expectedWslDistro: null,

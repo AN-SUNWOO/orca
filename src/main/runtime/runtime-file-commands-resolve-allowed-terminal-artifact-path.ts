@@ -18,17 +18,14 @@ import type {
 } from './runtime-file-commands-mobile-file-list-limit'
 import { TERMINAL_FILE_GRANT_TTL_MS } from './runtime-file-commands-mobile-file-list-limit'
 import type { RuntimeTerminalPathResolution } from '../../shared/runtime-types'
-import { isPathInsideOrEqual } from '../../shared/cross-platform-path'
 import { randomUUID } from 'node:crypto'
 import {
   runtimeFileSshTargetId,
   type ResolvedRuntimeFileTarget
 } from './runtime-file-command-target'
-import {
-  requireReachableFilesystemRoute,
-  requireFilesystemProviderForHost
-} from '../providers/execution-host-provider-dispatch'
-import { getConnectionExecutionHostId, toSshExecutionHostId } from '../../shared/execution-host'
+import { requireReachableFilesystemRoute } from '../providers/execution-host-provider-dispatch'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
+import { getConnectionExecutionHostId } from '../../shared/execution-host'
 
 export class RuntimeFileCommandsWithResolveAllowedTerminalArtifactPath extends RuntimeFileCommandsWithResolveTerminalPath {
   protected async resolveAllowedTerminalArtifactPath(args: {
@@ -37,7 +34,7 @@ export class RuntimeFileCommandsWithResolveAllowedTerminalArtifactPath extends R
     worktreePath: string
   }): Promise<string | null> {
     if (args.connectionId) {
-      return this.resolveAllowedRemoteTerminalArtifactPath(args.absolutePath, args.connectionId)
+      throw new SshHostNotServedError(args.connectionId)
     }
     return resolveAllowedLocalTerminalArtifactPath(args.absolutePath, args.worktreePath)
   }
@@ -46,30 +43,19 @@ export class RuntimeFileCommandsWithResolveAllowedTerminalArtifactPath extends R
     absolutePath: string,
     connectionId?: string
   ): Promise<string> {
-    const route = requireReachableFilesystemRoute(getConnectionExecutionHostId(connectionId))
-    return route.kind === 'ssh'
-      ? route.provider.realpath(absolutePath)
-      : canonicalPathForArtifactComparison(absolutePath)
+    requireReachableFilesystemRoute(getConnectionExecutionHostId(connectionId))
+    return canonicalPathForArtifactComparison(absolutePath)
   }
 
   protected async resolveAbsoluteFileGrant(args: {
     worktreeId: string
     artifactPath: string
     rejectedAbsolutePath?: string
-    connectionId?: string
     clientId?: string
     readOnly?: boolean
     provenance?: TerminalFileGrant['provenance']
   }): Promise<RuntimeTerminalPathResolution> {
-    let contentDigest: string | null = null
-    let stats: RuntimeFileStatLike & { isDirectory: () => boolean }
-    if (args.connectionId) {
-      stats = await this.statRemoteTerminalPath(args.artifactPath, args.connectionId)
-    } else {
-      const local = await this.statLocalTerminalArtifact(args.artifactPath)
-      stats = local.stats
-      contentDigest = local.contentDigest
-    }
+    const { stats, contentDigest } = await this.statLocalTerminalArtifact(args.artifactPath)
     const isDirectory = stats.isDirectory()
     if (!isDirectory && isTerminalArtifactHardLinked(stats)) {
       return {
@@ -85,8 +71,6 @@ export class RuntimeFileCommandsWithResolveAllowedTerminalArtifactPath extends R
       : this.createTerminalFileGrant({
           worktreeId: args.worktreeId,
           absolutePath: args.artifactPath,
-          provider: args.connectionId ? 'ssh' : 'local',
-          connectionId: args.connectionId,
           clientId: args.clientId,
           readOnly: args.readOnly === true,
           provenance: args.provenance ?? 'terminal-output',
@@ -109,29 +93,6 @@ export class RuntimeFileCommandsWithResolveAllowedTerminalArtifactPath extends R
           }
         : undefined
     }
-  }
-
-  protected async resolveAllowedRemoteTerminalArtifactPath(
-    absolutePath: string,
-    connectionId: string
-  ): Promise<string | null> {
-    const provider = requireFilesystemProviderForHost(toSshExecutionHostId(connectionId))
-    const roots = ['/tmp', '/private/tmp']
-    const providerTempDir = await provider.getTempDir?.().catch(() => null)
-    if (providerTempDir) {
-      roots.push(providerTempDir)
-    }
-    if (!roots.some((root) => isPathInsideOrEqual(root, absolutePath))) {
-      return null
-    }
-    const [realArtifactPath, ...realRoots] = await Promise.all([
-      provider.realpath(absolutePath),
-      ...roots.map((root) => provider.realpath(root).catch(() => root))
-    ])
-    // Why: SSH I/O follows symlinks on the relay; grant the canonical target so a /tmp link can't escape the temp boundary.
-    return realRoots.some((root) => isPathInsideOrEqual(root, realArtifactPath))
-      ? realArtifactPath
-      : null
   }
 
   protected async statLocalTerminalPath(
@@ -161,8 +122,6 @@ export class RuntimeFileCommandsWithResolveAllowedTerminalArtifactPath extends R
   protected createTerminalFileGrant(args: {
     worktreeId: string
     absolutePath: string
-    provider: 'local' | 'ssh'
-    connectionId?: string
     clientId?: string
     readOnly?: boolean
     provenance: TerminalFileGrant['provenance']
@@ -174,8 +133,7 @@ export class RuntimeFileCommandsWithResolveAllowedTerminalArtifactPath extends R
       id: randomUUID(),
       worktreeId: args.worktreeId,
       absolutePath: args.absolutePath,
-      provider: args.provider,
-      ...(args.connectionId ? { connectionId: args.connectionId } : {}),
+      provider: 'local',
       ...(args.clientId ? { clientId: args.clientId } : {}),
       expiresAt: Date.now() + TERMINAL_FILE_GRANT_TTL_MS,
       statIdentity: terminalFileStatIdentity(args.stats),
@@ -207,7 +165,8 @@ export class RuntimeFileCommandsWithResolveAllowedTerminalArtifactPath extends R
     if (
       grant.worktreeId !== target.worktree.id ||
       grant.absolutePath !== absolutePath ||
-      grant.connectionId !== runtimeFileSshTargetId(target) ||
+      // Why: grants are only minted for local paths, so an `ssh:` target never matches one.
+      runtimeFileSshTargetId(target) !== undefined ||
       grant.clientId !== clientId
     ) {
       throw new Error('terminal_file_grant_mismatch')

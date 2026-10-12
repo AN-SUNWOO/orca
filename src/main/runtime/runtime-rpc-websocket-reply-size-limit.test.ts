@@ -48,7 +48,10 @@ function connectEncryptedChannel() {
     resolveAuthenticatedDevice: (token) => ({
       deviceId: 'd',
       deviceToken: token,
-      scope: 'runtime'
+      scope: 'runtime',
+      clientId: token,
+      callerFingerprint: 'test-fingerprint',
+      credentialRevision: 0
     }),
     onReady: vi.fn(),
     onError

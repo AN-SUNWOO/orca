@@ -171,7 +171,7 @@ describe('RpcDispatcher unary transport parity', () => {
     }
   )
 
-  it('refuses a streaming method over one-shot dispatch before binding an SSH bridge caller', async () => {
+  it('refuses a streaming method over one-shot dispatch for a pinned non-owner caller', async () => {
     const dispatcher = new RpcDispatcher({
       runtime: new OrcaRuntimeService(),
       methods: [
@@ -182,7 +182,7 @@ describe('RpcDispatcher unary transport parity', () => {
           handler: async () => {}
         })
       ],
-      callerScope: { kind: 'ssh-bridge', targetId: 'ssh-1', remoteCliControl: false }
+      callerScope: { kind: 'runtime-paired', grants: [] }
     })
 
     await expect(

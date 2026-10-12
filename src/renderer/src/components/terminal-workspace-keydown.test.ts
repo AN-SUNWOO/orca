@@ -51,7 +51,6 @@ vi.mock('@/runtime/structured-agent-session-close', () => ({
   closeStructuredAgentSession: mocks.closeStructuredAgentSession
 }))
 vi.mock('@/runtime/runtime-rpc-client', () => ({
-  getActiveRuntimeTarget: () => ({ kind: 'local' }),
   callRuntimeRpc: mocks.callRuntimeRpc
 }))
 vi.mock('@/lib/structured-agent-session-launch', () => ({

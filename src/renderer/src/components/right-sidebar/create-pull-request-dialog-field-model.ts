@@ -1,4 +1,5 @@
 import type { AppState } from '@/store'
+import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import type {
   RuntimeGeneratePullRequestFieldsOverrides,
   RuntimeGitContext
@@ -30,7 +31,10 @@ export type UseCreatePullRequestDialogFieldsOptions = {
   eligibility: HostedReviewCreationEligibility | null
   currentBaseRef?: string | null
   repo?: Pick<Repo, 'sourceControlAi'> | null
+  /** Generation preferences; routing comes from `target`. */
   settings: AppState['settings']
+  /** The worktree owner's transport. */
+  target: RuntimeClientTarget | null
   submitting: boolean
   prCreationDefaults?: SourceControlAiPrCreationDefaults
   sourceControlAiActionsVisible?: boolean

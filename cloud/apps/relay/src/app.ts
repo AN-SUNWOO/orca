@@ -17,7 +17,7 @@ import {
   type RelayRegion
 } from '@orca-cloud/relay-contract'
 import { Hono, type Context } from 'hono'
-import { SignJWT, type createRemoteJWKSet } from 'jose'
+import { SignJWT } from 'jose'
 import { z } from 'zod'
 import {
   createAdminTokenVerifier,
@@ -29,6 +29,7 @@ import {
 } from './admin-token-verifier.js'
 import {
   RelayAssignmentRowBusyError,
+  RelayCellInReserveModeError,
   RelayHomeCellUnavailableError,
   type CellFenceAttemptEvidence,
   type RelayAssignment,
@@ -78,6 +79,7 @@ import {
   probeRegionalRehomeTrust
 } from './regional-rehome-trust-probe.js'
 import { createRelayTokenVerifier, readBearer } from './relay-token-verifier.js'
+import type { RelayJWKSet } from './stale-if-error-jwks.js'
 import { stagingAsiaProofMembership } from './staging-asia-proof-admission.js'
 
 const RelayCellConnectionHardCapSchema = z.custom<RelayCellConnectionHardCap>(
@@ -135,6 +137,7 @@ export function createRelayApp(
     cellDemote?: (request: DemoteRequest) => string
     cellReserverPoll?: () => void
     cellAdmitModeEffective?: () => 'db' | 'reserve'
+    cellAdmitModeRaw?: () => 'db' | 'reserve'
     cellReserveCounts?: () => {
       bookings: number
       intake: { perSec: number; burst: number; tokens: number }
@@ -148,7 +151,7 @@ export function createRelayApp(
     // Both only on cells; the switch is the per-cell `readinessLocal` flag, off by default.
     readinessLocal?: () => boolean
     localReadiness?: () => RelayLocalReadinessVerdict
-    relayJwks?: ReturnType<typeof createRemoteJWKSet>
+    relayJwks?: RelayJWKSet
     recordAssignmentAdmission?: (outcome: AssignmentAdmissionOutcome) => void
     recordAssignmentRejectionReason?: (
       lane: AssignmentAdmissionLane,
@@ -298,7 +301,9 @@ export function createRelayApp(
     error: unknown,
     status: 404 | 409
   ): Response => {
-    if (!isRelayDatabaseTransientError(error)) {
+    // The reserve-mode set could not be read: retry, as for a database blip.
+    const unknownReserveSet = error instanceof RelayCellInReserveModeError && error.cellId === null
+    if (!isRelayDatabaseTransientError(error) && !unknownReserveSet) {
       return context.json({ error: operationError(error) }, status)
     }
     context.header('Retry-After', String(config.publicAssignmentRetryAfterSeconds))
@@ -350,6 +355,7 @@ export function createRelayApp(
     cellFlags: operations.cellFlags,
     onReserverPoll: operations.cellReserverPoll,
     admitModeEffective: operations.cellAdmitModeEffective,
+    admitModeRaw: operations.cellAdmitModeRaw,
     reserveCounts: operations.cellReserveCounts,
     placementCeiling: operations.cellPlacementCeiling
   })
@@ -572,19 +578,14 @@ export function createRelayApp(
         if (!current) return context.json({ error: 'assignment_not_found' }, 409)
         assignment = current
       } else {
-        // Without step 5 the call is exactly today's.
-        const step5Active = step5.epochFloor !== undefined || step5.placeFresh !== undefined
-        assignment = step5Active
-          ? await operations.assignments.assign(
-              identity,
-              requestedRegion,
-              requestedRegion ? targetRegion : undefined,
-              undefined,
-              step5
-            )
-          : requestedRegion
-            ? await operations.assignments.assign(identity, requestedRegion, targetRegion)
-            : await operations.assignments.assign(identity)
+        // The host asked: it may leave a reserve cell the director proves dead.
+        assignment = await operations.assignments.assign(
+          identity,
+          requestedRegion,
+          requestedRegion ? targetRegion : undefined,
+          undefined,
+          { ...step5, hostRequested: true }
+        )
       }
       if (body.data.regionCorrection) {
         try {
@@ -1218,6 +1219,44 @@ export function createRelayApp(
           : 'existing-only'
       )
       return context.json({ ok: true })
+    } catch (error) {
+      return rejectAdminOperation(context, error, 409)
+    }
+  })
+  // Step 5: the flag workflow's record of a cell's admitMode, which every sweep reads. Without
+  // `admitMode` it only reads; reserve is refused while a drain, migration or rehome is open.
+  app.post('/v1/admin/cell-admit-mode', async (context) => {
+    const bearer = readBearer(context.req.header('authorization'))
+    if (config.role !== 'director') return context.json({ error: 'director_only' }, 404)
+    if (!bearer || !(await verifyAdminToken(bearer))) {
+      return context.json({ error: 'invalid_token' }, 401)
+    }
+    if (requestTooLarge(context.req.header('content-length'))) {
+      return context.json({ error: 'request_too_large' }, 413)
+    }
+    const body = AdminCellAdmitModeSchema.safeParse(await context.req.json().catch(() => null))
+    if (!body.success) return context.json({ error: 'invalid_request' }, 400)
+    try {
+      if (body.data.admitMode) {
+        const before = await operations.assignments.cellAdmitMode(body.data.cellId)
+        await operations.assignments.setCellAdmitMode(body.data.cellId, body.data.admitMode)
+        // The sweeps' switch: every write is on the record, the break-glass flip included.
+        console.warn(
+          JSON.stringify({
+            event: 'orca_relay_cell_admit_mode_recorded',
+            cellId: body.data.cellId,
+            from: before.admitMode,
+            to: body.data.admitMode
+          })
+        )
+      }
+      return context.json({
+        v: 1,
+        cellId: body.data.cellId,
+        ...(await operations.assignments.cellAdmitMode(body.data.cellId)),
+        // The break-glass flip refuses a cell that is still heartbeating.
+        heartbeatFresh: await operations.assignments.cellHeartbeatFresh(body.data.cellId)
+      })
     } catch (error) {
       return rejectAdminOperation(context, error, 409)
     }
@@ -2043,6 +2082,10 @@ const AdminAdmissionSelectorAddMigrationCellsSchema = z
       new Set(cells.map(({ cellId }) => cellId)).size === cells.length &&
       new Set(cells.map(({ cellUrl }) => cellUrl)).size === cells.length
   )
+
+const AdminCellAdmitModeSchema = z
+  .object({ v: z.literal(1), cellId: CellIdSchema, admitMode: z.enum(['db', 'reserve']).optional() })
+  .strict()
 
 const AdminCellStateSchema = z.union([
   z.object({ v: z.literal(1), cellId: CellIdSchema, enabled: z.boolean() }).strict(),

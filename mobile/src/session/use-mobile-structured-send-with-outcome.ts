@@ -98,10 +98,7 @@ export function useMobileStructuredSendWithOutcome(args: {
         sessionId,
         fence: currentFence,
         pending: commandPending,
-        controller: {
-          agent: agent === 'claude' ? 'claude' : 'codex',
-          ...controller
-        },
+        controller: { agent: agent ?? undefined, ...controller },
         busy: () =>
           actionableStructuredApproval(stateRef.current) ||
           actionableStructuredQuestion(stateRef.current)

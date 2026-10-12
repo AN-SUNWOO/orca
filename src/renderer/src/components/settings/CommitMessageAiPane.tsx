@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import type React from 'react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
+import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type {
   SourceControlAiSettingsPatch,
@@ -82,12 +83,12 @@ export function mergeDiscoveredModelsIntoCommitMessageConfig(
 }
 
 export function getCommitMessageSettingsPaneDiscoveryHostKey(
-  settings: GlobalSettings,
+  target: RuntimeClientTarget,
   activeConnectionId: string | null | undefined,
   hasActiveWorktree: boolean
 ): string {
   const runtimeScope = hasActiveWorktree
-    ? getRuntimeGitScope(settings, activeConnectionId)
+    ? getRuntimeGitScope(target, activeConnectionId)
     : activeConnectionId
   return getCommitMessageModelDiscoveryHostKeyForScope(runtimeScope)
 }

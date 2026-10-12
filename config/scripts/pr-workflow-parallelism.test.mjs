@@ -9,7 +9,7 @@ const unitTestWorkflow = parse(readFileSync('.github/workflows/unit-tests.yml', 
 describe('PR workflow parallelism', () => {
   it('enforces process-host boundaries in the required static-analysis checks', () => {
     const guard = workflow.jobs.preflight.steps.find((step) =>
-      step.run?.includes('pnpm run check:process-host-imports')
+      step.run?.includes('bun --bun run check:process-host-imports')
     )
     expect(guard?.if).toBe('!cancelled()')
     expect(guard?.env.PREFLIGHT_PHASE_SELECTED).toBe(
@@ -17,7 +17,7 @@ describe('PR workflow parallelism', () => {
     )
     expect(guard?.background).toBe(true)
     const typecheckIndex = workflow.jobs.preflight.steps.findIndex(
-      (step) => step.run === 'pnpm run typecheck'
+      (step) => step.wait === 'typecheck'
     )
     const waitIndex = workflow.jobs.preflight.steps.findIndex((step) => step.wait === guard.id)
     expect(waitIndex).toBeGreaterThan(typecheckIndex)

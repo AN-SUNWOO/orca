@@ -123,7 +123,7 @@ test('keeps a collapsed group visible when an idle card below it grows', async (
     if (!member || !collapsed || !expanded) {
       throw new Error('Expected three fixture repos')
     }
-    const group = await store.getState().createProjectGroup('Research gang')
+    const group = await store.getState().createProjectGroup('Research gang', 'local')
     if (!group) {
       throw new Error('Fixture group was not created')
     }

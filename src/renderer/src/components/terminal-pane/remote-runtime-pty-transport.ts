@@ -1,3 +1,5 @@
+import { readTerminalSpawnDeferral } from '../../../../shared/host-spawn-admission'
+import { remoteRestoreSpawnIntentParams } from '../../runtime/remote-restore-spawn-intent'
 import { createAgentSessionKeyboardOptions } from '@/runtime/agent-session-keyboard-capability'
 import { withRemoteReattachInputBuffer } from './remote-reattach-input-buffer'
 import { createRemoteRuntimeDisconnectedInputGrace } from './remote-runtime-disconnected-input-grace'
@@ -2678,6 +2680,16 @@ export function createRemoteRuntimePtyTransport(
         const resumeProviderSessionToSend = options.resumeProviderSession ?? resumeProviderSession
         const launchTokenToSend = options.launchToken ?? launchToken
         const launchAgentToSend = options.launchAgent ?? launchAgent
+        const restoreSpawnIntent = resumeProviderSessionToSend
+          ? options.resumeSpawnIntent
+          : undefined
+        // Why only for a restore: an extra await would reorder every plain create against destroy.
+        const spawnIntentParams = restoreSpawnIntent
+          ? await remoteRestoreSpawnIntentParams(createEnvironmentId, restoreSpawnIntent)
+          : {}
+        if (restoreSpawnIntent && (destroyed || lifecycleEpoch !== connectLifecycleEpoch)) {
+          return
+        }
         const legacyCreateParams = {
           worktree: toRuntimeTerminalWorktreeSelector(worktreeId),
           clientMutationId: terminalCreateMutationId,
@@ -2693,6 +2705,7 @@ export function createRemoteRuntimePtyTransport(
             : {}),
           ...(launchTokenToSend !== undefined ? { launchToken: launchTokenToSend } : {}),
           ...(launchAgentToSend !== undefined ? { launchAgent: launchAgentToSend } : {}),
+          ...spawnIntentParams,
           ...(terminalColorQueryReplies ? { terminalColorQueryReplies } : {}),
           ...(terminalKittyKeyboardProtocol === true
             ? { terminalKittyKeyboardProtocol: true }
@@ -2743,7 +2756,8 @@ export function createRemoteRuntimePtyTransport(
                         ? { launchPreferences: agentLaunchPreferences }
                         : {}),
                       placement: { tabId, leafId },
-                      presentation: 'background'
+                      presentation: 'background',
+                      ...spawnIntentParams
                     },
                     timeoutMs
                   )
@@ -2867,7 +2881,12 @@ export function createRemoteRuntimePtyTransport(
         if (!destroyed && lifecycleEpoch === connectLifecycleEpoch) {
           connecting = false
           const message = runtimeTerminalErrorMessage(error)
-          if (isRemoteTerminalGoneMessage(message)) {
+          const deferral = readTerminalSpawnDeferral(error)
+          if (deferral) {
+            recovery.cancel()
+            emitRecoveryState()
+            storedCallbacks.onSpawnDeferred?.(deferral)
+          } else if (isRemoteTerminalGoneMessage(message)) {
             recovery.cancel()
             handleRemoteTerminalError(error)
           } else if (isRecoverablePaneBindingError(error)) {

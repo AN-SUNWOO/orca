@@ -231,19 +231,6 @@ describe('useCreateProjectDefaults', () => {
     expect(setCreateParent).not.toHaveBeenCalled()
   })
 
-  it('does not use client defaults or Git probing for SSH targets', async () => {
-    mocks.isGitAvailable.mockResolvedValue(true)
-
-    const { setCreateParent } = useHarness({ sshTargetId: 'ssh-1' })
-    await flushAsync()
-
-    expect(setCreateParent).not.toHaveBeenCalled()
-    expect(mocks.getDefaultCreateProjectParent).not.toHaveBeenCalled()
-    expect(mocks.isGitAvailable).not.toHaveBeenCalled()
-    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
-    expect(mocks.stateValues[GIT_AVAILABILITY_STATE]).toBe('unknown')
-  })
-
   it('does nothing outside the create step', async () => {
     const { setCreateParent } = useHarness({ step: 'add' })
     await flushAsync()

@@ -5,7 +5,7 @@
 import { ORCAD_TERMINAL_CENSUS_RUNTIME_CAPABILITY } from '../../shared/orcad-runtime-capabilities'
 import { ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES } from '../../shared/electron-remote-runtime-client-capabilities'
 import {
-  getPreferredPairingOffer,
+  getPreferredPairedRuntimeConnection,
   type KnownRuntimeEnvironment
 } from '../../shared/runtime-environments'
 import {
@@ -47,7 +47,7 @@ export async function collectManagedTerminalCensus(
     // A server that idled out behind a forward still up is started first, or it never answers.
     await verifyOrcadManagedServing(userDataPath, environment.id)
     const response = await sendRemoteRuntimeRequestWithStatusPreflight<unknown>(
-      getPreferredPairingOffer(environment),
+      getPreferredPairedRuntimeConnection(environment),
       ORCAD_TERMINAL_CENSUS_METHOD,
       {
         activatedAt,

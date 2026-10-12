@@ -8,6 +8,10 @@ import { useFileExplorerVisibleRowProjection } from './useFileExplorerVisibleRow
 import { FILE_EXPLORER_IGNORED_QUERY_DEBOUNCE_MS } from './use-file-explorer-ignored-paths'
 
 const getRuntimeGitIgnoredPathsMock = vi.hoisted(() => vi.fn())
+vi.mock('./worktree-git-owner-target', () => ({
+  getWorktreeGitOwnerTarget: () => ({ kind: 'local' })
+}))
+
 vi.mock('@/runtime/runtime-git-client', () => ({
   getRuntimeGitIgnoredPaths: getRuntimeGitIgnoredPathsMock
 }))

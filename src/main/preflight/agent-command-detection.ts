@@ -1,5 +1,4 @@
-import { z } from 'zod'
-import { getActiveMultiplexer } from '../ssh/ssh-target-registry'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import { detectWslCommandsOnPath } from '../ipc/preflight-wsl-agent-detection'
 import { detectCommandsInInstallDirs } from '../ipc/local-agent-install-dir-detection'
 import {
@@ -13,16 +12,7 @@ export async function detectAgentCommandsOnHost(
   options: { connectionId?: string | null; context?: PreflightRuntimeContext } = {}
 ): Promise<Set<string>> {
   if (options.connectionId) {
-    const mux = getActiveMultiplexer(options.connectionId)
-    if (!mux || mux.isDisposed()) {
-      throw new Error('Agent command resolution requires the execution host connection.')
-    }
-    const result = z.object({ agents: z.array(z.string()) }).parse(
-      await mux.request('preflight.detectAgents', {
-        commands: commands.map((cmd) => ({ id: cmd, cmd }))
-      })
-    )
-    return new Set(result.agents.filter((cmd) => commands.includes(cmd)))
+    throw new SshHostNotServedError(options.connectionId)
   }
   const context = options.context
   const wslTarget = getPreflightWslTarget(context)

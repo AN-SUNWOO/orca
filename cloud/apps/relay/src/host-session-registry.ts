@@ -168,6 +168,16 @@ function payload(raw: RawData, expectedType: string): unknown {
   }
 }
 
+// Who the token speaks for; only its expiry may change across a refresh or a resume.
+function sameHostIdentity(current: RelayTokenClaims, next: RelayTokenClaims): boolean {
+  return (
+    next.sub === current.sub &&
+    next.prof === current.prof &&
+    next.org === current.org &&
+    next.relayHostId === current.relayHostId
+  )
+}
+
 function send(socket: WebSocket, type: string, message: object): void {
   socket.send(JSON.stringify({ type, ...message }))
 }
@@ -1465,7 +1475,8 @@ export class HostSessionRegistry {
       existing &&
       hello.data.controlResumeSecret &&
       hello.data.controlResumeSecret === existing.controlResumeSecret &&
-      (existing.state === 'orphaned' || existing.state === 'active')
+      (existing.state === 'orphaned' || existing.state === 'active') &&
+      sameHostIdentity(existing.identity, identity)
     )
     const generation = rebind ? existing!.generation : (existing?.generation ?? 0) + 1
     const ephemeral = nacl.box.keyPair()
@@ -1663,6 +1674,9 @@ export class HostSessionRegistry {
       // id today, since a rebind keeps its generation).
       if (controlActivityId) existing.controlActivityId = controlActivityId
       existing.socket = socket
+      // The hello's token was just verified; keeping the predecessor's would let the next
+      // heartbeat expire a control that proved itself, and every resume would repeat it.
+      if (identity.exp > existing.identity.exp) existing.identity = identity
       existing.state = existing.regionalDrainAttemptId ? 'drain-only' : 'active'
       existing.appVersion = appVersion
       existing.leaseExpiresAt = this.controlLeaseExpiresAt()
@@ -1839,7 +1853,11 @@ export class HostSessionRegistry {
         if (parsed.type === 'auth-refresh') {
           // Close the socket the message arrived on: after a rebind,
           // session.socket already points at the successor.
-          this.guardSessionTask(() => this.acceptRefresh(session, raw), socket, 'auth refresh')
+          this.guardSessionTask(
+            () => this.acceptRefresh(session, socket, raw),
+            socket,
+            'auth refresh'
+          )
           return
         }
         this.guardSessionTask(
@@ -1872,34 +1890,32 @@ export class HostSessionRegistry {
     )
   }
 
-  private async acceptRefresh(session: HostSession, raw: RawData): Promise<void> {
+  private async acceptRefresh(session: HostSession, socket: WebSocket, raw: RawData): Promise<void> {
     const release = this.beginIdleWork(session.relayHostId)
     if (!release) {
-      session.socket?.close(RELAY_CLOSE_CODE.DRAINING, 'resolve-director')
+      socket.close(RELAY_CLOSE_CODE.DRAINING, 'resolve-director')
       return
     }
     try {
-      await this.acceptRefreshUnfenced(session, raw)
+      await this.acceptRefreshUnfenced(session, socket, raw)
     } finally {
       release()
     }
   }
 
-  private async acceptRefreshUnfenced(session: HostSession, raw: RawData): Promise<void> {
+  private async acceptRefreshUnfenced(
+    session: HostSession,
+    socket: WebSocket,
+    raw: RawData
+  ): Promise<void> {
     const parsed = AuthRefreshSchema.safeParse(payload(raw, 'auth-refresh'))
     if (!parsed.success) return
     const refreshed = await this.verifyRelayToken(parsed.data.relayJwt)
-    const sameIdentity =
-      refreshed &&
-      refreshed.sub === session.identity.sub &&
-      refreshed.prof === session.identity.prof &&
-      refreshed.org === session.identity.org &&
-      refreshed.relayHostId === session.identity.relayHostId
-    if (!sameIdentity) {
-      session.socket?.close(RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL, 'refresh identity changed')
+    if (!refreshed || !sameHostIdentity(session.identity, refreshed)) {
+      socket.close(RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL, 'refresh identity changed')
       return
     }
-    session.identity = refreshed
+    if (refreshed.exp > session.identity.exp) session.identity = refreshed
     if (!session.regionalDrainAttemptId) this.markSeatActive(session)
   }
 

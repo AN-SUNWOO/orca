@@ -48,8 +48,7 @@ import {
  * they had closed on every launch. Leaving it alone keeps this a one-shot repair, at the cost of
  * not recovering rows stranded beside a populated workspace — which are stranded on main today too,
  * so it is never a new loss. An EMPTY tab row is not such a copy: an empty list is not evidence
- * that anything was closed (`mergeDirectSshRemoteWorkspaceSession` argues this at length, and
- * docs/reference/ssh-execution-boundary.md makes it general — "we could not see it" is
+ * that anything was closed (docs/reference/ssh-execution-boundary.md: "we could not see it" is
  * `unverifiable`, never proof of absence). Treating it as the truth is what published an empty tab
  * list and let `replace-session` delete the host's copy (#12721). Nor is a copy of a workspace the
  * repo catalog places on this host while the host holds its tabs: the base's rows there are residue

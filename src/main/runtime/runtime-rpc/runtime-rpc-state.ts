@@ -10,6 +10,8 @@ import type { E2EEKeypair } from '../e2ee-keypair'
 import type { RuntimeHostDescriptor } from '../../../shared/runtime-host-descriptor'
 import type { UnpairedDeviceAuthThrottle } from '../rpc/unpaired-device-auth-throttle'
 import type { MobileSocketWiring } from '../rpc/mobile-socket-wiring'
+import type { MobileDesktopRelay } from '../mobile-desktop-relay/mobile-desktop-relay'
+import type { MobileRelayHostCatalog } from '../mobile-desktop-relay/mobile-relay-host-catalog'
 import { RelayRevokeOutbox } from '../relay/relay-revoke-outbox'
 import { PushUnregisterOutbox } from '../push/push-unregister-outbox'
 import { RuntimeBinaryMessageRouter } from '../runtime-binary-message-router'
@@ -72,6 +74,9 @@ export class RuntimeRpcState {
   // transports under the SAME wiring (see ensureMobileSocketWiring) instead of orphaning relay sockets.
   protected detachWebSocketWiring: (() => void) | null = null
   protected mobileRelayPairingProvider: MobileRelayPairingProvider | null = null
+  // Why nullable: launch sets both for every runtime process; in-process test servers may not.
+  protected mobileDesktopRelay: MobileDesktopRelay | null = null
+  protected mobileRelayHostCatalog: MobileRelayHostCatalog | null = null
   // Why: lets an automatic mint install a provider whose launch-time construction failed.
   protected mobileRelayPairingProviderInstaller: (() => Promise<unknown>) | null = null
   protected mobileRelayPairingOfferQueue: Promise<void> = Promise.resolve()

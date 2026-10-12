@@ -18,11 +18,10 @@ export function routesFreshSpawnsToLocalProvider(provider: IPtyProvider): boolea
 
 export function recoverFreshSpawnProviderRouting(
   provider: IPtyProvider,
-  connectionId: string | null | undefined,
   sessionId: string | undefined,
   isNewSession = sessionId === undefined
 ): Promise<boolean> | undefined {
-  if (connectionId || (!isNewSession && sessionId) || !routesFreshSpawnsToLocalProvider(provider)) {
+  if ((!isNewSession && sessionId) || !routesFreshSpawnsToLocalProvider(provider)) {
     return
   }
   return provider.recoverFreshSpawnRouting?.()

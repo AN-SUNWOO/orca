@@ -39,7 +39,7 @@ export function useChecksPanelManualRefresh(model: ChecksPanelManualRefreshInput
     linkedGiteaPR,
     linkedGitLabMR,
     linkedPR,
-    ownerSettings,
+    ownerTarget,
     panelContextKey,
     panelContextKeyRef,
     pollIntervalRef,
@@ -95,7 +95,7 @@ export function useChecksPanelManualRefresh(model: ChecksPanelManualRefreshInput
       refreshState: prCacheKey ? useAppStore.getState().prRefreshStates[prCacheKey] : null
     })
     try {
-      if (activeWorktreeId && activeWorktreePath && !isFolder) {
+      if (activeWorktreeId && activeWorktreePath && !isFolder && ownerTarget) {
         const snapshotIdentity = readChecksPanelRefreshGitIdentitySnapshot({
           snapshot: gitStatusSnapshot,
           contextKey: panelContextKey,
@@ -112,7 +112,7 @@ export function useChecksPanelManualRefresh(model: ChecksPanelManualRefreshInput
         }
         try {
           const statusContext = {
-            settings: ownerSettings,
+            target: ownerTarget,
             worktreeId: activeWorktreeId,
             worktreePath: activeWorktreePath,
             connectionId: activeConnectionId ?? undefined
@@ -380,7 +380,7 @@ export function useChecksPanelManualRefresh(model: ChecksPanelManualRefreshInput
     fetchHostedReviewForBranch,
     expireGitHubPRRefreshState,
     isCurrentAsyncResult,
-    ownerSettings,
+    ownerTarget,
     updateWorktreeGitIdentity,
     panelContextKeyRef,
     asyncResultKeyRef,

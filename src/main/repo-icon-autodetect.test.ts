@@ -212,25 +212,16 @@ describe('detectRepoIcon', () => {
     ).resolves.toMatchObject({ source: 'file', label: 'favicon.png' })
   })
 
-  it('routes each SSH host to its own filesystem provider', async () => {
+  it('reads nothing for an SSH host, even with a registered filesystem provider', async () => {
     const repoPath = await makeTempRepoDir()
-    // On disk on this machine, so a host-blind probe would answer with this one for both hosts.
+    // On disk on this machine, so a host-blind probe would answer with it.
     await writeFile(join(repoPath, 'favicon.png'), Buffer.from(PNG_1X1_BASE64, 'base64'))
-    registerHomepageHost('m4air', 'https://m4air.example.com')
-    registerHomepageHost('openclaw', 'https://openclaw.example.com')
+    const host = registerHomepageHost('m4air', 'https://m4air.example.com')
 
     await expect(
       detectRepoIcon({ repoPath, kind: 'folder', executionHostId: 'ssh:m4air' })
-    ).resolves.toMatchObject({
-      source: 'favicon',
-      src: expect.stringContaining('m4air.example.com')
-    })
-    await expect(
-      detectRepoIcon({ repoPath, kind: 'folder', executionHostId: 'ssh:openclaw' })
-    ).resolves.toMatchObject({
-      source: 'favicon',
-      src: expect.stringContaining('openclaw.example.com')
-    })
+    ).resolves.toBeUndefined()
+    expect(host.stat).not.toHaveBeenCalled()
   })
 
   it('reads nothing for a runtime host even when its nested SSH target is registered here', async () => {

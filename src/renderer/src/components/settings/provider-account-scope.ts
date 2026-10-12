@@ -1,6 +1,7 @@
 import { translate } from '@/i18n/i18n'
 import { getLocalExecutionHostLabel } from '../../../../shared/execution-host'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
+import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 
 export type ProviderAccountScope = {
   label: string
@@ -30,8 +31,8 @@ export function getRemoteAccountsPaneScope(serverName: string | null): ProviderA
           'Remote server'
         ),
     description: translate(
-      'auto.components.settings.AccountsPane.remoteScopeLocalAccountsKept',
-      'Accounts managed on this desktop are unchanged. Switch the default runtime back to Local desktop to view them.'
+      'auto.components.settings.AccountsPane.remoteScopeLocalAccountsKeptHostPicker',
+      'Accounts managed on this desktop are unchanged. Choose this computer in the Host menu at the top of Settings to view them.'
     )
   }
 }
@@ -49,7 +50,7 @@ export function getProviderAccountScope(
       ),
       description: translate(
         'auto.components.settings.providerAccountScope.remoteServerCredentials',
-        'Credentials and account checks for this provider are owned by this remote server. Use Settings > Remote Orca Servers > Advanced to edit another default runtime scope.'
+        'Credentials and account checks for this provider are owned by this remote server. To use another host, change Settings > Remote Orca Servers > Advanced > Default host for new projects.'
       )
     }
   }
@@ -57,17 +58,17 @@ export function getProviderAccountScope(
     label: getLocalExecutionHostLabel(),
     description: translate(
       'auto.components.settings.providerAccountScope.localCredentials',
-      'Credentials and account checks for this provider are owned by this desktop client. Use Settings > Remote Orca Servers > Advanced to edit server-owned credentials.'
+      'Credentials and account checks for this provider are owned by this desktop client. To use a server, change Settings > Remote Orca Servers > Advanced > Default host for new projects.'
     )
   }
 }
 
 export function getProviderRateLimitScope(
-  settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined,
+  target: RuntimeClientTarget,
   providerLabel: string
 ): ProviderRateLimitScope {
-  const runtimeId = settings?.activeRuntimeEnvironmentId?.trim()
-  if (runtimeId) {
+  if (target.kind === 'environment') {
+    const runtimeId = target.environmentId
     return {
       label: translate(
         'auto.components.settings.providerAccountScope.remoteServer',
@@ -76,7 +77,7 @@ export function getProviderRateLimitScope(
       ),
       description: translate(
         'auto.components.settings.providerAccountScope.remoteServerRateLimit',
-        '{{value0}} API budget is fetched from the CLI on this remote server. Use Settings > Remote Orca Servers > Advanced to view another default runtime budget.',
+        '{{value0}} API budget is fetched from the CLI on this remote server. Choose another host in the Host menu at the top of Settings to see its budget.',
         { value0: providerLabel }
       )
     }
@@ -85,7 +86,7 @@ export function getProviderRateLimitScope(
     label: getLocalExecutionHostLabel(),
     description: translate(
       'auto.components.settings.providerAccountScope.localRateLimit',
-      '{{value0}} API budget is fetched from the CLI on this desktop client. Use Settings > Remote Orca Servers > Advanced to view server-owned budgets.',
+      '{{value0}} API budget is fetched from the CLI on this desktop client. Choose a server in the Host menu at the top of Settings to see its budget.',
       { value0: providerLabel }
     )
   }

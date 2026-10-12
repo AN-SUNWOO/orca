@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Repo } from '../../../shared/repo-types'
 
-type ReadyToast = { title: string; label: ReactNode; onClick: () => void }
+type ReadyToast = { title: string; duration?: number; label: ReactNode; onClick: () => void }
 
 const { toasts, store } = vi.hoisted(() => {
   const toasts: ReadyToast[] = []
@@ -13,8 +13,11 @@ const { toasts, store } = vi.hoisted(() => {
 
 vi.mock('sonner', () => ({
   toast: {
-    success: (title: string, options: { action: { label: ReactNode; onClick: () => void } }) => {
-      toasts.push({ title, ...options.action })
+    success: (
+      title: string,
+      options: { duration?: number; action: { label: ReactNode; onClick: () => void } }
+    ) => {
+      toasts.push({ title, duration: options.duration, ...options.action })
     }
   }
 }))
@@ -51,6 +54,7 @@ describe('showWorktreeCreationReadyToast', () => {
 
     expect(toasts).toHaveLength(1)
     expect(toasts[0]?.title).toBe('Worktree Feature is ready')
+    expect(toasts[0]?.duration).toBe(Infinity)
     const label = renderToStaticMarkup(<>{toasts[0]?.label}</>)
     expect(label).toContain('lucide-external-link')
     expect(label).toContain('Go to worktree')

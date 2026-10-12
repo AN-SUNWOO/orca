@@ -1,8 +1,11 @@
 // @vitest-environment happy-dom
 import { act, renderHook } from '@testing-library/react'
+import {
+  runtimeTargetForOwnerEnvironment,
+  type RuntimeClientTarget
+} from '@/runtime/runtime-client-target'
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { EditorPathMutationTarget } from '@/components/editor/editor-autosave'
-import type { RuntimeGitContext } from '@/runtime/runtime-git-client'
 
 const mocks = vi.hoisted(() => {
   const focus: { value: string | null } = { value: null }
@@ -51,12 +54,10 @@ for (const bulk of [false, true]) {
       mocks.quiesce.mockImplementation((target) =>
         target.runtimeEnvironmentId === owner ? pendingSave : Promise.resolve()
       )
-      const activeRepoSettings: RuntimeGitContext['settings'] = {
-        activeRuntimeEnvironmentId: owner
-      }
+      const activeRepoTarget: RuntimeClientTarget | null = runtimeTargetForOwnerEnvironment(owner)
       const { result } = renderHook(() =>
         useSourceControlEntryMutations({
-          activeRepoSettings,
+          activeRepoTarget,
           activeWorktreeId: 'wt-owner',
           worktreePath: '/repo',
           refreshActiveGitStatusAfterMutation: async () => {}
@@ -95,7 +96,7 @@ for (const bulk of [false, true]) {
       )
       const mutation = bulk ? mocks.bulkDiscard : mocks.discard
       expect(mutation).toHaveBeenCalledTimes(1)
-      expect(mutation.mock.calls[0]?.[0]).toMatchObject({ settings: activeRepoSettings })
+      expect(mutation.mock.calls[0]?.[0]).toMatchObject({ target: activeRepoTarget })
     }
   )
 }

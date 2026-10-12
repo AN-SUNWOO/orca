@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { NativeChatVisualFrame } from './NativeChatVisualFrame'
 import { NativeChatVisualUnavailable } from './NativeChatInlineVisual'
-import type { OpenChatVisualTabState } from './native-chat-visual-tab'
+import type { OpenChatVisualTabState } from '../../../../shared/editor-tab-view-types'
 import { useNativeChatVisualDocument } from './use-native-chat-visual-document'
 
 /** A chat visual in its own tab: the same isolated frame as inline, filling the tab. */

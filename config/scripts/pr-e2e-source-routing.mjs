@@ -1,6 +1,11 @@
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
-import { isUnitTestSupportSource } from './pr-code-change-scope.mjs'
+import {
+  DAEMON_INIT_TEST_SUPPORT,
+  isDaemonInitTestSupportChange,
+  isUnitTestSupportSource
+} from './pr-code-change-scope.mjs'
+import { LAYOUT_ORACLE_E2E_SPECS } from './pr-layout-oracle-route.mjs'
 
 const isProductSource = (file) => !/\.test\.tsx?$/.test(file) && !isUnitTestSupportSource(file)
 
@@ -142,7 +147,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'ssh.orcad-browser-drop-owner',
     specs: ['tests/e2e/ssh-orcad-browser-drop-owner.spec.ts'],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/(?:orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-relay-target|browser-split-(?:guest-probes|page-server))\.ts$/.test(
+      /^tests\/e2e\/helpers\/(?:orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-host-target|browser-split-(?:guest-probes|page-server))\.ts$/.test(
         file
       ) ||
       (isProductSource(file) &&
@@ -154,7 +159,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'ssh.orcad-open-in-owner',
     specs: ['tests/e2e/ssh-orcad-open-in-owner.spec.ts'],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/(?:orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-relay-target)\.ts$/.test(
+      /^tests\/e2e\/helpers\/(?:orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-host-target)\.ts$/.test(
         file
       ) ||
       (isProductSource(file) &&
@@ -166,7 +171,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'ssh.orcad-terminal-root-owner',
     specs: ['tests/e2e/ssh-orcad-terminal-root-owner.spec.ts'],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/(?:terminal-workspace-root-link|orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-relay-target)\.ts$/.test(
+      /^tests\/e2e\/helpers\/(?:terminal-workspace-root-link|orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-host-target)\.ts$/.test(
         file
       ) ||
       (isProductSource(file) &&
@@ -185,35 +190,32 @@ export const PR_E2E_SOURCE_ROUTES = [
         ))
   },
   {
-    id: 'ssh.localhost-agent-hooks',
-    specs: ['tests/e2e/ssh-localhost.spec.ts'],
+    // Why: managed SSH hosts are now the only SSH path, so these specs carry its user journeys.
+    id: 'ssh.orcad-journeys',
+    specs: [
+      'tests/e2e/ssh-orcad-terminal-journeys.spec.ts',
+      'tests/e2e/ssh-orcad-workspace-tools.spec.ts',
+      'tests/e2e/ssh-orcad-vm-provisioned-root.spec.ts'
+    ],
     matches: (file) =>
-      isProductSource(file) &&
-      /^src\/(?:relay\/(?:agent-hook|relay-agent-hook-runtime|plugin-overlay)|wsl-guest\/(?:agent-hook|plugin-overlay)|main\/(?:agent-hooks\/|ssh\/ssh-relay-session\.ts$)|shared\/agent-hook)/.test(
+      /^tests\/e2e\/helpers\/(?:orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-upgrade-profile|paired-host-terminal|terminal-workspace-root-link)\.ts$/.test(
         file
-      )
+      ) ||
+      (isProductSource(file) &&
+        /^src\/(?:main\/ssh\/orcad-managed-|main\/ipc\/ssh-port-forward|renderer\/src\/startup\/(?:ssh-startup-reconnect|startup-ssh-connection-restore)\.ts$|renderer\/src\/runtime\/(?:web-runtime-session|runtime-terminal-artifact-read\.ts$)|renderer\/src\/components\/terminal-pane\/(?:remote-runtime-|terminal-host-(?:workspace-file|file-link-existence)\.ts$))/.test(
+          file
+        ))
   },
   {
     id: 'browser-network.ssh-docker-route',
     specs: ['tests/e2e/ssh-browser-network-execution-route.docker.unit.test.ts'],
     matches: (file) =>
       file === 'tests/e2e/ssh-browser-network-execution-route.docker.unit.test.ts' ||
-      /^tests\/e2e\/helpers\/docker-ssh-relay-(?:image|target)\.ts$/.test(file) ||
+      /^tests\/e2e\/helpers\/docker-ssh-host-(?:image|target)\.ts$/.test(file) ||
       (isProductSource(file) &&
         /^src\/main\/(?:browser\/(?:ssh-browser-network-execution-route|browser-network-deferred-socket|browser-network-execution-route|system-ssh-socks-client-socket)|ssh\/system-ssh-dynamic-forward-process)\.ts$/.test(
           file
         ))
-  },
-  {
-    // Why the host-connection phase: the route gate waits on it, so a phase change can strand the
-    // SSH-unavailable card without touching a browser file.
-    id: 'browser.local-ssh-workspace-route',
-    specs: ['tests/e2e/local-ssh-browser-routing.spec.ts'],
-    matches: (file) =>
-      isProductSource(file) &&
-      /^src\/(?:main\/browser\/local-ssh-browser-(?:route|partitions)\.ts|renderer\/src\/(?:components\/browser-pane\/(?:use-ssh-workspace-browser-route\.ts|assemble-chrome\/ssh-routed-browser-page-gate\.tsx)|lib\/worktree-host-connection-phase\.ts))$/.test(
-        file
-      )
   },
   {
     id: 'terminal.windows-wsl-launch-and-paste',
@@ -224,55 +226,6 @@ export const PR_E2E_SOURCE_ROUTES = [
     matches: (file) =>
       isProductSource(file) &&
       /^(?:config\/scripts\/(?:verify-wsl-e2e-participation|verify-playwright-participation)\.mjs$|src\/main\/(?:wsl[/-]|pty\/.*wsl|providers\/wsl)|src\/shared\/(?:wsl-|windows-terminal-shell)|src\/renderer\/src\/.*(?:terminal-paste|pty-paste)|tests\/e2e\/(?:golden-tab-bar-agent-launch\.spec|terminal-windows-shell-paste-ownership\.spec|helpers\/(?:wsl-golden-stub-agent|golden-stub-agent))|\.github\/(?:actions\/setup-wsl-test-runtime\/|workflows\/windows-wsl-e2e\.yml))/.test(
-        file
-      )
-  },
-  {
-    id: 'ephemeral-vm-runtime.rollback-readable-sidecar',
-    specs: ['tests/e2e/ephemeral-vm-provisioned-root.spec.ts'],
-    matches: (file) =>
-      /^(?:src\/main\/ephemeral-vm-(?:runtime-(?:service|provisioning-persistence)|failed-start-cleanup)|src\/shared\/(?:ephemeral-vm-runtime-(?:store|feature-store|rollback-projection|runtimes)|ephemeral-vm-recipes|orca-yaml-hook-types))\.ts$/.test(
-        file
-      )
-  },
-  {
-    id: 'ssh-terminal-source',
-    specs: [
-      'tests/e2e/pty-input-write-queue-ssh.spec.ts',
-      'tests/e2e/ssh-codex-display-artifacts-repro.spec.ts',
-      'tests/e2e/ssh-cold-activation-restore.spec.ts',
-      'tests/e2e/ssh-docker-half-open-link.spec.ts',
-      'tests/e2e/ssh-docker-reconnect-pane-restore.spec.ts',
-      'tests/e2e/ssh-docker-relay-stall-credential.spec.ts',
-      'tests/e2e/ssh-docker-resource-accumulation.spec.ts',
-      'tests/e2e/ssh-docker-transport-drop-recovery.spec.ts',
-      'tests/e2e/ssh-port-forward-lifecycle.spec.ts',
-      'tests/e2e/ssh-reconnect-tab-destruction.spec.ts',
-      'tests/e2e/ssh-startup-exec-readiness.spec.ts',
-      'tests/e2e/ssh-terminal-window-wake-stale-grid-repro.spec.ts'
-    ],
-    // Why the store/startup/shared additions: the SSH-named authorities stop at the main
-    // process and the pane component, but the reconnect ledgers and retained-payload
-    // admission that decide whether a pane rebinds live in the renderer store.
-    matches: (file) =>
-      isProductSource(file) &&
-      /^(?:src\/main\/ssh\/|src\/main\/providers\/ssh-|src\/main\/ipc\/(?:ssh-|pty)|src\/main\/runtime\/(?:public-ssh-state|ssh-file-explorer-chunk-read)\.ts|src\/relay\/|src\/wsl-guest\/|src\/shared\/(?:ssh-|skill-ssh-relay-contract)|src\/renderer\/src\/startup\/(?:ssh-startup-reconnect|startup-ssh-connection-restore)\.ts|src\/renderer\/src\/store\/slices\/(?:ssh|direct-ssh-)|src\/renderer\/src\/components\/terminal-pane\/(?:pty-|ssh-|remote-runtime-|terminal-parked-pty))/.test(
-        file
-      )
-  },
-  {
-    // Why a sibling route rather than more paths on ssh-terminal-source: these modules carry
-    // no "ssh" in their names, and only the two restore specs gate them. Folding them in
-    // would run the whole SSH terminal list for a tab-tombstone edit.
-    id: 'ssh-workspace-session-restore',
-    specs: [
-      'tests/e2e/ssh-cold-activation-restore.spec.ts',
-      'tests/e2e/ssh-reconnect-tab-destruction.spec.ts'
-    ],
-    matches: (file) =>
-      isProductSource(file) &&
-      !file.endsWith('-test-harness.ts') &&
-      /^(?:src\/main\/ipc\/remote-workspace|src\/shared\/remote-workspace-|src\/renderer\/src\/hooks\/remote-workspace-|src\/renderer\/src\/lib\/worktree-(?:initial-terminal-seeding|default-terminal-tabs)\.ts|src\/renderer\/src\/components\/terminal\/initial-terminal)/.test(
         file
       )
   },
@@ -319,7 +272,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     specs: ['tests/e2e/paired-quick-open-large-tree.spec.ts'],
     matches: (file) =>
       isProductSource(file) &&
-      /^(?:src\/main\/ipc\/filesystem-(?:list-files|search-file-paths)\.ts|src\/main\/ripgrep\/bundled-ripgrep-path\.ts|src\/main\/providers\/(?:filesystem-provider-contract|ssh-filesystem-provider(?:-capabilities)?)\.ts|src\/main\/runtime\/(?:orca-runtime-files|rpc\/methods\/files)\.ts|src\/relay\/(?:fs-handler(?:-install-rg|-list-files|-ripgrep-fallback)?|fs-list-files-fallback-chain|relay-bundled-ripgrep)\.ts|src\/renderer\/src\/(?:components\/(?:QuickOpen|quick-open-file-list|quick-open-search)\.tsx?|runtime\/(?:runtime-file-client|runtime-legacy-quick-open-inventory)\.ts)|src\/shared\/(?:quick-open-(?:install-rg|path-search|transport-budget)|ripgrep-process-availability|bundled-ripgrep)\.ts)$/.test(
+      /^(?:src\/main\/ipc\/filesystem-(?:list-files|search-file-paths)\.ts|src\/main\/ripgrep\/bundled-ripgrep-path\.ts|src\/main\/providers\/(?:filesystem-provider-contract|ssh-filesystem-provider(?:-capabilities)?)\.ts|src\/main\/runtime\/(?:orca-runtime-files|rpc\/methods\/files)\.ts|src\/renderer\/src\/(?:components\/(?:QuickOpen|quick-open-file-list|quick-open-search)\.tsx?|runtime\/(?:runtime-file-client|runtime-legacy-quick-open-inventory)\.ts)|src\/shared\/(?:quick-open-(?:install-rg|path-search|transport-budget)|ripgrep-process-availability|bundled-ripgrep)\.ts)$/.test(
         file
       )
   },
@@ -433,10 +386,22 @@ export const PR_E2E_SOURCE_ROUTES = [
   }
 ]
 
-export function selectPrE2eSpecs(changedPaths, reportRoute = () => undefined) {
-  const specs = new Set(changedPaths.filter((file) => /^tests\/e2e\/.*\.spec\.ts$/.test(file)))
+export function selectPrE2eSpecs(
+  changedPaths,
+  reportRoute = () => undefined,
+  { allowDaemonInitTestSupport = false } = {}
+) {
+  const routePaths = isDaemonInitTestSupportChange(changedPaths, allowDaemonInitTestSupport)
+    ? changedPaths.filter((file) => file !== DAEMON_INIT_TEST_SUPPORT)
+    : changedPaths
+  // The required layout_oracle job owns the oracle specs; running them here too would double the cost.
+  const specs = new Set(
+    changedPaths.filter(
+      (file) => /^tests\/e2e\/.*\.spec\.ts$/.test(file) && !LAYOUT_ORACLE_E2E_SPECS.includes(file)
+    )
+  )
   for (const route of PR_E2E_SOURCE_ROUTES) {
-    const matchedFiles = changedPaths.filter(route.matches)
+    const matchedFiles = routePaths.filter(route.matches)
     if (matchedFiles.length === 0) {
       continue
     }
@@ -446,36 +411,21 @@ export function selectPrE2eSpecs(changedPaths, reportRoute = () => undefined) {
   return [...specs].sort((left, right) => left.localeCompare(right))
 }
 
-/** Routes whose authorities are SSH execution source, and so require the Docker-SSH lane. */
-export const SSH_SOURCE_ROUTE_IDS = ['ssh-terminal-source', 'ssh-workspace-session-restore']
-
-// Why derive this from the routes instead of a second path list: the Docker-SSH lane used to
-// trigger only because one route happened to list a startup-readiness spec, so pruning that
-// spec would have silently retired the lane. Two lists that must agree is how that drifted.
-export function hasSshSourceChange(changedPaths) {
-  return PR_E2E_SOURCE_ROUTES.filter((route) => SSH_SOURCE_ROUTE_IDS.includes(route.id)).some(
-    (route) => changedPaths.some(route.matches)
-  )
-}
-
 /** Routes whose authorities a real input method can judge, and so require the native IME lane. */
 export const NATIVE_IME_SOURCE_ROUTE_IDS = ['terminal-ime.native-input-method']
 
-// Why derived from the routes, like hasSshSourceChange: the native lane must trigger on IME
-// source, not on the native spec surviving in some route's spec list.
+// Why derived from the routes: the native lane must trigger on IME source, not on the native
+// spec surviving in some route's spec list.
 export function hasNativeImeSourceChange(changedPaths) {
   return PR_E2E_SOURCE_ROUTES.filter((route) =>
     NATIVE_IME_SOURCE_ROUTE_IDS.includes(route.id)
   ).some((route) => changedPaths.some(route.matches))
 }
 
-export function shouldRunReusablePrE2e(changedPaths) {
-  // Native IME has its own workflow; SSH still runs inside the reusable workflow.
-  return (
-    hasSshSourceChange(changedPaths) ||
-    selectPrE2eSpecs(changedPaths).some(
-      (spec) => spec !== 'tests/e2e/terminal-ibus-hangul-native.spec.ts'
-    )
+export function shouldRunReusablePrE2e(changedPaths, options = {}) {
+  // Native IME has its own workflow.
+  return selectPrE2eSpecs(changedPaths, undefined, options).some(
+    (spec) => spec !== 'tests/e2e/terminal-ibus-hangul-native.spec.ts'
   )
 }
 
@@ -493,16 +443,17 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     input += chunk
   }
   const changedPaths = input.split(/\r?\n/).filter(Boolean)
-  if (process.argv.includes('--ssh-source')) {
-    process.stdout.write(`${hasSshSourceChange(changedPaths)}\n`)
-  } else if (process.argv.includes('--reusable-workflow')) {
-    process.stdout.write(`${shouldRunReusablePrE2e(changedPaths)}\n`)
+  const options = {
+    allowDaemonInitTestSupport: process.argv.includes('--daemon-init-test-support')
+  }
+  if (process.argv.includes('--reusable-workflow')) {
+    process.stdout.write(`${shouldRunReusablePrE2e(changedPaths, options)}\n`)
   } else if (process.argv.includes('--wsl-source')) {
     process.stdout.write(`${hasWslSourceChange(changedPaths)}\n`)
   } else if (process.argv.includes('--native-ime-source')) {
     process.stdout.write(`${hasNativeImeSourceChange(changedPaths)}\n`)
   } else {
-    const specs = selectPrE2eSpecs(changedPaths, (message) => console.error(message))
+    const specs = selectPrE2eSpecs(changedPaths, (message) => console.error(message), options)
     process.stdout.write(`${JSON.stringify(specs)}\n`)
   }
 }

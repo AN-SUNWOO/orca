@@ -5,12 +5,10 @@ import { getDefaultSettings } from '../../shared/constants'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 
 const mocks = vi.hoisted(() => ({
-  detectRemoteAgents: vi.fn(),
   detectInstalledAgentsWithShellPathHydration: vi.fn()
 }))
 
 vi.mock('../preflight/agent-detection', () => ({
-  detectRemoteAgents: mocks.detectRemoteAgents,
   detectInstalledAgentsWithShellPathHydration: mocks.detectInstalledAgentsWithShellPathHydration
 }))
 
@@ -174,9 +172,8 @@ describe('buildWorktreeStartupForAgent blank prompt', () => {
 })
 
 describe('buildWorktreeStartupForDraft agent detection', () => {
-  it('probes the SSH host named only by executionHostId instead of this client', async () => {
-    mocks.detectRemoteAgents.mockResolvedValueOnce(['claude'])
-    mocks.detectInstalledAgentsWithShellPathHydration.mockResolvedValue([])
+  it('never probes this client for an SSH host named only by executionHostId', async () => {
+    mocks.detectInstalledAgentsWithShellPathHydration.mockResolvedValue(['claude'])
 
     const result = await buildWorktreeStartupForDraft({
       repo: makeRepo({ executionHostId: 'ssh:openclaw' }),
@@ -185,15 +182,11 @@ describe('buildWorktreeStartupForDraft agent detection', () => {
       getLaunchPlatform: () => 'linux'
     })
 
-    expect(mocks.detectRemoteAgents).toHaveBeenCalledWith({
-      connectionId: 'openclaw'
-    })
     expect(mocks.detectInstalledAgentsWithShellPathHydration).not.toHaveBeenCalled()
-    expect(result?.agent).toBe('claude')
+    expect(result).toBeNull()
   })
 
   it('probes this client for a local row carrying a stale connection', async () => {
-    mocks.detectRemoteAgents.mockClear()
     mocks.detectInstalledAgentsWithShellPathHydration.mockResolvedValueOnce(['claude'])
 
     const result = await buildWorktreeStartupForDraft({
@@ -203,7 +196,6 @@ describe('buildWorktreeStartupForDraft agent detection', () => {
       getLaunchPlatform: () => 'linux'
     })
 
-    expect(mocks.detectRemoteAgents).not.toHaveBeenCalled()
     expect(result?.agent).toBe('claude')
   })
 
@@ -292,13 +284,10 @@ describe('buildWorktreeStartupForAgent extra agent args', () => {
 
 describe('resolveWorktreeStartupDraftAgent', () => {
   beforeEach(() => {
-    mocks.detectRemoteAgents.mockReset()
     mocks.detectInstalledAgentsWithShellPathHydration.mockReset()
-    mocks.detectRemoteAgents.mockResolvedValue([])
     mocks.detectInstalledAgentsWithShellPathHydration.mockResolvedValue([])
   })
   afterEach(() => {
-    mocks.detectRemoteAgents.mockReset()
     mocks.detectInstalledAgentsWithShellPathHydration.mockReset()
   })
 
@@ -316,7 +305,6 @@ describe('resolveWorktreeStartupDraftAgent', () => {
   it('returns an enabled requested agent without detecting', async () => {
     await expect(resolve({ defaultTuiAgent: 'claude' }, 'codex')).resolves.toBe('codex')
     expect(mocks.detectInstalledAgentsWithShellPathHydration).not.toHaveBeenCalled()
-    expect(mocks.detectRemoteAgents).not.toHaveBeenCalled()
   })
 
   it('returns the default when nothing was requested', async () => {
@@ -344,14 +332,13 @@ describe('resolveWorktreeStartupDraftAgent', () => {
     mocks.detectInstalledAgentsWithShellPathHydration.mockResolvedValue(['codex', 'claude'])
 
     await expect(resolve({ disabledTuiAgents: ['codex'] })).resolves.toBe('claude')
-    expect(mocks.detectRemoteAgents).not.toHaveBeenCalled()
   })
 
-  it('detects on the SSH host that runs the agent', async () => {
-    mocks.detectRemoteAgents.mockResolvedValue(['codex'])
+  // Why: the SSH host runs the agent; an unserved host must never be answered by this client.
+  it('starts no agent on an unserved SSH host rather than detecting locally', async () => {
+    mocks.detectInstalledAgentsWithShellPathHydration.mockResolvedValue(['codex'])
 
-    await expect(resolve({}, undefined, makeRepo({ connectionId: 'ssh-1' }))).resolves.toBe('codex')
-    expect(mocks.detectRemoteAgents).toHaveBeenCalledWith({ connectionId: 'ssh-1' })
+    await expect(resolve({}, undefined, makeRepo({ connectionId: 'ssh-1' }))).resolves.toBeNull()
     expect(mocks.detectInstalledAgentsWithShellPathHydration).not.toHaveBeenCalled()
   })
 

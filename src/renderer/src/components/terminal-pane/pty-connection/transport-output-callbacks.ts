@@ -1,3 +1,4 @@
+import type { SpawnDeferralReason } from '../../../../../shared/host-spawn-admission'
 import { createTerminalStartupTiming } from '../terminal-startup-timing'
 import type { PtyReplayDataMeta } from '../pty-transport'
 import type { PtyTransportRecoveryState } from '../pty-transport-types'
@@ -98,6 +99,11 @@ export function bindCaptureTransportOutputCallbacks(session: ConnectPanePtySessi
         onOutputPauseChanged: (paused: boolean, supported: boolean): void => {
           if (isCurrent()) {
             session.handleRemoteOutputPauseChanged(paused, supported)
+          }
+        },
+        onSpawnDeferred: (reason: SpawnDeferralReason): void => {
+          if (isCurrent()) {
+            session.pendingSpawnDeferral = reason
           }
         }
       }

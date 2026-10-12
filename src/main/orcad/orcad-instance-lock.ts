@@ -35,8 +35,6 @@ const MAX_ORCAD_LOCK_BYTES = 64 * 1024
 // A writer finishes in milliseconds; a garbled record older than this has no live writer.
 const GARBLED_LOCK_GRACE_MS = 10_000
 
-export { OrcadInstanceLockError, type OrcadInstanceLockCode } from './orcad-data-root-privacy'
-
 const OrcadLockRecordSchema = z.object({
   pid: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   /** Null where the platform cannot read it; PID alone is then the (weaker) fence. */

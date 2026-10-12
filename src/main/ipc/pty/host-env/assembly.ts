@@ -31,6 +31,7 @@ import {
 import { AGENT_HOOK_RUNTIME_ENV_KEYS } from './spawn-env-keys'
 import { applyManagedDataAccountEnvironment } from '../../../managed-data-accounts/launch-environment'
 import { applyOpenCodeStatusPluginEnv, captureOpenCodeSourceConfig } from './opencode-config'
+import { applyCodexRemoteViewerClipboardEnv } from './codex-terminal-clipboard'
 
 /**
  * Mutates `baseEnv` in place with all host-local PTY env vars and returns it.
@@ -292,6 +293,11 @@ export function buildPtyHostEnv(
     const cliCommand = opts.isWsl ? getWslCliCommandName(opts.isPackaged) : 'orca'
     baseEnv.BROWSER = `${cliCommand} open-url --url %s`
   }
+  // Why the browser-relay flag: both mean a headless runtime whose viewer is another machine.
+  applyCodexRemoteViewerClipboardEnv(baseEnv, {
+    launchAgent: opts.launchAgent,
+    viewerIsRemote: opts.routeBrowserOpensToClient === true
+  })
 
   // Why: must run after the prepends above — they re-read PATH from the unscrubbed
   // process.env when baseEnv carries none, which is the daemon path's normal shape.

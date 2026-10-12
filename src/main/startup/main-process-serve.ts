@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
 import { notifyServeSupervisorReady } from '../serve-update-handoff'
+import { clearServeAbortPark } from '../../shared/serve-abort-park'
 import { buildServePairingReadiness, servePublishMode } from '../server/serve-pairing-readiness'
 import { mainProcessState as state } from './main-process-state'
 import { getServeOptions, type ServeOptions } from './serve-options'
@@ -36,4 +37,6 @@ export async function printServeReady(options: ServeOptions): Promise<void> {
     output
   )
   notifyServeSupervisorReady(runtime.getRuntimeId())
+  // Why: a serve that got this far proves this environment can launch it after all.
+  clearServeAbortPark(app.getPath('userData'))
 }

@@ -90,8 +90,6 @@ describe('standalone runtime artifacts', () => {
   it('keeps target-specific files out of the shared template set', () => {
     const common = orcadTemplateCommonFilenames()
     for (const target of SERVER_TARGETS) {
-      const specific = orcadArtifactFilenames(target).filter((file) => !common.includes(file))
-      expect(specific.every((file) => !common.includes(file))).toBe(true)
       expect(common.every((file) => orcadArtifactFilenames(target).includes(file))).toBe(true)
     }
   })

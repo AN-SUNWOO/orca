@@ -8,6 +8,7 @@ import {
   sessionSearchServiceStatus
 } from '../../../ai-vault-search/session-search-service-registry'
 import { defineMethod } from '../core'
+import { conditionalAiVaultListResult } from '../../../ai-vault/session-list-fingerprint'
 import { restampAiVaultListResult } from '../../../ai-vault/session-list-results'
 import type { AiVaultPrepareSessionResumeArgs } from '../../../../shared/ai-vault-resume-preparation'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
@@ -105,9 +106,13 @@ export const AI_VAULT_METHODS = [
         clientKind === undefined ||
           (clientCapabilities?.includes(STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY) ?? false)
       )
-      return params.executionHostId
-        ? restampAiVaultListResult(projected, params.executionHostId)
-        : projected
+      return conditionalAiVaultListResult(
+        params.executionHostId
+          ? restampAiVaultListResult(projected, params.executionHostId)
+          : projected,
+        params.unlimited ? undefined : params.afterFingerprint,
+        params.force
+      )
     }
   }),
   defineMethod({

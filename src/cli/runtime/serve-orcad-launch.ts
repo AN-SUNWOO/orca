@@ -24,6 +24,8 @@ export type ServeOrcaAppArgs = {
   grantDesktopControl?: boolean
   recipeJson?: boolean
   projectRoot?: string | null
+  /** Starts Electron serve despite a remembered macOS startup abort in this environment. */
+  force?: boolean
 }
 
 /** A first run may download and verify the pinned Node; bound it well past that. */

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { serveSignalExitError } from './serve-signal-exit-diagnostic'
+import { MacServeStartupAbortError, serveSignalExitError } from './serve-signal-exit-diagnostic'
 import {
   SERVE_CHILD_FORCE_KILL_GRACE_MS,
   SERVE_CHILD_FORCE_KILL_SCHEDULING_MARGIN_MS,
@@ -52,16 +52,18 @@ afterEach(() => {
 })
 
 describe('serveSignalExitError', () => {
-  it('explains the macOS window-server abort on darwin SIGABRT', () => {
+  it('explains the Launch Services startup abort on darwin SIGABRT', () => {
     const error = serveSignalExitError('SIGABRT', 'darwin')
 
+    expect(error).toBeInstanceOf(MacServeStartupAbortError)
     expect(error).toBeInstanceOf(RuntimeClientError)
     expect(error.code).toBe('runtime_serve_failed')
     expect(error.message).toContain('aborted with SIGABRT on macOS')
-    expect(error.message).toContain('macOS window server')
+    expect(error.message).toContain('_RegisterApplication')
     expect(error.data).toMatchObject({
       nextSteps: [
-        expect.stringContaining('macOS desktop login'),
+        expect.stringContaining('desktop Orca is already running'),
+        expect.stringContaining('refuse for 30 minutes'),
         expect.stringContaining('~/Library/Logs/DiagnosticReports/Orca-*.ips')
       ]
     })

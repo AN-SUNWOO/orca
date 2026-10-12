@@ -100,16 +100,18 @@ jobs:
           if [ "$EVENT_NAME" = push ]; then
             # Compare the entire push, including multi-commit pushes and removed files.
             if git fetch --no-tags --depth=1 origin "$PUSH_BASE" &&
-               git diff --name-only --no-renames -z "$PUSH_BASE" HEAD > "$RUNNER_TEMP/node-server-changes"; then
-              node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --defer-graph --full-qualification
+               git diff --name-only --no-renames -z "$PUSH_BASE" HEAD > "$RUNNER_TEMP/node-server-changes" &&
+               git diff --name-only --no-renames --diff-filter=M -z "$PUSH_BASE" HEAD > "$RUNNER_TEMP/node-server-modified"; then
+              node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --defer-graph --full-qualification --modified-paths "$RUNNER_TEMP/node-server-modified"
             else
               echo 'should_run=true' >> "$GITHUB_OUTPUT"
             fi
             exit 0
           fi
           # Compare the tested merge with its base, retaining both sides of renames.
-          if git diff --name-only --no-renames -z HEAD^1 HEAD > "$RUNNER_TEMP/node-server-changes"; then
-            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --defer-graph
+          if git diff --name-only --no-renames -z HEAD^1 HEAD > "$RUNNER_TEMP/node-server-changes" &&
+             git diff --name-only --no-renames --diff-filter=M -z HEAD^1 HEAD > "$RUNNER_TEMP/node-server-modified"; then
+            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --defer-graph --modified-paths "$RUNNER_TEMP/node-server-modified"
           else
             echo 'should_run=true' >> "$GITHUB_OUTPUT"
           fi
@@ -128,9 +130,9 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$EVENT_NAME" = push ]; then
-            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --full-qualification
+            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --full-qualification --modified-paths "$RUNNER_TEMP/node-server-modified"
           else
-            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes"
+            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --modified-paths "$RUNNER_TEMP/node-server-modified"
           fi
 
   persistence:
@@ -192,20 +194,37 @@ jobs:
             (github.event_name == 'pull_request' ||
             (github.ref == 'refs/heads/main' && contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event_name))) }}
           restore-windows-cache: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+      # The template lane cross-compiles arm64 too, as it does for the process-table addon.
+      - uses: ./.github/actions/prepare-windows-cli-launcher
+        if: runner.os == 'Windows'
+        with:
+          arches: ${{ (inputs.build_template && matrix.os == 'windows-2022') && 'x64 arm64' || (runner.arch == 'ARM64' && 'arm64' || 'x64') }}
       - run: pnpm build:orcad
       - wait: bun-orcad
       - run: pnpm test:node-server --artifact ${{ runner.os == 'Linux' && '--cross-runtime' || '' }}
         env:
           ORCA_BUN_ORCAD_SLOT: ${{ steps.bun-orcad.outputs.slot }}
           BUN_EXECUTABLE: ${{ steps.bun-orcad.outputs.executable }}
-      # Only a Windows runner compiles it; arm64 cross-compiles here, as release-cut does for the relay.
+      # Only a Windows runner compiles it; arm64 cross-compiles here.
       # Before the Node 18 check below: the build script imports TypeScript, which Node 18 cannot load.
+      # orcad's instance lock and stop proof read a PID's creation time through it; the x64 binary this
+      # runner loads must answer it, and answer nothing for a missing PID rather than a stale time.
       - name: Build the Windows process-table addons for the desktop template
         if: inputs.build_template && matrix.os == 'windows-2022'
         shell: bash
         run: |
           node config/scripts/build-windows-process-tree-relay-addon.mjs --arch=x64
           node config/scripts/build-windows-process-tree-relay-addon.mjs --arch=arm64
+          node -e "
+          const { assertWindowsProcessTreeCreationTime } = require('./config/scripts/windows-process-tree-creation-time.cjs')
+          const addon = require('./.build/windows-process-tree/x64/windows-process-tree.node')
+          assertWindowsProcessTreeCreationTime({ module: addon })
+          const own = addon.getProcessCreationTime(process.pid)
+          const started = Date.now() - process.uptime() * 1000
+          if (typeof own !== 'number' || Math.abs(own - started) > 5000) throw new Error('creation time ' + own + ' vs ' + started)
+          if (addon.getProcessCreationTime(0x7ffffff0) !== undefined) throw new Error('a missing PID must read undefined')
+          console.log('creation time ok:', own)
+          "
       - name: Keep the Windows process-table addons for the desktop template
         if: inputs.build_template && matrix.os == 'windows-2022'
         uses: actions/upload-artifact@v7
@@ -213,6 +232,15 @@ jobs:
           name: orcad-windows-process-tree
           path: .build/windows-process-tree/
           include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+      - name: Keep the Windows CLI launchers for the desktop template
+        if: inputs.build_template && matrix.os == 'windows-2022'
+        uses: actions/upload-artifact@v7
+        with:
+          name: orcad-windows-cli-launcher
+          path: .build/windows-cli-launcher/
           if-no-files-found: error
           retention-days: 7
           overwrite: true
@@ -458,6 +486,11 @@ jobs:
         with:
           name: orcad-windows-process-tree
           path: .build/windows-process-tree
+      - name: Collect the Windows CLI launchers
+        uses: actions/download-artifact@v8
+        with:
+          name: orcad-windows-cli-launcher
+          path: .build/windows-cli-launcher
       - name: Merge the lanes and gate the full slot matrix
         shell: bash
         run: |

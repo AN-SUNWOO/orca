@@ -40,9 +40,8 @@ import {
   ACP_STOP_GRACE_MS,
   type AcpStructuredSessionAdapterDeps
 } from './acp-structured-session-adapter-deps'
-import { writeAcpSessionOption } from './acp-structured-options'
+import { readAcpLiveOptions, writeAcpSessionOption } from './acp-structured-options'
 import { readAcpRecoveryHistory } from './acp-recovery-history'
-import { withLiveCatalogListing } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
 import { stopAcpChildren, acpChildStopCapabilities } from './acp-structured-child-stop'
 
 export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapter {
@@ -226,11 +225,8 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
     return session.options.reported()
   }
 
-  readOptions = async (input: { sessionId: string; fence: number }) => {
-    const { options } = this.live(input.sessionId)
-    // Only the start says what the config resolved: the session may have moved since.
-    return withLiveCatalogListing(options.read())
-  }
+  readOptions = async (input: { sessionId: string; fence: number }) =>
+    readAcpLiveOptions(this.live(input.sessionId))
 
   readOptionRestoreFailures = (sessionId: string): readonly string[] =>
     this.sessions.get(sessionId)?.restoreSkipped ?? []

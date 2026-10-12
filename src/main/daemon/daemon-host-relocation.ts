@@ -35,8 +35,8 @@ import { inspectProcessLiveness, mergeProcessLivenessVerdict } from './daemon-pr
  * any failure returns null and the caller forks the install-dir host (pre-relocation behavior).
  *
  * What escapes the updater is the PATH, not the file name: electron-builder's kill sweep selects
- * processes whose image path sits under $INSTDIR. See docs/reference/windows-daemon-host-relocation.md
- * for the survival contract and why the exe is copied verbatim rather than renamed.
+ * processes whose image path sits under $INSTDIR, which is why the exe is copied verbatim rather
+ * than renamed.
  */
 
 export type RelocatedDaemonHost = {

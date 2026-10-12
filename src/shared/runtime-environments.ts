@@ -1,5 +1,9 @@
 import { z } from 'zod'
 import { PAIRING_OFFER_VERSION, type PairingOffer } from './pairing'
+import {
+  pairedRuntimeConnectionFromOffer,
+  type PairedRuntimeConnection
+} from './paired-runtime-connection'
 import { classifyRemotePairingHostname } from './remote-pairing-address'
 import { RuntimeEnvironmentReconciliationRecordSchema } from './runtime-environment-reconciliation-record'
 
@@ -206,13 +210,35 @@ export function isUserManagedRuntimeEnvironment(
   return !isEphemeralVmRuntimeEnvironment(environment)
 }
 
-export function getPreferredPairingOffer(environment: KnownRuntimeEnvironment): PairingOffer {
+type PreferredEndpointSource = Pick<
+  KnownRuntimeEnvironment,
+  'name' | 'endpoints' | 'preferredEndpointId' | 'pairedDeviceId'
+>
+
+function preferredEndpoint(environment: PreferredEndpointSource) {
   const endpoint =
     environment.endpoints.find((entry) => entry.id === environment.preferredEndpointId) ??
     environment.endpoints[0]
   if (!endpoint) {
     throw new Error(`Environment ${environment.name} has no access endpoints`)
   }
+  return endpoint
+}
+
+export function getPreferredPairedRuntimeConnection(
+  environment: PreferredEndpointSource
+): PairedRuntimeConnection {
+  const endpoint = preferredEndpoint(environment)
+  return pairedRuntimeConnectionFromOffer({
+    endpoint: endpoint.endpoint,
+    deviceToken: endpoint.deviceToken,
+    publicKeyB64: endpoint.publicKeyB64,
+    pairedDeviceId: environment.pairedDeviceId
+  })
+}
+
+export function getPreferredPairingOffer(environment: PreferredEndpointSource): PairingOffer {
+  const endpoint = preferredEndpoint(environment)
   return {
     v: PAIRING_OFFER_VERSION,
     endpoint: endpoint.endpoint,

@@ -105,12 +105,12 @@ export function registerRuntimeEnvironmentConnectivityHandlers({
     (_event, args: { selector: string }): { removed: PublicKnownRuntimeEnvironment } => {
       const environment = resolveEnvironment(getUserDataPath(), args.selector)
       if (store.getSettings().activeRuntimeEnvironmentId === environment.id) {
-        throw new Error('Choose another Active Server in Advanced before removing this server.')
+        throw new Error(
+          'This server is the default host for new projects. Choose another one in Advanced before removing it.'
+        )
       }
       const removed = removeEnvironment(getUserDataPath(), args.selector)
-      void retireRemovedRuntimeEnvironment(removed.id, invalidateTransport, (hostId) =>
-        store.removeWorkspaceSessionHost(hostId)
-      )
+      void retireRemovedRuntimeEnvironment(removed.id, invalidateTransport, store)
       closeLegacySelectorTransport(args.selector, removed.id)
       return { removed: redactRuntimeEnvironment(removed) }
     }

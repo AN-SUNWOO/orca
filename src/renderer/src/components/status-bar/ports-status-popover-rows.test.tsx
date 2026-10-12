@@ -49,7 +49,6 @@ vi.mock('@/lib/worktree-runtime-owner', () => ({
 }))
 
 vi.mock('@/runtime/runtime-rpc-client', () => ({
-  getActiveRuntimeTarget: () => ({ kind: 'local' }),
   callRuntimeRpc: vi.fn(),
   RuntimeRpcCallError: class RuntimeRpcCallError extends Error {
     code?: string

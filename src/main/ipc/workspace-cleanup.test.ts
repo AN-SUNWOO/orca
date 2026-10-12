@@ -67,9 +67,7 @@ vi.mock('../memory/pty-registry', () => ({
   listRegisteredPtys: listRegisteredPtysMock
 }))
 
-vi.mock('./pty', () => ({
-  getSshPtyProvider: vi.fn()
-}))
+vi.mock('./pty', () => ({}))
 
 // Why: snapshot persistence does real file I/O; covered in workspace-cleanup-snapshot-ipc.test.ts.
 vi.mock('../workspace-cleanup-scan-snapshot', () => ({

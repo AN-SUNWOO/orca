@@ -1,7 +1,8 @@
 import type { StateCreator } from 'zustand'
 import type { PreflightRuntimeContext, PreflightStatus } from '../../../../preload/api-types'
 import type { AppState } from '../types'
-import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import { defaultScopeHost } from '@/lib/default-creation-host'
 import {
   getLocalPreflightContext,
   localPreflightContextKey,
@@ -81,7 +82,8 @@ export const createPreflightSlice: StateCreator<AppState, [], [], PreflightSlice
 
     const requestId = ++latestPreflightRequestId
     const contextChanged = get().preflightStatusContextKey !== contextKey
-    const runtimeTarget = getActiveRuntimeTarget(get().settings)
+    // Why: a row-less readiness check of the default scope host (D4-12 initial default).
+    const runtimeTarget = defaultScopeHost(get().settings)
     const preflightArgs = buildPreflightArgs(force, context)
     set({
       preflightStatus: contextChanged ? null : get().preflightStatus,

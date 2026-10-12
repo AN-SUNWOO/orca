@@ -94,9 +94,7 @@ vi.mock('@/runtime/runtime-provider-accounts-client', () => ({
   selectClaudeProviderAccount: vi.fn(async () => ({ accounts: [], activeAccountId: null }))
 }))
 
-vi.mock('@/runtime/runtime-rpc-client', () => ({
-  getActiveRuntimeTarget: () => null
-}))
+vi.mock('@/runtime/runtime-rpc-client', () => ({}))
 
 vi.mock('@/lib/windows-terminal-capabilities', () => ({
   useWindowsTerminalCapabilities: () => ({ wslDistros: [], isLoading: false }),
@@ -229,11 +227,14 @@ describe('status bar Codex sign-in action', () => {
       fireEvent.click(screen.getByText(`same@example.com (${detail}account-2)`))
 
       await waitFor(() =>
-        expect(selectCodexProviderAccount).toHaveBeenCalledWith(storeSettings, {
-          accountId: 'account-2',
-          runtime: 'host',
-          wslDistro: null
-        })
+        expect(selectCodexProviderAccount).toHaveBeenCalledWith(
+          { kind: 'local' },
+          {
+            accountId: 'account-2',
+            runtime: 'host',
+            wslDistro: null
+          }
+        )
       )
       expect(markLiveCodexSessionsForRestart).toHaveBeenCalledWith(
         expect.objectContaining({

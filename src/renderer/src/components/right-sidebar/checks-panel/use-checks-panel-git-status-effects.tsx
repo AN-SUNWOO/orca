@@ -24,7 +24,7 @@ type ChecksPanelGitStatusEffectsInput = Pick<
   | 'gitStatusSnapshotRetryTimerRef'
   | 'isPanelVisible'
   | 'localExecutionScope'
-  | 'ownerSettings'
+  | 'ownerTarget'
   | 'panelContextKey'
   | 'panelContextKeyRef'
   | 'remoteStatusInvalidation'
@@ -90,7 +90,7 @@ export function useChecksPanelGitStatusEffects(model: ChecksPanelGitStatusEffect
     linkedPR,
     fallbackGitHubPRNumber,
     localExecutionScope,
-    ownerSettings,
+    ownerTarget,
     panelContextKey,
     panelContextKeyRef,
     remoteStatus,
@@ -143,6 +143,7 @@ export function useChecksPanelGitStatusEffects(model: ChecksPanelGitStatusEffect
       !isPanelVisible ||
       !activeWorktreeId ||
       !activeWorktreePath ||
+      !ownerTarget ||
       (!runtimeEnvironmentId && repoConnectionId && sshConnectionStatus !== 'connected')
     ) {
       if (gitStatusSnapshotRetryTimerRef.current) {
@@ -165,7 +166,7 @@ export function useChecksPanelGitStatusEffects(model: ChecksPanelGitStatusEffect
       shouldClearChecksPanelGitStatusSnapshot(snapshot, requestContextKey) ? null : snapshot
     )
     const context = {
-      settings: ownerSettings,
+      target: ownerTarget,
       worktreeId: activeWorktreeId,
       worktreePath: activeWorktreePath,
       connectionId
@@ -259,7 +260,7 @@ export function useChecksPanelGitStatusEffects(model: ChecksPanelGitStatusEffect
     gitStatusRefreshNonce,
     isFolder,
     isPanelVisible,
-    ownerSettings,
+    ownerTarget,
     panelContextKey,
     repo,
     repoConnectionId,

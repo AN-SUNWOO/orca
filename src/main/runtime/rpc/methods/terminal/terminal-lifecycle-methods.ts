@@ -78,6 +78,7 @@ export const TERMINAL_LIFECYCLE_METHODS = [
               presentation,
               tabId: params.tabId,
               leafId: params.leafId,
+              ...(params.spawnIntent ? { spawnIntent: params.spawnIntent } : {}),
               ...(preAllocatedHandle ? { preAllocatedHandle } : {})
             })
         )

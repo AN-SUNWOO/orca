@@ -9,7 +9,6 @@ import {
   getPullRequestDraftContextMock,
   resolveHostedReviewBodyForGenerationMock,
   loadPullRequestLinkedIssueMock,
-  getSshGitProviderMock,
   resetFilesystemIpcMocks
 } from './filesystem-test-harness'
 
@@ -72,7 +71,7 @@ vi.mock('../source-control/pull-request-linked-issue', async () => {
 import { registerFilesystemHandlers } from './filesystem'
 import { invalidateAuthorizedRootsCache } from './registered-worktree-roots-cache'
 
-describe.each(['local', 'SSH'])('PR linked-issue lifetime on %s', (host) => {
+describe('PR linked-issue lifetime on a local worktree', () => {
   const draftContext = {
     base: 'main',
     branch: 'feature/ai',
@@ -89,8 +88,7 @@ describe.each(['local', 'SSH'])('PR linked-issue lifetime on %s', (host) => {
     title: '',
     body: '',
     draft: false,
-    worktreePath: host === 'SSH' ? '/remote/repo' : WORKTREE_FEATURE_PATH,
-    ...(host === 'SSH' ? { connectionId: 'conn-1' } : {})
+    worktreePath: WORKTREE_FEATURE_PATH
   }
 
   beforeEach(() => {
@@ -103,10 +101,6 @@ describe.each(['local', 'SSH'])('PR linked-issue lifetime on %s', (host) => {
     })
     resolveHostedReviewBodyForGenerationMock.mockResolvedValue('')
     getPullRequestDraftContextMock.mockResolvedValue(draftContext)
-    getSshGitProviderMock.mockReturnValue({
-      exec: vi.fn(),
-      executeCommitMessagePlan: vi.fn()
-    })
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The existing IPC harness provides every Store member reached by this handler.
     registerFilesystemHandlers(store as never)
   })

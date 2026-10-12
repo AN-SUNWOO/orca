@@ -11,6 +11,7 @@ import {
   type OrcadProfilePreflightResponse
 } from '../../shared/orcad-profile-preflight'
 import { readOrcadArtifactIdentity } from './orcad-artifact-identity'
+import { ORCAD_EXIT_CONFIGURATION } from './orcad-configuration-exit'
 import { ORCAD_SERVER_ENTRY_FILENAME, ORCAD_VERSION_FILENAME } from '../../shared/orcad-artifacts'
 import { ORCAD_NODE_RUNTIME_IDENTITY } from '../../shared/orcad-node-runtime-identity'
 import { runProcess } from '@orca/process-host'
@@ -39,7 +40,7 @@ export async function preflightBundledOrcadStartup(): Promise<void> {
     terminationBarrier: true
   })
   if (result.code !== 0 || result.timedOut || result.outputTruncated) {
-    const Failure = result.code === 78 ? OrcadBundledRuntimeError : Error
+    const Failure = result.code === ORCAD_EXIT_CONFIGURATION ? OrcadBundledRuntimeError : Error
     throw new Failure(`The bundled Orca runtime failed readiness: ${result.stderr}`)
   }
   try {

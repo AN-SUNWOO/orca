@@ -24,11 +24,7 @@ vi.mock('@/store', () => ({
   }
 }))
 
-vi.mock('@/runtime/runtime-rpc-client', () => ({
-  settingsForRuntimeOwner: vi.fn((settings, runtimeEnvironmentId) =>
-    runtimeEnvironmentId ? { activeRuntimeEnvironmentId: runtimeEnvironmentId } : settings
-  )
-}))
+vi.mock('@/runtime/runtime-rpc-client', () => ({}))
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn(), info: vi.fn() }

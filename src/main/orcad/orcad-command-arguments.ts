@@ -1,6 +1,7 @@
 import type { OrcadOptions } from './orcad-entry'
 import { DEFAULT_WS_PORT } from '../runtime/runtime-rpc/runtime-rpc-pairing-types'
 import { ORCAD_LOOPBACK_BIND_HOST } from './orcad-bind-address'
+import { getServeOptionValidationError } from '../../shared/serve-option-validation'
 
 export const ORCAD_USAGE = `orcad — the Orca runtime served without Electron.
 
@@ -82,11 +83,15 @@ export function parseArgs(argv: string[]): OrcadCommandArguments {
       throw new Error(`Unknown argument: ${arg}`)
     }
   }
-  if (options.grantDesktopControl && (options.noPairing || options.mobilePairing)) {
-    throw new Error('--grant-desktop-control applies only to the default runtime pairing offer')
-  }
-  if (options.recipeJson && !options.projectRoot) {
-    throw new Error('--recipe-json requires --project-root')
+  const validationError = getServeOptionValidationError({
+    noPairing: options.noPairing === true,
+    mobilePairing: options.mobilePairing === true,
+    grantDesktopControl: options.grantDesktopControl,
+    recipeJson: options.recipeJson === true,
+    projectRoot: options.projectRoot
+  })
+  if (validationError) {
+    throw new Error(validationError)
   }
   return options
 }

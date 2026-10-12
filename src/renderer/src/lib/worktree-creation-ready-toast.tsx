@@ -31,6 +31,8 @@ export function showWorktreeCreationReadyToast(
     ? translate('components.workspace.creation.goToWorkspace', 'Go to workspace')
     : translate('components.workspace.creation.goToWorktree', 'Go to worktree')
   toast.success(title, {
+    // Why: the user may be away when a slow create finishes; keep the way back until they dismiss it.
+    duration: Infinity,
     action: {
       label: (
         <span className="inline-flex items-center gap-1.5">

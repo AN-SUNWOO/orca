@@ -37,6 +37,7 @@ import {
 } from './helpers/paired-electron-client'
 import { focusActiveTerminalInput } from './helpers/terminal'
 import { waitForTabParked } from './helpers/terminal-hidden-parking'
+import { quotePosixShell } from '../../src/shared/wsl-login-shell-command'
 
 const PARK_DELAY_MS = 2_000
 const LIVE_PAINT_BUDGET_MS = 12_000
@@ -75,15 +76,11 @@ test.afterAll(() => {
   rmSync(scratch, { recursive: true, force: true })
 })
 
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'\\''`)}'`
-}
-
 function fixtureCommand(sinkPath: string): string {
   const command = [process.execPath, fixturePath, sinkPath]
   return process.platform === 'win32'
     ? command.map((value) => `"${value.replaceAll('"', '""')}"`).join(' ')
-    : command.map(shellQuote).join(' ')
+    : command.map(quotePosixShell).join(' ')
 }
 
 function readSink(sinkPath: string): string {

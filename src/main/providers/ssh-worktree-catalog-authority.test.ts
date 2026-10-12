@@ -84,58 +84,13 @@ describe('SSH worktree catalog authority (#14004)', () => {
     await expect(listRepoWorktrees(repo)).rejects.toSatisfy(isWorktreeCatalogUnavailableError)
   })
 
-  it('does not authorize missing-worktree teardown when the relay listing fails', async () => {
-    mux.request.mockRejectedValue(new Error('relay request failed'))
-
-    const result = await listDetectedWorktreesForCapturedRepo(
-      createStore(),
-      repo,
-      () => true,
-      provider
-    )
+  it('does not authorize missing-worktree teardown for an SSH host this process does not serve', async () => {
+    const result = await listDetectedWorktreesForCapturedRepo(createStore(), repo, () => true)
 
     expect(result).toMatchObject({ authoritative: false, source: 'metadata-fallback' })
-    // The persisted workspace survives the failed scan, so the renderer has nothing to reconcile away.
+    // The persisted workspace survives, so the renderer has nothing to reconcile away.
     expect(
       (result as { worktrees: { id: string }[] }).worktrees.map((worktree) => worktree.id)
     ).toContain(worktreeId)
-  })
-
-  it('does not authorize missing-worktree teardown when the relay answers with an empty list', async () => {
-    mux.request.mockResolvedValue([])
-
-    const result = await listDetectedWorktreesForCapturedRepo(
-      createStore(),
-      repo,
-      () => true,
-      provider
-    )
-
-    expect(result).toMatchObject({ authoritative: false, source: 'metadata-fallback' })
-    expect(
-      (result as { worktrees: { id: string }[] }).worktrees.map((worktree) => worktree.id)
-    ).toContain(worktreeId)
-  })
-
-  it('republishes an authoritative catalog once the relay answers again', async () => {
-    mux.request.mockResolvedValue([
-      { path: REPO_PATH, head: 'abc123', branch: 'main', isBare: false, isMainWorktree: true },
-      {
-        path: WORKTREE_PATH,
-        head: 'def456',
-        branch: 'feature',
-        isBare: false,
-        isMainWorktree: false
-      }
-    ])
-
-    const result = await listDetectedWorktreesForCapturedRepo(
-      createStore(),
-      repo,
-      () => true,
-      provider
-    )
-
-    expect(result).toMatchObject({ authoritative: true, source: 'git' })
   })
 })

@@ -104,6 +104,7 @@ export const CORE_HANDLERS: Record<string, CommandHandler> = {
     const mobilePairing = flags.get('mobile-pairing') === true
     const grantDesktopControl = flags.get('grant-desktop-control') === true
     const recipeJson = flags.get('recipe-json') === true
+    const force = flags.get('force') === true
     const validationError = getServeOptionValidationError({
       noPairing,
       mobilePairing,
@@ -124,7 +125,8 @@ export const CORE_HANDLERS: Record<string, CommandHandler> = {
       mobilePairing,
       grantDesktopControl,
       recipeJson,
-      projectRoot
+      projectRoot,
+      ...(force ? { force: true } : {})
     })
     process.exitCode = exitCode
   },

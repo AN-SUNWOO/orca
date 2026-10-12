@@ -1,13 +1,13 @@
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as MarkdownDocumentsModule from './markdown-documents'
+import { SSH_HOST_NOT_SERVED_MESSAGE } from '../providers/ssh-host-not-served-error'
 import {
   handlers,
   store,
   WORKTREE_FEATURE_PATH,
   readdirMock,
   realpathMock,
-  getSshFilesystemProviderMock,
   resetFilesystemIpcMocks
 } from './filesystem-test-harness'
 
@@ -161,14 +161,7 @@ describe('registerFilesystemHandlers', () => {
     ).rejects.toThrow('Access denied')
   })
 
-  it('lists remote markdown documents through the SSH filesystem provider', async () => {
-    const provider = {
-      listFiles: vi
-        .fn()
-        .mockResolvedValue(['README.md', 'docs/guide.mdx', '../outside.md', 'src/app.ts'])
-    }
-    getSshFilesystemProviderMock.mockReturnValue(provider)
-
+  it('refuses SSH markdown listing as not served and never lists locally', async () => {
     registerFilesystemHandlers(store as never)
 
     await expect(
@@ -176,58 +169,8 @@ describe('registerFilesystemHandlers', () => {
         rootPath: '/home/user/project',
         connectionId: 'ssh-1'
       })
-    ).resolves.toEqual([
-      {
-        filePath: '/home/user/project/docs/guide.mdx',
-        relativePath: 'docs/guide.mdx',
-        basename: 'guide.mdx',
-        name: 'guide'
-      },
-      {
-        filePath: '/home/user/project/README.md',
-        relativePath: 'README.md',
-        basename: 'README.md',
-        name: 'README'
-      }
-    ])
+    ).rejects.toThrow(SSH_HOST_NOT_SERVED_MESSAGE)
     expect(listMarkdownDocumentsMock).not.toHaveBeenCalled()
     expect(localOptionsMock).not.toHaveBeenCalled()
-  })
-
-  it('keeps late Markdown documents from legacy providers with large source inventories', async () => {
-    const paths = Array.from({ length: 25_002 }, (_, index) => `src/file-${index}.ts`)
-    paths.push('docs/late.md')
-    const provider = { listFiles: vi.fn().mockResolvedValue(paths) }
-    getSshFilesystemProviderMock.mockReturnValue(provider)
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: This fixture supplies the store reads used by filesystem handler registration.
-    registerFilesystemHandlers(store as never)
-    await expect(
-      handlers.get('fs:listMarkdownDocuments')!(null, {
-        rootPath: '/repo',
-        connectionId: 'legacy'
-      })
-    ).resolves.toEqual([
-      {
-        filePath: '/repo/docs/late.md',
-        relativePath: 'docs/late.md',
-        basename: 'late.md',
-        name: 'late'
-      }
-    ])
-    expect(provider.listFiles).toHaveBeenCalledWith('/repo')
-  })
-
-  it('still bounds legacy source inventories before constructing Markdown metadata', async () => {
-    getSshFilesystemProviderMock.mockReturnValue({
-      listFiles: vi.fn().mockResolvedValue([`${'x'.repeat(65_537)}.ts`, 'README.md'])
-    })
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: This fixture supplies the store reads used by filesystem handler registration.
-    registerFilesystemHandlers(store as never)
-    await expect(
-      handlers.get('fs:listMarkdownDocuments')!(null, {
-        rootPath: '/repo',
-        connectionId: 'legacy'
-      })
-    ).rejects.toThrow('File inventory is too large')
   })
 })

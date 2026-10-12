@@ -68,11 +68,7 @@ export function registerFilesystemGitStatusHandlers(context: FilesystemHandlerCo
         ...(controller ? { signal: controller.signal } : {})
       }
       try {
-        const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-        if (route.kind === 'ssh') {
-          // Why: await keeps the cancellation token registered until the remote request settles (an early finally would free it).
-          return await route.provider.getStatus(args.worktreePath, options)
-        }
+        requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
         const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
         // Why: one registered-worktree lookup feeds both — status polls this
         // handler, and the scan walks every repo's worktree meta.
@@ -112,10 +108,7 @@ export function registerFilesystemGitStatusHandlers(context: FilesystemHandlerCo
         area?: GitStagingArea
       }
     ): Promise<GitStatusResult> => {
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return route.provider.getSubmoduleStatus(args.worktreePath, args.submodulePath, args.area)
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
         store,
@@ -135,11 +128,7 @@ export function registerFilesystemGitStatusHandlers(context: FilesystemHandlerCo
       _event,
       args: { worktreePath: string; paths: string[]; connectionId?: string }
     ): Promise<string[]> => {
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        const paths = args.paths.map((p) => validateGitRelativeFilePath(args.worktreePath, p))
-        return route.provider.checkIgnoredPaths(args.worktreePath, paths)
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const paths = args.paths.map((p) => validateGitRelativeFilePath(worktreePath, p))
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
@@ -180,10 +169,7 @@ export function registerFilesystemGitStatusHandlers(context: FilesystemHandlerCo
       args: { worktreePath: string; connectionId?: string } & GitHistoryOptions
     ): Promise<GitHistoryResult> => {
       const options: GitHistoryOptions = { limit: args.limit, baseRef: args.baseRef }
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return route.provider.getHistory(args.worktreePath, options)
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
         store,
@@ -201,10 +187,7 @@ export function registerFilesystemGitStatusHandlers(context: FilesystemHandlerCo
       _event,
       args: { worktreePath: string; connectionId?: string }
     ): Promise<GitConflictOperation> => {
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return route.provider.detectConflictOperation(args.worktreePath)
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
         store,
@@ -218,10 +201,7 @@ export function registerFilesystemGitStatusHandlers(context: FilesystemHandlerCo
   ipcMain.handle(
     'git:abortMerge',
     async (_event, args: { worktreePath: string; connectionId?: string }): Promise<void> => {
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return route.provider.abortMerge(args.worktreePath)
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
         store,
@@ -235,10 +215,7 @@ export function registerFilesystemGitStatusHandlers(context: FilesystemHandlerCo
   ipcMain.handle(
     'git:abortRebase',
     async (_event, args: { worktreePath: string; connectionId?: string }): Promise<void> => {
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return route.provider.abortRebase(args.worktreePath)
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
         store,
@@ -261,15 +238,7 @@ export function registerFilesystemGitStatusHandlers(context: FilesystemHandlerCo
         connectionId?: string
       }
     ): Promise<GitDiffResult> => {
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return route.provider.getDiff(
-          args.worktreePath,
-          args.filePath,
-          args.staged,
-          args.compareAgainstHead
-        )
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const filePath = validateGitRelativeFilePath(worktreePath, args.filePath)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(

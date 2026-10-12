@@ -210,7 +210,7 @@ export function installPtyResizeGeometry(session: ConnectPanePtySession): void {
   session.shouldSettleStartupGridBeforeConnect = (): boolean =>
     Boolean(session.paneStartup?.command) &&
     session.deps.isVisibleRef.current &&
-    !session.connectionId &&
+    !session.unservedSshTargetId &&
     session.runtimeEnvironmentId === null
   session.isStartupGridReadyForConnect = (): boolean => {
     const setupSplitDirection = session.paneStartup?.waitForSetupSplitDirection

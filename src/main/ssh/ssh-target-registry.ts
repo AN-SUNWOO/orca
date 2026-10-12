@@ -1,7 +1,14 @@
 import type { SshConnectionStore } from './ssh-connection-store'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import type { SshChannelMultiplexer } from './ssh-channel-multiplexer'
 import type { SshConnectionManager } from './ssh-connection-manager'
-import type { SshConnectionState, SshTarget } from '../../shared/ssh-types'
+import type {
+  SshConnectionState,
+  SshTarget,
+  SshTargetAddResult,
+  SshTargetCreateInput,
+  SshTargetUpdateInput
+} from '../../shared/ssh-types'
 
 /**
  * The SSH target/state registry, split out of `ipc/ssh.ts`.
@@ -61,32 +68,32 @@ export function listRegisteredRemovedSshTargetLabels(): Record<string, string> {
   return sshStore?.listRemovedTargetLabels() ?? {}
 }
 
-let registeredGetActiveMultiplexer:
-  | ((connectionId: string) => SshChannelMultiplexer | undefined)
-  | null = null
+/** Add/update/remove with the same rules the desktop's SSH settings use. */
+export type SshTargetMutations = {
+  add: (target: SshTargetCreateInput) => SshTargetAddResult
+  update: (targetId: string, updates: SshTargetUpdateInput) => SshTarget | null
+  remove: (targetId: string) => Promise<void>
+}
 
-export function setSshActiveMultiplexerResolver(
-  resolve: ((connectionId: string) => SshChannelMultiplexer | undefined) | null
-): void {
-  registeredGetActiveMultiplexer = resolve
+let registeredSshTargetMutations: SshTargetMutations | null = null
+
+export function setSshTargetMutations(mutations: SshTargetMutations | null): void {
+  registeredSshTargetMutations = mutations
+}
+
+export function getRegisteredSshTargetMutations(): SshTargetMutations {
+  if (!registeredSshTargetMutations) {
+    throw new Error('ssh_handlers_not_registered')
+  }
+  return registeredSshTargetMutations
 }
 
 /**
- * The live channel multiplexer for a connection, or undefined when the target is not
- * connected. Undefined means "not connected", never "the connection died" — callers
- * must not read absence here as an `exited` verdict (docs/reference/ssh-execution-boundary.md).
- *
- * Why it throws when no resolver is installed rather than returning undefined: that
- * case is a wiring error, not a connection state, and the two are indistinguishable to
- * callers. A host that never loaded the SSH layer would otherwise report every target as
- * quietly "not connected" — which is precisely the unverifiable-reported-as-exited
- * conflation the execution-boundary doc exists to prevent.
+ * The relay channel multiplexer is gone, so no SSH target is served here: every caller is a dead
+ * SSH arm and gets the typed "not served" error, never an `exited` verdict.
  */
 export function getActiveMultiplexer(connectionId: string): SshChannelMultiplexer | undefined {
-  if (!registeredGetActiveMultiplexer) {
-    throw new Error('ssh_active_multiplexer_resolver_not_installed')
-  }
-  return registeredGetActiveMultiplexer(connectionId)
+  throw new SshHostNotServedError(connectionId)
 }
 
 let registeredGetSshConnectionManager: (() => SshConnectionManager | null) | null = null

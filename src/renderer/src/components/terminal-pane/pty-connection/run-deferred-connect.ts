@@ -12,7 +12,6 @@ import { findTerminalTabForPane } from './terminal-tab-id'
 import type { ConnectPanePtySession } from './connect-pane-pty-session'
 import { bindBuildColdRestoreAgentResumeStartup } from './cold-restore-resume-startup'
 
-import { bindPrepaintParkedSshSnapshot } from './ssh-snapshot-prepaint'
 import { bindForegroundOutputRefresh } from './foreground-output-refresh'
 import { bindRegisterPaneSerializer } from './pane-serializer-register'
 import { bindHandleReattachResult } from './reattach-result-handler'
@@ -23,7 +22,7 @@ import { bindSettlePaneSerializer } from './pane-serializer-settle'
 
 import { bindDeferredColdRestoreAndSnapshot } from './deferred-cold-restore-and-snapshot'
 import { bindHiddenOutputSeqAndSkip } from './hidden-output-seq-and-skip'
-import { bindHiddenRestoreStateAndSshProbe } from './hidden-restore-state-and-ssh-probe'
+import { bindHiddenRestoreState } from './hidden-restore-state'
 import { bindParkRevealSnapshotVerdictActions } from './park-reveal-snapshot-verdict'
 
 export function installRunDeferredConnect(session: ConnectPanePtySession): void {
@@ -191,9 +190,7 @@ export function installRunDeferredConnect(session: ConnectPanePtySession): void 
     bindSerializeHiddenOutputSnapshot(session)
     bindForegroundOutputRefresh(session)
     bindHiddenOutputSeqAndSkip(session)
-    bindHiddenRestoreStateAndSshProbe(session)
-
-    bindPrepaintParkedSshSnapshot(session)
+    bindHiddenRestoreState(session)
     bindParkRevealSnapshotVerdictActions(session)
     bindHandleReattachResult(session)
     runDeferredSessionAttach(session)

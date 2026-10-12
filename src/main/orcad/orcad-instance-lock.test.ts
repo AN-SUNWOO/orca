@@ -16,10 +16,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   acquireOrcadInstanceLock,
   ORCAD_LOCK_FILE_NAME,
-  OrcadInstanceLockError,
   type OrcadInstanceLockHooks,
   type OrcadLockRecord
 } from './orcad-instance-lock'
+import { OrcadInstanceLockError } from './orcad-data-root-privacy'
 
 const roots: string[] = []
 

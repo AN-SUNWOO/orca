@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentSessionConversationCommand } from '../../../src/shared/agent-session-conversation-command'
+import { isAgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
 import { structuredAgentSessionSeedCatalog } from '../../../src/shared/structured-agent-session-seed-catalog'
 import type {
   AgentSessionOptionResult,
@@ -36,6 +37,8 @@ import { encodeStructuredAgentSessionOptionValue } from '../../../src/shared/str
 type StructuredOptionsController = {
   optionPickerRequest: { id: string; sequence: number } | null
   conversationCommands: readonly AgentSessionConversationCommand[]
+  /** The chat takes images, as its options report says; else only Claude and Codex, as before. */
+  acceptsImages: boolean
   optionSnapshot: SessionOptionDescriptor[]
   optionSurface: SessionOptionsSurface
   pendingOptionId: string | null
@@ -79,6 +82,10 @@ export function useMobileStructuredAgentOptions(args: {
   const [conversationSupport, setConversationSupport] = useState<{
     sessionId: string
     commands: readonly AgentSessionConversationCommand[]
+  } | null>(null)
+  const [imageSupport, setImageSupport] = useState<{
+    sessionId: string
+    acceptsImages: boolean | undefined
   } | null>(null)
 
   const optionIdentityRef = useRef(`${agent}:${sessionId}`)
@@ -128,6 +135,10 @@ export function useMobileStructuredAgentOptions(args: {
       .then((result) => {
         // This view keeps its latch; a later one may run a model picked here.
         forgetMobileCreatedStructuredSession(sessionId)
+        // Not an option value: a pick made during the read leaves it standing.
+        if (!stale) {
+          setImageSupport({ sessionId, acceptsImages: result.acceptsImages })
+        }
         if (!stale && optionMutationGeneration.current === readGeneration) {
           setConversationSupport({ sessionId, commands: result.conversationCommands ?? [] })
           updateOptionState((current) =>
@@ -274,6 +285,9 @@ export function useMobileStructuredAgentOptions(args: {
     optionPickerRequest,
     conversationCommands:
       conversationSupport?.sessionId === sessionId ? conversationSupport.commands : [],
+    acceptsImages:
+      (imageSupport?.sessionId === sessionId ? imageSupport.acceptsImages : undefined) ??
+      (agent !== null && isAgentSessionHandleProvider(agent)),
     optionSnapshot,
     optionSurface,
     pendingOptionId: optionState.pendingId,

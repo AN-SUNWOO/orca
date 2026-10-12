@@ -260,6 +260,7 @@ async function main(): Promise<void> {
           onRetire: (details) => {
             shuttingDown = true
             daemonLog.log('login-session-dead-retire', details)
+            daemon?.recordOrderlyExit()
             daemonLog.close()
             // Why: crash-style exit (no PTY teardown) keeps session meta unclean so the
             // replacement daemon cold-restores scrollback; stale socket/pid files ride

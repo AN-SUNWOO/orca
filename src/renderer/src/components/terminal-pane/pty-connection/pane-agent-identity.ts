@@ -13,8 +13,8 @@ import { inspectRuntimeTerminalProcess } from '@/runtime/runtime-terminal-inspec
 import { parseAppSshPtyId } from '../../../../../shared/ssh-pty-id'
 import { dispatchTerminalCommandFinishedEvent } from '@/hooks/terminal-command-finished-event'
 import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
-import { resolveCommittedTitleAgentType } from '@/lib/pane-agent-evidence'
 import type { TuiAgent } from '../../../../../shared/tui-agent'
+import { titleAfterConfirmedShell } from '../../../../../shared/terminal-pane-title-reset'
 import { isTuiAgent, TUI_AGENT_CONFIG } from '../../../../../shared/tui-agent-config'
 
 import {
@@ -82,11 +82,13 @@ export function installPaneAgentIdentity(session: ConnectPanePtySession): void {
     const tab = (state.tabsByWorktree[session.deps.worktreeId] ?? []).find(
       (entry) => entry.id === session.deps.tabId
     )
-    const title = currentTitle ?? tab?.title
-    if (!title || resolveCommittedTitleAgentType(title) === null) {
+    const neutralTitle = titleAfterConfirmedShell(
+      currentTitle ?? tab?.title,
+      session.neutralTerminalTitle()
+    )
+    if (neutralTitle === null) {
       return
     }
-    const neutralTitle = session.neutralTerminalTitle()
     session.deps.setRuntimePaneTitle(session.deps.tabId, session.pane.id, neutralTitle)
     if (session.manager.getActivePane()?.id === session.pane.id) {
       session.deps.updateTabTitle(session.deps.tabId, neutralTitle)
@@ -182,11 +184,11 @@ export function installPaneAgentIdentity(session: ConnectPanePtySession): void {
     isTrackablePtyId: session.isForegroundTrackingAllowed,
     readForegroundProcess: (id, options) =>
       isRemotePtyId(id)
-        ? inspectRuntimeTerminalProcess(useAppStore.getState().settings, id, options)
+        ? inspectRuntimeTerminalProcess(id, options)
         : window.api.pty.getForegroundProcess(id),
     confirmForegroundProcess: (id, options) =>
       isRemotePtyId(id)
-        ? inspectRuntimeTerminalProcess(useAppStore.getState().settings, id, options)
+        ? inspectRuntimeTerminalProcess(id, options)
         : window.api.pty.confirmForegroundProcess(id),
     isRemotePtyId,
     getExpectedIncarnationId: () => session.remotePtyIncarnationId ?? null,

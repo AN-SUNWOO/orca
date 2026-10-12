@@ -142,15 +142,16 @@ function makeRepo(fields: Pick<Repo, 'connectionId' | 'executionHostId'>): Repo 
   )
 }
 
+const localCalls = [
+  mocks.hasHooks,
+  mocks.localRead,
+  mocks.localWrite,
+  mocks.localFileRead,
+  mocks.localStat,
+  mocks.effectiveHooks
+]
+
 function expectRoute(target: string | null): void {
-  const localCalls = [
-    mocks.hasHooks,
-    mocks.localRead,
-    mocks.localWrite,
-    mocks.localFileRead,
-    mocks.localStat,
-    mocks.effectiveHooks
-  ]
   if (target) {
     expect(mocks.provider).toHaveBeenCalledWith(target)
     for (const [connectionId] of mocks.provider.mock.calls) {
@@ -209,13 +210,15 @@ describe.each(owners)('runtime hooks: $label', ({ fields, target }) => {
       } else {
         await issue.write(repo.id, 'save')
       }
-      expectRoute(target)
-      if (method === 'write' && target) {
-        expect(mocks.ignored).toHaveBeenCalledWith(repo.path, target)
-        expect(mocks.remoteWrite).toHaveBeenCalledWith(
-          '/remote/fixture/.orca/issue-command',
-          'save\n'
-        )
+      if (target) {
+        // The runtime serves no SSH filesystem: an SSH owner is neither read remotely nor locally.
+        expect(mocks.provider).not.toHaveBeenCalled()
+        expect(mocks.remoteWrite).not.toHaveBeenCalled()
+        for (const method of localCalls) {
+          expect(method).not.toHaveBeenCalled()
+        }
+      } else {
+        expectRoute(target)
       }
     }
   )

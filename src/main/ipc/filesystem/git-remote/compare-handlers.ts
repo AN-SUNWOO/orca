@@ -26,14 +26,7 @@ export function registerGitRemoteCompareHandlers(context: FilesystemHandlerConte
         admissionTier?: GitAdmissionTier
       }
     ): Promise<GitBranchCompareResult> => {
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return args.admissionTier
-          ? route.provider.getBranchCompare(args.worktreePath, args.baseRef, {
-              admissionTier: args.admissionTier
-            })
-          : route.provider.getBranchCompare(args.worktreePath, args.baseRef)
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
         store,
@@ -54,10 +47,7 @@ export function registerGitRemoteCompareHandlers(context: FilesystemHandlerConte
       args: { worktreePath: string; commitId: string; connectionId?: string }
     ): Promise<GitCommitCompareResult> => {
       const commitId = validateFullGitObjectId(args.commitId, 'commitId')
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return route.provider.getCommitCompare(args.worktreePath, commitId)
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
         store,

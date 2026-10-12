@@ -120,9 +120,9 @@ export function planStaleStructuredAgentSessionState(
       const itemFence = journal.itemFence(item.itemId)
       const body = ended(itemFence)
         ? null
-        : lostLiveWorkJournalBody(item.body, (entry) =>
-            entryEndedBelow(entry, itemFence, entriesBelow)
-          )
+        : lostLiveWorkJournalBody(item.body, {
+            lost: (entry) => entryEndedBelow(entry, itemFence, entriesBelow)
+          })
       if (body) {
         mutations.push({
           kind: 'item',
@@ -179,9 +179,10 @@ function staleMutations(
     const itemFence = journal.itemFence(item.itemId)
     const { entriesBelow } = input
     const body =
-      lostLiveWorkJournalBody(terminal ?? item.body, (entry) =>
-        entriesBelow === undefined ? true : entryEndedBelow(entry, itemFence, entriesBelow)
-      ) ?? terminal
+      lostLiveWorkJournalBody(terminal ?? item.body, {
+        lost: (entry) =>
+          entriesBelow === undefined ? true : entryEndedBelow(entry, itemFence, entriesBelow)
+      }) ?? terminal
     if (body) {
       mutations.push({
         kind: 'item',

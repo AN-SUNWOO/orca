@@ -1,17 +1,41 @@
-import type { GlobalSettings } from '../../../shared/global-settings-types'
+import { parseRoutableExecutionHostId, type ExecutionHostId } from '../../../shared/execution-host'
 import {
   parseHostAuthorityKey,
   type HostAuthority,
   type HostAuthorityKey
 } from '../../../shared/host-authority'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
-export type RuntimeClientTarget = { kind: 'local' } | { kind: 'environment'; environmentId: string }
+export type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
-export function getActiveRuntimeTarget(
-  settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined
+/** Transport to an owner's runtime environment; `null` is this app (local or direct SSH). */
+export function runtimeTargetForOwnerEnvironment(
+  environmentId: string | null
 ): RuntimeClientTarget {
-  const environmentId = settings?.activeRuntimeEnvironmentId?.trim()
-  return environmentId ? { kind: 'environment', environmentId } : { kind: 'local' }
+  const ownerId = environmentId?.trim()
+  return ownerId ? { kind: 'environment', environmentId: ownerId } : { kind: 'local' }
+}
+
+/** The server a transport dials, or `null` for this app. */
+export function runtimeTargetEnvironmentId(target: RuntimeClientTarget): string | null {
+  return target.kind === 'environment' ? target.environmentId : null
+}
+
+/**
+ * Transport to the host that owns a row: a server's own runtime, or this app for local and `ssh:`
+ * rows (this app serves no SSH route, so its IPC refuses those). `null` when the id names no
+ * routable host.
+ */
+export function runtimeTargetForOwnerHostId(
+  hostId: ExecutionHostId | null | undefined
+): RuntimeClientTarget | null {
+  const parsed = parseRoutableExecutionHostId(hostId)
+  if (!parsed) {
+    return null
+  }
+  return parsed.kind === 'runtime'
+    ? { kind: 'environment', environmentId: parsed.environmentId }
+    : { kind: 'local' }
 }
 
 /**
@@ -46,15 +70,4 @@ export function hostRouteForAuthority(authority: HostAuthority): HostRoute {
         : { kind: 'environment', environmentId: endpoint.environmentId },
     at: authority.at
   }
-}
-
-export function settingsForRuntimeOwner(
-  settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined,
-  runtimeEnvironmentId: string | null | undefined
-): Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined {
-  if (runtimeEnvironmentId === null) {
-    return { activeRuntimeEnvironmentId: null }
-  }
-  const ownerId = runtimeEnvironmentId?.trim()
-  return ownerId ? { activeRuntimeEnvironmentId: ownerId } : settings
 }

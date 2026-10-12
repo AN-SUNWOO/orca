@@ -1,4 +1,5 @@
 import type { TerminalCreateOptions } from './runtime-terminal-contracts'
+import type { SpawnIntent } from '../../shared/host-spawn-admission'
 
 export type { TerminalCreateOptions }
 export type { Worktree } from '../../shared/worktree/types'
@@ -29,7 +30,8 @@ export { getTerminalViewerColors, setPairedViewerColors } from './terminal-view-
 export { normalizeColorQueryReplyColors } from '../../shared/pty-owner-color-query-colors'
 export type { RuntimePtyController } from './runtime-pty-controller-contract'
 export { getRuntimeDesktopSurface } from './runtime-desktop-surface'
-export { runtimeNewTabPlacement } from './runtime-terminal-spawn-placement'
+export { newTabIn } from './runtime-terminal-spawn-placement'
+export { spawnInAdmittedPane } from './runtime-pane-admission'
 export type { IpcMainEvent } from 'electron'
 
 // Why initiallyHidden: no renderer pane exists yet, so main must answer startup queries — Muse
@@ -39,12 +41,14 @@ export const BACKGROUND_TERMINAL_SPAWN_FLAGS = {
   persistHostSessionBinding: true
 } as const
 
-/** Caller-scoped spawn guards: abort when the caller disconnects; never wake a slept worktree. */
-export function callerSpawnGuards(
-  opts: Pick<TerminalCreateOptions, 'signal' | 'refuseSleptWorktree'>
-): { signal?: AbortSignal; refuseSleptWorktree?: true } {
+/** Caller-scoped spawn fields: abort when the caller disconnects; never wake a slept worktree;
+ *  the caller's declared fork intent, which the host's gate validates. */
+export function callerSpawnScope(
+  opts: Pick<TerminalCreateOptions, 'signal' | 'refuseSleptWorktree' | 'spawnIntent'>
+): { signal?: AbortSignal; refuseSleptWorktree?: true; spawnIntent?: SpawnIntent } {
   return {
     ...(opts.signal ? { signal: opts.signal } : {}),
-    ...(opts.refuseSleptWorktree ? { refuseSleptWorktree: true } : {})
+    ...(opts.refuseSleptWorktree ? { refuseSleptWorktree: true } : {}),
+    ...(opts.spawnIntent ? { spawnIntent: opts.spawnIntent } : {})
   }
 }

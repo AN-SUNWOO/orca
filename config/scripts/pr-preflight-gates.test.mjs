@@ -7,10 +7,11 @@ import { classifyPrJobs } from './pr-code-change-scope.mjs'
 const workflow = parse(readFileSync('.github/workflows/pr.yml', 'utf8'))
 const preflight = workflow.jobs.preflight
 const steps = preflight.steps
-const compiler = steps.find((step) => step.run === 'pnpm run typecheck')
+const compiler = steps.find((step) => step.id === 'typecheck')
+const compilerJoin = steps.findIndex((step) => step.wait === 'typecheck')
 const plan = steps.find((step) => step.id === 'unit-plan')
 
-it('shares one setup and runs the unchanged compiler after static checks finish', () => {
+it('shares one setup and overlaps the compiler only after type-aware checks finish', () => {
   expect(workflow.jobs.static_analysis).toBeUndefined()
   expect(workflow.jobs.typecheck).toBeUndefined()
   expect(preflight.needs).toEqual(['code_paths'])
@@ -25,7 +26,11 @@ it('shares one setup and runs the unchanged compiler after static checks finish'
     expect(install.with['persist-native-cache']).not.toBe('false')
   }
   expect(steps[0].with['fetch-depth']).toBeGreaterThanOrEqual(2)
-  expect(compiler.background).toBeUndefined()
+  expect(compiler.background).toBe(true)
+  expect(compiler.run).toContain('pnpm run typecheck:ci')
+  const bunSetup = steps.find((step) => step.name === 'Set up Bun for preflight checks')
+  expect(bunSetup.with['bun-version']).toBe('1.4.3')
+  expect(bunSetup.if).toBeUndefined()
   expect(plan.background).toBe(true)
   expect(plan.run.trim().split('\n')).toEqual([
     'if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi',
@@ -33,16 +38,36 @@ it('shares one setup and runs the unchanged compiler after static checks finish'
   ])
   expect(plan.env.ORCA_UNIT_SELECTION_MODE).toContain('vars.ORCA_UNIT_SELECTION_MODE')
   expect(plan.env.ORCA_UNIT_FULL_SHARD_COUNT).toBe("${{ vars.ORCA_UNIT_FULL_SHARD_COUNT || '5' }}")
-  expect(steps.indexOf(plan)).toBeLessThan(steps.indexOf(compiler))
+  expect(steps.indexOf(plan)).toBeLessThan(compilerJoin)
   expect(steps.indexOf(compiler)).toBeGreaterThan(
+    steps.findIndex((step) => step.wait === 'changed-code-quality')
+  )
+  expect(steps.indexOf(compiler)).toBeLessThan(
+    steps.findIndex((step) => step.id === 'localization-extraction')
+  )
+  expect(compilerJoin).toBeGreaterThan(
     steps.findIndex((step) => step.wait?.includes('localization-extraction'))
   )
+})
+
+it('keeps the Bun anti-slop scan aligned with the local audit', () => {
+  const audit = steps.find((step) => step.name === 'Reject low-evidence patterns')
+  const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
+  const localCommand = manifest.scripts['audit:anti-slop'].split('&&').at(-1).trim()
+  expect(audit.run.trim().split('\n')[0]).toBe('node config/scripts/sync-anti-slop-plugin.mjs')
+  expect(
+    audit.run
+      .trim()
+      .split('\n')
+      .at(-1)
+      .replace('bun --smol node_modules/oxlint/bin/oxlint', 'oxlint')
+  ).toBe(localCommand)
 })
 
 it('requires physical preflight success before publishing shards and admitting consumers', () => {
   const join = steps.findIndex((step) => step.wait === 'unit-plan')
   const upload = steps.findIndex((step) => step.uses === 'actions/upload-artifact@v7')
-  expect(join).toBeGreaterThan(steps.indexOf(compiler))
+  expect(join).toBeGreaterThan(compilerJoin)
   expect(upload).toBeGreaterThan(join)
   expect(steps[upload]['continue-on-error']).toBeUndefined()
   expect(steps[upload].with.name).toBe('unit-selection-attempt-${{ github.run_attempt }}')
@@ -54,7 +79,7 @@ it('requires physical preflight success before publishing shards and admitting c
   for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
     const admitted = runInNewContext(workflow.jobs.test.if, {
       cancelled: () => false,
-      needs: { code_paths: { outputs: { test: 'true' } }, preflight: { result } }
+      needs: { code_paths: { result: 'success', outputs: { test: 'true' } }, preflight: { result } }
     })
     expect(admitted, result).toBe(result === 'success')
   }
@@ -184,7 +209,6 @@ it('pins every foreground and background step to its selected phase', () => {
     (step) => !step.background && /outputs\.(static_analysis|typecheck)/.test(step.if ?? '')
   )
   expect(foreground.map((step) => [step.name ?? step.run ?? step.uses, step.if])).toEqual([
-    ['Set up Bun for localization checks', staticPhase],
     ['Reject low-evidence patterns', staticPhase],
     ['Enforce type-aware code-quality baseline', staticPhase],
     [
@@ -199,7 +223,9 @@ it('pins every foreground and background step to its selected phase', () => {
     ['Enforce max-lines ratchet', staticPhase],
     ['Enforce ts-nocheck ratchet', staticPhase],
     ['Enforce runtime Electron-import ratchet', staticPhase],
-    ['Enforce owner-routing ratchet', staticPhase],
+    ['Enforce focus-read ratchet', staticPhase],
+    ['Enforce layout-writer ratchets', staticPhase],
+    ['Check compatibility-folder imports', staticPhase],
     ['Check Node runtime pin', staticPhase],
     ['Boot orcad and round-trip a terminal', staticPhase],
     ['Verify the generated RPC params catalog', staticPhase],
@@ -210,8 +236,6 @@ it('pins every foreground and background step to its selected phase', () => {
     ['Guard against project-owned .d.ts in preload/shared', staticPhase],
     ['Check feature wall asset budget', staticPhase],
     ['Verify macOS entitlements', staticPhase],
-    ['Cache TypeScript incremental state', typePhase],
-    ['pnpm run typecheck', typePhase],
     ['actions/upload-artifact@v7', typePhase]
   ])
   expect(
@@ -223,6 +247,7 @@ it('pins every foreground and background step to its selected phase', () => {
     ['root-lint', `\${{ ${staticPhase} }}`],
     ['native-code-quality', `\${{ ${staticPhase} }}`],
     ['changed-code-quality', `\${{ ${staticPhase} }}`],
+    ['typecheck', `\${{ ${typePhase} }}`],
     ['localization-extraction', `\${{ ${staticPhase} }}`],
     ['localization-catalogs', `\${{ ${staticPhase} }}`],
     ['unit-plan', `\${{ ${typePhase} }}`]
@@ -271,7 +296,9 @@ it.each([
   expect(runInNewContext(preflight.if, { needs })).toBe(
     expected.static_analysis || expected.typecheck
   )
-  expect(runInNewContext(compiler.if, { needs })).toBe(expected.typecheck)
+  expect(runInNewContext(compiler.env.PREFLIGHT_PHASE_SELECTED.slice(3, -2), { needs })).toBe(
+    expected.typecheck
+  )
   expect(scope.test).toBe(expected.typecheck)
 })
 

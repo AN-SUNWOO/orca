@@ -16,7 +16,7 @@ const EXTENSIONS = [
   '/index.js'
 ]
 const INDIRECT_INPUT =
-  /\b(?:readFile\w*|readdir\w*|glob\w*|spawn\w*|execFile\w*|execSync|runProcess\w*|fork|Worker)\b|\bimport\s*\(\s*[^'"\s]|\brequire\s*\(\s*[^'"\s]|\bnew\s+URL\s*\(/
+  /\b(?:readFile\w*|readdir\w*|glob\w*|spawn\w*|execFile\w*|execSync|runProcess\w*|fork|Worker|createRequire|getBuiltinModule)\b|\bimport\s*\(\s*[^'"\s]|\brequire\s*\(\s*[^'"\s]|\bnew\s+URL\s*\(/
 
 function localPath(file, specifier) {
   if (specifier.startsWith('.')) {
@@ -45,6 +45,9 @@ export function buildUnitDependencyGraph(sources, workspace = { resolve: () => n
       opaque.add(file)
     }
     for (const imported of ts.preProcessFile(source, true, true).importedFiles) {
+      if (imported.fileName === 'module' || imported.fileName === 'node:module') {
+        opaque.add(file)
+      }
       const workspaceSource = workspace.resolve(imported.fileName)
       const path = workspaceSource?.file ?? localPath(file, imported.fileName)
       if (path === null) {

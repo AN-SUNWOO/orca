@@ -48,7 +48,14 @@ type PartSources = {
         'workspace',
         Exclude<
           keyof WorkspaceLayout,
-          'tabs' | 'groups' | 'editorFiles' | 'browserTabs' | 'leaves' | 'closedTerminalTabs'
+          // `editorViews` is in memory only: the view is not saved.
+          | 'tabs'
+          | 'groups'
+          | 'editorFiles'
+          | 'editorViews'
+          | 'browserTabs'
+          | 'leaves'
+          | 'closedTerminalTabs'
         >
       >
     | Prefixed<
@@ -123,8 +130,8 @@ const ROW = {
   startupCwd: own('tab.terminal', 'startupCwd'),
   launchAgent: own('tab.terminal', 'launchAgent'),
   agentLaunchPane: own('tab.terminal', 'agentLaunchPane'),
-  // Transient handoffs, never restored; the window strips them, but main's minimal row mint
-  // stores `pendingActivationSpawn`, so the Loader drops it.
+  // Transient handoffs, never restored; the window strips them, but older builds' minimal row mint
+  // stored `pendingActivationSpawn`, so the Loader drops it.
   pendingActivationSpawn: 'unwritten',
   recovery: 'unwritten',
   restoredFromSession: 'unwritten'

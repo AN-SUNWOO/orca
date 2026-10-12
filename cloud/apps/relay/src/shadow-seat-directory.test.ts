@@ -362,6 +362,45 @@ describe('startShadowSeatPoller', () => {
     expect(cell.directory.isComplete()).toBe(true)
   })
 
+  it('forgets the switches a cell reported once its image no longer has the feed', async () => {
+    let rolledBack = false
+    const cell = poller({
+      'cell-a': () => json(feed({ seq: 1, full: [] })),
+      'cell-b': () =>
+        rolledBack
+          ? new Response('Not Found', { status: 404 })
+          : json(
+              feed({
+                cellId: 'cell-b',
+                seq: 1,
+                full: [],
+                flagsApplied: { generation: 3, flags: { readinessLocal: true } }
+              })
+            )
+    })
+    await cell.tick()
+    expect(cell.directory.cellState('cell-b')?.flagsApplied?.generation).toBe(3)
+    rolledBack = true
+    await cell.tick()
+    cell.stop()
+    expect(cell.directory.cellState('cell-b')).toMatchObject({ status: 'no-feed' })
+    expect(cell.directory.cellState('cell-b')?.flagsApplied).toBeUndefined()
+  })
+
+  it('keeps a reserve switch through a 404 until a feed says db or the process is replaced', () => {
+    const directory = new ShadowSeatDirectory()
+    directory.setCells(['cell-b'])
+    const reserve = { generation: 4, flags: { admitMode: 'reserve' } }
+    directory.apply('cell-b', feed({ cellId: 'cell-b', seq: 1, full: [], flagsApplied: reserve }), 10)
+    directory.markNoFeed('cell-b', 20, INCARNATION)
+    expect(directory.cellState('cell-b')?.flagsApplied).toEqual(reserve)
+    directory.markNoFeed('cell-b', 30)
+    expect(directory.cellState('cell-b')?.flagsApplied).toEqual(reserve)
+    // relay_cell_runtime names another process: the one that reported reserve is gone.
+    directory.markNoFeed('cell-b', 40, '33333333-3333-4333-8333-333333333333')
+    expect(directory.cellState('cell-b')?.flagsApplied).toBeUndefined()
+  })
+
   it('completes without a cell that is dead, empty or isolated', async () => {
     const cell = poller({ 'cell-a': () => json(feed({ seq: 1, full: [] })) }, 'all', async () => [
       CELLS[0]!,
@@ -386,6 +425,27 @@ describe('startShadowSeatPoller', () => {
     // Retries at +1, +2, +4, +8, +16 s, then at most every 30 s.
     expect(listCells.mock.calls.length).toBeLessThanOrEqual(7)
     expect(listCells.mock.calls.length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('keeps polling the last cell list while a cell-list read hangs', async () => {
+    let finishRead: (cells: SeatFeedCell[]) => void = () => undefined
+    const listCells = vi
+      .fn<() => Promise<SeatFeedCell[]>>()
+      .mockResolvedValueOnce(CELLS)
+      .mockImplementation(() => new Promise((resolve) => (finishRead = resolve)))
+    const cell = poller({ 'cell-a': () => json(feed({ seq: 1, full: [] })) }, ['cell-a'], listCells)
+    await cell.tick()
+    cell.advance(31_000)
+    const round = cell.tick()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(listCells).toHaveBeenCalledTimes(2)
+    expect(cell.requests.map((url) => url.hostname)).toEqual([
+      'cell-a.example.test',
+      'cell-a.example.test'
+    ])
+    finishRead(CELLS)
+    await round
+    cell.stop()
   })
 
   it('treats a malformed or mislabelled body as unverifiable', async () => {
@@ -487,5 +547,33 @@ describe('RelayAssignmentStore.seatFeedCells', () => {
       ['cell-off', 135_000, true],
       ['cell-stale', 55_000, false]
     ])
+  })
+})
+
+describe('ShadowSeatDirectory.placementModeOf', () => {
+  const response = (
+    modes: { admitModeEffective?: 'db' | 'reserve'; admitModeRaw?: 'db' | 'reserve' } = {}
+  ): SeatFeedResponse => ({
+    v: 1,
+    cellId: 'cell-a',
+    incarnation: INCARNATION,
+    seq: 1,
+    at: 0,
+    counts: { seats: 0, controls: 0, bookings: 0, units: 0, ceiling: 500 },
+    intake: { perSec: 100, burst: 20, tokens: 20 },
+    flagsApplied: { generation: 3, flags: { admitMode: 'reserve' } },
+    full: [],
+    ...modes
+  })
+
+  // A tripped cell re-registering still reports reserve as effective; placement reads raw db.
+  it('reads the raw mode when the cell sends it, and the effective mode otherwise', () => {
+    const directory = new ShadowSeatDirectory()
+    directory.setCells(['cell-a'])
+    directory.apply('cell-a', response({ admitModeEffective: 'reserve', admitModeRaw: 'db' }), 1_000, 1_000)
+    expect(directory.placementModeOf('cell-a')).toBe('db')
+    expect(directory.admitModeOf('cell-a')).toBe('reserve')
+    directory.apply('cell-a', response({ admitModeEffective: 'reserve' }), 2_000, 2_000)
+    expect(directory.placementModeOf('cell-a')).toBe('reserve')
   })
 })

@@ -41,10 +41,11 @@ const EVERY_ENTRY: LostLiveWorkEntries = () => true
 
 /** The row once the host lost the session running its live work: every working child and
  *  in-flight background task `unverifiable`, plain-text twins restated. Null when none is live.
- *  `lost` narrows it to the entries the lost session ran: a later generation's stay as they are. */
+ *  `lost` narrows it to the entries the lost session ran: a later generation's stay as they are.
+ *  `lostAt` is when a live host saw the session end; a reopened journal cannot know it. */
 export function lostLiveWorkJournalBody(
   body: AgentJournalItemBody,
-  lost: LostLiveWorkEntries = EVERY_ENTRY
+  { lost = EVERY_ENTRY, lostAt }: { lost?: LostLiveWorkEntries; lostAt?: number } = {}
 ): AgentJournalItemBody | null {
   if (
     body.kind !== 'message' ||
@@ -52,7 +53,7 @@ export function lostLiveWorkJournalBody(
   ) {
     return null
   }
-  return { ...body, blocks: settleBlocks(body.blocks, lost) }
+  return { ...body, blocks: settleBlocks(body.blocks, lost, lostAt) }
 }
 
 function isWorkingChild(agent: NativeChatSubagentGroupBlock['agents'][number]): boolean {
@@ -80,18 +81,19 @@ function hasLiveBackgroundTask(
   )
 }
 
-/** No `settledAt`: the child stopped being observable at an unknown moment, and
- *  stamping the reopen would report the time the app was down as how long it
- *  ran. Readers already draw an unverifiable child with no stamp as having no
- *  known run length. */
+/** Without `lostAt`, no `settledAt`: the child stopped being observable at an
+ *  unknown moment, and stamping the reopen would report the time the app was
+ *  down as how long it ran. Readers already draw an unverifiable child with no
+ *  stamp as having no known run length. */
 function settleBlocks(
   blocks: readonly NativeChatBlock[],
-  lost: LostLiveWorkEntries
+  lost: LostLiveWorkEntries,
+  lostAt?: number
 ): NativeChatBlock[] {
   const backgroundTaskTwinText = new Map<string, string>()
   const settled = blocks.map((block) => {
     if (hasWorkingChild(block, lost)) {
-      return settleGroup(block, lost)
+      return settleGroup(block, lost, lostAt)
     }
     if (hasLiveBackgroundTask(block, lost)) {
       const next = settleBackgroundTask(block)
@@ -125,12 +127,19 @@ function settleBlocks(
 
 function settleGroup(
   block: NativeChatSubagentGroupBlock,
-  lost: LostLiveWorkEntries
+  lost: LostLiveWorkEntries,
+  lostAt?: number
 ): NativeChatSubagentGroupBlock {
   return {
     ...block,
     agents: block.agents.map((agent) =>
-      isWorkingChild(agent) && lost(agent) ? { ...agent, state: 'unverifiable' as const } : agent
+      isWorkingChild(agent) && lost(agent)
+        ? {
+            ...agent,
+            state: 'unverifiable' as const,
+            ...(lostAt !== undefined ? { settledAt: lostAt } : {})
+          }
+        : agent
     )
   }
 }

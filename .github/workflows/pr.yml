@@ -39,6 +39,7 @@ jobs:
       mobile_web_app: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.mobile_web_app }}
       static_analysis: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.static_analysis }}
       typecheck: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.typecheck }}
+      mobile_ci_tools: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.mobile_ci_tools }}
       git_compatibility: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.git_compatibility }}
       codex_index_heal_contract: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.codex_index_heal_contract }}
       xterm_patch_sync: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.xterm_patch_sync }}
@@ -49,11 +50,11 @@ jobs:
       managed_hook_node18: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.managed_hook_node18 }}
       package: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package }}
       package_windows: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package_windows }}
+      layout_oracle: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.layout_oracle }}
       e2e_should_run: ${{ steps.e2e_filter.outputs.should_run }}
       test_files: ${{ steps.e2e_filter.outputs.test_files }}
       e2e_run_changed: ${{ steps.e2e_filter.outputs.e2e_run_changed }}
       e2e_needs_build: ${{ steps.e2e_filter.outputs.e2e_needs_build }}
-      ssh_source_changed: ${{ steps.e2e_filter.outputs.ssh_source_changed }}
       native_ime_source_changed: ${{ steps.e2e_filter.outputs.native_ime_source_changed }}
       wsl_source_changed: ${{ steps.e2e_filter.outputs.wsl_source_changed }}
     steps:
@@ -75,6 +76,7 @@ jobs:
             /.github/scripts/check-root-directory-entries.mjs
             /config/scripts/check-readme-local-links.mjs
             /config/scripts/pr-code-change-scope.mjs
+            /config/scripts/pr-layout-oracle-route.mjs
             /config/scripts/pr-e2e-source-routing.mjs
             /config/scripts/ci-e2e-job-selection.mjs
             /config/scripts/pr-ready-check-reuse.mjs
@@ -116,7 +118,11 @@ jobs:
           CHANGED="$(git diff --name-only --no-renames --diff-filter=ACDMR "$DIFF_BASE" HEAD)"
           echo "Changed paths:"
           printf '%s\n' "$CHANGED"
-          printf '%s\n' "$CHANGED" | node config/scripts/pr-code-change-scope.mjs | tee -a "$GITHUB_OUTPUT"
+          MOBILE_CI_ARGS=()
+          if git diff --quiet --no-renames --diff-filter=ACDRTUXB "$DIFF_BASE" HEAD; then
+            MOBILE_CI_ARGS=(--mobile-ci-tools --daemon-init-test-support)
+          fi
+          printf '%s\n' "$CHANGED" | node config/scripts/pr-code-change-scope.mjs "${MOBILE_CI_ARGS[@]}" | tee -a "$GITHUB_OUTPUT"
 
       # Reuse the path-detector checkout instead of queuing another runner.
       - name: Filter changed E2E specs
@@ -127,16 +133,15 @@ jobs:
           BASE="${{ github.event.pull_request.base.sha }}"
           DIFF_BASE="$(node config/scripts/git-pull-request-diff-base.mjs "$BASE")"
           CHANGED="$(git diff --name-only --diff-filter=AMCR "$DIFF_BASE" HEAD)"
+          E2E_SCOPE_ARGS=()
+          if git diff --quiet --no-renames --diff-filter=ACDRTUXB "$DIFF_BASE" HEAD; then
+            E2E_SCOPE_ARGS=(--daemon-init-test-support)
+          fi
           # Source routes are executable contracts so a test can prove exact
           # authorities, exclusions, and sentinels without evaluating workflow shell.
-          TEST_FILES_JSON="$(printf '%s\n' "$CHANGED" | node config/scripts/pr-e2e-source-routing.mjs)"
+          TEST_FILES_JSON="$(printf '%s\n' "$CHANGED" | node config/scripts/pr-e2e-source-routing.mjs "${E2E_SCOPE_ARGS[@]}")"
           echo "test_files=$TEST_FILES_JSON" >> "$GITHUB_OUTPUT"
-          # Why a separate signal: the Docker-SSH lane must trigger on SSH source, not on a
-          # spec name surviving in a route's list. Same routes, so the two cannot drift.
-          SSH_SOURCE_CHANGED="$(printf '%s\n' "$CHANGED" | node config/scripts/pr-e2e-source-routing.mjs --ssh-source)"
-          echo "ssh_source_changed=$SSH_SOURCE_CHANGED" >> "$GITHUB_OUTPUT"
-          echo "SSH source changed: $SSH_SOURCE_CHANGED"
-          printf '%s\n' "$TEST_FILES_JSON" | E2E_SSH_SOURCE_CHANGED="$SSH_SOURCE_CHANGED" node config/scripts/ci-e2e-job-selection.mjs --job-outputs >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$TEST_FILES_JSON" | node config/scripts/ci-e2e-job-selection.mjs --job-outputs >> "$GITHUB_OUTPUT"
           # Why its own signal: the real-IME lane is a whole ibus session, not a spec, so it must
           # trigger on IME source rather than on a spec name in some route's list.
           NATIVE_IME_SOURCE_CHANGED="$(printf '%s\n' "$CHANGED" | node config/scripts/pr-e2e-source-routing.mjs --native-ime-source)"
@@ -145,7 +150,7 @@ jobs:
           WSL_SOURCE_CHANGED="$(printf '%s\n' "$WSL_CHANGED" | node config/scripts/pr-e2e-source-routing.mjs --wsl-source)"
           echo "wsl_source_changed=$WSL_SOURCE_CHANGED" >> "$GITHUB_OUTPUT"
           echo "Native IME source changed: $NATIVE_IME_SOURCE_CHANGED"
-          SHOULD_RUN="$(printf '%s\n' "$CHANGED" | node config/scripts/pr-e2e-source-routing.mjs --reusable-workflow)"
+          SHOULD_RUN="$(printf '%s\n' "$CHANGED" | node config/scripts/pr-e2e-source-routing.mjs --reusable-workflow "${E2E_SCOPE_ARGS[@]}")"
           if [ "$SHOULD_RUN" = true ]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
             echo "Changed E2E specs: $TEST_FILES_JSON"
@@ -197,11 +202,11 @@ jobs:
             pnpm-lock.yaml
             mobile/pnpm-lock.yaml
 
-      - name: Set up Bun for localization checks
-        if: needs.code_paths.outputs.static_analysis == 'true'
+      # Bun 1.4.3 introduces the compiler used by this job.
+      - name: Set up Bun for preflight checks
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version-file: config/.bun-version
+          bun-version: 1.4.3
 
       - name: Check process-host imports
         if: '!cancelled()'
@@ -212,7 +217,7 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          pnpm run check:process-host-imports
+          bun --bun run check:process-host-imports
 
       # Keep each check in its own log while sharing this runner.
       - name: Lint
@@ -228,7 +233,9 @@ jobs:
 
       - name: Reject low-evidence patterns
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run audit:anti-slop
+        run: |
+          node config/scripts/sync-anti-slop-plugin.mjs
+          bun --smol node_modules/oxlint/bin/oxlint --config config/oxlint-anti-slop.json src config tests mobile --deny-warnings
 
       - wait: root-lint
 
@@ -272,6 +279,18 @@ jobs:
         run: pnpm run check:react-doctor:changed -- "${{ github.event.pull_request.base.sha }}"
 
       - wait: changed-code-quality
+
+      # The compiler overlaps the remaining checks after the type-aware passes release memory.
+      - name: Typecheck
+        if: '!cancelled()'
+        id: typecheck
+        background: true
+        env:
+          PREFLIGHT_PHASE_SELECTED: ${{ needs.code_paths.outputs.typecheck == 'true' }}
+          PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
+        run: |
+          if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
+          pnpm run typecheck:ci
 
       - name: Check Zustand selector fan-out budget
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -319,9 +338,17 @@ jobs:
         if: needs.code_paths.outputs.static_analysis == 'true'
         run: pnpm run check:runtime-electron-ratchet
 
-      - name: Enforce owner-routing ratchet
+      - name: Enforce focus-read ratchet
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:owner-routing-ratchet
+        run: pnpm run check:focus-read-ratchet
+
+      - name: Enforce layout-writer ratchets
+        if: needs.code_paths.outputs.static_analysis == 'true'
+        run: pnpm run check:layout-writer-ratchets
+
+      - name: Check compatibility-folder imports
+        if: needs.code_paths.outputs.static_analysis == 'true'
+        run: pnpm run check:compat-boundary-imports
 
       - name: Check Node runtime pin
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -425,19 +452,6 @@ jobs:
         if: needs.code_paths.outputs.static_analysis == 'true'
         run: pnpm verify:macos-entitlements
 
-      # Why: every project is `composite`, so tsc already writes a .tsbuildinfo that lets
-      # the next run skip unchanged files. Share one cache entry across commits while the
-      # PR base stays stable; actions/cache keeps the first successful graph and the
-      # compiler still invalidates stale files from its content hashes.
-      - name: Cache TypeScript incremental state
-        if: needs.code_paths.outputs.typecheck == 'true'
-        uses: actions/cache@v5
-        with:
-          path: config/*.tsbuildinfo
-          key: tsbuildinfo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'config/tsconfig*.json') }}-${{ github.event.pull_request.base.sha }}
-          restore-keys: |
-            tsbuildinfo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'config/tsconfig*.json') }}-
-
       # Planning shares setup and stays off the compiler's critical path.
       - name: Plan unit selection
         if: '!cancelled()'
@@ -453,8 +467,7 @@ jobs:
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
           node config/scripts/ci-unit-plan.mjs
 
-      - run: pnpm run typecheck
-        if: needs.code_paths.outputs.typecheck == 'true'
+      - wait: typecheck
 
       - wait: process-host-imports
 
@@ -466,6 +479,28 @@ jobs:
           name: unit-selection-attempt-${{ github.run_attempt }}
           path: ci-shards/unit-selection.json
           retention-days: 14
+
+      - name: Set up Bun for Mobile CI tool tests
+        if: needs.code_paths.outputs.mobile_ci_tools == 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: config/.bun-version
+
+      - name: Test Mobile CI tools and runtime routing
+        if: needs.code_paths.outputs.mobile_ci_tools == 'true'
+        env:
+          ORCA_BACKGROUND_LAUNCH: '1'
+          ORCA_BALANCE_UNIT_SHARDS: '1'
+        run: >-
+          node config/scripts/run-vitest.mjs run --config config/vitest.config.ts
+          --maxWorkers=4 --isolate --retry=0 --bail=0
+          config/scripts/mobile-release-check-scope.test.mjs
+          config/scripts/mobile-test-change-scope.test.mjs
+          config/scripts/pr-ready-check-reuse.test.mjs
+          config/scripts/ci-dependency-download-cache.test.mjs
+          config/scripts/win32-test-lane-registration.test.mjs
+          config/scripts/vitest-node-runtime-boundary.test.ts
+          config/scripts/vitest-sqlite-runtime-boundary.test.ts
 
   git_compatibility:
     name: Git compatibility
@@ -509,8 +544,7 @@ jobs:
               pnpm exec vitest run --config config/vitest.config.ts \
               src/shared/git-binary-compatibility.test.ts \
               src/main/git/worktree-safety-real-git.test.ts \
-              src/main/git/worktree-rebase-update-refs-real-git.test.ts \
-              src/relay/git-review-draft-binary-compatibility.test.ts
+              src/main/git/worktree-rebase-update-refs-real-git.test.ts
           ) &
           pids+=("$!")
 
@@ -522,8 +556,7 @@ jobs:
                 pnpm exec vitest run --config config/vitest.config.ts \
                 src/shared/git-binary-compatibility.test.ts \
                 src/main/git/worktree-safety-real-git.test.ts \
-                src/main/git/worktree-rebase-update-refs-real-git.test.ts \
-                src/relay/git-review-draft-binary-compatibility.test.ts
+                src/main/git/worktree-rebase-update-refs-real-git.test.ts
             ) &
             pids+=("$!")
           done
@@ -798,7 +831,6 @@ jobs:
             src/main/terminal-history-fish-session.node-pty.test.ts \
             src/main/zsh-scoped-histfile.live-shell.test.ts \
             src/main/zsh-startup-hook-user-config-equivalence.live-shell.test.ts \
-            src/main/zsh-wrapper-version-mismatch.live-shell.test.ts \
             src/main/runtime/structured-session-cli-login-shell.live-shell.test.ts \
             src/renderer/src/components/terminal-pane/fish-color-scheme-child-stdin.node-pty.test.ts \
             src/shared/fish-query-reply-child-stdin.node-pty.test.ts \
@@ -812,6 +844,7 @@ jobs:
     # Cancellation and failed prerequisites stop the expensive matrix.
     if: >-
       !cancelled() &&
+      needs.code_paths.result == 'success' &&
       needs.code_paths.outputs.test == 'true' &&
       needs.preflight.result == 'success'
     uses: ./.github/workflows/unit-tests.yml
@@ -819,6 +852,8 @@ jobs:
       node_versions: '["24"]'
       runner: ubuntu-24.04-arm
       shards: ${{ needs.preflight.outputs.shards }}
+      run_shards: ${{ needs.code_paths.outputs.mobile_ci_tools != 'true' }}
+      browser_contract: ${{ needs.code_paths.outputs.orcad_browser == 'true' }}
 
   # Why a sibling and not part of the test workflow: it is advisory, so it must not delay the
   # gate. Inside unit-tests.yml a caller's `needs: test` waited for it, holding verify ~36s
@@ -827,48 +862,6 @@ jobs:
     needs: [test]
     if: ${{ !cancelled() && (needs.test.result == 'success' || needs.test.result == 'failure') }}
     uses: ./.github/workflows/unit-selection-evidence.yml
-
-  # Why a separate job: the test needs a real Chrome, and the sharded `test` matrix
-  # would pay for it on every shard to run one file in whichever shard it landed in.
-  orcad_browser:
-    name: orcad browser provider
-    needs: [code_paths, preflight]
-    if: >-
-      !cancelled() &&
-      needs.code_paths.result == 'success' &&
-      needs.code_paths.outputs.orcad_browser == 'true' &&
-      needs.preflight.result == 'success'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      # Why no native-runtime: the provider drives the prebuilt agent-browser binary
-      # shipped in node_modules and never touches node-pty.
-      - uses: ./.github/actions/install-node-dependencies
-
-      # Why the runner's Google Chrome and not its chromium: Ubuntu 24.04 only ships an
-      # AppArmor userns profile for the Chrome .deb, so chromium dies with "No usable
-      # sandbox" and the provider passes no --no-sandbox. Why fail instead of skip: an
-      # unset ORCA_BROWSER_EXECUTABLE is exactly how this test went uncovered for so long.
-      - name: Resolve Chrome for the browser provider
-        run: |
-          set -euo pipefail
-          chrome="$(command -v google-chrome || command -v google-chrome-stable || true)"
-          if [ -z "$chrome" ]; then
-            echo "::error::No Google Chrome on the runner; the browser provider test would silently skip."
-            exit 1
-          fi
-          "$chrome" --version
-          echo "ORCA_BROWSER_EXECUTABLE=$chrome" >> "$GITHUB_ENV"
-
-      - name: Test external Chromium browser provider
-        run: |
-          pnpm exec vitest run --config config/vitest.config.ts \
-            src/main/orcad/external-chromium-browser-process.integration.test.ts
 
   # Why its own job: it needs mobile/node_modules and a real browser, and the sharded `test`
   # matrix would pay for both on every shard to run two files. It builds the same bundle the
@@ -1015,16 +1008,10 @@ jobs:
 
       - uses: ./.github/actions/install-node-dependencies
 
-      - name: Build relay companions
-        run: pnpm run build:relay
-
       - name: Setup Node 18 runtime
         uses: actions/setup-node@v6
         with:
           node-version: '18'
-
-      - name: Smoke managed-hook companions
-        run: node config/scripts/smoke-managed-hook-runtime-node18.mjs
 
       # The process-host package declares engines >=18; load its staged public output on Node 18.
       - name: Smoke process-host package
@@ -1253,12 +1240,14 @@ jobs:
       - name: Test Windows-specific boundaries
         run: >-
           pnpm exec vitest run --config config/vitest.config.ts
+          src/main/zcode/zcode-plan-api-key-store-native-windows.test.ts
           config/scripts/rebuild-native-deps.test.mjs
           config/scripts/rebuild-native-deps-windows-process-tree.test.mjs
           config/scripts/rebuild-native-deps-node-pty.test.mjs
           config/scripts/ensure-native-runtime-job-ownership.test.mjs
           config/scripts/verify-packaged-node-pty-job-ownership.test.mjs
           config/scripts/windows-pe-machine.test.mjs
+          config/scripts/build-windows-cli-launcher.test.mjs
           config/scripts/script-module-dependencies.test.mjs
           src/main/windows-registry-addon.test.ts
           config/scripts/windows-process-tree-gyp-path.test.mjs
@@ -1314,10 +1303,7 @@ jobs:
           src/main/ipc/pty-spawn-env-codex-resume-provenance.test.ts
           src/main/ipc/preflight-provider-command-selection.test.ts
           src/main/ipc/preflight-runnable-local-cli.test.ts
-          src/relay/windows-port-scan.win32.test.ts
-          src/main/ssh/ssh-relay-upload-stage-windows-identity.test.ts
           src/main/ssh/remote-node-runtime-store-windows.test.ts
-          config/scripts/node-pty-windows-pty-teardown-patch.test.mjs
 
       # Why the :parallel variant: identical to build:release except the three
       # electron-vite targets overlap instead of running back to back. The Linux package
@@ -1390,9 +1376,31 @@ jobs:
       # workflow is queued. The head SHA is immutable and works for every PR.
       ref: ${{ github.event.pull_request.head.sha }}
       test_files: ${{ needs.code_paths.outputs.test_files }}
-      ssh_source_changed: ${{ needs.code_paths.outputs.ssh_source_changed }}
       run_changed_e2e: ${{ needs.code_paths.outputs.e2e_run_changed != 'false' }}
       needs_build: ${{ needs.code_paths.outputs.e2e_needs_build != 'false' }}
+
+  # Why its own required job, apart from `e2e`: the rest of the suite is red on main, but the
+  # layout oracle is green there, and its known-on-main list absorbs today's findings. Only the two
+  # oracle specs run, through the same reusable workflow: the window spec in the changed-spec lane,
+  # the headless spec in the orcad lane on both serve hosts.
+  layout_oracle:
+    name: layout oracle
+    needs: [code_paths, preflight]
+    if: >-
+      !cancelled() &&
+      needs.code_paths.result == 'success' &&
+      needs.code_paths.outputs.layout_oracle == 'true' &&
+      needs.preflight.result == 'success'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/e2e.yml
+    with:
+      # Why the merge commit, unlike `e2e`: a gate must test what lands on main, not a stale head.
+      ref: ${{ github.sha }}
+      test_files: '["tests/e2e/workspace-layout-oracle-headless.spec.ts","tests/e2e/workspace-layout-oracle.spec.ts"]'
+      run_changed_e2e: true
+      needs_build: true
+      artifact_suffix: -layout-oracle
 
   # Why this is not in verify's needs: it is the first PR-gate run of a harness whose reliability
   # is only known from nightly main runs (20/20 green, 2026-08-09..2026-08-29, p50 3m25s). It
@@ -1429,12 +1437,12 @@ jobs:
       - xterm_patch_sync
       - shell_contracts
       - test
-      - orcad_browser
       - mobile_web_app
       - cross-version-wire
       - managed_hook_node18
       - package
       - package_windows
+      - layout_oracle
     # Evaluating job results only needs the lightweight container runner.
     runs-on: ubuntu-slim
     timeout-minutes: 5
@@ -1464,8 +1472,6 @@ jobs:
           SHELL_CONTRACTS_SHOULD_RUN: ${{ needs.code_paths.outputs.shell_contracts }}
           TEST: ${{ needs.test.result }}
           TEST_SHOULD_RUN: ${{ needs.code_paths.outputs.test }}
-          ORCAD_BROWSER: ${{ needs.orcad_browser.result }}
-          ORCAD_BROWSER_SHOULD_RUN: ${{ needs.code_paths.outputs.orcad_browser }}
           MOBILE_WEB_APP: ${{ needs.mobile_web_app.result }}
           MOBILE_WEB_APP_SHOULD_RUN: ${{ needs.code_paths.outputs.mobile_web_app }}
           CROSS_VERSION_WIRE: ${{ needs.cross-version-wire.result }}
@@ -1476,6 +1482,8 @@ jobs:
           PACKAGE_SHOULD_RUN: ${{ needs.code_paths.outputs.package }}
           PACKAGE_WINDOWS: ${{ needs.package_windows.result }}
           PACKAGE_WINDOWS_SHOULD_RUN: ${{ needs.code_paths.outputs.package_windows }}
+          LAYOUT_ORACLE: ${{ needs.layout_oracle.result }}
+          LAYOUT_ORACLE_SHOULD_RUN: ${{ needs.code_paths.outputs.layout_oracle }}
         run: |
           if [ "$CODE_PATHS" != "success" ]; then
             exit 1
@@ -1505,10 +1513,10 @@ jobs:
           check_job xterm_patch_sync "$XTERM_PATCH_SYNC" "$XTERM_PATCH_SYNC_SHOULD_RUN"
           check_job shell_contracts "$SHELL_CONTRACTS" "$SHELL_CONTRACTS_SHOULD_RUN"
           check_job test "$TEST" "$TEST_SHOULD_RUN"
-          check_job orcad_browser "$ORCAD_BROWSER" "$ORCAD_BROWSER_SHOULD_RUN"
           check_job mobile_web_app "$MOBILE_WEB_APP" "$MOBILE_WEB_APP_SHOULD_RUN"
           check_job cross-version-wire "$CROSS_VERSION_WIRE" "$CROSS_VERSION_WIRE_SHOULD_RUN"
           check_job managed_hook_node18 "$MANAGED_HOOK_NODE18" "$MANAGED_HOOK_NODE18_SHOULD_RUN"
           check_job package "$PACKAGE" "$PACKAGE_SHOULD_RUN"
           check_job package_windows "$PACKAGE_WINDOWS" "$PACKAGE_WINDOWS_SHOULD_RUN"
+          check_job layout_oracle "$LAYOUT_ORACLE" "$LAYOUT_ORACLE_SHOULD_RUN"
           exit "$failed"

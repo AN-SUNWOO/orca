@@ -227,6 +227,9 @@ export async function buildRuntimePtySpawnOptions(
   if (!ctx.preAdoptedStablePane && args.agentSessionCreateOperationId) {
     ctx.spawnOptions.agentSessionCreateOperationId = args.agentSessionCreateOperationId
   }
+  if (!ctx.preAdoptedStablePane && args.spawnIntent) {
+    ctx.spawnOptions.spawnIntent = args.spawnIntent
+  }
   if (args.signal) {
     ctx.spawnOptions.signal = args.signal
   }

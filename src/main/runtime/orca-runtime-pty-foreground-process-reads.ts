@@ -131,7 +131,8 @@ export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithSta
     options: { connectionId?: string; allowUnverifiedStop?: boolean } = {}
   ): Promise<void> {
     const { connectionId, allowUnverifiedStop } = options
-    const provider = connectionId ? this.getSshProviderFn?.(connectionId) : this.getLocalProvider()
+    // Why: this process holds no SSH PTY provider, so an SSH workspace's terminals cannot be stopped here.
+    const provider = connectionId ? null : this.getLocalProvider()
     if (!provider) {
       throw new Error(`PTY provider unavailable for worktree deletion: ${worktreeId}`)
     }
@@ -140,14 +141,12 @@ export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithSta
       // Why: `repoId::path` ids repeat across hosts, so an unfenced sweep stops a same-id
       // workspace's terminals on another connection (mirrors the IPC removal path).
       resolvedWorktreeId: worktreeId,
-      ...(connectionId ? { resolvedConnectionId: connectionId } : {}),
       localProvider: provider,
       onPtyStopped: this.onPtyStopped ?? undefined,
       requirePhysicalStop: true,
       // Why (#11960): set only by an explicit Force Delete, never by the ordinary
       // confirmation — otherwise the gate would be off on the primary delete path.
-      ...(allowUnverifiedStop ? { allowUnverifiedStop: true } : {}),
-      ...(connectionId ? { includeLocalRegistry: false } : {})
+      ...(allowUnverifiedStop ? { allowUnverifiedStop: true } : {})
     })
     // Structured sessions are counted here too, mirroring the IPC path: closing a user's chat is
     // now an ordinary outcome of this verb, and a removal that closed one but no PTY logged nothing.

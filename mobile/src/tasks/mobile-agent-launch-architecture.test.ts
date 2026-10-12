@@ -7,6 +7,7 @@ import { openTestAgentSessionRecordStore } from '../../../src/main/runtime/agent
 import { OrcaRuntimeRpcServer } from '../../../src/main/runtime/runtime-rpc'
 import { DeviceRegistry } from '../../../src/main/runtime/device-registry'
 import type { AuthenticatedMobileSocket } from '../../../src/main/runtime/rpc/mobile-socket-wiring'
+import { devicePrincipalOf } from '../../../src/main/runtime/device-principal'
 import { RpcDispatcher } from '../../../src/main/runtime/rpc/dispatcher'
 import { AgentLaunchFields } from '../../../src/shared/rpc-contract/agent-launch-params'
 import {
@@ -172,6 +173,7 @@ describe('mobile launch retry authority', () => {
     const replies: RpcResponse[] = []
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: with no pairing provider or physical socket, this admission path reads only clientCapabilities.
     const authenticatedSocket = {
+      device: { ...devicePrincipalOf(mobile), deviceToken: mobile.token },
       clientCapabilities: [AGENT_LAUNCH_RUNTIME_CAPABILITY]
     } as unknown as AuthenticatedMobileSocket
     await server['handleWebSocketMessage'](

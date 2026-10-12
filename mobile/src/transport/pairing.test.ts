@@ -39,6 +39,11 @@ describe('pairing deep links', () => {
     expect(extractPairingCodeFromUrl('orca://pair?code=query-code#hash-code')).toBe('query-code')
   })
 
+  it('extracts the code from a verified https pairing link fragment', () => {
+    expect(extractPairingCodeFromUrl('https://www.onorca.dev/pair#abc123')).toBe('abc123')
+    expect(extractPairingCodeFromUrl('https://www.onorca.dev/pair?code=abc123')).toBeNull()
+  })
+
   it('ignores empty and unrelated URLs', () => {
     expect(extractPairingCodeFromUrl('orca://pair')).toBeNull()
     expect(extractPairingCodeFromUrl('https://example.com/pair#abc123')).toBeNull()
@@ -61,6 +66,13 @@ describe('pairing deep links', () => {
 
     expect(parsePairingCode(`orca://pair?code=${code}`)).toEqual(offer)
     expect(parsePairingCode(code)).toEqual(offer)
+  })
+
+  it('parses a pasted or scanned verified https pairing link', () => {
+    const link = `https://www.onorca.dev/pair#${encodeOffer()}`
+
+    expect(parsePairingCode(link)).toEqual(offer)
+    expect(decodePairingUrl(link)).toEqual(offer)
   })
 
   it('preserves a TLS reverse-proxy endpoint with an explicit port and path', () => {

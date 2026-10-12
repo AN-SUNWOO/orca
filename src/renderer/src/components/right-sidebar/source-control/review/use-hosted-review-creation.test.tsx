@@ -56,6 +56,7 @@ const runningRecordFor = (options: PullRequestGenerationOptions = {}) =>
       worktreeId: 'wt-1',
       worktreePath: '/repo',
       requestId: 7,
+      runtimeTarget: { kind: 'local' as const },
       repoId: 'repo-1',
       branch: 'fix-readme-typo'
     },
@@ -475,7 +476,7 @@ describe('useSourceControlHostedReviewCreation', () => {
       const prGenerationRecords = useAppStore((s) => s.pullRequestGenerationRecords)
       const generation = useSourceControlPullRequestGeneration({
         activeRepo: base.activeRepo,
-        activeRepoSettings: null,
+        activeRepoTarget: { kind: 'local' },
         activeWorktreeId: 'wt-1',
         allocatePullRequestGenerationRequestId:
           useAppStore.getState().allocatePullRequestGenerationRequestId,

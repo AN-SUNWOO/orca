@@ -1,4 +1,4 @@
-/** The structured agent-session methods a phone may call; spread into the mobile allowlist. */
+/** The structured agent-session methods a phone may call; spread into the execution-host routes. */
 export const MOBILE_AGENT_SESSION_RPC_METHODS = [
   'agentSession.createSupport',
   'agentSession.create',

@@ -31,7 +31,6 @@ export function useAddRepoHostSelection({
   /** The host the picker shows: the chosen one, even while it is still coming up. */
   displayedHostId: ExecutionHostId | null
   selectedParsedHost: ReturnType<typeof parseExecutionHostId>
-  selectedSshTargetId: string | null
   hostSelectorOpen: boolean
   setHostSelectorOpen: (open: boolean) => void
   handleSelectAddProjectHost: (hostId: ExecutionHostId) => Promise<void>
@@ -76,12 +75,12 @@ export function useAddRepoHostSelection({
   const requestedHost =
     resolvedHost && selectableHostOptions.includes(resolvedHost) ? resolvedHost : undefined
   const requestedHostSelectable = requestedHost ? canSelectAddRepoHost(requestedHost) : false
-  // Why: a merged SSH host is still coming up on its server right after its connect; that blocks
-  // the actions rather than silently turning into this computer.
+  // Why: right after a connect the SSH host is still coming up on its server (or not yet merged
+  // into its row); that blocks the actions rather than silently turning into this computer.
   const requestedHostPending =
     requestedHost !== undefined &&
     !requestedHostSelectable &&
-    (requestedHost.aliasHostIds?.length ?? 0) > 0
+    (requestedHost.kind === 'ssh' || (requestedHost.aliasHostIds?.length ?? 0) > 0)
   const selectedHost = requestedHostSelectable
     ? requestedHost
     : requestedHostPending
@@ -95,8 +94,6 @@ export function useAddRepoHostSelection({
     selectedHost?.id ?? (isWebClient || requestedHostPending ? null : LOCAL_EXECUTION_HOST_ID)
   const displayedHostId = requestedHostPending ? (requestedHost?.id ?? null) : selectedHostId
   const selectedParsedHost = parseExecutionHostId(selectedHostId)
-  const selectedSshTargetId =
-    selectedParsedHost?.kind === 'ssh' ? selectedParsedHost.targetId : null
 
   useEffect(() => {
     if (isOpen && !previousOpenRef.current) {
@@ -202,7 +199,6 @@ export function useAddRepoHostSelection({
     selectedHostId,
     displayedHostId,
     selectedParsedHost,
-    selectedSshTargetId,
     hostSelectorOpen,
     setHostSelectorOpen,
     handleSelectAddProjectHost,

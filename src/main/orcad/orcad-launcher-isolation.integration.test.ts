@@ -70,6 +70,7 @@ afterAll(async () => {
 it('keeps the server and profile-state graph outside the compatibility launcher', async () => {
   expect(inputs.filter((path) => path.startsWith('src/main/'))).toEqual([
     'src/main/orcad/orcad-app-paths.ts',
+    'src/main/orcad/orcad-configuration-exit.ts',
     'src/main/orcad/orcad-bundled-runtime.ts',
     'src/main/orcad/launcher.ts'
   ])

@@ -37,6 +37,7 @@ export const HOST_OPERATION_OWNERSHIP = {
   linear: 'scope-picked',
   managedServer: 'host',
   markdown: 'host',
+  mobileRelay: 'host',
   mobileWeb: 'host',
   nativeChat: 'host',
   network: 'host',
@@ -67,6 +68,17 @@ export const HOST_OPERATION_OWNERSHIP = {
   worktree: 'host'
 } as const satisfies Record<string, HostOperationOwnership>
 
+/** Methods whose owner differs from their namespace: row-less forge reads use the source picker. */
+const HOST_OPERATION_METHOD_OWNERSHIP = {
+  'github.project.listAccessible': 'scope-picked',
+  'github.project.listViews': 'scope-picked',
+  'github.project.resolveRef': 'scope-picked',
+  'github.project.viewTable': 'scope-picked'
+} as const satisfies Record<string, HostOperationOwnership>
+
+const OWNERSHIP_BY_METHOD: ReadonlyMap<string, HostOperationOwnership> = new Map(
+  Object.entries(HOST_OPERATION_METHOD_OWNERSHIP)
+)
 const OWNERSHIP_BY_NAMESPACE: ReadonlyMap<string, HostOperationOwnership> = new Map(
   Object.entries(HOST_OPERATION_OWNERSHIP)
 )
@@ -74,7 +86,9 @@ const STREAM_METHOD = /^(un)?(subscribe|watch)/i
 
 /** Null for a namespace nobody classified, so callers fail closed. */
 export function getHostOperationOwnership(method: string): HostOperationOwnership | null {
-  const ownership = OWNERSHIP_BY_NAMESPACE.get(method.slice(0, method.indexOf('.')))
+  const ownership =
+    OWNERSHIP_BY_METHOD.get(method) ??
+    OWNERSHIP_BY_NAMESPACE.get(method.slice(0, method.indexOf('.')))
   if (!ownership || !method.includes('.')) {
     return null
   }

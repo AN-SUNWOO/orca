@@ -22,7 +22,7 @@ import {
 
 import { TRANSPORT_CONNECT_SETTLE_GRACE_MS } from './pty-connect-limits'
 import { buildPaneTransportOptions } from './pane-transport-options'
-import { buffersInputOnlyForSshReattach } from './ssh-reattach-input-buffering'
+import { createUnservedSshPaneTransport } from './unserved-ssh-pane-connect'
 
 import type { ConnectPanePtySession } from './connect-pane-pty-session'
 import { resolveTerminalInlineImagesEnabled } from '../../../../../shared/terminal-inline-images-settings'
@@ -38,7 +38,6 @@ export function installPtyInputRecovery(session: ConnectPanePtySession): void {
     ? { foreground: session.terminalTheme.foreground, background: session.terminalTheme.background }
     : undefined
   session.agentLaunchPreferences = toAgentLaunchPreferences(session.paneStartup?.sessionOptions)
-  session.buffersInputOnlyForReattach = buffersInputOnlyForSshReattach(session)
   session.transportOptions = buildPaneTransportOptions(session)
   if (session.connectionOwnerHydrating) {
     // Why: this pane holds an inert transport until its host resolves; register it so
@@ -52,9 +51,11 @@ export function installPtyInputRecovery(session: ConnectPanePtySession): void {
             ? 'Workspace identity is ambiguous across hosts. Refresh projects and try again.'
             : 'Workspace host is still loading. Retry when the project finishes hydrating.'
         )
-      : session.runtimeEnvironmentId
-        ? createRemoteRuntimePtyTransport(session.runtimeEnvironmentId, session.transportOptions)
-        : createIpcPtyTransport(session.transportOptions)
+      : session.unservedSshTargetId
+        ? createUnservedSshPaneTransport()
+        : session.runtimeEnvironmentId
+          ? createRemoteRuntimePtyTransport(session.runtimeEnvironmentId, session.transportOptions)
+          : createIpcPtyTransport(session.transportOptions)
   session.canSendDesktopQueryReply = (): boolean => {
     const ptyId = session.transport.getPtyId()
     return !ptyId || !isPtyLocked(ptyId)

@@ -80,6 +80,61 @@ describe('registerSshBrowseHandler', () => {
     expect(channel.stderr.listenerCount('error')).toBe(0)
   })
 
+  it('reads the status from close when exit fired before the channel was returned', async () => {
+    const channel = createMockChannel()
+    // ssh2 can parse exit-status in the same chunk as the exec ack, before listeners attach.
+    const exec = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        channel.emit('exit', 0)
+        return channel
+      })
+      .mockRejectedValue(new Error('unexpected PowerShell fallback'))
+    const getConnectionManager = () => ({
+      getConnection: () => ({ exec })
+    })
+    registerSshBrowseHandler(getConnectionManager as never)
+
+    const resultPromise = handler(null, { targetId: 'ssh-1', dirPath: '~' })
+    await Promise.resolve()
+    channel.emit('data', Buffer.from('/home/user\nsrc/\n'))
+    channel.emit('close', 0)
+
+    await expect(resultPromise).resolves.toEqual({
+      resolvedPath: '/home/user',
+      pathFlavor: 'posix',
+      entries: [{ name: 'src', isDirectory: true }]
+    })
+    expect(exec).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an observed exit status over the close status', async () => {
+    const channel = createMockChannel()
+    const fallback = createMockChannel()
+    const exec = vi
+      .fn()
+      .mockResolvedValueOnce(channel)
+      .mockImplementationOnce(async () => {
+        fallback.emit('exit', 127)
+        return fallback
+      })
+    const getConnectionManager = () => ({
+      getConnection: () => ({ exec })
+    })
+    registerSshBrowseHandler(getConnectionManager as never)
+
+    const resultPromise = handler(null, { targetId: 'ssh-1', dirPath: '~' })
+    const rejected = expect(resultPromise).rejects.toThrow('Remote listing failed (exit 7)')
+    await Promise.resolve()
+    channel.emit('data', Buffer.from('/home/user\n'))
+    channel.emit('exit', 7)
+    channel.emit('close', 0)
+    await vi.waitFor(() => expect(fallback.listenerCount('close')).toBe(1))
+    fallback.emit('close', 127)
+
+    await rejected
+  })
+
   it('escapes remote browse paths and reads the listing past rc-file stdout', async () => {
     const channel = createMockChannel()
     const exec = vi.fn().mockResolvedValue(channel)

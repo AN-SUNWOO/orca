@@ -48,7 +48,6 @@ export const resolveCommitMessageSettingsMock: IpcMock = vi.fn()
 export const generateCommitMessageFromContextMock: IpcMock = vi.fn()
 export const generatePullRequestFieldsFromContextMock: IpcMock = vi.fn()
 export const discoverCommitMessageModelsLocalMock: IpcMock = vi.fn()
-export const discoverCommitMessageModelsRemoteMock: IpcMock = vi.fn()
 export const cancelGenerateCommitMessageLocalMock: IpcMock = vi.fn()
 export const cancelGeneratePullRequestFieldsLocalMock: IpcMock = vi.fn()
 export const getPullRequestDraftContextMock: IpcMock = vi.fn()
@@ -141,7 +140,6 @@ export const textGenerationModuleMock = {
   generateCommitMessageFromContext: generateCommitMessageFromContextMock,
   generatePullRequestFieldsFromContext: generatePullRequestFieldsFromContextMock,
   discoverCommitMessageModelsLocal: discoverCommitMessageModelsLocalMock,
-  discoverCommitMessageModelsRemote: discoverCommitMessageModelsRemoteMock,
   cancelGenerateCommitMessageLocal: cancelGenerateCommitMessageLocalMock,
   cancelGeneratePullRequestFieldsLocal: cancelGeneratePullRequestFieldsLocalMock
 }

@@ -176,6 +176,7 @@ patchedDependencies:
   i18next-cli@1.74.2: 7955b89d3aa229f477408608d331f78c85148a85a85913729f89fac65ad8b207
   lint-staged@16.4.0: 7333b3837f80a7fbd045964db6d76ba4fc118e49134bdbabb00585b6b7b60673
   node-pty@1.1.0: 92c95cffab383d86b3b13a460c75a08074468ebf1f3911db8e874e083201f192
+  oxlint-plugin-anti-slop@0.1.2: c442be3f300c2d47e98af4c6347fc18cad8c13cc18913c4ee50b3720dad85753
   ws@8.22.0: 9393e04dd9a90b01eb7aa35fcd5b1431b5038ce999fbbd82651136193ba51f14
 
 importers:
@@ -282,6 +283,9 @@ importers:
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@noble/hashes':
+        specifier: 1.8.0
+        version: 1.8.0
       '@oxlint/plugins':
         specifier: 1.86.0
         version: 1.86.0
@@ -509,7 +513,7 @@ importers:
         version: 1.86.0(oxlint-tsgolint@7.0.2003)
       oxlint-plugin-anti-slop:
         specifier: github:dmmulroy/anti-slop#c44ef22ca116d0ba62a3ff663a0bd13a3f3fa40b
-        version: https://codeload.github.com/dmmulroy/anti-slop/tar.gz/c44ef22ca116d0ba62a3ff663a0bd13a3f3fa40b
+        version: https://codeload.github.com/dmmulroy/anti-slop/tar.gz/c44ef22ca116d0ba62a3ff663a0bd13a3f3fa40b(patch_hash=c442be3f300c2d47e98af4c6347fc18cad8c13cc18913c4ee50b3720dad85753)
       oxlint-plugin-react-doctor:
         specifier: 0.9.14
         version: 0.9.14
@@ -621,9 +625,6 @@ importers:
       vscode-oniguruma:
         specifier: ^2.0.1
         version: 2.0.1
-      vscode-textmate:
-        specifier: ^9.3.2
-        version: 9.3.2
       zustand:
         specifier: ^5.0.15
         version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
@@ -7835,9 +7836,6 @@ packages:
   vscode-oniguruma@2.0.1:
     resolution: {integrity: sha512-poJU8iHIWnC3vgphJnrLZyI3YdqRlR27xzqDmpPXYzA93R4Gk8z7T6oqDzDoHjoikA2aS82crdXFkjELCdJsjQ==}
 
-  vscode-textmate@9.3.2:
-    resolution: {integrity: sha512-n2uGbUcrjhUEBH16uGA0TvUfhWwliFZ1e3+pTjrkim1Mt7ydB41lV08aUvsi70OlzDWp6X7Bx3w/x3fAXIsN0Q==}
-
   w3c-keyname@2.2.8:
     resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
@@ -14163,7 +14161,7 @@ snapshots:
       '@oxfmt/binding-win32-ia32-msvc': 0.71.0
       '@oxfmt/binding-win32-x64-msvc': 0.71.0
 
-  oxlint-plugin-anti-slop@https://codeload.github.com/dmmulroy/anti-slop/tar.gz/c44ef22ca116d0ba62a3ff663a0bd13a3f3fa40b:
+  oxlint-plugin-anti-slop@https://codeload.github.com/dmmulroy/anti-slop/tar.gz/c44ef22ca116d0ba62a3ff663a0bd13a3f3fa40b(patch_hash=c442be3f300c2d47e98af4c6347fc18cad8c13cc18913c4ee50b3720dad85753):
     dependencies:
       '@oxlint/plugins': 1.78.0
 
@@ -15622,8 +15620,6 @@ snapshots:
       - msw
 
   vscode-oniguruma@2.0.1: {}
-
-  vscode-textmate@9.3.2: {}
 
   w3c-keyname@2.2.8: {}
 

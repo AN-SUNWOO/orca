@@ -36,7 +36,7 @@ function lastDescription(): string | undefined {
 function renderDiscard() {
   return renderHook(() =>
     useSourceControlDiscardConfirmation({
-      activeRepoSettings: null,
+      activeRepoTarget: { kind: 'local' },
       activeWorktreeId: 'wt-1',
       worktreePath: '/repo',
       grouped: EMPTY_GROUPS,

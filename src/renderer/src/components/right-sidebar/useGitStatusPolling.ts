@@ -10,7 +10,7 @@ import {
   hasInteractiveActiveGitStatusConsumer,
   shouldPollActiveGitStatus
 } from '@/lib/passive-macos-app-data-access'
-import { getRightSidebarWorktreeRuntimeSettings } from './file-explorer-runtime-owner'
+import { getWorktreeGitOwnerTarget } from './worktree-git-owner-target'
 import { useGitStatusFileWatchRefresh } from './git-status-file-watch-refresh'
 import { useGitStatusPushSignalRefresh } from './git-status-push-signal-refresh'
 import { useStaleConflictOperationPolling } from './stale-conflict-operation-poll'
@@ -135,9 +135,12 @@ export function useGitStatusPolling(options: { enabled?: boolean } = {}): void {
       }
       try {
         const connectionId = getConnectionId(activeWorktreeId) ?? undefined
-        const runtimeSettings = getRightSidebarWorktreeRuntimeSettings(activeWorktreeId)
+        const target = getWorktreeGitOwnerTarget(activeWorktreeId)
+        if (!target) {
+          return
+        }
         await refreshGitStatusForWorktree({
-          settings: runtimeSettings,
+          target,
           worktreeId: activeWorktreeId,
           worktreePath,
           connectionId,

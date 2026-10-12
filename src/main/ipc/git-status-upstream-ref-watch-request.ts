@@ -37,20 +37,7 @@ export function applyGitStatusUpstreamRefWatchRequest(
         return undefined
       }
       const signal = boundedSignal(bindingSignal)
-      const route = requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
-      if (route.kind === 'ssh') {
-        return resolveGitStatusUpstreamRef(
-          (gitArgs, cwd, requestSignal) =>
-            route.provider.exec(gitArgs, cwd, {
-              signal: requestSignal,
-              timeoutMs: UPSTREAM_REF_RESOLUTION_TIMEOUT_MS
-            }),
-          args.worktreePath,
-          args.branch,
-          args.upstreamName,
-          signal
-        )
-      }
+      requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
 
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const repo = getLocalRepoForRegisteredWorktree(store, args.worktreePath, worktreePath)

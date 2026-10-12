@@ -5,8 +5,7 @@
  * module throws `MODULE_NOT_FOUND` and a caller can degrade. A module that is present but
  * built against the wrong libc or Node ABI is refused by the dynamic loader, and in the
  * worst case takes the process down before any handler exists — that is #9902, which
- * crashed the desktop app on Ubuntu 20.04 before a window appeared
- * (docs/reference/linux-glibc-compatibility.md).
+ * crashed the desktop app on Ubuntu 20.04 before a window appeared.
  *
  * So the load happens in a CHILD process. Whatever the child does — throw, abort, die on
  * a signal — is data to us rather than our own death, and the operator gets a sentence
@@ -47,8 +46,8 @@ const PROBE_TIMEOUT_MS = 20_000
  *
  * Why `unverifiable` is separate from `blocked`: a probe that times out or cannot spawn
  * says nothing about node-pty, and refusing to boot on it would brick working hosts for
- * a reason that was never established. Same verdict discipline as
- * docs/reference/ssh-execution-boundary.md — loss of contact is not proof of death.
+ * a reason that was never established. Same verdict discipline as the SSH execution
+ * boundary: loss of contact is not proof of death.
  */
 export type NodePtyPreconditionStatus = 'ok' | 'degraded' | 'blocked' | 'unverifiable'
 

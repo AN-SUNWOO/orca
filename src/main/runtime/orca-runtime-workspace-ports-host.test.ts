@@ -2,13 +2,8 @@ import './rpc/unused-default-rpc-methods.test-fixture'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeWithListManagedWorktrees } from './orca-runtime-list-managed-worktrees'
 
-const muxes = vi.hoisted(() => new Map<string, { request: ReturnType<typeof vi.fn> }>())
 const scanWorkspacePortsMock = vi.hoisted(() => vi.fn())
 
-vi.mock('../ssh/ssh-target-registry', async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  getActiveMultiplexer: (targetId: string) => muxes.get(targetId)
-}))
 vi.mock('../ports/local-workspace-port-scanner', () => ({
   scanWorkspacePorts: scanWorkspacePortsMock
 }))
@@ -31,29 +26,19 @@ function runtimeResolvingTo(executionHostId: string) {
 
 describe('host-scoped workspace port scans on the server', () => {
   afterEach(() => {
-    muxes.clear()
     scanWorkspacePortsMock.mockReset()
     vi.restoreAllMocks()
   })
 
-  it("scans a folder workspace's SSH host, not this server", async () => {
-    const request = vi.fn(async () => ({ platform: 'linux', ports: [{ port: 3020, host: '::' }] }))
-    muxes.set('box', { request })
+  it("reports a folder workspace's SSH host unavailable instead of scanning this server", async () => {
     const runtime = runtimeResolvingTo('ssh:box')
 
     const result = await runtime.scan('folder:fw-1')
 
     expect(runtime.host.resolveRuntimeFileTarget).toHaveBeenCalledWith('folder:fw-1')
-    expect(request).toHaveBeenCalledWith('ports.detect', undefined, expect.any(Object))
     expect(scanWorkspacePortsMock).not.toHaveBeenCalled()
-    expect(result).toMatchObject({ executionHostId: 'ssh:box', ports: [{ port: 3020 }] })
-  })
-
-  it('answers unavailable for an SSH workspace whose host is not connected', async () => {
-    const result = await runtimeResolvingTo('ssh:box').scan('id:repo::/srv/app')
-
-    expect(result.unavailableReason).toMatch(/not connected/)
-    expect(scanWorkspacePortsMock).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ executionHostId: 'ssh:box', ports: [] })
+    expect(result.unavailableReason).toMatch(/Reconnect/)
   })
 
   it('refuses Stop when the workspace now resolves to a different host than the row', async () => {

@@ -3,25 +3,45 @@ import { spawnProcess } from '@orca/process-host'
 import type { SpawnedProcess } from '@orca/process-host/process-spec'
 import { getAppEnvironment } from '../../shared/app-environment'
 import { removeChromiumDisabledSessionBus } from '../pty/chromium-session-bus-env'
+import {
+  appImageDaemonIdentityPath,
+  buildAppImageDaemonCommand,
+  type AppImageDaemonLaunch
+} from './daemon-appimage-launch'
 import { buildDurableDaemonScopeCommand } from './daemon-cgroup-scope'
 import { daemonLogArgs } from './daemon-launch-paths'
+import { TERMINAL_SPAWN_ADMISSION_ARG } from './terminal-spawn-gate'
 
 export type DaemonChildSpawnOptions = {
   entryPath: string
   forkEntryPath: string
   relocatedExecPath?: string
+  /** Linux AppImage: exec the AppImage file so the daemon owns its mount. */
+  appImage?: AppImageDaemonLaunch
   userDataPath: string
   socketPath: string
   tokenPath: string
   pidPath: string
   launchNonce: string
   macosLoginSessionWatch: boolean
+  spawnAdmission?: 'observe' | 'enforce'
   /** Defaults to 10 s; a cold first exec on Windows can need longer. */
   startupTimeoutMs?: number
 }
 
-function buildDaemonScriptArgs(options: DaemonChildSpawnOptions): string[] {
-  const { socketPath, tokenPath, pidPath, launchNonce, entryPath, macosLoginSessionWatch } = options
+export function buildDaemonScriptArgs(
+  options: Omit<DaemonChildSpawnOptions, 'forkEntryPath' | 'relocatedExecPath'>,
+  spawnerExecPath = process.execPath
+): string[] {
+  const {
+    socketPath,
+    tokenPath,
+    pidPath,
+    launchNonce,
+    entryPath,
+    appImage,
+    macosLoginSessionWatch
+  } = options
   return [
     '--socket',
     socketPath,
@@ -32,12 +52,13 @@ function buildDaemonScriptArgs(options: DaemonChildSpawnOptions): string[] {
     '--launch-nonce',
     launchNonce,
     '--entry-path',
-    entryPath,
+    appImage ? appImageDaemonIdentityPath(appImage) : entryPath,
     '--app-version',
     getAppEnvironment().getVersion(),
     '--spawner-exec-path',
-    process.execPath,
+    spawnerExecPath,
     ...(macosLoginSessionWatch ? ['--login-session-watch'] : []),
+    ...(options.spawnAdmission === 'enforce' ? [TERMINAL_SPAWN_ADMISSION_ARG, 'enforce'] : []),
     ...daemonLogArgs()
   ]
 }
@@ -59,7 +80,7 @@ export function spawnDaemonChildProcess(
   options: DaemonChildSpawnOptions,
   useDurableScope: boolean
 ): SpawnedProcess {
-  const { forkEntryPath, relocatedExecPath, userDataPath, launchNonce } = options
+  const { forkEntryPath, relocatedExecPath, appImage, userDataPath, launchNonce } = options
   const scriptArgs = buildDaemonScriptArgs(options)
   // Why: run as plain Node so Electron's GPU/display init can't interfere with node-pty's posix_spawn of the spawn-helper.
   const daemonEnv: NodeJS.ProcessEnv = {
@@ -77,7 +98,7 @@ export function spawnDaemonChildProcess(
     detached: true,
     stdio: ['ignore', 'ignore', 'pipe', 'ipc']
   }
-  if (!useDurableScope) {
+  if (!useDurableScope && !appImage) {
     return forkProcess({
       ...childOptions,
       modulePath: forkEntryPath,
@@ -87,12 +108,17 @@ export function spawnDaemonChildProcess(
       env: daemonEnv
     })
   }
-  const scoped = buildDurableDaemonScopeCommand(
-    relocatedExecPath ?? process.execPath,
-    [forkEntryPath, ...scriptArgs, '--fresh-daemon-scope'],
-    launchNonce,
-    daemonEnv
-  )
+  const scopeArgs = useDurableScope ? ['--fresh-daemon-scope'] : []
+  const direct = appImage
+    ? buildAppImageDaemonCommand(appImage, [...scriptArgs, ...scopeArgs], daemonEnv)
+    : {
+        command: relocatedExecPath ?? process.execPath,
+        args: [forkEntryPath, ...scriptArgs, ...scopeArgs],
+        env: daemonEnv
+      }
+  const scoped = useDurableScope
+    ? buildDurableDaemonScopeCommand(direct.command, direct.args, launchNonce, direct.env)
+    : direct
   return spawnProcess({
     ...childOptions,
     program: scoped.command,

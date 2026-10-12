@@ -1,5 +1,5 @@
 import type { PtySpawnResult } from '../../../providers/types'
-import { ptyIncarnationById, deletePtyOwnership } from '../provider/ownership-state'
+import { ptyIncarnationById } from '../provider/ownership-state'
 import { ptySizes } from '../delivery/visibility-state'
 import { tryGetProviderForPty } from '../provider/registry'
 import { ensureWslHookRelayForReattach } from '../../../agent-hooks/wsl-hook-relay-reattach'
@@ -11,11 +11,6 @@ import {
 import { spawnForStablePane, resolveStablePaneOwner } from '../pane/stable-owner'
 import { clearProviderPtyState } from '../provider/state-cleanup'
 import { isProviderAgentSessionOwnerLive, normalizeNodePtySpawnError } from '../provider/liveness'
-import {
-  SSH_SESSION_EXPIRED_ERROR,
-  isSshPtyAbsentFromRelayError,
-  isSshPtyIdentityMismatchError
-} from '../../../providers/ssh-pty-errors'
 import type { RuntimePtySpawnState } from './spawn-state'
 import { markRuntimeSpawnHiddenBeforeSpawn } from './spawn-hidden-delivery'
 
@@ -116,8 +111,7 @@ export async function executeRuntimePtySpawn(ctx: RuntimePtySpawnState): Promise
         isLive: async (owner) => {
           const ownerProvider = tryGetProviderForPty(owner.ptyId)
           if (!ownerProvider) {
-            // Why: a disconnected relay may keep its PTY alive during the
-            // grace window; missing transport is unknown, never absence.
+            // Why: an owner on a host this process cannot reach is unknown, never absent.
             throw new Error('execution_owner_unavailable')
           }
           return await isProviderAgentSessionOwnerLive(ownerProvider, owner)
@@ -192,14 +186,10 @@ export async function executeRuntimePtySpawn(ctx: RuntimePtySpawnState): Promise
         ctx.snapshotKittyFlagsCoverReconciledSeq = false
       }
     }
-    ensureWslHookRelayForReattach(ctx.result, args.connectionId)
+    ensureWslHookRelayForReattach(ctx.result)
     ctx.deps.runtime?.preparePtyExecutionContext?.(
       ctx.result.id,
-      args.connectionId
-        ? null
-        : ctx.result.wslDistro === undefined
-          ? ctx.expectedWslDistro
-          : ctx.result.wslDistro
+      ctx.result.wslDistro === undefined ? ctx.expectedWslDistro : ctx.result.wslDistro
     )
   } catch (err) {
     if (
@@ -225,49 +215,17 @@ export async function executeRuntimePtySpawn(ctx: RuntimePtySpawnState): Promise
       ctx.pendingRegistrationPtyId = null
     }
     const spawnError = normalizeNodePtySpawnError(err)
-    const isIdentityMismatch =
-      isSshPtyIdentityMismatchError(spawnError) || isSshPtyIdentityMismatchError(rawMessage)
-    const isExpiredSshSession =
-      Boolean(args.connectionId) &&
-      (spawnError.message.includes(SSH_SESSION_EXPIRED_ERROR) ||
-        rawMessage.includes(SSH_SESSION_EXPIRED_ERROR))
-    // The message alone cannot carry this decision. All three reattach refusals are minted with the
-    // same `SSH_SESSION_EXPIRED` text, and only one of them observed the process: `restoreRequired`
-    // means the PTY is LIVE and only its source stream needs rebuilding, which
-    // `ssh-pty-errors.ts` states outright. Expiring its lease and deleting its ownership erases
-    // this client's last record of a running remote process, and #9819's sweep reads a PTY it has
-    // no record of as one it may SIGKILL on the next connect. Only positive host-reported absence
-    // may reach that bookkeeping; being too strict here merely leaves a dead lease for the next
-    // reattach to retire on real host evidence.
-    const relayReportedSessionAbsent = isExpiredSshSession && isSshPtyAbsentFromRelayError(err)
     const exitedBeforeSpawnReply =
       ctx.rejectedRegistrationCandidate?.exitedBeforeSpawnReply === true
     if (ctx.effectiveSessionAppId !== undefined) {
       if (
         ctx.hadSessionSizeBeforeAttach &&
         ctx.sessionSizeBeforeAttach &&
-        (isIdentityMismatch || (!isExpiredSshSession && !exitedBeforeSpawnReply))
+        !exitedBeforeSpawnReply
       ) {
         ptySizes.set(ctx.effectiveSessionAppId, ctx.sessionSizeBeforeAttach)
       } else {
         ptySizes.delete(ctx.effectiveSessionAppId)
-      }
-    }
-    if (
-      args.connectionId &&
-      ctx.effectiveSessionRelayId !== undefined &&
-      relayReportedSessionAbsent
-    ) {
-      if (ctx.effectiveSessionAppId !== undefined && !isIdentityMismatch) {
-        clearProviderPtyState(ctx.effectiveSessionAppId)
-        deletePtyOwnership(ctx.effectiveSessionAppId)
-      }
-      if (!isIdentityMismatch) {
-        ctx.deps.store?.markSshRemotePtyLease(
-          args.connectionId,
-          ctx.effectiveSessionRelayId,
-          'expired'
-        )
       }
     }
     if (ctx.isNewDaemonSession && ctx.sessionId !== undefined) {

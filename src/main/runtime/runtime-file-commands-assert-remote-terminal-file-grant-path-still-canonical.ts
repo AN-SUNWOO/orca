@@ -1,18 +1,12 @@
 // @ts-nocheck -- mechanically split class members.
 import { RuntimeFileCommandsWithWriteTerminalArtifactFile } from './runtime-file-commands-write-terminal-artifact-file'
-import type { TerminalFileGrant } from './runtime-file-commands-mobile-file-list-limit'
 import {
   runtimeFileWatcherLeasesByOwnerAndRoot,
   runtimeWatcherReleaseKey
 } from './runtime-file-commands-mobile-file-list-limit'
-import type { IFilesystemProvider } from '../providers/types'
 import {
-  SSH_FILESYSTEM_PROVIDER_UNAVAILABLE_MESSAGE,
-  getSshFilesystemProvider
-} from '../providers/ssh-filesystem-dispatch'
-import {
+  requireLocalRuntimeFileRoute,
   requireRuntimeFileProvider,
-  runtimeFileRouteForTarget,
   runtimeFileSshTargetId
 } from './runtime-file-command-target'
 import { stat } from 'node:fs/promises'
@@ -22,46 +16,19 @@ import { resolveAuthorizedPath } from '../ipc/filesystem-auth'
 import { watchWindowsRuntimeFileExplorer } from './runtime-file-command-host'
 import { beginWatcherInstall } from '../ipc/watcher-removal-gate'
 import {
-  armSshFileExplorerWatchRearm,
-  stopSshFileExplorerWatchRearms
-} from './runtime-file-commands-ssh-file-watcher-rearm'
-import {
   closeFileExplorerWatcherInWatcherProcess,
   watchFileExplorerInWatcherProcess
 } from './file-watcher-host'
 import { registerRuntimeFileWatcherRelease } from './runtime-file-watcher-leases'
-import { requireFilesystemProviderForHost } from '../providers/execution-host-provider-dispatch'
-import { toSshExecutionHostId } from '../../shared/execution-host'
 
 export class RuntimeFileCommandsWithAssertRemoteTerminalFileGrantPathStillCanonical extends RuntimeFileCommandsWithWriteTerminalArtifactFile {
-  protected async assertRemoteTerminalFileGrantPathStillCanonical(
-    grant: TerminalFileGrant
-  ): Promise<IFilesystemProvider> {
-    if (!grant.connectionId) {
-      throw new Error('terminal_file_grant_mismatch')
-    }
-    const provider = requireFilesystemProviderForHost(toSshExecutionHostId(grant.connectionId))
-    const canonicalPath =
-      grant.provenance === 'native-chat'
-        ? await provider.realpath(grant.absolutePath)
-        : await this.resolveAllowedRemoteTerminalArtifactPath(
-            grant.absolutePath,
-            grant.connectionId
-          )
-    // Why: relay I/O follows symlinks, so re-canonicalize after the remote process can mutate the path.
-    if (canonicalPath !== grant.absolutePath) {
-      throw new Error('terminal_file_grant_stale')
-    }
-    return provider
-  }
-
   async readFileExplorerDir(
     worktreeSelector: string,
     relativePath: string,
     options: { followSymlinks?: boolean } = {}
   ): Promise<DirEntry[]> {
     const target = await this.resolveFileExplorerPath(worktreeSelector, relativePath)
-    // Why: re-sort here — the remote relay may be an older build with lexicographic ordering.
+    // Why: providers do not promise this order, so sort before returning.
     return sortDirEntries(
       await requireRuntimeFileProvider(target, this.host).readDir(target.path, options)
     )
@@ -83,55 +50,7 @@ export class RuntimeFileCommandsWithAssertRemoteTerminalFileGrantPathStillCanoni
     }> => {
       const finishInstall = beginWatcherInstall(target.path, sshTargetId)
       try {
-        // Re-resolved per open: a reconnect mints a fresh provider for the same target.
-        const route = runtimeFileRouteForTarget(target)
-        if (route.kind === 'ssh') {
-          if (!route.provider) {
-            throw new Error(SSH_FILESYSTEM_PROVIDER_UNAVAILABLE_MESSAGE)
-          }
-          const provider = route.provider
-          const isCurrentInitialProvider = (): boolean =>
-            !signal?.aborted && provider === getSshFilesystemProvider(route.connectionId)
-          let initialCallbacks = {
-            callback: (events: FsChangeEvent[]) => {
-              if (isCurrentInitialProvider()) {
-                callback(events)
-              }
-            },
-            onTerminalError: (error: Error) => {
-              if (isCurrentInitialProvider()) {
-                onTerminalError(error)
-              }
-            }
-          }
-          try {
-            // Initial callbacks join the rearm generation after setup succeeds.
-            const close = await provider.watch(
-              target.path,
-              (events) => initialCallbacks.callback(events),
-              { signal, onTerminalError: (error) => initialCallbacks.onTerminalError(error) }
-            )
-            const rearm = armSshFileExplorerWatchRearm({
-              runtimeId: this.host.getRuntimeId(),
-              connectionId: route.connectionId,
-              rootPath: target.path,
-              callback,
-              onTerminalError,
-              signal,
-              initialUnwatch: close,
-              initialProvider: provider
-            })
-            initialCallbacks = rearm.initialCallbacks
-            return { unsubscribe: rearm.unsubscribe, rootPaths: [target.path] }
-          } catch (error) {
-            initialCallbacks = {
-              callback: () => undefined,
-              onTerminalError: () => undefined
-            }
-            throw error
-          }
-        }
-
+        requireLocalRuntimeFileRoute(target)
         const rootPath = await resolveAuthorizedPath(target.path, this.host.requireStore())
         const rootStats = await stat(rootPath)
         if (!rootStats.isDirectory()) {
@@ -190,9 +109,6 @@ export class RuntimeFileCommandsWithAssertRemoteTerminalFileGrantPathStillCanoni
 
   forgetFileExplorerWatchersAfterRemoval(rootPath: string, connectionId?: string): void {
     const key = runtimeWatcherReleaseKey(this.host.getRuntimeId(), connectionId, rootPath)
-    // Why: forget() never runs the lease's unsubscribe, so the re-arm would outlive a deleted
-    // worktree and re-watch it on the next reconnect.
-    stopSshFileExplorerWatchRearms(key)
     const leases = runtimeFileWatcherLeasesByOwnerAndRoot.get(key)
     if (leases) {
       for (const lease of Array.from(leases)) {

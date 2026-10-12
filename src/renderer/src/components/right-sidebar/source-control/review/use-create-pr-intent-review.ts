@@ -1,4 +1,6 @@
 import { useCallback } from 'react'
+import { useAppStore } from '@/store'
+import { operationGitContext } from '../listing/operation-target'
 import { translate } from '@/i18n/i18n'
 import { generateRuntimePullRequestFields } from '@/runtime/runtime-git-client'
 import type { HostedReviewCreationEligibility } from '../../../../../../shared/hosted-review'
@@ -113,11 +115,14 @@ export function useSourceControlCreatePrIntentReview({
         })
         const target = getCreatePrIntentOperationTarget(token)
         try {
-          const generated = await generateRuntimePullRequestFields(target, {
-            ...fields,
-            provider: eligibility.provider,
-            useTemplate: resolvedPrCreationDefaults.useTemplate
-          })
+          const generated = await generateRuntimePullRequestFields(
+            operationGitContext(target, useAppStore.getState().settings),
+            {
+              ...fields,
+              provider: eligibility.provider,
+              useTemplate: resolvedPrCreationDefaults.useTemplate
+            }
+          )
           if (generated.branchChangedByPreparation) {
             setCreatePrIntentNoticeForWorktree(token.worktreeId, {
               tone: 'muted',

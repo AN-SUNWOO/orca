@@ -9,6 +9,15 @@ export type AuthoritativeWindowDouble = {
   webContents: RendererPublicationThrottleTarget
 }
 
+// A guest the page stream keeps painting while it streams.
+export function createStreamedGuest(): RendererPublicationThrottleTarget {
+  return {
+    isDestroyed: () => false,
+    setBackgroundThrottling: vi.fn(),
+    capturePage: vi.fn(async () => null)
+  }
+}
+
 /** A browser command host whose worktree `wt-1` has one registered page, `page-1`. */
 export function createSinglePageBrowserCommandsHost(
   window: AuthoritativeWindowDouble | null = null

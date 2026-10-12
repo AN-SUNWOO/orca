@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type * as NodeFs from 'node:fs'
 import { PROTOCOL_VERSION } from './types'
 import type { Mock } from 'vitest'
 import type {
@@ -162,13 +163,17 @@ export function createDaemonInitModuleFactories(state: DaemonInitMockState) {
   }
 
   return {
-    fs: () => ({
-      mkdirSync: vi.fn<(...args: unknown[]) => void>(),
-      existsSync: (p: string) => probeSocketExistsMock(p) || p.includes('.pid'),
-      unlinkSync: unlinkSyncMock,
-      readFileSync: readFileSyncMock,
-      writeFileSync: writeFileSyncMock
-    }),
+    fs: async () => {
+      const actual = await vi.importActual<typeof NodeFs>('node:fs')
+      return {
+        constants: actual.constants,
+        mkdirSync: vi.fn<(...args: unknown[]) => void>(),
+        existsSync: (p: string) => probeSocketExistsMock(p) || p.includes('.pid'),
+        unlinkSync: unlinkSyncMock,
+        readFileSync: readFileSyncMock,
+        writeFileSync: writeFileSyncMock
+      }
+    },
     net: () => ({
       connect: netConnectMock
     }),

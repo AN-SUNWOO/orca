@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { listWorktreesMock, getSshGitProviderMock } from './worktrees-test-module-mocks'
+import { listWorktreesMock } from './worktrees-test-module-mocks'
 import { handlers, setupWorktreeHandlers, store } from './worktrees-test-harness'
 import { makeWorktreeMeta } from './worktrees-test-fixtures'
 
@@ -295,7 +295,7 @@ describe('registerWorktreeHandlers', () => {
     expect(store.setWorktreeMeta).not.toHaveBeenCalled()
   })
 
-  it('repairs legacy project ids when SSH worktree listing falls back to persisted metadata', async () => {
+  it('repairs legacy project ids when an SSH worktree lists from persisted metadata', async () => {
     const repo = {
       id: 'repo-ssh',
       path: '/remote/orca',
@@ -346,7 +346,7 @@ describe('registerWorktreeHandlers', () => {
       lastActivityAt: number
     }[]
 
-    expect(getSshGitProviderMock).toHaveBeenCalledWith('ssh-target-1')
+    expect(listWorktreesMock).not.toHaveBeenCalled()
     expect(store.setWorktreeMeta).toHaveBeenCalledWith('repo-ssh::/remote/orca', {
       projectId: 'github:stablyai/orca'
     })

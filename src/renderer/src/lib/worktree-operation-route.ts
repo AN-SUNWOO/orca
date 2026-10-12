@@ -14,6 +14,7 @@ import {
   resolveIndexedWorktreeOwner
 } from './worktree-runtime-owner-index'
 import { resolveExplicitWorktreeOperationRouteResult } from './worktree-operation-catalog-route'
+import { onPairedWebClientHost } from './paired-web-client-host'
 import {
   findFolderWorkspaceOwner,
   getExecutionHostIdForFolderWorkspace,
@@ -188,15 +189,18 @@ function resolveSelectedHostRoute(
   }
   // Why: only an `ssh:` selection can hide a paired HUB owner, so local stays an O(1) hot path.
   if (selectedHost.kind !== 'ssh') {
-    return { executionHostId: selectedHost.id, runtimeEnvironmentId: null }
+    return onPairedWebClientHost(state, {
+      executionHostId: selectedHost.id,
+      runtimeEnvironmentId: null
+    })
   }
   const { environmentIds } = collectHubOwnerEnvironmentIds(state, worktreeId, selectedHost.id)
   const environmentId = environmentIds.values().next().value
-  return {
+  return onPairedWebClientHost(state, {
     executionHostId: selectedHost.id,
     // Why: rival HUBs projecting the same host cannot be disambiguated by the host selection alone.
     runtimeEnvironmentId: environmentIds.size === 1 && environmentId ? environmentId : null
-  }
+  })
 }
 
 /**
@@ -244,6 +248,16 @@ export function resolveWorktreeOperationRoute(
  * defaulting an unplaceable id to `local` would aim the operation at the wrong machine.
  */
 export function resolveWorktreeOperationRouteResult(
+  state: WorktreeOperationRouteState,
+  worktreeId: string
+): WorktreeOperationRouteResolution {
+  const resolution = resolveOwnerRouteResult(state, worktreeId)
+  return resolution.kind === 'resolved'
+    ? { kind: 'resolved', route: onPairedWebClientHost(state, resolution.route) }
+    : resolution
+}
+
+function resolveOwnerRouteResult(
   state: WorktreeOperationRouteState,
   worktreeId: string
 ): WorktreeOperationRouteResolution {
@@ -359,18 +373,4 @@ function resolveFolderWorkspaceOperationRoute(
       runtimeEnvironmentId: parsedHost?.kind === 'runtime' ? parsedHost.environmentId : null
     }
   }
-}
-
-/**
- * Projects the route's runtime environment onto settings so a routed operation runs against the
- * owner's environment rather than whichever one the UI has active; settings can still be absent
- * during early hydration, hence the synthesized fallback.
- */
-export function settingsForWorktreeOperationRoute(
-  settings: AppState['settings'],
-  route: WorktreeOperationRoute
-): AppState['settings'] {
-  return settings
-    ? { ...settings, activeRuntimeEnvironmentId: route.runtimeEnvironmentId }
-    : ({ activeRuntimeEnvironmentId: route.runtimeEnvironmentId } as AppState['settings'])
 }

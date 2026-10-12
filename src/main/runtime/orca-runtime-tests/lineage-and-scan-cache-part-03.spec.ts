@@ -316,7 +316,9 @@ describe('OrcaRuntimeService', () => {
     unsubscribe()
 
     expect(setWorktreeMeta).toHaveBeenCalledTimes(2)
-    expect(events).toEqual([{ type: 'worktreesChanged', repoId: TEST_REPO_ID }])
+    expect(events).toEqual([
+      { type: 'worktreesChanged', repoId: TEST_REPO_ID, sortOrderOnly: true }
+    ])
   })
 
   it('worktree scan cache: folder metadata invalidation preserves raw scans', async () => {

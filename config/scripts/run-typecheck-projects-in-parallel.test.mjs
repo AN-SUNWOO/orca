@@ -1,5 +1,6 @@
 import {
   existsSync,
+  readFileSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -15,7 +16,10 @@ import {
   TYPECHECK_PROJECTS,
   admissibleHeapGib,
   planTypecheckBatches,
-  resolveProjectCompiler
+  resolveProjectCompiler,
+  parseTypecheckOptions,
+  typecheckBatches,
+  runTypecheckProjects
 } from './run-typecheck-projects-in-parallel.mjs'
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
@@ -121,6 +125,96 @@ describe('workspace package test typecheck', () => {
         packageCompiler
       )
       expect(resolveProjectCompiler('config/tsconfig.node.json', root)).toBe(rootCompiler)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('CI compiler selection', () => {
+  it('keeps native incremental checking as the local default', () => {
+    expect(parseTypecheckOptions([]).compiler).toBe('native')
+  })
+
+  it.each(['--compiler=typo', '--bun-concurrency=0', '--bun-threads=NaN', '--bun-concurrency=5'])(
+    'rejects unsafe or unknown options: %s',
+    (argument) => {
+      expect(() => parseTypecheckOptions([argument])).toThrow()
+    }
+  )
+
+  it('bounds Bun project concurrency and reserves memory for overlapping checks', () => {
+    const options = parseTypecheckOptions([
+      '--compiler=bun',
+      '--bun-concurrency=2',
+      '--bun-threads=2'
+    ])
+    const batches = typecheckBatches(TYPECHECK_PROJECTS, {
+      ...options,
+      memoryBytes: CI_RUNNER.totalBytes,
+      parallelism: 4
+    })
+    expect(batches.map((batch) => batch.length)).toEqual([2, 2])
+    expect(batches.flat().map((project) => project.config)).toEqual(
+      TYPECHECK_PROJECTS.map((project) => project.config)
+    )
+    expect(
+      typecheckBatches(TYPECHECK_PROJECTS, {
+        ...options,
+        memoryBytes: 4 * 1024 ** 3,
+        parallelism: 4
+      }).every((batch) => batch.length === 1)
+    ).toBe(true)
+  })
+
+  it('rejects a mismatched package compiler before invoking Bun', async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'orca-bun-compiler-version-')))
+    try {
+      mkdirSync(join(root, 'node_modules', 'typescript'), { recursive: true })
+      writeFileSync(
+        join(root, 'node_modules', 'typescript', 'package.json'),
+        JSON.stringify({ name: 'typescript', version: '8.0.0', bin: 'compiler.cjs' })
+      )
+      const failures = await runTypecheckProjects({
+        compiler: 'bun',
+        root,
+        projects: [{ config: 'tsconfig.json', heapGib: 1 }]
+      })
+      expect(failures).toHaveLength(1)
+      expect(failures[0].message).toContain('resolves 8.0.0')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('continues to later projects after a compiler exits with an error', async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'orca-typecheck-failure-')))
+    try {
+      const compilerDir = join(root, 'node_modules', 'typescript')
+      mkdirSync(compilerDir, { recursive: true })
+      mkdirSync(join(root, 'config'))
+      writeFileSync(
+        join(compilerDir, 'package.json'),
+        JSON.stringify({ name: 'typescript', bin: { tsc: 'compiler.cjs' } })
+      )
+      writeFileSync(
+        join(compilerDir, 'compiler.cjs'),
+        "const fs = require('node:fs'); const config = process.argv.at(-1); fs.appendFileSync('checked.txt', config + '\\n'); process.exit(config.includes('broken') ? 1 : 0)"
+      )
+      const failures = await runTypecheckProjects({
+        root,
+        projects: [
+          { config: 'config/broken.json', heapGib: 1 },
+          { config: 'config/healthy.json', heapGib: 1 }
+        ],
+        memoryBytes: 2 * 1024 ** 3,
+        parallelism: 1
+      })
+      expect(failures).toHaveLength(1)
+      expect(failures[0].message).toContain('broken.json exited with code 1')
+      expect(readFileSync(join(root, 'checked.txt'), 'utf8')).toBe(
+        'config/broken.json\nconfig/healthy.json\n'
+      )
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

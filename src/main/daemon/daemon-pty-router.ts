@@ -10,6 +10,8 @@ import type {
   PtySpawnResult
 } from '../providers/types'
 import type { PtyProcessInspection } from '../providers/pty-process-inspection'
+import { isDaemonEndpointGoneError } from './daemon-errors'
+import { LegacyDaemonExitProof } from './daemon-legacy-exit-proof'
 import { shouldHandoffDaemonHistory } from './daemon-history-handoff'
 import type { DaemonPtyRouterDataEvent, DaemonPtyRouterExitEvent } from './daemon-pty-router-events'
 import { DaemonSessionOwnerResolver } from './daemon-session-owner-resolution'
@@ -24,6 +26,7 @@ export class DaemonPtyRouter implements IPtyProvider {
   private sessionAdapters = new Map<string, DaemonPtyAdapter>()
   private readonly ownerResolver: DaemonSessionOwnerResolver<DaemonPtyAdapter>
   private readonly subscriptions: DaemonPtyAdapterSubscriptionFanout
+  private readonly legacyExitProof = new LegacyDaemonExitProof()
   private readonly retirement = new DaemonRouterRetirement(() => this.allAdapters())
 
   constructor(opts: { current: DaemonPtyAdapter; legacy: DaemonPtyAdapter[] }) {
@@ -37,10 +40,12 @@ export class DaemonPtyRouter implements IPtyProvider {
       },
       (adapter) => this.ownerResolver.invalidateProvider(adapter)
     )
+    this.legacyExitProof.record(this.legacy)
   }
 
   async discoverLegacySessions(): Promise<void> {
     await this.ownerResolver.discoverRoutes()
+    this.legacyExitProof.record(this.legacy)
   }
 
   async spawn(opts: PtySpawnOptions): Promise<PtySpawnResult> {
@@ -234,10 +239,37 @@ export class DaemonPtyRouter implements IPtyProvider {
   }
 
   async listProcesses(opts?: { deadlineMs?: number }): Promise<PtyProcessInfo[]> {
-    // Why: runtime exact-stop/liveness flows must fail closed if any adapter
-    // cannot provide a trustworthy process list.
+    // Why: worktree removal fails closed on this list. A legacy daemon whose socket is gone and
+    // whose process has exited is an empty inventory; anything else still throws.
     const results = await Promise.all(
-      this.allAdapters().map((adapter) => adapter.listProcesses(opts))
+      this.allAdapters().map(async (adapter) => {
+        try {
+          const processes = await adapter.listProcesses(opts)
+          this.legacyExitProof.record(this.legacy)
+          return processes
+        } catch (error) {
+          if (
+            adapter === this.current ||
+            !isDaemonEndpointGoneError(error) ||
+            !this.legacyExitProof.hasExited(adapter)
+          ) {
+            throw error
+          }
+          const index = this.legacy.indexOf(adapter)
+          if (index !== -1) {
+            this.legacy.splice(index, 1)
+            // Why: the resolver and fanout were built from a copy of allAdapters().
+            // Splicing this.legacy alone leaves them querying the dead socket.
+            this.ownerResolver.dropProvider(adapter)
+            this.subscriptions.dropAdapter(adapter)
+          }
+          // Why: the socket is already gone; a failed disconnect must not fail the list.
+          void Promise.resolve()
+            .then(() => adapter.disconnectOnly())
+            .catch(() => undefined)
+          return []
+        }
+      })
     )
     return results.flat()
   }
@@ -305,7 +337,7 @@ export class DaemonPtyRouter implements IPtyProvider {
     return this.current
   }
 
-  // Why by reference: legacy is set once in the constructor and never mutated; callers (Manage Sessions, restart swap) only read it.
+  // Why by reference: callers read these by identity. A gone legacy socket is spliced out in place; snapshot holders (the restart swap) re-check on their next list.
   getLegacyAdapters(): readonly DaemonPtyAdapter[] {
     return this.legacy
   }

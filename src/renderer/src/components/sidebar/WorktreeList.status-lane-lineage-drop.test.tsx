@@ -130,7 +130,6 @@ vi.mock('@/lib/worktree-activation', () => ({
 }))
 
 vi.mock('@/runtime/runtime-rpc-client', () => ({
-  getActiveRuntimeTarget: () => ({ kind: 'local' }),
   callRuntimeRpc: vi.fn()
 }))
 

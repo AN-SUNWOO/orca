@@ -11,6 +11,7 @@
  * Chromium proves available at startup.
  */
 import process from 'node:process'
+import { describeOrcadSecretProtectionGap } from './orcad-secret-protection-gap'
 import {
   getAppEnvironment,
   setAppEnvironment,
@@ -94,8 +95,7 @@ function createNodeSecretStore(): SecretStore {
     decryptString: () => {
       throw new Error('orcad_secret_sealing_unavailable')
     },
-    describeProtectionGap: () =>
-      'This host has no OS keyring, so credentials are stored unencrypted. Pair from a desktop to manage secrets, or install and unlock a keyring.'
+    describeProtectionGap: () => describeOrcadSecretProtectionGap(process.platform)
   }
 }
 
@@ -159,8 +159,7 @@ async function startOrcadRuntime(
 ): Promise<Pick<OrcadHandle, 'readiness'>> {
   const { OrcaRuntimeService } = await import('../runtime/orca-runtime')
   const { OrcaRuntimeRpcServer } = await import('../runtime/runtime-rpc')
-  const { registerHeadlessPtyRuntime, getLocalPtyProvider, getSshPtyProvider } =
-    await import('../ipc/pty')
+  const { registerHeadlessPtyRuntime, getLocalPtyProvider } = await import('../ipc/pty')
   const { getAppEnvironment } = await import('../../shared/app-environment')
   const { installOrcadObservability } = await import('./orcad-observability')
   closeOrcadObservability = installOrcadObservability()
@@ -169,7 +168,7 @@ async function startOrcadRuntime(
   const { buildOrcadServeReadiness } = await import('./orcad-serve-readiness')
   const { createOrcadProfileStateStartup } = await import('./orcad-profile-state-startup')
   const { startOrcadDaemon, stopOrcadDaemon } = await import('./orcad-daemon-supervision')
-  const { daemonOwnsFreshPersistentPtys } = await import('../daemon/daemon-init')
+  const { daemonOwnsFreshPersistentPtys } = await import('../daemon/daemon-provider-state')
   const { collectOrcadHealth } = await import('./orcad-health')
   // Why importable here: the singleton's module tree never reaches Electron, and orcad supplies
   // its persistence and endpoint paths explicitly below.
@@ -177,6 +176,7 @@ async function startOrcadRuntime(
   const { isAgentStatusHooksEnabled } = await import('../agent-hooks/managed-agent-hook-controls')
   const { installHookStatusSessionTabsRepublish } =
     await import('../agent-hooks/hook-status-session-tabs-republish')
+  const { startOrcadManagedAgentHooks } = await import('./orcad-managed-agent-hooks')
   const { AgentStatusObservedPaneIdentities, AgentStatusObservedPaneIdentityCapture } =
     await import('../runtime/agent-status-observed-pane-identity')
 
@@ -187,12 +187,10 @@ async function startOrcadRuntime(
     | undefined
   let uninstallHookStatusRepublish = (): void => {}
   let uninstallObservedStatusIdentity = (): void => {}
-  let removeStatusHookSettingsListener = (): void => {}
   // Cleanups run in reverse: RPC, then recovery and watchers, then the final flush, then daemon.
   registerCleanup(() => agentHookServer.stop())
   registerCleanup(() => uninstallHookStatusRepublish())
   registerCleanup(() => uninstallObservedStatusIdentity())
-  registerCleanup(() => removeStatusHookSettingsListener())
   // Why disconnect and not shut down: the daemon must outlive this process, or an orcad
   // restart goes back to killing every running terminal.
   registerCleanup(() => stopOrcadDaemon())
@@ -208,6 +206,8 @@ async function startOrcadRuntime(
   const { resolvePushGatewayOrigin } = await import('../runtime/push/push-gateway-origin')
 
   const runtimeUserDataPath = getAppEnvironment().getPath('userData')
+  const { startEventLoopDelayProbe } = await import('../diagnostics/event-loop-delay-probe')
+  startEventLoopDelayProbe('orcad', runtimeUserDataPath)
   // A missing `orca` command must never keep the server from starting.
   await prepareOrcadCliLauncher().catch((error: unknown) => {
     console.warn('[orcad] Could not prepare the profile CLI launcher', error)
@@ -227,11 +227,11 @@ async function startOrcadRuntime(
     statusHooksEnabled: isAgentStatusHooksEnabled(profileStore.getSettings())
   })
 
-  removeStatusHookSettingsListener = profileStore.onSettingsChanged((updates, settings) => {
-    if ('agentStatusHooksEnabled' in updates) {
-      agentHookServer.setStatusHooksEnabled(isAgentStatusHooksEnabled(settings))
-    }
-  })
+  startOrcadManagedAgentHooks(
+    profileStore,
+    (enabled) => agentHookServer.setStatusHooksEnabled(enabled),
+    registerCleanup
+  )
 
   // Why before the runtime and the PTY handlers: `setLocalPtyProvider` installs the daemon
   // adapter as THE local provider, and the registry's contract is that it lands before
@@ -246,9 +246,6 @@ async function startOrcadRuntime(
     // Why lazy: a daemon swap replaces the provider after construction, so an eager
     // reference would freeze the pre-daemon one.
     getLocalProvider: () => getLocalPtyProvider(),
-    // Why: destructive worktree removal refuses to run without a provider to stop
-    // processes through — correctly, since it cannot otherwise verify the tree is idle.
-    getSshProvider: (connectionId) => getSshPtyProvider(connectionId),
     // Why the daemon predicate and not a constant: orcad now spawns the terminal daemon, so
     // its PTYs DO survive an orcad restart — but only while a daemon that owns fresh
     // sessions is installed. A failed or degraded launch has to answer false, and this reads

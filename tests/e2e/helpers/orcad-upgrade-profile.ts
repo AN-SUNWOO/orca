@@ -1,7 +1,7 @@
 /**
  * The profile a relay-era build (v1.4.218, the last before auto-conversion) leaves behind for an
  * SSH host: the target without a fence, its repository and remote folder workspace, and an editor
- * tab in the host's session partition. Seeded into a stopped profile, so the next launch is the
+ * tab (optionally beside a terminal tab) in the host's session partition. Seeded into a stopped profile, so the next launch is the
  * user's first on a converting build.
  */
 import type { FolderWorkspace } from '../../../src/shared/folder-workspace-types'
@@ -15,10 +15,13 @@ import { mutateStoppedProfileState } from './persisted-profile-state'
 
 export type RelayEraProfile = {
   targetId: string
+  repoId: string
   worktreeId: string
   repoPath: string
   folderPath: string
   sessionFilePath: string
+  /** Set only when the seed asked for a relay-era terminal tab. */
+  terminalTabId: string | null
 }
 
 function pushRow(state: Record<string, unknown>, field: string, row: unknown): void {
@@ -77,7 +80,8 @@ export function seedRelayEraTarget(
 export function seedRelayEraProfile(
   userDataDir: string,
   input: SshTargetCreateInput,
-  paths: { repoPath: string; folderPath: string }
+  paths: { repoPath: string; folderPath: string },
+  options: { terminalTab?: boolean } = {}
 ): RelayEraProfile {
   const now = Date.now()
   const targetId = `ssh-upgrade-${now}`
@@ -123,6 +127,8 @@ export function seedRelayEraProfile(
   const sessionFilePath = `${paths.repoPath}/README.md`
   const tabId = `tab-upgrade-${now}`
   const groupId = `tab-group-upgrade-${now}`
+  const terminalTabId = options.terminalTab ? `terminal-upgrade-${now}` : null
+  const terminalLeafId = '00000000-0000-4000-8000-000000000001'
   // The shape the relay-era renderer persisted for one open editor (CI capture of a live profile).
   const session = {
     ...getDefaultWorkspaceSession(),
@@ -156,16 +162,61 @@ export function seedRelayEraProfile(
           createdAt: now,
           lastFocusedAt: now,
           isPreview: false
-        }
+        },
+        ...(terminalTabId
+          ? [
+              {
+                id: terminalTabId,
+                entityId: terminalTabId,
+                groupId,
+                worktreeId,
+                executionHostId: hostId,
+                contentType: 'terminal',
+                label: 'Terminal 1',
+                customLabel: null,
+                color: null,
+                sortOrder: 2,
+                createdAt: now
+              }
+            ]
+          : [])
       ]
     },
+    ...(terminalTabId
+      ? {
+          // The relay PTY is gone by the time this build runs; the tab names no live session.
+          tabsByWorktree: {
+            [worktreeId]: [
+              {
+                id: terminalTabId,
+                ptyId: null,
+                worktreeId,
+                title: 'Terminal 1',
+                defaultTitle: 'Terminal 1',
+                customTitle: null,
+                color: null,
+                sortOrder: 2,
+                createdAt: now
+              }
+            ]
+          },
+          ptyIdsByTabId: { [terminalTabId]: [] },
+          terminalLayoutsByTabId: {
+            [terminalTabId]: {
+              root: { type: 'leaf', leafId: terminalLeafId },
+              activeLeafId: terminalLeafId,
+              expandedLeafId: null
+            }
+          }
+        }
+      : {}),
     tabGroups: {
       [worktreeId]: [
         {
           id: groupId,
           worktreeId,
           activeTabId: tabId,
-          tabOrder: [tabId],
+          tabOrder: terminalTabId ? [tabId, terminalTabId] : [tabId],
           recentTabIds: [tabId]
         }
       ]
@@ -186,9 +237,11 @@ export function seedRelayEraProfile(
   })
   return {
     targetId,
+    repoId: repo.id,
     worktreeId,
     repoPath: paths.repoPath,
     folderPath: paths.folderPath,
-    sessionFilePath
+    sessionFilePath,
+    terminalTabId
   }
 }

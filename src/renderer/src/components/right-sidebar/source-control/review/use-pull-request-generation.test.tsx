@@ -48,7 +48,7 @@ describe('useSourceControlPullRequestGeneration outcome', () => {
           badgeColor: '#000',
           addedAt: 0
         },
-        activeRepoSettings: null,
+        activeRepoTarget: { kind: 'local' },
         activeWorktreeId: 'wt-1',
         allocatePullRequestGenerationRequestId: vi.fn(() => 5),
         branchName: 'feature',
@@ -92,7 +92,7 @@ describe('useSourceControlPullRequestGeneration outcome', () => {
           badgeColor: '#000',
           addedAt: 0
         },
-        activeRepoSettings: null,
+        activeRepoTarget: { kind: 'local' },
         activeWorktreeId: 'wt-1',
         allocatePullRequestGenerationRequestId: vi.fn(() => 5),
         branchName: 'feature',
@@ -158,7 +158,7 @@ describe('useSourceControlPullRequestGeneration outcome', () => {
           badgeColor: '#000',
           addedAt: 0
         },
-        activeRepoSettings: null,
+        activeRepoTarget: { kind: 'local' },
         activeWorktreeId: 'wt-1',
         allocatePullRequestGenerationRequestId: vi.fn(() => 5),
         branchName: 'feature',

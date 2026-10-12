@@ -1037,19 +1037,11 @@
         "0e3cf53060": "未找到浏览器选项卡 {{value0}}",
         "2f6637fe6c": "浏览器选项卡 {{value0}} 已固定",
         "a8d2bf8e9e": "没有可关闭的活动浏览器选项卡",
-        "291c8ed902": "当远程运行时处于活动状态时，浏览器选项卡不可用",
-        "f45fa2b03c": "当远程运行时处于活动状态时，浏览器配置文件不可用",
         "f000b2ff76": "没有活动的工作树",
         "56d3ec4203": "无法创建无标题 Markdown 文件。",
         "f6300deb8b": "新浏览器选项卡",
         "7a64b31991": "当远程运行时处于活动状态时，本地终端创建不可用",
         "60428567b4": "当远程运行时处于活动状态时，本地终端显示不可用",
-        "f8aaf2bde3": "工作区已上传",
-        "2fe88c2e06": "远程工作区同步不可用",
-        "workspaceChangedOnAnotherDevice": "工作区已在另一台设备上更改",
-        "2ec42e1c52": "还没有远程工作区",
-        "88214a785b": "工作区同步等待本地会话恢复(hydration)并超时",
-        "4f78ba5885": "工作区已同步",
         "ef223fbb6b": "有设备尝试连接但未配对",
         "11992d0337": "如果这是您的手机或其他 Orca 客户端，请从设置 → 移动端重新配对。",
         "6573cfe955": "打开移动端设置",
@@ -3166,10 +3158,10 @@
             "42b283ecfc": "Orca 无法安全地重新连接此终端，因为主机无法验证其保存的会话。 Orca 保持保存的会话不变。单击“重试”立即尝试重新连接。如果仍然无法重新连接，请打开一个新终端。",
             "e16012e31e": "拥有该会话的终端守护程序已退出，因此该会话及其回滚无法恢复。打开新终端以继续。",
             "sessionUnavailable": "Orca 无法重新连接到主机上此窗格的终端会话。打开新终端以继续。",
-            "heldByPreviousRelay": "该终端仍在主机上以先前版本的 Orca 运行，当前版本无法连接到它。它会一直运行直到退出。请打开新终端以继续在此工作。",
             "sourceRestoring": "重新连接该终端 — 正在重新建立其输出。会话仍在进行。",
             "ptyAllocationLimit": "系统无法再分配 pty 设备。请在 Orca 或其他程序中关闭一些不用的终端，然后重试。",
             "terminalProcessLimit": "系统无法再启动终端进程。请关闭不用的终端或退出不用的进程，然后重试。",
+            "hostTerminalCap": "主机上运行的终端数量已达到 Orca 允许的上限。请关闭一个不再需要的终端，然后重试。",
             "ownerHostMismatch": "此终端保存的会话属于另一个主机连接，因此 Orca 无法在此重新附加它。请打开新终端以继续。"
           },
           "TerminalProcessExitOverlay": {
@@ -3706,8 +3698,6 @@
             "connectedHostCount_one": "{{count}} 个主机",
             "connectedHostCount_other": "{{count}} 个主机",
             "connecting": "正在连接…",
-            "workspaceConflict": "工作区冲突",
-            "workspaceSyncError": "工作区同步错误",
             "runtime_unavailable_transport_up": "Orca 不可用",
             "runtime_workspace_window_closed": "工作区窗口已关闭"
           },
@@ -5061,8 +5051,7 @@
         "AddProjectFromFolderDialog": {
           "7d1f51678c": "添加项目",
           "7726a16374": "取消",
-          "046751dbfb": "将此文件夹添加为单独的 Orca 项目。",
-          "e643b30398": "添加了远程项目"
+          "046751dbfb": "将此文件夹添加为单独的 Orca 项目。"
         },
         "AddRepoCreateStep": {
           "0ae45b8238": "my-project",
@@ -5080,8 +5069,7 @@
           "fe1e616c5b": "创建项目需要 Git。",
           "c234df77f7": "创建前请选择或输入服务器父文件夹。",
           "3a13f6e88b": "未选择位置",
-          "6ed14c0281": "未选择服务器文件夹",
-          "ssh_parent_manual": "输入 SSH 父路径。"
+          "6ed14c0281": "未选择服务器文件夹"
         },
         "AddRepoNestedImportStep": {
           "496f68cf8c": "扫描存储库。单击停止。",
@@ -5106,21 +5094,17 @@
           "e52454b7f6": "作为文件夹打开"
         },
         "AddRepoRemoteStep": {
-          "5b205b5281": "停止扫描",
           "6680289908": "/home/user/project",
           "ef410aa881": "远程路径",
-          "0416bde073": "在设置中添加",
-          "df6fbcf880": "未配置 SSH 目标。",
           "44637f43bd": "SSH 目标",
-          "80557be85a": "选择已连接的 SSH 目标并输入 Git 存储库的路径。",
+          "serverDescription": "选择 {{server}} 连接的 SSH 主机，并输入该主机上 Git 仓库的路径。",
+          "serverEmpty": "{{server}} 还没有 SSH 主机。",
+          "serverAddHost": "添加 SSH 主机",
           "91b93a90a4": "打开远程项目",
           "007651bdf9": "导航到目录并单击“选择”以选择它。",
           "dd3ff65486": "浏览远程文件系统",
           "36d427bb66": "添加远程项目",
-          "35831a7312": "添加...",
-          "lockedDescription": "输入 {{value0}} 上 Git 仓库的路径。",
-          "lockedDisconnected": "{{value0}} 已断开连接。",
-          "93e0221434": "连接"
+          "35831a7312": "添加..."
         },
         "AddRepoServerStartStep": {
           "ae990c86a0": "返回添加选项",
@@ -5503,7 +5487,7 @@
           "allHostsDetail": "显示所有主机",
           "configuredSshHost": "已配置 SSH",
           "projectSshHost": "项目 SSH",
-          "activeRuntimeHost": "活动服务器",
+          "activeRuntimeHost": "新项目的默认主机",
           "projectRuntimeHost": "项目服务器",
           "631b97eea9": "主机范围",
           "2d4f0eb933": "默认",
@@ -5867,12 +5851,11 @@
                   "5f9ffac036": "克隆远程 Git 存储库",
                   "7edb8ebe24": "从 URL 克隆",
                   "a6c20dca96": "从 SSH 目标打开项目",
-                  "3d162cc76f": "远程项目",
+                  "serverSshTitle": "此服务器 SSH 主机上的项目",
+                  "serverSshDescription": "从此服务器连接的 SSH 主机打开项目文件夹",
+                  "serverSshUpdate": "更新此服务器后才能在其 SSH 主机上添加项目",
                   "fb4fc5380e": "本地项目、Git 仓库或包含多个仓库的文件夹",
                   "2281fdc8c7": "浏览文件夹",
-                  "sshCreateUnavailable": "SSH 主机暂不可用",
-                  "sshBrowseTitle": "在 SSH 主机上打开项目",
-                  "sshBrowseDescription": "此 SSH 主机上的现有 Git 仓库或文件夹",
                   "runtimeBrowseDescription": "此主机上的现有 Git 仓库或文件夹"
                 }
               }
@@ -6228,7 +6211,6 @@
         "AddRemoteHostDialog": {
           "sshHostRequired": "必须填写主机或 SSH 配置别名。",
           "sshPortInvalid": "端口必须介于 1 到 65535 之间。",
-          "sshRelayGraceInvalid": "终端超时时间必须介于 60 到 {{value0}} 秒之间。",
           "sshSaved": "已添加 SSH 主机。",
           "sshSaveFailed": "添加 SSH 主机失败。",
           "serverFieldsRequired": "必须填写服务器名称和配对码。",
@@ -6237,7 +6219,10 @@
           "serverTitle": "添加远程服务器",
           "sshTitle": "添加 SSH 主机",
           "serverDescription": "与另一台电脑上运行的 Orca 配对。",
+          "serverRunsAsYou": "此设备将能够在此服务器上以你的身份运行命令。",
           "sshDescription": "添加一台可通过 SSH 登录并持久保存的机器。",
+          "serverSshTitle": "向 {{server}} 添加 SSH 主机",
+          "serverSshDescription": "{{server}} 会保存此主机并连接到它。密码和密钥口令会在连接时询问。",
           "cancel": "取消",
           "saving": "正在保存...",
           "save": "保存",
@@ -6753,7 +6738,7 @@
           "codexSessionSourceInfo": "关于导入 Codex 历史记录",
           "codexSessionSourceTooltip": "Orca 在隔离的主目录中运行 Codex。将此项指向您现有的 Codex 主目录以导入会话历史记录。留空则使用 ~/.codex。",
           "03e1a5081a": "on {{value0}}",
-          "25a41a9aad": "重新检测活动服务器上安装的智能体",
+          "25a41a9aad": "重新检测此服务器上安装的代理",
           "remoteDetectionFailed": "无法检测已安装的智能体。请检查主机连接后重试。",
           "retryDetection": "Retry",
           "storedDefaultUndetected": "已保存为默认值，但目前未检测到",
@@ -8134,16 +8119,16 @@
           "6ce4664003": "刷新服务器",
           "b07070ed3c": "没有连接服务器",
           "78692becbd": "本地桌面",
-          "64b6bea541": "活动服务器",
+          "64b6bea541": "新项目的默认主机",
           "99ac81fb43": "切换到 {{value0}}。",
           "b5b5114cb0": "删除了 {{value0}}。",
           "6cb6eae14f": "无法保存运行时环境。",
-          "7b5986c8df": "已保存 {{value0}}。准备好后可通过活动服务器进行切换。",
+          "7b5986c8df": "已连接到 {{value0}}。若要默认在其上创建新项目，请在“高级 > 新项目的默认主机”中选择它。",
           "5ef712f407": "名为“{{value0}}”的服务器已存在。",
           "0c55a47480": "需要名称和配对代码。",
           "e6410d72c3": "无法加载运行时环境。",
           "6ef71985da": "无终点",
-          "ed3e3f069d": "这将从 Orca 中删除保存的服务器。它不会更改活动服务器。",
+          "ed3e3f069d": "这会从 Orca 中移除已保存的服务器，不会更改新项目的默认主机。",
           "b2fda48c39": "删除活动服务器会使此浏览器与该主机断开连接。现有主机会话会保持不变。",
           "9f7665a01b": "删除活动服务器会先将 Orca 切换回本地桌面。现有主机会话会保持不变。",
           "3595fd1948": "新链接",
@@ -8165,7 +8150,7 @@
           "hostModelCapabilityProjectSetup": "项目设置",
           "hostModelCapabilityTaskSourceContext": "任务来源上下文",
           "hostModelCapabilityWorkspaceRunContext": "工作区运行上下文",
-          "3f67e8078a": "默认使用此电脑。仅当你希望受支持的项目、文件、终端、提供商检查以及浏览器/移动端接续通过某个服务器运行时，才选择已保存的服务器。",
+          "3f67e8078a": "除非在此选择已保存的服务器，否则新项目会在这台电脑上创建。现有项目、文件和终端仍留在各自的主机上。",
           "2c85efb3e8": "选择已保存的服务器后，此浏览器会将配对的 Orca 运行时用作默认主机。",
           "serverConnected": "已连接",
           "serverChecking": "正在检查…",
@@ -8173,7 +8158,7 @@
           "disconnectedServer": "已断开与 {{value0}} 的连接。",
           "connectToRemoteServers": "连接到远程服务器",
           "connectToRemoteServersHelp": "配对另一个 Orca 运行时，然后在此处连接或断开连接。仅当你想更改默认主机时，才使用高级 > 活动服务器。",
-          "activeServerRowHelp": "用于通过服务器路由的项目、终端和提供商检查的活动服务器。",
+          "activeServerRowHelp": "新项目的默认主机。现有项目仍留在各自的主机上。",
           "disconnect": "断开连接",
           "connect": "连接",
           "advanced": "高级",
@@ -8187,8 +8172,8 @@
           "updateServer": "更新",
           "reviewServerUpdates": "服务器更新",
           "orcaVersion": "Orca v{{value0}}",
-          "removeActiveServerBlocked": "请先在“高级”中选择另一个活动服务器，然后再移除此服务器。",
-          "removeActiveServerDescription": "请先在“高级”中选择另一个活动服务器，然后再移除此服务器。现有的主机会话将保留。",
+          "removeActiveServerBlocked": "此服务器是新项目的默认主机。请先在“高级”中选择另一个主机，然后再移除它。",
+          "removeActiveServerDescription": "此服务器是新项目的默认主机。请先在“高级”中选择另一个主机，然后再移除它。现有的主机会话将保留。",
           "updatingServers": "正在更新服务器…",
           "workflow": "远程服务器工作流程",
           "connectWorkflow": "连接到主机",
@@ -8227,6 +8212,7 @@
           "de6d5cff95": "这台电脑（",
           "de77eb1b65": "连接地址",
           "ff80904fc4": "为浏览器或桌面客户端创建可撤销的访问授权。",
+          "pairedRunsAsYou": "已配对的客户端可以在此电脑上以你的身份运行命令。",
           "f8500e134a": "分享此 Orca 服务器",
           "d6c081adf4": "复制 URL 失败。",
           "df0aa45a86": "复制的配对 URL。",
@@ -8474,10 +8460,6 @@
           "f8050f6307": "已同步 {{value0}} 服务器{{value1}}",
           "68c13b4589": "测试失败",
           "81d08bcddf": "连接成功",
-          "2c4ee7332b": "无法重置远程中继",
-          "db2e48975e": "远程中继已重置",
-          "025e107643": "无法结束远程终端",
-          "90e308c98b": "远程终端结束",
           "a43de1d3ee": "断开连接失败",
           "e95d5ae10e": "连接失败",
           "c2a69510e3": "删除目标失败",
@@ -8485,12 +8467,10 @@
           "2227ce47b6": "保存目标失败",
           "f602009125": "目标已添加",
           "b4ba0ce33d": "目标已更新",
-          "3879cbaa52": "终端超时时间必须介于 60 到 {{value0}} 秒之间，或保持终端运行直到重置。",
           "4db9afce1c": "端口必须介于 1 和 65535 之间",
           "0e5aa04161": "需要主机或 SSH 配置别名",
           "f1fc50dad2": "无法加载 SSH 目标",
-          "0cda732f43": "连接测试失败",
-          "terminateUnverifiable": "无法访问 {{terminals}} 远程终端。重新连接以结束它们。"
+          "0cda732f43": "连接测试失败"
         },
         "SshPassphraseDialog": {
           "d5a234456f": "取消",
@@ -8519,30 +8499,17 @@
           "7f7b3d7ab4": "删除目标",
           "3d21a22d0e": "移除目标",
           "3d8af2949f": "编辑目标",
-          "762a48c662": "重置远程中继",
-          "97dea4e8cf": "正在重置远程中继",
-          "da16e108e6": "结束远程终端",
-          "c77f1abfe3": "结束远程终端",
           "18968ede9e": "错误",
           "f0871e6bfb": "连接",
-          "47e94bd6ba": "已连接",
-          "a883f5a00f": "终端超时：{{value0}}",
-          "8ce71262f4": "终端保持运行直到重置"
+          "47e94bd6ba": "已连接"
         },
         "SshTargetDestructiveActions": {
-          "7e66942808": "这将停止此 SSH 目标上的活动终端会话。重新连接不会恢复它们。",
-          "accf177a03": "结束远程终端？",
-          "26be00392d": "这将强制停止此 SSH 目标的远程中继。该目标的活动远程终端和端口转发将结束。",
-          "570a7a0574": "重置远程中继？",
           "3bb0cf0ee4": "这将删除目标并结束任何活动的远程终端。",
           "4808966c41": "删除 SSH 目标"
         },
         "SshTargetForm": {
           "fea9cb402e": "取消",
-          "1b19b00e93": "有限超时时间必须介于 60 秒到 7 天之间。",
           "137e88ce8d": "Orca 与此主机断开连接后，远程终端会继续运行。",
-          "b574994adc": "需要停止它们时，请使用“结束远程终端”或“重置中继”。",
-          "71fc546097": "保持终端运行直到重置",
           "92f80edbfd": "远程终端持久化",
           "feae1d1e69": "可选。相当于 ProxyJump / ssh -J。",
           "11bcb4507a": "bastion.example.com",
@@ -8564,8 +8531,6 @@
           "a62b4cb39a": "保存更改",
           "29af933cd5": "新的 SSH 目标",
           "f2331ce599": "编辑 SSH 目标",
-          "7c13f58c91": "直到重置",
-          "55c56cf2c7": "断开连接后的超时时间（秒）",
           "4a342f44c1": "高级连接",
           "e9609ddca6": "代理、跳板主机和连接复用",
           "8c922dffba": "复用 SSH 连接以加快设置",
@@ -8574,12 +8539,7 @@
           "addTitle": "添加 SSH 主机",
           "editDescription": "更新此机器的连接详情。更改将在下次连接时生效。",
           "addDescription": "添加一台可通过 SSH 登录的持久机器。",
-          "editingPrefix": "正在编辑",
-          "remoteRuntime": "运行时",
-          "remoteRuntimeHelp": "哪个 Node.js 在此主机上运行 Orca。 Orca 管理的Node自己上传，不需要npm；主机节点使用已安装在那里的 Node.js。",
-          "remoteRuntimeAuto": "自动",
-          "remoteRuntimePinnedNode": "Orca 管理的节点",
-          "remoteRuntimeHostNode": "主机节点"
+          "editingPrefix": "正在编辑"
         },
         "TasksPane": {
           "f71d8a9dd3": "任务提供者",
@@ -10433,12 +10393,15 @@
               "ebd5369acf": "环境",
               "d198440ce3": "运行时",
               "baec27aa8f": "将此浏览器连接到已保存的 Orca 服务器。",
-              "3517fb2ec0": "活动服务器",
+              "3517fb2ec0": "远程 Orca 服务器",
               "c6e5a03aa0": "开发盒",
               "f1575f1e09": "网络客户端",
               "81444c4102": "配对网址",
               "104f4d7dbd": "配对",
-              "4575341c77": "选择本地桌面、添加已保存的远程 Orca 服务器或生成配对 URL。"
+              "4575341c77": "添加已保存的远程 Orca 服务器、生成配对 URL，或选择新项目的默认主机。",
+              "defaultHostKeyword": "默认主机",
+              "newProjectsKeyword": "新项目",
+              "activeServerKeyword": "活动服务器"
             }
           }
         },
@@ -11103,11 +11066,11 @@
         },
         "providerAccountScope": {
           "remoteServer": "远程服务器：{{value0}}",
-          "remoteServerCredentials": "此提供商的凭据和账户检查由该远程服务器拥有。使用“设置 > 远程 Orca 服务器 > 高级”编辑另一个默认运行时范围。",
+          "remoteServerCredentials": "此提供商的凭据和账户检查由这台远程服务器管理。要使用其他主机，请更改“设置 > 远程 Orca 服务器 > 高级 > 新项目的默认主机”。",
           "localMac": "本地 Mac",
-          "localCredentials": "此提供商的凭据和账户检查由该桌面客户端拥有。使用“设置 > 远程 Orca 服务器 > 高级”编辑服务器拥有的凭据。",
-          "remoteServerRateLimit": "{{value0}} API 预算从此远程服务器上的 CLI 获取。使用“设置 > 远程 Orca 服务器 > 高级”查看另一个默认运行时预算。",
-          "localRateLimit": "{{value0}} API 预算从此桌面客户端上的 CLI 获取。使用“设置 > 远程 Orca 服务器 > 高级”查看服务器拥有的预算。"
+          "localCredentials": "此提供商的凭据和账户检查由这台桌面客户端管理。要使用服务器，请更改“设置 > 远程 Orca 服务器 > 高级 > 新项目的默认主机”。",
+          "remoteServerRateLimit": "{{value0}} API 额度从这台远程服务器上的 CLI 获取。要查看其他主机的额度，请在“设置”顶部的主机菜单中选择。",
+          "localRateLimit": "{{value0}} API 额度从这台桌面客户端上的 CLI 获取。要查看服务器的额度，请在“设置”顶部的主机菜单中选择。"
         },
         "settingOwnership": {
           "clientDefault": "客户端默认",
@@ -11565,7 +11528,7 @@
           "failed": "更新失败",
           "serviceManagerHelp": "通过启动此服务器的服务管理器更新 Orca。",
           "unpackedHelp": "开发版本必须从其源代码检出进行更新。",
-          "legacyHelp": "手动更新此服务器一次以启用远程更新。"
+          "legacyHelp": "此服务器无法远程更新。请在服务器主机上更新 Orca。"
         },
         "BrowserLinkRoutingSetting": {
           "description": "在 Orca 内置浏览器中打开来自终端、Markdown 和编辑器的 http(s) 链接。{{shortcut}} 始终使用系统浏览器。",
@@ -12245,6 +12208,20 @@
           "usageLabel": "用量",
           "usageTitle": "每月套餐用量"
         },
+        "ZcodeCliSetupSection": {
+          "title": "通过 ZCode 使用 GLM",
+          "description": "登录后即可将 GLM 用作编程代理。上方的配额 API 密钥仅用于监控用量；ZCode 自行管理登录和模型选择。",
+          "help": "选择对应套餐站点的浏览器登录，或使用 ZCode 的隐藏输入 API 密钥设置。登录后，启动 ZCode 并使用 /model 选择 GLM 模型。",
+          "zai": "Z.AI 浏览器登录",
+          "bigmodel": "BigModel 浏览器登录",
+          "apiKey": "ZCode API 密钥设置",
+          "close": "关闭设置终端",
+          "loading": "正在加载登录终端…",
+          "terminalTitle": "ZCode 登录",
+          "terminalLabel": "ZCode 登录终端",
+          "apiKeyInstructions": "按 Enter 启动 ZCode，然后输入 /login 并选择套餐站点的 API 密钥选项。在 ZCode 的隐藏输入提示中输入密钥。",
+          "oauthInstructions": "按 Enter 运行登录命令，然后打开 ZCode 输出的授权网址。登录信息保存在此终端的执行主机上。"
+        },
         "ZcodePlanAccountsSection": {
           "site": {
             "bigmodel": "智谱 · BigModel（open.bigmodel.cn）",
@@ -12265,7 +12242,7 @@
           "keyStored": "API key 已保存 · {{value0}}",
           "keyStoredHelp": "仅保存在本地，并只发送到所选站点用于用量刷新。优先级高于 ZCode CLI 登录。",
           "usingCli": "正在使用 ZCode CLI 登录",
-          "usingCliHelp": "Orca 从 ~/.zcode/cli/config.json 读取 Coding Plan key。在下方保存 API key 即可改为在此关联套餐。",
+          "usingCliHelp": "Orca 会从此电脑上的 ZCode CLI 凭据存储中读取所选编程套餐。您也可以在下方保存 API 密钥以直接关联套餐。",
           "notConfigured": "尚未关联 GLM Coding Plan",
           "notConfiguredHelp": "在下方保存套餐 API key，或在这台电脑上通过 ZCode CLI 登录。",
           "refreshUsage": "刷新用量",
@@ -12383,7 +12360,7 @@
           },
           "loadFailed": "Orca 无法加载 SSH 主机和未完成的迁移。请重新打开设置以重试。",
           "outcome": {
-            "activeServer": "未完成：请先在“高级”中选择另一个活动服务器，再停止此服务器。",
+            "activeServer": "未完成：此服务器是新项目的默认主机。请先在“高级”中选择另一个主机，然后再停止它。",
             "live": "未完成：此服务器上的终端仍在运行。请关闭它们后重试。",
             "unverifiable": "未完成：Orca 无法确认此服务器上正在运行什么。请在主机可访问时重试。",
             "migration": "未完成：迁移到此服务器的操作尚未完成。请先继续该操作。",
@@ -12392,9 +12369,7 @@
           }
         },
         "sshHostServer": {
-          "sourceChanged": "在较旧版本的 Orca 上发生了更改：会持续运行中继，直到再次迁移到其受管服务器。",
-          "unavailable": "运行中继：此主机上无法运行受管的 Orca 服务器（{{reason}}）。",
-          "tunnelUnavailable": "运行中继：此主机的 SSH 服务器不允许端口转发，Orca 也无法通过 SSH 会话连接到受管服务器。",
+          "sourceChanged": "较旧版本的 Orca 更改了此主机的项目。要重新连接，请将这些更改迁移到其受管服务器，或保留服务器版本。",
           "deploying": "正在设置受管的 Orca 服务器…",
           "converting": "正在将此主机的项目迁移到其受管的 Orca 服务器…",
           "connecting": "正在连接到受管的 Orca 服务器…",
@@ -12402,13 +12377,7 @@
           "starting": "正在启动受管服务器…",
           "notServing": "Orca 无法确认受管服务器是否正在响应。",
           "hostNewer": "运行来自较新版本 Orca 的受管 Orca 服务器；它会保留该版本。",
-          "terminalsLive": "在其 {{count}} 个打开的终端全部关闭前运行中继，然后迁移到受管服务器。",
-          "terminalsLive_one": "在其 {{count}} 个打开的终端关闭前运行中继，然后迁移到受管服务器。",
-          "terminalsLive_other": "在其 {{count}} 个打开的终端全部关闭前运行中继，然后迁移到受管服务器。",
-          "terminalsUnverifiable": "运行中继：Orca 无法确认其终端已关闭。它会在下次连接时迁移。",
-          "retry": "本次会话运行中继；它会在下次连接时迁移到受管服务器。",
           "failureDetails": "详情",
-          "unavailableUnknown": "运行中继：此主机上无法运行受管的 Orca 服务器。",
           "cause": {
             "unsupportedHost": "Orca 没有适用于此系统的服务器构建",
             "artifactsUnavailable": "此 Orca 构建不包含该服务器",
@@ -12419,12 +12388,16 @@
           },
           "updateDeferredLater": "运行受管的 Orca 服务器；它会在下次连接时更新。",
           "updateFailedPrevious": "在其先前版本上运行受管的 Orca 服务器；更新失败。",
-          "terminalsLiveUncounted": "在其打开的终端全部关闭前运行中继，然后迁移到受管服务器。",
           "refusedBlocked": "未迁移到受管服务器：此主机上的某些因素阻止了迁移。",
-          "terminalsElsewhere": "当另一台 Orca 桌面端或会话在此主机上打开的 {{count}} 个终端仍在运行时，会运行中继。",
-          "terminalsElsewhere_one": "当另一台 Orca 桌面端或会话在此主机上打开的 {{count}} 个终端仍在运行时，会运行中继。",
-          "terminalsElsewhere_other": "当另一台 Orca 桌面端或会话在此主机上打开的 {{count}} 个终端仍在运行时，会运行中继。",
-          "terminalsElsewhereUncounted": "当另一台 Orca 桌面端或会话在此主机上打开的终端仍在运行时，会运行中继。"
+          "unsupported": "此版本的 Orca 不支持此主机（{{reason}}）。如需继续使用，请安装旧版本的 Orca。",
+          "unsupportedUnknown": "此版本的 Orca 不支持此主机。如需继续使用，请安装旧版本的 Orca。",
+          "tunnelUnsupported": "此版本的 Orca 不支持此主机：其 SSH 服务器不允许端口转发，Orca 也无法通过 SSH 会话连接到其服务器。如需继续使用，请安装旧版本的 Orca。",
+          "setupRetry": "Orca 无法在此主机上启动其服务器。请重新连接。",
+          "olderTerminalsUncounted": "由旧版本 Orca 启动的终端仍在此主机上运行，且不会自行停止。请在该版本的 Orca 中关闭它们，或在主机上结束它们，然后重新连接。",
+          "olderTerminalsUnverifiable": "Orca 无法确认由旧版本 Orca 启动的终端是否已退出。请重新连接后重试。",
+          "olderTerminals_one": "由旧版本 Orca 启动的 {{count}} 个终端仍在此主机上运行，且不会自行停止。请在该版本的 Orca 中关闭它们，或在主机上结束它们，然后重新连接。",
+          "olderTerminals_other": "由旧版本 Orca 启动的 {{count}} 个终端仍在此主机上运行，且不会自行停止。请在该版本的 Orca 中关闭它们，或在主机上结束它们，然后重新连接。",
+          "olderTerminals": "由旧版本 Orca 启动的 {{count}} 个终端仍在此主机上运行，且不会自行停止。请在该版本的 Orca 中关闭它们，或在主机上结束它们，然后重新连接。"
         },
         "deltaMove": {
           "action": "迁移新项目…",
@@ -13659,7 +13632,8 @@
             "resumeInChatTranscriptMissing": "无法加载此对话的历史记录，因此无法在聊天中恢复。",
             "resumeInChatFailed": "无法在新聊天中恢复此会话。",
             "resumeInNewCliUnavailable": "无法在 CLI 中打开此会话。",
-            "resumeInNewCliHostTooOld": "请更新运行此聊天的主机上的 Orca，才能在新的 CLI 中恢复它。"
+            "resumeInNewCliHostTooOld": "请更新运行此聊天的主机上的 Orca，才能在新的 CLI 中恢复它。",
+            "folderWorkspaceUnavailable": "文件夹工作区不再可用。"
           },
           "AiVaultPanelControls": {
             "scanningSessions": "正在扫描会话",
@@ -13761,7 +13735,9 @@
             "copied": "已复制",
             "copy": "复制",
             "noFirstPromptAvailable": "没有可用的首次提示",
-            "loadingFirstPrompt": "正在加载首次提示…"
+            "loadingFirstPrompt": "正在加载首次提示…",
+            "folder": "文件夹",
+            "resumeInFolder": "在文件夹中恢复"
           },
           "AiVaultSessionRow": {
             "resumeAgentSession": "恢复 {{value0}} 会话",
@@ -13857,7 +13833,12 @@
             "noRecordedWorktree": "此会话没有记录工作树。",
             "archivedJumpUnavailable": "此会话位于已归档的工作树中。",
             "noActiveWorktreeMatch": "没有与此会话匹配的活动工作树。",
-            "noActiveWorktreeTarget": "没有可用的活动工作树。"
+            "noActiveWorktreeTarget": "没有可用的活动工作树。",
+            "activeFolder": "文件夹",
+            "archivedFolder": "已归档的文件夹",
+            "archivedFolderJumpUnavailable": "此会话位于已归档的文件夹中。",
+            "currentFolder": "当前文件夹",
+            "jumpToFolder": "跳转到文件夹"
           },
           "AiVaultSessionSubagents": {
             "subagentsCount": "子智能体（{{value0}}）",
@@ -17738,28 +17719,6 @@
         "connecting": "正在连接…",
         "reconnect": "重新连接",
         "retry": "重试"
-      },
-      "managedServerMove": {
-        "offer": "将 {{host}} 迁移到受管的 Orca 服务器以获得更可靠的连接。其 {{count}} 个打开的终端将重新启动。",
-        "offer_one": "将 {{host}} 迁移到受管的 Orca 服务器以获得更可靠的连接。其 {{count}} 个打开的终端将重新启动。",
-        "offer_other": "将 {{host}} 迁移到受管的 Orca 服务器以获得更可靠的连接。其 {{count}} 个打开的终端将重新启动。",
-        "moved": "{{host}} 现在运行受管的 Orca 服务器。",
-        "refusedLive": "未迁移：{{host}} 上的 {{count}} 个终端仍在运行。",
-        "refusedLive_one": "未迁移：{{host}} 上的 {{count}} 个终端仍在运行。",
-        "refusedLive_other": "未迁移：{{host}} 上的 {{count}} 个终端仍在运行。",
-        "refusedUnverifiable": "未迁移：Orca 无法确认 {{host}} 上的 {{count}} 个终端已停止。",
-        "refusedUnverifiable_one": "未迁移：Orca 无法确认 {{host}} 上的 {{count}} 个终端已停止。",
-        "refusedUnverifiable_other": "未迁移：Orca 无法确认 {{host}} 上的 {{count}} 个终端已停止。",
-        "stayed": "{{host}} 仍在运行中继。设置中的“SSH 主机”会显示原因。",
-        "failed": "无法迁移 {{host}}：{{reason}}",
-        "running": "正在将 {{host}} 迁移到受管的 Orca 服务器…",
-        "title": "迁移到受管服务器",
-        "confirm": "迁移",
-        "notNow": "暂不",
-        "close": "关闭",
-        "offerUncounted": "将 {{host}} 迁移到受管的 Orca 服务器以获得更可靠的连接。其打开的终端将重新启动。",
-        "refusedUnverifiableUncounted": "未迁移：Orca 无法确认 {{host}} 上的终端已停止。",
-        "retry": "重试"
       }
     },
     "main": {
@@ -17871,8 +17830,7 @@
         "agentNotSignedIn": "请登录 {{agent}}。",
         "thenSendAgain": "然后再次发送消息。",
         "runCommandWhenDone": "完成后再运行 /{{command}}。",
-        "commandAfterAnswer": "请先回答智能体的问题或审批，然后再运行 /{{command}}。",
-        "sessionNotRestored": "{{agent}} 无法重新打开之前的会话，因此此聊天将在新会话中继续。{{agent}} 不记得之前的消息。"
+        "commandAfterAnswer": "请先回答智能体的问题或审批，然后再运行 /{{command}}。"
       },
       "writeNotice": {
         "notDoneReadHistory": "无法加载此聊天的历史记录。",
@@ -17974,7 +17932,6 @@
         "imagePasteFailed": "图片粘贴失败。",
         "worktreeNotReady": "工作树未就绪 — 请稍后重试。",
         "pasteUnavailable": "无法粘贴 — 此聊天当前不接受输入。",
-        "uploadingAttachments": "正在将 {{value0}} 个文件上传到远端…",
         "model": "模型",
         "effort": "推理强度",
         "fastMode": "快速模式",
@@ -18254,7 +18211,8 @@
         "orcaStopQuit": "此回复进行期间，{{machine}} 上的 Orca 已关闭。",
         "orcaStopCrash": "此回复进行期间，{{machine}} 上的 Orca 意外停止。",
         "orcaStopRemote": "此回复进行期间，{{machine}} 上的 Orca 已停止。",
-        "orcaStopCanContinue": "你可以在此对话中继续。"
+        "orcaStopCanContinue": "你可以在此对话中继续。",
+        "orcaStopUnnamedServer": "远程服务器"
       },
       "providerFrame": {
         "byteLength": "{{value0}} 字节"

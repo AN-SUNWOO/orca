@@ -69,6 +69,36 @@ describe('RateLimitService', () => {
     resetRateLimitProviderMocks()
   })
 
+  it.each([
+    [
+      'account-change refresh',
+      (service: RateLimitService) => service.refreshForCodexAccountChange(null, { runtime: 'host' })
+    ],
+    [
+      'target refresh',
+      (service: RateLimitService) => service.refreshCodexForTarget({ runtime: 'host' })
+    ]
+  ])('passes execution-host proxy settings through %s', async (_label, refresh) => {
+    const service = new RateLimitService()
+    const networkProxySettings = { httpProxyUrl: 'http://proxy.fixture.invalid:8080' }
+    service.setCodexHomePathResolver(() => ({
+      kind: 'ready',
+      codexHomePath: '/managed/synthetic-home'
+    }))
+    service.setNetworkProxySettingsResolver(() => networkProxySettings)
+    vi.mocked(fetchCodexRateLimits).mockResolvedValueOnce(okProvider('codex', 20, Date.now()))
+
+    await refresh(service)
+
+    expect(fetchCodexRateLimits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codexHomePath: '/managed/synthetic-home',
+        networkProxySettings,
+        signal: expect.any(AbortSignal)
+      })
+    )
+  })
+
   it('passes the selected WSL Codex home into active account rate-limit fetches', async () => {
     const service = new RateLimitService()
     const wslCodexHome =

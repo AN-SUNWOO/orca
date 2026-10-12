@@ -7,7 +7,7 @@ import { sessionSearchScopeCatalogFromStore } from '../ai-vault-search/session-s
 import { getCanonicalUserDataPath } from '../persistence/loading-store/user-data-path'
 import { app } from 'electron'
 import { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { getLocalPtyProvider, getSshPtyProvider, clearProviderPtyState } from '../ipc/pty'
+import { getLocalPtyProvider, clearProviderPtyState } from '../ipc/pty'
 import { agentHookServer } from '../agent-hooks/server'
 import { browserManager } from '../browser/browser-manager'
 import { loadAgentSessionClaimSigner } from '../runtime/agent-session-claim-identity'
@@ -16,12 +16,12 @@ import { prepareCodexAiVaultSessionResume } from '../codex/codex-ai-vault-sessio
 import { prepareCodexPinnedLaunchHome } from './codex-session-resume-launch'
 import { resolveHostCodexSessionSourceHome } from '../codex/codex-session-source-home'
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
-import { getDaemonProvider } from '../daemon/daemon-init'
+import { getDaemonProvider } from '../daemon/daemon-provider-state'
 import type { TerminalSideEffectBatch } from '../../shared/terminal-side-effect-facts'
 import type { OrchestrationEnvironmentTransport } from '../runtime/orchestration/environment-transport'
 import { resolveEnvironment } from '../../shared/runtime-environment-store'
 import { resolveTuiAgentLaunchEnv } from '../../shared/tui-agent-launch-defaults'
-import { getPreferredPairingOffer } from '../../shared/runtime-environments'
+import { getPreferredPairedRuntimeConnection } from '../../shared/runtime-environments'
 import { fingerprintOrchestrationPeer } from '../runtime/orchestration/environment-transport'
 import { callRuntimeEnvironment } from '../ipc/runtime-environment-transport-routing'
 import { mainProcessState as state } from './main-process-state'
@@ -59,11 +59,11 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
   const orchestrationEnvironmentTransport: OrchestrationEnvironmentTransport = {
     resolve: (selector) => {
       const environment = resolveEnvironment(app.getPath('userData'), selector)
-      const pairing = getPreferredPairingOffer(environment)
+      const connection = getPreferredPairedRuntimeConnection(environment)
       return {
         environmentId: environment.id,
         name: environment.name,
-        peerFingerprint: fingerprintOrchestrationPeer(pairing.publicKeyB64),
+        peerFingerprint: fingerprintOrchestrationPeer(connection.hostPublicKeyB64),
         pairingRevision: environment.pairingRevision ?? environment.createdAt
       }
     },
@@ -89,8 +89,6 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
     ),
     // Why: resolve the PTY provider lazily — a daemon swap happens later, so an eager reference would freeze the pre-daemon provider (design §4.3).
     getLocalProvider: () => getLocalPtyProvider(),
-    // Why: SSH relay providers register after construction and may reconnect, so destructive cleanup must resolve the current generation.
-    getSshProvider: (connectionId) => getSshPtyProvider(connectionId),
     onPtyStopped: clearProviderPtyState,
     onTerminalAgentStatus: (event) => agentHookServer.ingestTerminalStatus(event),
     onClaudeTerminalEvidence: (paneKey, evidence) =>

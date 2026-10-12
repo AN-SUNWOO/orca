@@ -8,7 +8,6 @@ src/cli/handlers/skills.ts
 src/cli/runtime/launch.ts
 src/cli/runtime/serve-update-supervisor.ts
 src/main/agent-hooks/managed-hook-owner-identity.ts
-src/main/agent-hooks/managed-hook-runtime.ts
 src/main/agent-hooks/wsl-hook-relay-launch.ts
 src/main/agent-hooks/wsl-hook-relay-link.ts
 src/main/agent-hooks/wsl-hook-relay-manager.ts
@@ -105,7 +104,6 @@ src/main/runtime/windows-mobile-firewall.ts
 src/main/skills/skill-update-run.ts
 src/main/ssh/ssh-connection.ts
 src/main/ssh/ssh-proxy-command.ts
-src/main/ssh/ssh-remote-cli-host-passthrough.ts
 src/main/ssh/system-ssh-command.ts
 src/main/ssh/system-ssh-dynamic-forward-process.ts
 src/main/ssh/system-ssh-file-transfer.ts
@@ -123,16 +121,6 @@ src/main/wsl-availability.ts
 src/main/wsl-unc-delete.ts
 src/main/wsl.ts
 src/main/zsh-startup-hook-pty-harness.ts
-src/relay/agent-exec-handler.ts
-src/relay/ai-vault-service-client-state.ts
-src/relay/ai-vault-service-client.ts
-src/relay/ai-vault-service-spawn.ts
-src/relay/external-automations-handler.ts
-src/relay/fs-handler-git-fallback.ts
-src/relay/fs-handler-list-files.ts
-src/relay/pty-shell-utils.ts
-src/relay/subprocess-tree-termination.ts
-src/relay/workspace-space-scan.ts
 src/shared/ephemeral-vm-recipe-process.ts
 src/shared/ephemeral-vm-recipe-runner.ts
 src/shared/fish-binary-requirement.ts

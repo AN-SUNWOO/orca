@@ -26,8 +26,7 @@ import {
   recordRemovalSnapshotPruneMock,
   killAllProcessesForWorktreeMock,
   clearProviderPtyStateMock,
-  getLocalPtyProviderMock,
-  getSshPtyProviderMock
+  getLocalPtyProviderMock
 } from './worktrees-test-module-mocks'
 import {
   handlers,
@@ -720,7 +719,8 @@ describe('registerWorktreeHandlers', () => {
   // Folder projects can be SSH-backed, and folder workspace ids are `repoId::path::workspace:<uuid>`
   // — reusable across hosts — so the sweep must name the owning connection.
   it('fences an SSH folder workspace PTY sweep to the owning connection', async () => {
-    const sshPtyProvider = { id: 'ssh-pty-provider' } as never
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: an identity marker; the mocked sweep never calls into it.
+    const localPtyProvider = { id: 'local-pty-provider' } as never
     const worktreeId = 'repo-folder::/remote/folder::workspace:child-1'
     store.getRepo.mockReturnValue({
       id: 'repo-folder',
@@ -731,20 +731,19 @@ describe('registerWorktreeHandlers', () => {
       kind: 'folder',
       connectionId: 'conn-1'
     })
-    getSshPtyProviderMock.mockReturnValue(sshPtyProvider)
+    getLocalPtyProviderMock.mockReturnValue(localPtyProvider)
     // One global meta key can describe the same-id local copy; the resolved repo still owns this delete.
     store.getWorktreeMeta.mockReturnValue(makeWorktreeMeta({ hostId: 'local' }))
 
     await handlers['worktrees:remove'](null, { worktreeId })
 
-    expect(getSshPtyProviderMock).toHaveBeenCalledWith('conn-1')
     expect(killAllProcessesForWorktreeMock).toHaveBeenCalledWith(worktreeId, {
       runtime: runtimeStub,
       resolvedWorktreeId: worktreeId,
       resolvedConnectionId: 'conn-1',
-      localProvider: sshPtyProvider,
+      localProvider: localPtyProvider,
       onPtyStopped: clearProviderPtyStateMock,
-      includeProviderInventory: true,
+      includeProviderInventory: false,
       includeLocalRegistry: false,
       closeStructuredSessions: true
     })
@@ -782,7 +781,6 @@ describe('registerWorktreeHandlers', () => {
       includeLocalRegistry: false,
       closeStructuredSessions: true
     })
-    expect(getSshPtyProviderMock).not.toHaveBeenCalled()
   })
   // A scan the host answered is the only evidence that ever retires an off-host WorktreeMeta row,
   // so it must retire that worktree's hook-status rows too, or they stay stranded in last-status.json.

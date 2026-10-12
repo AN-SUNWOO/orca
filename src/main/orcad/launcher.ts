@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { ORCAD_SERVER_ENTRY_FILENAME } from '../../shared/orcad-artifacts'
 import { assertOrcadServerRuntime, handoffToBundledOrcad } from './orcad-bundled-runtime'
+import { ORCAD_EXIT_CONFIGURATION } from './orcad-configuration-exit'
 
 declare const ORCAD_SERVER_SHA256: string
 
@@ -21,7 +22,7 @@ try {
   }
 } catch (error) {
   console.error('orcad: failed to launch:', error)
-  process.exit(78)
+  process.exit(ORCAD_EXIT_CONFIGURATION)
 }
 
 loadServer?.()

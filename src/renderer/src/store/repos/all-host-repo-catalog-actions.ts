@@ -5,7 +5,6 @@ import { applyManualRepoOrder } from '../../../../shared/manual-repo-order'
 import { retainValidFilterRepoIds } from '../slices/repo-filter-selection'
 import { readRuntimeWorktreeVisibilitySnapshot } from '../slices/worktree-visibility-owner-settings'
 import { getRepoHostIdentity } from '../slices/repo-host-identity'
-import { getActiveRuntimeTarget } from '../../runtime/runtime-rpc-client'
 import { filterSetupScriptPromptDismissalsToValidRepos } from '@/lib/setup-script-prompt'
 import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import { isRemovedRuntimeHostId } from '../slices/stale-runtime-host-rows'
@@ -20,6 +19,7 @@ import {
 import {
   claimHostCatalogFence,
   isHostCatalogFenceCurrent,
+  loadRuntimeHostCatalogs,
   type HostCatalogFence
 } from '../host-catalog-fencing'
 import {
@@ -32,7 +32,6 @@ import {
   reconcileSupersededSshRepos
 } from './repo-catalog-merge'
 import { getRuntimeTargetHostId } from '../runtime-target-host'
-import { listRuntimeEnvironmentsForAllHostLoad } from '../runtime-catalog-hosts'
 import { mergeFetchedProjectCompatibilityForHost } from '../projects/project-compatibility-host-merge'
 import { scheduleSafeAutoForkSync } from './safe-auto-fork-sync'
 
@@ -102,7 +101,7 @@ export function createAllHostRepoCatalogActions(
           }
         })
         // Why: keep the safe-auto fork sync (as fetchRepos does) so cold-start, which now routes here, still updates safe-auto forks.
-        scheduleSafeAutoForkSync(get, hostRepos)
+        scheduleSafeAutoForkSync(hostRepos)
         return true
       }
       const validateRepoScopedUi = (): void => {
@@ -145,25 +144,18 @@ export function createAllHostRepoCatalogActions(
         return
       }
 
-      const environments = await listRuntimeEnvironmentsForAllHostLoad()
-      // Why: a superseded load must not claim remote fences, or it would void the newer load's catalogs.
-      if (latestAllHostRepoCatalogGenerationByStore.get(get) !== generation) {
-        return
-      }
       // Why: unreachable remotes can spend the full connect timeout; merge each resolved host via the state updater so parallel loads don't clobber.
-      await Promise.all(
-        environments.map(async (environment) => {
-          const target = {
-            kind: 'environment' as const,
-            environmentId: environment.id
-          }
-          const fence = claimHostCatalogFence(get, 'repos', target)
+      // A superseded load must not claim remote fences, or it would void the newer load's catalogs.
+      await loadRuntimeHostCatalogs(
+        get,
+        'repos',
+        async (target, fence) => {
           const [catalogResult, visibilitySnapshot] = await Promise.all([
             fetchRepoCatalogForTarget(target).then(
               (catalog) => ({ ok: true as const, catalog }),
               (error: unknown) => ({ ok: false as const, error })
             ),
-            readRuntimeWorktreeVisibilitySnapshot(environment.id)
+            readRuntimeWorktreeVisibilitySnapshot(target.environmentId)
           ])
           const visibilityDefaults = visibilitySnapshot.defaults
           const hostId = getRuntimeTargetHostId(target)
@@ -176,11 +168,11 @@ export function createAllHostRepoCatalogActions(
                       ...state.worktreeVisibilityDefaultsByHost,
                       [hostId]: visibilityDefaults
                     },
-                    ...(getActiveRuntimeTarget(state.settings).kind === 'environment' &&
-                    state.settings?.activeRuntimeEnvironmentId === environment.id
+                    // Why: the settings page mirrors only the default host's source-defaults support.
+                    ...(state.settings?.activeRuntimeEnvironmentId === target.environmentId
                       ? {
                           worktreeVisibilitySourceDefaultsSupportedRuntimeEnvironmentId:
-                            visibilitySnapshot.sourceDefaultsSupported ? environment.id : null
+                            visibilitySnapshot.sourceDefaultsSupported ? target.environmentId : null
                         }
                       : {})
                   }
@@ -193,11 +185,12 @@ export function createAllHostRepoCatalogActions(
           } else {
             failed = true
             console.warn(
-              `Skipped repos for runtime environment ${environment.id}:`,
+              `Skipped repos for runtime environment ${target.environmentId}:`,
               catalogResult.error
             )
           }
-        })
+        },
+        () => latestAllHostRepoCatalogGenerationByStore.get(get) === generation
       )
       // Why: validate repo-scoped UI only after every host answers; first-paint loads only local repos, so an offline runtime would erase its saved filters.
       if (!failed && get().reposFetchGeneration === generation) {

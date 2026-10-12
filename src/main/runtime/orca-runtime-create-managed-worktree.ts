@@ -6,6 +6,7 @@ import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
 import { isFolderRepo } from '../../shared/repo-kind'
 import { resolveWorktreeCreateRoute } from '../worktree-create-execution-host-route'
 import { ExecutionHostNotDispatchableError } from '../providers/execution-host-provider-dispatch'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import { createRuntimeFolderWorktree } from './runtime-folder-worktree-create'
 import { createRuntimeLocalManagedWorktree } from './runtime-local-worktree-create'
 import type { PreparationRearmHolder } from '../worktree-create-preparation'
@@ -124,42 +125,9 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
     }
     const timing = events.begin(repo.path)
     if (createRoute.kind === 'ssh') {
-      // `createRoute.repo` carries the resolved connection in `connectionId`, because the
-      // remote-create pipeline still reads `repo.connectionId!` at every depth. See the workaround
-      // note in worktree-create-execution-host-route.ts.
-      const result = await this.createManagedRemoteWorktree(createRoute.repo, {
-        ...args,
-        activate: args.activate,
-        ...(effectiveStartup ? { startup: effectiveStartup } : {}),
-        ...(effectiveStartupFollowup ? { startupFollowup: effectiveStartupFollowup } : {}),
-        ...(effectiveCreatedWithAgent ? { createdWithAgent: effectiveCreatedWithAgent } : {}),
-        ...(effectiveDraftPaste ? { startupDraftPaste: effectiveDraftPaste } : {}),
-        timing
-      })
-      const recordedLineage = this.recordCreatedWorktreeLineage(result.worktree, lineageResolution)
-      this.emitWorktreeLifecycle({
-        kind: 'created',
-        worktreeId: result.worktree.id,
-        path: result.worktree.path,
-        branch: result.worktree.branch
-      })
-      return {
-        ...result,
-        worktree: {
-          ...result.worktree,
-          parentWorktreeId: recordedLineage.lineage?.parentWorktreeId ?? null,
-          childWorktreeIds: result.worktree.childWorktreeIds ?? [],
-          lineage: recordedLineage.lineage,
-          workspaceLineage: recordedLineage.workspaceLineage
-        },
-        ...(lineageInput
-          ? {
-              lineage: recordedLineage.lineage,
-              workspaceLineage: recordedLineage.workspaceLineage,
-              warnings: recordedLineage.warnings
-            }
-          : {})
-      }
+      // Tagged before the refusal so the failed-create event keeps naming its host.
+      timing.recordExecutionHost('ssh')
+      throw new SshHostNotServedError(createRoute.connectionId)
     }
     const localCreate = await createRuntimeLocalManagedWorktree({
       request: args,

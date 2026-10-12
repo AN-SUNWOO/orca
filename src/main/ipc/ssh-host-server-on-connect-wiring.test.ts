@@ -104,7 +104,7 @@ describe('connect-time server decision against the real profile', () => {
     expect(deps.recordedUnavailable(target())).toBeNull()
   })
 
-  it('keeps the relay while a saved relay terminal is unproven, without converting', async () => {
+  it('refuses while a saved relay terminal is unproven, without converting', async () => {
     store.addRepo({
       id: 'repo-1',
       path: '/srv/app',
@@ -114,10 +114,13 @@ describe('connect-time server decision against the real profile', () => {
       kind: 'git',
       connectionId: TARGET.id
     })
-    store.upsertSshRemotePtyLease({ targetId: TARGET.id, ptyId: 'pty-1', state: 'expired' })
+    // Saved by a relay-era build; this build only reads it.
+    vi.spyOn(store, 'getSshRemotePtyLeases').mockReturnValue([
+      { targetId: TARGET.id, ptyId: 'pty-1', state: 'expired', createdAt: 1, updatedAt: 1 }
+    ])
     await expect(
       resolveHostServerOnConnect(target(), hostServerOnConnectDeps(userDataPath))
-    ).resolves.toEqual({ route: 'relay', reason: 'relay_terminals_unverifiable', terminals: 1 })
+    ).resolves.toEqual({ route: 'relay', reason: 'relay_terminals_unverifiable', terminals: 0 })
     expect(mocks.convert).not.toHaveBeenCalled()
   })
 

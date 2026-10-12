@@ -27,6 +27,7 @@ import {
   ExecutionHostNotDispatchableError,
   resolveGitRouteForHost
 } from '../providers/execution-host-provider-dispatch'
+import { getSshGitProvider } from '../providers/ssh-git-dispatch'
 import type { SshGitProvider } from '../providers/ssh-git-provider'
 
 export type WorkspaceCleanupGitRoute =
@@ -57,7 +58,7 @@ export function resolveWorkspaceCleanupRepoGitRoute(
         kind: 'ssh',
         hostId: route.hostId,
         connectionId: route.connectionId,
-        provider: route.provider
+        provider: getSshGitProvider(route.connectionId) ?? null
       }
     case 'runtime':
       throw new ExecutionHostNotDispatchableError(route.hostId)

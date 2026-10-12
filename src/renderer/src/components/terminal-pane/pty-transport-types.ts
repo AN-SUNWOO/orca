@@ -1,3 +1,7 @@
+import type {
+  RestoreSpawnIntent,
+  SpawnDeferralReason
+} from '../../../../shared/host-spawn-admission'
 import type { ParsedAgentStatusPayload } from '../../../../shared/agent-status-types'
 import type {
   AgentProviderSessionMetadata,
@@ -138,6 +142,8 @@ type PtyCallbacks = {
   onWriteUnavailable?: () => void
   onRecoveryStateChange?: (state: PtyTransportRecoveryState) => void
   onOutputPauseChanged?: (paused: boolean, supported: boolean) => void
+  /** The host kept this restore asleep; no process started and the resume handle is intact. */
+  onSpawnDeferred?: (reason: SpawnDeferralReason) => void
 }
 
 export type PtyTransportRecoveryState = {
@@ -166,6 +172,8 @@ export type PtyTransport = {
      *  first byte and the gate + model responder own spawn-time queries.
      *  Ignored by remote-runtime transports (not gate-markable). */
     initiallyHidden?: boolean
+    /** Sent only when this connect resumes an agent, and only to hosts that accept it. */
+    resumeSpawnIntent?: RestoreSpawnIntent
     command?: string
     commandDelivery?: 'renderer' | 'provider'
     env?: Record<string, string>
@@ -178,8 +186,6 @@ export type PtyTransport = {
     /** Taken only as the spawn request is sent; main stops the returned PTY before resolving the
      *  pane's owner. Never taken on a session reattach, so the caller still holds it. */
     claimReplacedPtyId?: () => string | null
-    /** Reject a stale restored identity before this transport can publish global PTY handlers. */
-    admitPtyId?: (ptyId: string) => boolean
     /** Reject a stale pane after any pre-spawn test gate but before creating a PTY. */
     shouldContinue?: () => boolean
     callbacks: PtyCallbacks

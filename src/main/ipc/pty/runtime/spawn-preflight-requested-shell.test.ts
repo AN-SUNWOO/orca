@@ -80,14 +80,30 @@ function makeDeps(): PtyRuntimeControllerDeps {
 }
 
 /** Runs the preflight and option build the way `spawnPtyFromRuntimeController` sequences them. */
-async function resolveSpawnShell(shellOverride: string | undefined): Promise<string | undefined> {
-  const args: RuntimePtySpawnArgs = { cols: 120, rows: 40, shellOverride }
+async function resolveSpawnOptions(
+  args: RuntimePtySpawnArgs
+): Promise<ReturnType<typeof createRuntimePtySpawnState>['spawnOptions']> {
   const ctx = createRuntimePtySpawnState(makeDeps(), args)
   await prepareRuntimePtySpawn(ctx)
   await buildRuntimePtySpawnOptions(ctx)
   ctx.finishTerminalInstall()
-  return ctx.spawnOptions.shellOverride
+  return ctx.spawnOptions
 }
+
+async function resolveSpawnShell(shellOverride: string | undefined): Promise<string | undefined> {
+  return (await resolveSpawnOptions({ cols: 120, rows: 40, shellOverride })).shellOverride
+}
+
+describe('runtime pty spawn options: declared spawn intent', () => {
+  it("hands a paired client's intent to the provider and omits it when undeclared", async () => {
+    await expect(
+      resolveSpawnOptions({ cols: 120, rows: 40, spawnIntent: 'automatic-restore' })
+    ).resolves.toMatchObject({ spawnIntent: 'automatic-restore' })
+    await expect(resolveSpawnOptions({ cols: 120, rows: 40 })).resolves.not.toHaveProperty(
+      'spawnIntent'
+    )
+  })
+})
 
 /**
  * Behavioural twin of `pty-spawn-shell-override-parity.test.ts`: a local Windows runtime spawn

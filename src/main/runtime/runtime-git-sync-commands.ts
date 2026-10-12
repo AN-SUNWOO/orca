@@ -1,16 +1,11 @@
 import type { GitForkSyncExpectedUpstream, GitForkSyncResult } from '../../shared/git-fork-sync'
 import type { GitUpstreamStatus } from '../../shared/git-status-types'
 import type { GitPushTarget } from '../../shared/worktree/types'
-import {
-  materializeWorktreePushTargetRemote,
-  materializeWorktreePushTargetRemoteSsh
-} from '../ipc/worktree-remote'
+import { materializeWorktreePushTargetRemote } from '../ipc/worktree-remote'
 import type { LocalGitProvider } from '../providers/local-git-provider'
 import {
   localGitOptionsForTarget,
   requireRuntimeGitProvider,
-  requireSshRuntimeGitProvider,
-  runtimeGitRouteForTarget,
   type RuntimeGitCommandHost,
   type RuntimeGitTarget
 } from './runtime-git-command-target'
@@ -30,31 +25,16 @@ export class RuntimeGitSyncCommands {
     target: RuntimeGitTarget,
     pushTarget: GitPushTarget | undefined
   ): Promise<{ provider: LocalGitProvider; pushTarget: GitPushTarget | undefined }> {
-    const route = runtimeGitRouteForTarget(target)
-    let provider: LocalGitProvider
-    let materialized: GitPushTarget | undefined
-    if (route.kind === 'ssh') {
-      const sshProvider = requireSshRuntimeGitProvider(route)
-      provider = sshProvider
-      materialized = pushTarget
-        ? await materializeWorktreePushTargetRemoteSsh(
-            sshProvider,
-            target.worktree.path,
-            pushTarget
-          )
-        : undefined
-    } else {
-      provider = requireRuntimeGitProvider(target, route)
-      materialized = pushTarget
-        ? await materializeWorktreePushTargetRemote(
-            target.worktree.path,
-            pushTarget,
-            undefined,
-            target.repo?.id,
-            localGitOptionsForTarget(target)
-          )
-        : undefined
-    }
+    const provider = requireRuntimeGitProvider(target)
+    const materialized = pushTarget
+      ? await materializeWorktreePushTargetRemote(
+          target.worktree.path,
+          pushTarget,
+          undefined,
+          target.repo?.id,
+          localGitOptionsForTarget(target)
+        )
+      : undefined
     if (materialized?.remoteCreated) {
       this.host.persistMaterializedPushTarget?.(target.worktree.id, materialized)
     }

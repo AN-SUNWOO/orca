@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CodexRateLimitAccountsState } from '../../../../shared/managed-account-types'
 import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
 import { useAppStore } from '../../store'
-import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { defaultScopeHost } from '@/lib/default-creation-host'
 import {
   fetchProviderAccountsSnapshot,
   selectCodexProviderAccount
@@ -68,7 +68,8 @@ export function useCodexSwitcherController(codex: ProviderRateLimits) {
   const settings = useAppStore((s) => s.settings)
   const runtimeEnvironments = useAppStore((s) => s.runtimeEnvironments)
   const hasActiveRuntimeEnvironment = Boolean(settings?.activeRuntimeEnvironmentId?.trim())
-  const runtimeTarget = useMemo(() => getActiveRuntimeTarget(settings), [settings])
+  // Why: the status bar has no host picker; it shows the default scope host's accounts.
+  const runtimeTarget = useMemo(() => defaultScopeHost(settings), [settings])
   const providerAccountHostLabel = hasActiveRuntimeEnvironment
     ? (runtimeEnvironments.find(
         (environment) => environment.id === settings?.activeRuntimeEnvironmentId?.trim()
@@ -87,7 +88,11 @@ export function useCodexSwitcherController(codex: ProviderRateLimits) {
   const activeRuntimeEnvironmentId = settings?.activeRuntimeEnvironmentId?.trim() || null
   // Why: keyed on owner id, not settings identity, so routine settings mutations don't re-run the remote snapshot fetch.
   const loadAccounts = useCallback(async () => {
-    const snapshot = await fetchProviderAccountsSnapshot({ activeRuntimeEnvironmentId })
+    const snapshot = await fetchProviderAccountsSnapshot(
+      activeRuntimeEnvironmentId
+        ? { kind: 'environment', environmentId: activeRuntimeEnvironmentId }
+        : { kind: 'local' }
+    )
     // Why: a failed Codex half is a substituted empty roster; keep prior state.
     if (snapshot.failedProviders?.includes('codex')) {
       console.error('Codex account list failed; keeping previous status bar state.')
@@ -127,7 +132,7 @@ export function useCodexSwitcherController(codex: ProviderRateLimits) {
     const previousActiveAccountId = getCodexStatusActiveId(accountState, target)
     setIsSwitching(true)
     try {
-      const next = await selectCodexProviderAccount(settings, {
+      const next = await selectCodexProviderAccount(runtimeTarget, {
         accountId,
         runtime: target.runtime,
         wslDistro: target.wslDistro
@@ -157,6 +162,7 @@ export function useCodexSwitcherController(codex: ProviderRateLimits) {
           nextAccountId: nextActiveAccountId ?? null,
           // Why: the mutation wrote this row's slot only, so panes on any other
           // lane still launch under the account they already had.
+          owner: runtimeTarget,
           target,
           // Why: clearing a distro-less WSL row nulls every distro slot at once.
           clearsEveryWslDistro: accountId === null

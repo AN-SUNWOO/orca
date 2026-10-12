@@ -20,15 +20,13 @@ import {
   type WorkspaceAgentDetectionStore
 } from './workspace-agent-detection'
 
-const { detectInstalledMock, detectRemoteMock, refreshMock } = vi.hoisted(() => ({
+const { detectInstalledMock, refreshMock } = vi.hoisted(() => ({
   detectInstalledMock: vi.fn(),
-  detectRemoteMock: vi.fn(),
   refreshMock: vi.fn()
 }))
 
 vi.mock('./agent-detection', () => ({
   detectInstalledAgentsWithShellPathHydration: detectInstalledMock,
-  detectRemoteAgents: detectRemoteMock,
   refreshShellPathAndDetectAgents: refreshMock,
   detectRemoteWindowsTerminalCapabilities: vi.fn(),
   runPreflightCheck: vi.fn()

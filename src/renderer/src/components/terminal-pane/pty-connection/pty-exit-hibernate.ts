@@ -291,8 +291,7 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
       return
     }
     session.manager.setPaneGpuRendering(session.pane.id, true)
-    const failedLocalProcess =
-      !session.connectionId && session.runtimeEnvironmentId === null && exitCode !== 0
+    const failedLocalProcess = session.runtimeEnvironmentId === null && exitCode !== 0
     if (failedLocalProcess && session.deps.onPaneProcessDied) {
       const gitBashConsoleCapacityFailure = processExitState.detector.detected()
       session.deps.onPaneProcessDied({

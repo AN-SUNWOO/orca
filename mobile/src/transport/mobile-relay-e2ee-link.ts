@@ -6,6 +6,7 @@ import {
   relayHostCloseReasonFrom,
   type RelayHostCloseReason
 } from '../../../src/shared/relay-host-close-reason'
+import { latchHostToE2EEV2 } from './e2ee-v2-host-latch'
 import { MobileE2EEV2ClientSession } from './mobile-e2ee-v2-client-session'
 import { MobileE2EEV2PhysicalChannel } from './mobile-e2ee-v2-physical-channel'
 import { websocketPayloadToUint8 } from './websocket-payload-bytes'
@@ -71,7 +72,10 @@ export class MobileRelayE2eeLink {
       socket: this.socket,
       deviceToken: options.deviceToken,
       decodeBinary: websocketPayloadToUint8,
-      onAuthenticated: options.onAuthenticated,
+      onAuthenticated: () => {
+        latchHostToE2EEV2(options.desktopPublicKeyB64)
+        options.onAuthenticated()
+      },
       onText: options.onText,
       onBinary: options.onBinary,
       onError: (error) => this.fail(error)

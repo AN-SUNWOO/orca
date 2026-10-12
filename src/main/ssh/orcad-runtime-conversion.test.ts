@@ -13,7 +13,6 @@ import type { SshTarget } from '../../shared/ssh-types'
 import { closeTestStores, createSqliteTestStore } from '../persistence-test-harness'
 import { Store } from '../persistence/loading-store/store'
 import { listOrcadMigrationSourceCutovers } from './orcad-migration-cutover-journal'
-import type { ListRelayPtyIds } from './orcad-migration-terminal-gate'
 import type { OrcadManagedConversionArgs } from './orcad-runtime-conversion'
 import { fakeOrcadMigrationDestination } from './orcad-migration-destination-fake'
 import { reconcileManagedOrcadSshTargets, visibleRepos } from './orcad-retained-source'
@@ -103,11 +102,7 @@ afterEach(async () => {
 })
 
 const releaseDirectSession = vi.fn(async () => {})
-// Every relay, this build's and earlier ones, answers that nothing runs.
-const everyRelayEmpty = (): ListRelayPtyIds =>
-  Object.assign(async () => [], { previous: async () => [] })
 const convert = (
-  listRelayPtyIds: ListRelayPtyIds | null = everyRelayEmpty(),
   // The account-wide census found no relay with work unless a test says otherwise.
   censusHost: OrcadManagedConversionArgs['censusHost'] = async () => ({
     verdict: 'exited',
@@ -117,7 +112,6 @@ const convert = (
   convertSshTargetToManagedOrcad(userDataPath, {
     sshTargetId: TARGET.id,
     name: 'Managed',
-    listRelayPtyIds,
     censusHost,
     destinationFor: () => destination,
     releaseDirectSession,
@@ -154,8 +148,12 @@ describe('converting an SSH host into a managed server', () => {
   })
 
   it('refuses before touching the host while terminals run or cannot be counted', async () => {
-    store.upsertSshRemotePtyLease({ targetId: TARGET.id, ptyId: 'p', state: 'expired' })
-    await expect(convert(null)).resolves.toMatchObject({
+    // Saved by a relay-era build; this build only reads it.
+    vi.spyOn(store, 'getSshRemotePtyLeases').mockReturnValue([
+      { targetId: TARGET.id, ptyId: 'p', state: 'expired', createdAt: 1, updatedAt: 1 }
+    ])
+    const uncounted = async () => ({ verdict: 'unverifiable' as const, count: 0 })
+    await expect(convert(uncounted)).resolves.toMatchObject({
       outcome: 'refused',
       verdict: 'unverifiable'
     })
@@ -164,20 +162,21 @@ describe('converting an SSH host into a managed server', () => {
     expect(listOrcadMigrationSourceCutovers(userDataPath)).toEqual([])
   })
 
-  // No relay session and no lease: only a host census may prove nothing runs, never the silence.
-  it('converts with no relay session only on a host census that proves its relays idle', async () => {
-    await expect(convert(null, null)).resolves.toMatchObject({
+  // No lease: only a host census may prove nothing runs, never the silence.
+  it('converts only on a host census that proves its relays idle', async () => {
+    await expect(convert(null)).resolves.toMatchObject({
       outcome: 'refused',
       verdict: 'unverifiable'
     })
-    await expect(convert(null, async () => ({ verdict: 'live', count: 1 }))).resolves.toMatchObject(
-      { outcome: 'refused', verdict: 'live' }
-    )
+    await expect(convert(async () => ({ verdict: 'live', count: 1 }))).resolves.toMatchObject({
+      outcome: 'refused',
+      verdict: 'live'
+    })
     expect(store.getSshTarget(TARGET.id)?.orcadFence).toBeUndefined()
 
-    await expect(
-      convert(null, async () => ({ verdict: 'exited', count: 0 }))
-    ).resolves.toMatchObject({ outcome: 'converted' })
+    await expect(convert(async () => ({ verdict: 'exited', count: 0 }))).resolves.toMatchObject({
+      outcome: 'converted'
+    })
   })
 
   it('keeps the fence across a deferred deploy and resumes the same migration', async () => {
@@ -190,7 +189,7 @@ describe('converting an SSH host into a managed server', () => {
     await expect(convert()).resolves.toMatchObject({ outcome: 'deferred' })
     const [fenced] = listOrcadMigrationSourceCutovers(userDataPath)
     expect(fenced?.phase).toBe('source-fenced')
-    await expect(convert(null)).resolves.toMatchObject({
+    await expect(convert()).resolves.toMatchObject({
       outcome: 'converted',
       migrationId: fenced?.migrationId
     })
@@ -216,7 +215,7 @@ describe('converting an SSH host into a managed server', () => {
     await expect(convert()).rejects.toThrow('socket closed')
     expect(listOrcadMigrationSourceCutovers(userDataPath)[0]?.phase).toBe('destination-staged')
     reachable = true
-    await expect(convert(null)).resolves.toMatchObject({ outcome: 'converted' })
+    await expect(convert()).resolves.toMatchObject({ outcome: 'converted' })
     expect(destination.commits).toBe(1)
     expect(listOrcadMigrationSourceCutovers(userDataPath)[0]?.sourceRetainedAt).toBeDefined()
     expect(store.getRepos().map((repo) => repo.id)).toEqual(['repo-1'])

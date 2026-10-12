@@ -15,19 +15,6 @@ import {
 import { sshConnectionStatesEqual } from './ssh-connection-state-equality'
 import { createBoundedGenerationMap } from '../../lib/bounded-generation-map'
 
-export type RemoteWorkspaceSyncStatus = {
-  phase: 'idle' | 'pulling' | 'pushing' | 'synced' | 'conflict' | 'error' | 'offline'
-  direction?: 'pull' | 'push'
-  revision?: number
-  updatedAt?: number
-  hostObservationToken?: string
-  lastSyncedAt?: number
-  message?: string
-  /** Set only by an applied pull that ends in `conflict`: the host paths whose tabs this client
-   *  could not place. Every other worktree on the target holds the host's rows from that snapshot. */
-  unplacedTabWorktreePaths?: readonly string[]
-}
-
 export type SshCredentialRequest = {
   requestId: string
   targetId: string
@@ -62,8 +49,6 @@ export type SshSlice = {
    * client on a host without the ssh RPC), so absence from sshTargetLabels
    * only counts as removal evidence when this is set. */
   sshTargetsHydrated: boolean
-  remoteWorkspaceHydratedTargetIds: Set<string>
-  remoteWorkspaceSyncStatusByTargetId: Record<string, RemoteWorkspaceSyncStatus>
   sshCredentialQueue: SshCredentialRequest[]
   /** Incremented when an SSH target transitions to 'connected'. Allows
    * components like the file explorer to re-trigger data loads that failed
@@ -82,9 +67,6 @@ export type SshSlice = {
   setRemovedSshTargetLabels: (labels: Record<string, string>) => void
   setSshTargetsMetadata: (targets: SshTargetSummary[]) => void
   clearRemovedSshTargetState: (targetId: string) => void
-  markRemoteWorkspaceHydrated: (targetId: string) => void
-  clearRemoteWorkspaceHydrated: (targetId: string) => void
-  setRemoteWorkspaceSyncStatus: (targetId: string, status: RemoteWorkspaceSyncStatus) => void
   enqueueSshCredentialRequest: (req: SshCredentialRequest) => void
   removeSshCredentialRequest: (requestId: string) => void
   setPortForwards: (targetId: string, forwards: PortForwardEntry[]) => void
@@ -104,8 +86,6 @@ export const createSshSlice: StateCreator<AppState, [], [], SshSlice> = (set) =>
   sshTargetGenerations: new Map(),
   removedSshTargetLabels: new Map(),
   sshTargetsHydrated: false,
-  remoteWorkspaceHydratedTargetIds: new Set(),
-  remoteWorkspaceSyncStatusByTargetId: {},
   sshCredentialQueue: [],
   sshConnectedGeneration: 0,
   portForwardsByConnection: {},
@@ -159,25 +139,6 @@ export const createSshSlice: StateCreator<AppState, [], [], SshSlice> = (set) =>
     }),
   clearRemovedSshTargetState: (targetId) =>
     set((s) => buildRemovedSshTargetCleanupPatch(s, targetId) ?? s),
-  markRemoteWorkspaceHydrated: (targetId) =>
-    set((s) => {
-      const next = new Set(s.remoteWorkspaceHydratedTargetIds)
-      next.add(targetId)
-      return { remoteWorkspaceHydratedTargetIds: next }
-    }),
-  clearRemoteWorkspaceHydrated: (targetId) =>
-    set((s) => {
-      const next = new Set(s.remoteWorkspaceHydratedTargetIds)
-      next.delete(targetId)
-      return { remoteWorkspaceHydratedTargetIds: next }
-    }),
-  setRemoteWorkspaceSyncStatus: (targetId, status) =>
-    set((s) => ({
-      remoteWorkspaceSyncStatusByTargetId: {
-        ...s.remoteWorkspaceSyncStatusByTargetId,
-        [targetId]: status
-      }
-    })),
   enqueueSshCredentialRequest: (req) =>
     set((s) => ({ sshCredentialQueue: [...s.sshCredentialQueue, req] })),
   removeSshCredentialRequest: (requestId) =>

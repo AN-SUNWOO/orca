@@ -9,9 +9,10 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CameraView, useCameraPermissions } from 'expo-camera'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, Clipboard as ClipboardIcon, QrCode } from 'lucide-react-native'
 import { decodePairingUrl, parsePairingCode } from '../src/transport/pairing'
+import { PAIR_SCAN_LINK_REFUSED_NOTICE } from '../src/transport/incoming-pairing-link'
 import {
   startPreProfilePairing,
   type PreProfilePairingAttempt
@@ -34,6 +35,18 @@ const PAIRING_OVERALL_TIMEOUT_MS = 25_000
 const SCAN_RETICLE_SCALE = 0.62
 const SCAN_RETICLE_MAX_SIZE = 360
 
+function LinkRefusedNotice({ notice }: { notice: string | undefined }) {
+  if (notice !== PAIR_SCAN_LINK_REFUSED_NOTICE) {
+    return null
+  }
+  return (
+    <Text style={styles.notice}>
+      That orca:// link can’t pair your phone, because any app can open orca:// links. Scan the QR
+      code on your computer instead.
+    </Text>
+  )
+}
+
 function Step({ number, text }: { number: number; text: string }) {
   return (
     <View style={styles.step}>
@@ -49,6 +62,7 @@ export default function PairScanScreen() {
   const router = useRouter()
   const refreshHostClient = useRefreshHostClient()
   const insets = useSafeAreaInsets()
+  const { notice } = useLocalSearchParams<{ notice?: string }>()
   const [permission, requestPermission] = useCameraPermissions()
   const [status, setStatus] = useState<'scanning' | 'connecting' | 'error'>('scanning')
   const [errorMessage, setErrorMessage] = useState('')
@@ -59,6 +73,15 @@ export default function PairScanScreen() {
   const processingRef = useRef(false)
   const mountedRef = useRef(true)
   const activePairingAttemptRef = useRef<PreProfilePairingAttempt | null>(null)
+
+  // Why: a refused link can cold-start the app on this screen, with nothing to go back to.
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace('/')
+    }
+  }, [router])
 
   const setPairScanRootRef = useCallback((node: View | null): void => {
     if (node !== null) {
@@ -218,9 +241,10 @@ export default function PairScanScreen() {
     const canAskAgain = permission.canAskAgain !== false
     return (
       <View ref={setPairScanRootRef} style={[styles.container, containerPadding]}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable style={styles.backButton} onPress={goBack}>
           <ChevronLeft size={22} color={colors.textSecondary} />
         </Pressable>
+        <LinkRefusedNotice notice={notice} />
         <View style={styles.centered}>
           <Text style={styles.title}>
             {canAskAgain ? 'Pair with desktop' : 'Camera Access Disabled'}
@@ -251,7 +275,7 @@ export default function PairScanScreen() {
           visible={pasteVisible}
           title="Paste pairing code"
           message="Copy the code shown under the QR on your computer."
-          placeholder="orca://pair?code=... or paste the code"
+          placeholder="Paste the pairing link or code"
           onSubmit={handlePasteSubmit}
           onCancel={() => setPasteVisible(false)}
         />
@@ -261,10 +285,11 @@ export default function PairScanScreen() {
 
   return (
     <View ref={setPairScanRootRef} style={[styles.container, containerPadding]}>
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
+      <Pressable style={styles.backButton} onPress={goBack}>
         <ChevronLeft size={22} color={colors.textSecondary} />
       </Pressable>
 
+      <LinkRefusedNotice notice={notice} />
       <View style={styles.steps}>
         <Step number={1} text="Open Orca on your computer" />
         <Step number={2} text="Go to Settings → Mobile" />
@@ -349,7 +374,7 @@ export default function PairScanScreen() {
         visible={pasteVisible}
         title="Paste pairing code"
         message="Copy the code shown under the QR on your computer."
-        placeholder="orca://pair?code=... or paste the code"
+        placeholder="Paste the pairing link or code"
         onSubmit={handlePasteSubmit}
         onCancel={() => setPasteVisible(false)}
       />

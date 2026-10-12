@@ -69,9 +69,7 @@ vi.mock('@/lib/sidebar-worktree-activation', () => ({
   activateWorktreeFromSidebar: testDoubles.activateWorktreeFromSidebar
 }))
 
-vi.mock('@/runtime/runtime-rpc-client', () => ({
-  getActiveRuntimeTarget: () => ({ kind: 'local' })
-}))
+vi.mock('@/runtime/runtime-rpc-client', () => ({}))
 
 vi.mock('./use-worktree-activity-status', () => ({
   useWorktreeActivityStatus: () => 'idle'

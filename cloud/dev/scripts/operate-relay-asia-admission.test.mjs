@@ -15,7 +15,7 @@ const digest = `sha256:${'a'.repeat(64)}`
 const membershipDigest = (membership) =>
   createHash('sha256').update(JSON.stringify(membership)).digest('hex')
 
-function harness(initialSelector, runtimeDigests = {}, runtimeRegions = {}) {
+function harness(initialSelector, runtimeDigests = {}, runtimeRegions = {}, runtimeHardCaps = {}) {
   const initialMembership = structuredClone(initialSelector.membership)
   let selector = structuredClone(initialSelector)
   const intents = new Map()
@@ -26,20 +26,21 @@ function harness(initialSelector, runtimeDigests = {}, runtimeRegions = {}) {
     const parsed = new URL(url)
     requests.push({ path: parsed.pathname, body })
     if (parsed.pathname === '/v1/admin/runtime-status') {
-      const cell = parsed.hostname.split('.')[0]
+      const [cell, domain] = parsed.hostname.split(/\.(.*)/)
+      const cellId = `${domain.startsWith('relay-staging.') ? 'staging' : 'production'}-gce-${cell}`
       return {
-        cellId: `production-gce-${cell}`,
+        cellId,
         cellUrl: parsed.origin,
-        region: runtimeRegions[`production-gce-${cell}`] ?? 'asia-east2',
-        imageDigest: runtimeDigests[`production-gce-${cell}`] ?? digest,
+        region: runtimeRegions[cellId] ?? 'asia-east2',
+        imageDigest: runtimeDigests[cellId] ?? digest,
         draining: false,
-        connectionCapacity: { hardCap: 3_000, unobservedBound: 60 }
+        connectionCapacity: { hardCap: runtimeHardCaps[cellId] ?? 3_000, unobservedBound: 60 }
       }
     }
     if (parsed.pathname === '/v1/admin/cell-status') {
       return {
         status: {
-          cellUrl: `https://${body.cellId.split('-').at(-1)}.relay.onorca.dev`,
+          cellUrl: `https://${body.cellId.split('-').at(-1)}.${parsed.hostname}`,
           runtime: { heartbeatFresh: true, ready: true }
         }
       }
@@ -856,4 +857,60 @@ test('runs each later cell\'s own canary with load aimed at that cell\'s region'
   }
   assert.match(admissionWorkflow, /--preferred-region "\$\{CANARY_REGION\}"/)
   assert.match(admissionWorkflow, /CANARY_REGION: \$\{\{ steps\.inputs\.outputs\.canary_region \}\}/)
+})
+
+const stagingDeadCellWave = ['staging-gce-c5', 'staging-gce-c6', 'staging-gce-c7']
+const stagingUsShape = Object.fromEntries(stagingDeadCellWave.map((cellId) => [cellId, 'us-central1']))
+const stagingUsCaps = Object.fromEntries(stagingDeadCellWave.map((cellId) => [cellId, 600]))
+
+test('registers the staging dead-cell wave at its own US shape', async () => {
+  const subject = harness({
+    generation: 43,
+    membership: { existingOnly: ['staging-gce-c3'], migrationOnly: [], general: ['staging-gce-c1', 'staging-gce-c2', 'staging-gce-c4'] }
+  }, {}, stagingUsShape, stagingUsCaps)
+  const result = await operateRelayAsiaAdmission({
+    environment: 'staging', mode: 'register', cells: stagingDeadCellWave,
+    expectedGeneration: 43, imageDigest: digest, attemptId: 'staging_c5_c7_register', token: 'not-logged'
+  }, subject)
+  const request = subject.requests.find(({ path }) => path.endsWith('/add-migration-cells'))
+  assert.deepEqual(request.body.cells.map((cell) => cell.cellUrl), [
+    'https://c5.relay-staging.onorca.dev', 'https://c6.relay-staging.onorca.dev', 'https://c7.relay-staging.onorca.dev'
+  ])
+  assert.ok(request.body.cells.every((cell) =>
+    cell.region === 'us-central1' && cell.capacityRequests === 4_000 &&
+    cell.connectionHardCap === 600 && cell.connectionUnobservedBound === 60
+  ))
+  assert.deepEqual(new Set(Object.values(result.states)), new Set(['migration-only']))
+})
+
+test('promotes the staging dead-cell wave through the general route, not the C4 proof route', async () => {
+  const subject = harness({
+    generation: 44,
+    membership: {
+      existingOnly: ['staging-gce-c3'],
+      migrationOnly: [...stagingDeadCellWave],
+      general: ['staging-gce-c1', 'staging-gce-c2', 'staging-gce-c4']
+    }
+  }, {}, stagingUsShape, stagingUsCaps)
+  const result = await operateRelayAsiaAdmission({
+    environment: 'staging', mode: 'promote', cells: stagingDeadCellWave,
+    expectedGeneration: 44, imageDigest: digest, attemptId: 'staging_c5_c7_promote', token: 'not-logged'
+  }, subject)
+  assert.ok(subject.requests.some(({ path }) => path === '/v1/admin/admission-selector/apply'))
+  assert.ok(!subject.requests.some(({ path }) => path.endsWith('/apply-staging-asia-proof')))
+  assert.deepEqual(new Set(Object.values(result.states)), new Set(['general']))
+  assert.deepEqual(subject.selector().membership.general, [
+    'staging-gce-c1', 'staging-gce-c2', 'staging-gce-c4', ...stagingDeadCellWave
+  ])
+})
+
+test('refuses a staging wave that was not reviewed', () => {
+  assert.throws(() => parseRelayAsiaAdmissionArguments([
+    '--environment', 'staging', '--mode', 'promote', '--cell-ids', 'staging-gce-c4,staging-gce-c5',
+    '--expected-generation', '44', '--attempt-id', 'staging_mixed_wave', '--image-digest', digest
+  ]), /reviewed admission wave/)
+  assert.throws(() => parseRelayAsiaAdmissionArguments([
+    '--environment', 'staging', '--mode', 'register', '--cell-ids', 'staging-gce-c8',
+    '--expected-generation', '44', '--attempt-id', 'staging_unknown', '--image-digest', digest
+  ]), /cell-ids are invalid/)
 })

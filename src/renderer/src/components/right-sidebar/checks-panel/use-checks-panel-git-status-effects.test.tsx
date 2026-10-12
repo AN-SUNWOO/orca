@@ -39,6 +39,7 @@ function Probe({
   worktreePath?: string
 }): null {
   panelContextKeyRef.current = contextKey
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the probe passes only the fields this effect reads.
   useChecksPanelGitStatusEffects({
     activeConnectionId: repoConnectionId,
     activeWorktreeId: worktreeId,
@@ -63,7 +64,7 @@ function Probe({
     linkedPR: null,
     fallbackGitHubPRNumber: null,
     localExecutionScope: 'host',
-    ownerSettings: null,
+    ownerTarget: { kind: 'local' },
     panelContextKey: contextKey,
     panelContextKeyRef,
     remoteStatus: undefined,

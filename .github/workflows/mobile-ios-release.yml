@@ -104,6 +104,8 @@ jobs:
       - name: Expo prebuild
         env:
           ORCA_IOS_APS_ENVIRONMENT: production
+          # Set the repo variable to 1 only after the App ID has Associated Domains enabled.
+          ORCA_IOS_ASSOCIATED_DOMAINS: ${{ vars.ORCA_IOS_ASSOCIATED_DOMAINS }}
         run: npx expo prebuild --platform ios --no-install
 
       - name: Install CocoaPods

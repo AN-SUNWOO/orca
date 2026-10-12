@@ -121,8 +121,6 @@ export const runtimeFileWatcherLeasesByOwnerAndRoot = new Map<
   Set<RuntimeFileWatcherLease>
 >()
 
-export const sshFileExplorerWatchRearms = new Map<string, Set<() => void>>()
-
 export const MOBILE_BINARY_EXTENSIONS = new Set([
   '.avif',
   '.bmp',
@@ -164,8 +162,7 @@ export type TerminalFileGrant = {
   id: string
   worktreeId: string
   absolutePath: string
-  provider: 'local' | 'ssh'
-  connectionId?: string
+  provider: 'local'
   clientId?: string
   expiresAt: number
   statIdentity: string | null

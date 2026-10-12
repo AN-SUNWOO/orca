@@ -1,6 +1,6 @@
 import { collectLeafIdsInOrder } from '@/components/terminal-pane/layout-serialization'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
-import { focusRuntimeTerminalSurface } from '@/runtime/sync-runtime-graph'
+import { focusRuntimeTerminalSurface } from '@/runtime/mounted-terminal-tab-registry'
 import type { RuntimeTerminalPresentation } from '../../../../shared/runtime-types'
 import type {
   TerminalLayoutSnapshot,

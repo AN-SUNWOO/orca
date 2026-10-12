@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
+import { isLayoutOracleSource } from './pr-layout-oracle-route.mjs'
 
 const DOCS_ONLY_FILES = new Set([
   'README.md',
@@ -30,10 +31,19 @@ export const PR_CHECK_JOBS = [
   'cross-version-wire',
   'managed_hook_node18',
   'package',
-  'package_windows'
+  'package_windows',
+  'layout_oracle'
 ]
 
 const ALWAYS_ON_CODE_JOBS = new Set(['static_analysis', 'typecheck', 'test'])
+
+const MOBILE_CI_TOOL_FILES = new Set([
+  '.github/workflows/mobile.yml',
+  'config/mobile-ci.vitest.config.mjs',
+  'config/scripts/run-mobile-ci-tests.mjs',
+  'config/scripts/mobile-release-check-scope.test.mjs',
+  'config/scripts/mobile-test-change-scope.test.mjs'
+])
 
 const GLOBAL_FORCE_PREFIXES = [
   '.github/workflows/pr.yml',
@@ -51,7 +61,6 @@ const GIT_COMPAT_PREFIXES = [
   'src/shared/review-head-tracking-ref',
   'src/shared/worktree/local-base-branch-fast-forward',
   'src/main/git/',
-  'src/relay/git-',
   'config/scripts/git-binary-compatibility'
 ]
 
@@ -207,7 +216,6 @@ const CROSS_VERSION_WIRE_PREFIXES = [
   // Run on every request the suites dispatch, whatever its method.
   'src/main/runtime/rpc/core.ts',
   'src/main/runtime/rpc/errors.ts',
-  'src/main/runtime/rpc/rpc-streaming-dispatcher.ts',
   'src/main/runtime/rpc/orchestration-contract-fence.ts',
   'src/main/runtime/rpc/orchestration-session-caller.ts',
   'src/main/runtime/rpc/orchestration-legacy-compatibility.ts',
@@ -244,12 +252,10 @@ const CROSS_VERSION_WIRE_PREFIXES = [
 ]
 
 const MANAGED_HOOK_PREFIXES = [
-  'config/scripts/smoke-managed-hook-runtime-node18',
   'config/scripts/smoke-process-host-node18',
   'config/scripts/packaged-process-host-fixture',
   'src/packages/process-host/',
   'config/scripts/build-relay',
-  'src/relay/',
   'src/wsl-guest/',
   'src/shared/agent-hook',
   'src/main/agent-hooks/'
@@ -360,6 +366,7 @@ const LINUX_PACKAGE_TESTS = [
 ]
 
 const WINDOWS_PACKAGE_TESTS = [
+  'src/main/zcode/zcode-plan-api-key-store-native-windows.test.ts',
   ...LINUX_PACKAGE_TESTS,
   'config/scripts/rebuild-native-deps.test.mjs',
   'config/scripts/rebuild-native-deps-windows-process-tree.test.mjs',
@@ -368,6 +375,7 @@ const WINDOWS_PACKAGE_TESTS = [
   'config/scripts/ensure-native-runtime-job-ownership.test.mjs',
   'config/scripts/verify-packaged-node-pty-job-ownership.test.mjs',
   'config/scripts/windows-pe-machine.test.mjs',
+  'config/scripts/build-windows-cli-launcher.test.mjs',
   'config/scripts/script-module-dependencies.test.mjs',
   'src/main/windows-registry-addon.test.ts',
   'src/main/providers/windows-conpty-wide-char-duplication.node-pty.test.ts',
@@ -411,8 +419,6 @@ const WINDOWS_PACKAGE_TESTS = [
   'src/main/ipc/pty-spawn-env-codex-resume-provenance.test.ts',
   'src/main/ipc/preflight-provider-command-selection.test.ts',
   'src/main/ipc/preflight-runnable-local-cli.test.ts',
-  'src/relay/windows-port-scan.win32.test.ts',
-  'src/main/ssh/ssh-relay-upload-stage-windows-identity.test.ts',
   'src/main/ssh/remote-node-runtime-store-windows.test.ts'
 ]
 
@@ -495,14 +501,43 @@ export function needsMobileDependencies(changedFiles) {
   return changedFiles.length === 0 || changedFiles.some((file) => file.startsWith('mobile/'))
 }
 
-export function classifyPrJobs(changedFiles) {
+export const DAEMON_INIT_TEST_SUPPORT = 'src/main/daemon/daemon-init-dependency-mocks.ts'
+
+const DAEMON_INIT_TEST_SCOPE = new Set([
+  DAEMON_INIT_TEST_SUPPORT,
+  'src/main/native-chat/agent-session-wire/structured-agent-session-claude-queued-stop.test.ts',
+  'config/scripts/process-host-build-dist.test.mjs',
+  'src/main/codex/codex-app-server-connection.test.ts'
+])
+
+export function isDaemonInitTestSupportChange(files, modifiedOnly = false) {
+  return (
+    modifiedOnly &&
+    files.includes(DAEMON_INIT_TEST_SUPPORT) &&
+    new Set(files).size === files.length &&
+    files.every((file) => DAEMON_INIT_TEST_SCOPE.has(file))
+  )
+}
+
+export function classifyPrJobs(
+  changedFiles,
+  { allowMobileCiTools = false, allowDaemonInitTestSupport = false } = {}
+) {
   const emptyDiff = changedFiles.length === 0
   const shouldRun = shouldRunPrChecks(changedFiles)
   const forceAll = emptyDiff || changedFiles.some(isGlobalForcePath)
+  const bundleFiles = isDaemonInitTestSupportChange(changedFiles, allowDaemonInitTestSupport)
+    ? changedFiles.filter((file) => file !== DAEMON_INIT_TEST_SUPPORT)
+    : changedFiles
   const jobs = Object.fromEntries(
     PR_CHECK_JOBS.map((job) => [
       job,
-      shouldRun && (forceAll || ALWAYS_ON_CODE_JOBS.has(job) || jobDetector(job)(changedFiles))
+      shouldRun &&
+        (forceAll ||
+          ALWAYS_ON_CODE_JOBS.has(job) ||
+          jobDetector(job)(
+            ['package', 'package_windows'].includes(job) ? bundleFiles : changedFiles
+          ))
     ])
   )
   // Why outside should_run: a mobile-only diff is desktop-irrelevant and skips every job above,
@@ -513,8 +548,15 @@ export function classifyPrJobs(changedFiles) {
   // that is exactly the diff that changes the page this job builds. Gated on should_run it would
   // skip on every PR that can break it and run on none.
   jobs.mobile_web_app = jobs.mobile_web_app || changesMobileWebApp(changedFiles)
+  const mobileCiTools =
+    allowMobileCiTools &&
+    !emptyDiff &&
+    jobs.test &&
+    (jobs.static_analysis || jobs.typecheck) &&
+    changedFiles.every((file) => MOBILE_CI_TOOL_FILES.has(file))
   return {
     should_run: shouldRun,
+    mobile_ci_tools: mobileCiTools,
     native_cache_changed: shouldRun && (emptyDiff || changedFiles.some(isNativeCacheInputPath)),
     mobile_dependencies:
       (shouldRun || jobs.static_analysis) && needsMobileDependencies(changedFiles),
@@ -528,7 +570,11 @@ function jobDetector(job) {
       return (files) => files.some((file) => matchesPrefix(file, GIT_COMPAT_PREFIXES))
     case 'codex_index_heal_contract':
       return (files) =>
-        files.some((file) => matchesPrefix(file, CODEX_INDEX_HEAL_CONTRACT_PREFIXES))
+        files.some(
+          (file) =>
+            file !== 'src/main/codex/codex-app-server-client.test.ts' &&
+            matchesPrefix(file, CODEX_INDEX_HEAL_CONTRACT_PREFIXES)
+        )
     case 'xterm_patch_sync':
       return (files) => files.some((file) => matchesPrefix(file, XTERM_PREFIXES))
     case 'shell_contracts':
@@ -547,6 +593,8 @@ function jobDetector(job) {
       return (files) => files.some(isLinuxPackagePath)
     case 'package_windows':
       return (files) => files.some(isWindowsPackagePath)
+    case 'layout_oracle':
+      return (files) => files.some(isLayoutOracleSource)
     default:
       return () => true
   }
@@ -570,9 +618,12 @@ function isProductBundlePath(file, extraPrefixes) {
   return matchesPrefix(file, extraPrefixes)
 }
 
-// This shared fixture is consumed only by unit suites and their placement rig.
+// These shared fixtures are consumed only by unit tests.
 export function isUnitTestSupportSource(file) {
-  return file === 'src/renderer/src/runtime/web-session-tabs-sync-test-harness.ts'
+  return (
+    file === 'src/renderer/src/runtime/web-session-tabs-sync-test-harness.ts' ||
+    file === 'src/renderer/src/components/native-chat/NativeChatStructuredSession.test-harness.tsx'
+  )
 }
 
 function isTestFile(file) {
@@ -615,7 +666,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     input += chunk
   }
   const files = input.split(/\r?\n/).filter(Boolean)
-  const classification = classifyPrJobs(files)
+  const classification = classifyPrJobs(files, {
+    allowMobileCiTools: process.argv.includes('--mobile-ci-tools'),
+    allowDaemonInitTestSupport: process.argv.includes('--daemon-init-test-support')
+  })
   for (const [name, value] of Object.entries(classification)) {
     process.stdout.write(`${name}=${value ? 'true' : 'false'}\n`)
   }

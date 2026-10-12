@@ -28,7 +28,11 @@ const { registerOrcadRuntimeMaintenanceHandlers } =
 const invalidateTransport = vi.fn()
 const clearHostServerStatus = vi.fn()
 const clearHostServerNotes = vi.fn()
-const forgetHostSession = vi.fn()
+const store = {
+  removeWorkspaceSessionHost: vi.fn(),
+  getRemoteLayoutSnapshot: vi.fn(),
+  setRemoteLayoutSnapshot: vi.fn()
+}
 
 function handler(channel: string): (_event: unknown, args: unknown) => Promise<unknown> {
   const registration = mocks.handle.mock.calls.find(([name]) => name === channel)
@@ -47,7 +51,7 @@ describe('managed orcad maintenance IPC', () => {
       invalidateTransport,
       clearHostServerStatus,
       clearHostServerNotes,
-      forgetHostSession
+      store
     })
   })
 
@@ -124,7 +128,7 @@ describe('managed orcad maintenance IPC', () => {
     expect(policy.isActiveEnvironment('active-environment')).toBe(true)
     expect(policy.isActiveEnvironment('e-1')).toBe(false)
     policy.retireLocalState('e-1')
-    expect(mocks.retire).toHaveBeenCalledWith('e-1', invalidateTransport, forgetHostSession)
+    expect(mocks.retire).toHaveBeenCalledWith('e-1', invalidateTransport, store)
     // The SSH host stops naming the unlinked server without waiting for a reconnect.
     expect(clearHostServerStatus).toHaveBeenCalledWith('ssh-1')
   })

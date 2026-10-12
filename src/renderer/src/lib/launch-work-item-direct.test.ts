@@ -60,15 +60,17 @@ vi.mock('@/lib/connection-context', () => ({
   getConnectionId: mocks.getConnectionId
 }))
 
+const hostMocks = vi.hoisted(() => ({
+  checkRuntimeHooks: vi.fn(),
+  callRuntimeRpc: vi.fn()
+}))
+
 vi.mock('@/runtime/runtime-hooks-client', () => ({
-  checkRuntimeHooks: vi
-    .fn()
-    .mockResolvedValue({ hasHooks: false, hooks: null, mayNeedUpdate: false })
+  checkRuntimeHooks: hostMocks.checkRuntimeHooks
 }))
 
 vi.mock('@/runtime/runtime-rpc-client', () => ({
-  getActiveRuntimeTarget: vi.fn().mockReturnValue({ kind: 'local' }),
-  callRuntimeRpc: vi.fn()
+  callRuntimeRpc: hostMocks.callRuntimeRpc
 }))
 
 vi.mock('@/lib/new-workspace', () => ({
@@ -148,6 +150,11 @@ describe('launchWorkItemDirect', () => {
           resolvePrBase: mocks.resolvePrBase
         }
       }
+    })
+    hostMocks.checkRuntimeHooks.mockResolvedValue({
+      hasHooks: false,
+      hooks: null,
+      mayNeedUpdate: false
     })
     mocks.resolvePrBase.mockResolvedValue({
       baseBranch: 'abc123',
@@ -284,7 +291,8 @@ describe('launchWorkItemDirect', () => {
       undefined,
       undefined,
       undefined,
-      'refs/remotes/origin/main'
+      'refs/remotes/origin/main',
+      { executionHostId: 'local' }
     )
   })
 
@@ -365,7 +373,8 @@ describe('launchWorkItemDirect', () => {
       undefined,
       undefined,
       undefined,
-      undefined
+      undefined,
+      { executionHostId: 'local' }
     )
   })
 

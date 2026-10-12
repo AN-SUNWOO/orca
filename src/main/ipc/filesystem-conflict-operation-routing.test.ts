@@ -91,24 +91,8 @@ describe('git:conflictOperation ssh routing', () => {
     detectConflictOperationMock.mockReset()
   })
 
-  it('asks the connected host and never probes locally', async () => {
-    const detect = vi.fn().mockResolvedValue('rebase')
-    getSshGitProviderMock.mockReturnValue({ detectConflictOperation: detect })
-    registerFilesystemHandlers(store as never)
-
-    await expect(
-      handlers.get('git:conflictOperation')!(null, {
-        worktreePath: '/remote/wt',
-        connectionId: 'ssh-1'
-      })
-    ).resolves.toBe('rebase')
-    expect(getSshGitProviderMock).toHaveBeenCalledWith('ssh-1')
-    expect(detect).toHaveBeenCalledWith('/remote/wt')
-    expect(detectConflictOperationMock).not.toHaveBeenCalled()
-  })
-
-  it('reports an unreachable host instead of falling back to this machine', async () => {
-    getSshGitProviderMock.mockReturnValue(undefined)
+  it('reports an SSH host as not served instead of falling back to this machine', async () => {
+    getSshGitProviderMock.mockReturnValue({ detectConflictOperation: vi.fn() })
     registerFilesystemHandlers(store as never)
 
     await expect(

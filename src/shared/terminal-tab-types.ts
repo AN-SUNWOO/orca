@@ -23,8 +23,6 @@ export type TerminalPaneRecoveryReason =
   // ACKs it — main's delivery health stays green while the pane shows nothing.
   | 'spawn-left-pane-unbound'
 
-/** Same vocabulary the direct-SSH pane retry ledger settles with
- *  (DirectSshPaneRetryResult), so a pane reports both through one call. */
 export type TerminalPaneRecoveryOutcome =
   | 'pending'
   | 'success'

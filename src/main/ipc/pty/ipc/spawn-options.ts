@@ -1,6 +1,7 @@
 import { getAppEnvironment } from '../../../../shared/app-environment'
 import { getLegacyOpenCodeEnvKeysToDelete } from '../../../opencode/legacy-shared-config-dir'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
+import { isRestoreSpawnIntent } from '../../../../shared/host-spawn-admission'
 import { LEGACY_TERMINAL_SHIM_REMOTE_ENV_KEYS } from '../../../pty/legacy-terminal-shim-dir'
 import { PI_PROCESS_OWNER_ENV_KEYS } from '../../../pty/pi-process-owner-env'
 import { CODEX_HOME_ENV_KEYS } from '../host-env/codex-home'
@@ -115,6 +116,9 @@ export async function buildPtyIpcSpawnOptions(
   }
   if (args.worktreeId !== undefined) {
     ctx.spawnOptions.worktreeId = args.worktreeId
+  }
+  if (isRestoreSpawnIntent(args.spawnIntent)) {
+    ctx.spawnOptions.spawnIntent = args.spawnIntent
   }
   const trustWrite = applyAgentWorkspaceTrustToSpawn({
     launchAgent: args.launchAgent,

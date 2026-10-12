@@ -13,7 +13,6 @@ import {
   type ExecutionHostId
 } from '../../../../../../shared/execution-host'
 import { toVisibleWorktree } from './worktree-catalog-visibility'
-import { noteUnstampedNonLocalRow } from '@/lib/unstamped-non-local-row-counter'
 import type { WorktreeHostMatchOptions, RepoHostSummary } from './worktree-slice-types'
 
 export function withRepoHostOwnership<
@@ -189,7 +188,7 @@ export function worktreeMatchesHost(
     if (worktree.hostId) {
       return worktree.hostId === hostId
     }
-    return unhostedRowMatchesNonLocalHost(options.unhostedWorktreesMatchHost ?? false)
+    return options.unhostedWorktreesMatchHost ?? false
   }
   if (worktree.runtimeOwnerEnvironmentId) {
     return false
@@ -200,14 +199,7 @@ export function worktreeMatchesHost(
   if (hostId === LOCAL_EXECUTION_HOST_ID) {
     return options.unhostedWorktreesMatchHost ?? true
   }
-  return unhostedRowMatchesNonLocalHost(options.unhostedWorktreesMatchHost ?? false)
-}
-
-function unhostedRowMatchesNonLocalHost(matches: boolean): boolean {
-  if (matches) {
-    noteUnstampedNonLocalRow()
-  }
-  return matches
+  return options.unhostedWorktreesMatchHost ?? false
 }
 
 export function mergeWorktreesForHost<

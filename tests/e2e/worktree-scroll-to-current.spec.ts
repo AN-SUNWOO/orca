@@ -74,7 +74,9 @@ test.describe('Reveal active workspace button', () => {
     await expect
       .poll(() =>
         orcaPage.evaluate(async (id) => {
-          await window.__store!.getState().fetchRepos()
+          await window
+            .__store!.getState()
+            .fetchRepos({ runtimeEnvironmentId: null, throwOnError: true })
           return window.__store!.getState().repos.some((repo) => repo.id === id)
         }, filterRepoId)
       )

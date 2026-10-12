@@ -61,7 +61,7 @@ function clickRetry(): void {
 function renderMutations() {
   return renderHook(() =>
     useSourceControlEntryMutations({
-      activeRepoSettings: null,
+      activeRepoTarget: { kind: 'local' },
       activeWorktreeId: 'wt-1',
       worktreePath: '/repo',
       refreshActiveGitStatusAfterMutation: async () => {}
@@ -72,7 +72,7 @@ function renderMutations() {
 function renderDiscard(discardSingle: (path: string) => Promise<void>) {
   return renderHook(() =>
     useSourceControlDiscardConfirmation({
-      activeRepoSettings: null,
+      activeRepoTarget: { kind: 'local' },
       activeWorktreeId: 'wt-1',
       worktreePath: '/repo',
       grouped: EMPTY_GROUPS,

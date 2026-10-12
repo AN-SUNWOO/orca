@@ -14,6 +14,7 @@ const BUILD_SCRIPTS = [
   'config/scripts/orcad-windows-prebuild-cache.mjs',
   'config/scripts/orcad-prebuild-smoke-child.cjs',
   'config/scripts/build-windows-process-tree-relay-addon.mjs',
+  'config/scripts/build-windows-cli-launcher.mjs',
   'config/scripts/run-node-server-tests.mjs',
   'config/vitest.config.ts',
   'config/scripts/happy-dom-offscreen-canvas.ts',
@@ -144,7 +145,7 @@ function isSourceUnitTest(file) {
 export async function classifyNodeServerChanges(
   changedFiles,
   collect = collectNodeServerInputs,
-  { deferGraph = false } = {}
+  { deferGraph = false, modifiedFiles } = {}
 ) {
   if (changedFiles.length === 0) {
     return { shouldRun: true, reason: 'No complete changed-file evidence' }
@@ -164,8 +165,16 @@ export async function classifyNodeServerChanges(
   }
   try {
     const inputs = await collect()
-    const matched = changedFiles.find((file) => inputs.has(file))
+    const matchedFiles = changedFiles.filter((file) => inputs.has(file))
+    const matched = matchedFiles[0]
+    const modifiedOnly =
+      Array.isArray(modifiedFiles) &&
+      new Set(changedFiles).size === changedFiles.length &&
+      new Set(modifiedFiles).size === modifiedFiles.length &&
+      modifiedFiles.length === changedFiles.length &&
+      changedFiles.every((file) => modifiedFiles.includes(file))
     return {
+      ...(modifiedOnly ? { graphResolved: true, matchedFiles } : {}),
       shouldRun: Boolean(matched),
       reason: matched
         ? `Runtime or test dependency changed: ${matched}`
@@ -182,8 +191,16 @@ export async function classifyNodeServerChanges(
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const changedFiles = readFileSync(process.argv[2], 'utf8').split('\0').filter(Boolean)
+  const modifiedArgument = process.argv.indexOf('--modified-paths')
+  const modifiedFiles =
+    modifiedArgument === -1
+      ? undefined
+      : readFileSync(process.argv[modifiedArgument + 1], 'utf8')
+          .split('\0')
+          .filter(Boolean)
   const result = await classifyNodeServerChanges(changedFiles, collectNodeServerInputs, {
-    deferGraph: process.argv.includes('--defer-graph')
+    deferGraph: process.argv.includes('--defer-graph'),
+    modifiedFiles
   })
   console.log(result.reason)
   const policy = nodeServerQualification(changedFiles, result, {

@@ -6,6 +6,7 @@ import {
   classifyE2eJobs,
   ORCAD_AUTO_CONVERT_E2E_SPEC,
   ORCAD_IDLE_EXIT_E2E_SPEC,
+  ORCAD_JOURNEY_E2E_SPECS,
   ORCAD_OPEN_IN_OWNER_E2E_SPEC,
   ORCAD_SERVE_MODE_SWITCH_E2E_SPEC,
   WINDOWS_MISSING_APPDATA_E2E_SPEC
@@ -124,7 +125,7 @@ it('routes managed target-owner guards and menus to the real launch regression',
       'tests/e2e/helpers/orcad-convert-flow.ts',
       'tests/e2e/helpers/orcad-convert-host.ts',
       'tests/e2e/helpers/orcad-upgrade-profile.ts',
-      'tests/e2e/helpers/docker-ssh-relay-target.ts'
+      'tests/e2e/helpers/docker-ssh-host-target.ts'
     ],
     ORCAD_OPEN_IN_OWNER_E2E_SPEC
   )
@@ -136,4 +137,29 @@ it('routes managed target-owner guards and menus to the real launch regression',
       step.run?.includes(ORCAD_OPEN_IN_OWNER_E2E_SPEC)
     )
   ).toBe(true)
+})
+
+it('runs the managed-host journey specs in their own job when routed', () => {
+  const job = jobs['orcad-journeys-docker']
+  expect(job.needs).toEqual(['build', 'prepare-native-cache'])
+  for (const spec of ORCAD_JOURNEY_E2E_SPECS) {
+    expectRouted(
+      [
+        'tests/e2e/helpers/orcad-managed-workspace.ts',
+        'src/renderer/src/components/terminal-pane/terminal-host-workspace-file.ts',
+        'src/renderer/src/components/terminal-pane/terminal-host-file-link-existence.ts',
+        'src/renderer/src/runtime/runtime-terminal-artifact-read.ts'
+      ],
+      spec
+    )
+    expect(job.if, spec).toContain(`contains(inputs.test_files, '${spec}')`)
+    expect(
+      job.steps.some((step) => step.run?.includes(spec)),
+      spec
+    ).toBe(true)
+    expect(classifyE2eJobs(JSON.stringify([spec])), spec).toEqual({
+      e2e_run_changed: false,
+      e2e_needs_build: true
+    })
+  }
 })

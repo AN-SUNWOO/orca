@@ -1,7 +1,6 @@
 /**
  * The owner of a workspace as a {@link HostAuthority}, decided from the rows alone. It never reads
- * the "Active Server" focus setting; the one transitional path that does is
- * {@link resolveOwnerWithLegacyFocus}, which counts every answer focus changed.
+ * the "Active Server" focus setting.
  */
 import {
   getRepoSshConnectionId,
@@ -26,6 +25,7 @@ import {
 } from './worktree-operation-route'
 import { getNestedSshTargetIdForFolderWorkspace } from './folder-workspace-runtime-owner'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
+import { hostRouteForAuthority, type RuntimeClientTarget } from '@/runtime/runtime-client-target'
 
 /** A worktree id, a `folder:` workspace key, or the floating workspace; `hostId` when the row names one. */
 export type WorkspaceOwnerRef = { workspaceId: string; hostId?: ExecutionHostId }
@@ -105,38 +105,11 @@ export function resolveOwner(
   return resolveRoute({ ...state, settings: null }, ref)
 }
 
-let legacyFocusFallbackCount = 0
-
-/** How many answers focus has changed since start; a slice drops its fallback once this stays 0. */
-export function getLegacyFocusFallbackCount(): number {
-  return legacyFocusFallbackCount
-}
-
-export function resetLegacyFocusFallbackCountForTest(): void {
-  legacyFocusFallbackCount = 0
-}
-
-function sameOwnerMatch(
-  a: ExecutionHostOwnerMatch<HostAuthority>,
-  b: ExecutionHostOwnerMatch<HostAuthority>
-): boolean {
-  return JSON.stringify(a) === JSON.stringify(b)
-}
-
-/**
- * {@link resolveOwner} plus today's focus fallback, which lets a single focused server claim rows
- * that predate owner stamping. Transitional: callers move to {@link resolveOwner} slice by slice.
- */
-export function resolveOwnerWithLegacyFocus(
+/** Transport to the workspace's owner, or `null` when the rows name none or disagree. */
+export function runtimeTargetForWorkspaceOwner(
   state: WorktreeOperationRouteState,
   ref: WorkspaceOwnerRef
-): ExecutionHostOwnerMatch<HostAuthority> {
-  const legacy = resolveRoute(state, ref)
-  if (
-    state.settings?.activeRuntimeEnvironmentId?.trim() &&
-    !sameOwnerMatch(legacy, resolveOwner(state, ref))
-  ) {
-    legacyFocusFallbackCount += 1
-  }
-  return legacy
+): RuntimeClientTarget | null {
+  const match = resolveOwner(state, ref)
+  return match.kind === 'resolved' ? hostRouteForAuthority(match.owner).target : null
 }

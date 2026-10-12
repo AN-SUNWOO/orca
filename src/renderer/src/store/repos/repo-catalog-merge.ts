@@ -7,7 +7,7 @@ import { reconcileReadoptedSshRepoRows } from '../slices/superseded-ssh-repo-row
 import type { SshRepoReconciliation } from '../slices/superseded-ssh-repo-rows'
 import { reconcileReadoptedSshWorktreesByRepo } from '../slices/readopted-ssh-worktree-rows'
 import { callRuntimeRpc } from '../../runtime/runtime-rpc-client'
-import type { getActiveRuntimeTarget } from '../../runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import type { RepoSlice } from './repo-state'
 import { adoptFromEndpoint } from '../adopt-from-endpoint'
@@ -26,7 +26,7 @@ export type FetchedRepoCatalog = {
 }
 
 export async function fetchRepoCatalogForTarget(
-  target: ReturnType<typeof getActiveRuntimeTarget>
+  target: RuntimeClientTarget
 ): Promise<FetchedRepoCatalog> {
   const fetchedRepos =
     target.kind === 'local'

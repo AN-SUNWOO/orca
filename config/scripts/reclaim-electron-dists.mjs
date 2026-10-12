@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 // Converts worktrees that already have their own Electron dist over to the shared cache.
-// A normal install only shares when Electron is (re)installed, and an existing healthy worktree
-// never reaches that path -- so without this, sharing only arrives at the next Electron upgrade.
+// Healthy installs also share now; this migrates worktrees without waiting for their next install.
 
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -153,7 +152,7 @@ function main() {
         recordAdoptedSharedElectronDist(entry, writeFileSync)
         reclaimed += size
         converted += 1
-        console.log(`shared  ${worktree}  reclaimed ${(size / 1024 ** 3).toFixed(2)} GiB`)
+        console.log(`shared  ${worktree}  ${(size / 1024 ** 3).toFixed(2)} GiB logical file data`)
       }
     } catch (error) {
       // A worktree that fails is left exactly as it was; it still has its own working dist.
@@ -164,7 +163,7 @@ function main() {
 
   console.log(
     `\n${apply ? 'Shared' : 'Would share'} ${converted} worktree(s); ` +
-      `${apply ? 'reclaimed' : 'reclaimable'} ~${(reclaimed / 1024 ** 3).toFixed(2)} GiB` +
+      `logical file data ~${(reclaimed / 1024 ** 3).toFixed(2)} GiB (shared blocks affect disk savings)` +
       `${skipped > 0 ? `; skipped ${skipped}` : ''}` +
       `${apply ? '' : '\nRe-run with --apply to do it.'}`
   )

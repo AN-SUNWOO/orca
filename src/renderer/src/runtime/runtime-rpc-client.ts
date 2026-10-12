@@ -10,11 +10,7 @@ import { unwrapRuntimeRpcResult } from './runtime-rpc-result'
 import { captureRuntimeEnvironmentRequestRevision } from './runtime-environment-revision'
 import type { RuntimeClientTarget } from './runtime-client-target'
 
-export {
-  getActiveRuntimeTarget,
-  settingsForRuntimeOwner,
-  type RuntimeClientTarget
-} from './runtime-client-target'
+export { type RuntimeClientTarget } from './runtime-client-target'
 export {
   hasRuntimeRpcErrorCode,
   RuntimeRpcCallError,

@@ -184,15 +184,7 @@ describe.each([
     const run = replay(chunks)
     expect(run.ended).toBe(false)
     expect(run.delivered.join('')).toBe(chunks.join(''))
-  })
-
-  it('delivers it in fewer frames than it was produced in', () => {
-    const run = replay(chunks)
     expect(run.frames).toBeLessThan(chunks.length)
-  })
-
-  it('never posts a frame over the cap, however much it merged', () => {
-    const run = replay(chunks)
     expect(run.largestFrameBytes).toBeLessThanOrEqual(BRIDGE_MAX_MESSAGE_BYTES)
   })
 })

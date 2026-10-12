@@ -1,3 +1,4 @@
+import { SshHostNotServedError } from '../../providers/ssh-host-not-served-error'
 import { describe, expect, it, vi } from 'vitest'
 import {
   FLOATING_TERMINAL_WORKTREE_ID,
@@ -86,7 +87,7 @@ describe('OrcaRuntimeService', () => {
     })
   })
 
-  it('routes SSH-backed forward-slash UNC file and git paths without collapsing the root', async () => {
+  it('resolves SSH-backed forward-slash UNC paths without collapsing the root, then refuses the work', async () => {
     vi.mocked(listWorktrees).mockClear()
     vi.mocked(listWorktrees).mockRejectedValue(new Error('local git should not run for SSH repos'))
     const remoteStore = {
@@ -134,8 +135,12 @@ describe('OrcaRuntimeService', () => {
     const runtime = new OrcaRuntimeService(remoteStore as never)
 
     try {
-      await runtime.readFileExplorerDir('path://server/share/repo', 'src')
-      await runtime.getRuntimeGitStatus('path://server/share/repo')
+      await expect(runtime.readFileExplorerDir('path://server/share/repo', 'src')).rejects.toThrow(
+        SshHostNotServedError
+      )
+      await expect(runtime.getRuntimeGitStatus('path://server/share/repo')).rejects.toThrow(
+        SshHostNotServedError
+      )
       await expect(runtime.showRepo('path://server/share/repo')).resolves.toMatchObject({
         path: '//Server/Share/Repo'
       })
@@ -146,8 +151,8 @@ describe('OrcaRuntimeService', () => {
 
     expect(listWorktrees).not.toHaveBeenCalled()
     expect(gitProvider.listWorktrees).toHaveBeenCalledWith('//Server/Share/Repo')
-    expect(fsProvider.readDir).toHaveBeenCalledWith('\\\\Server\\Share\\Repo\\src', {})
-    expect(gitProvider.getStatus).toHaveBeenCalledWith('//Server/Share/Repo')
+    expect(fsProvider.readDir).not.toHaveBeenCalled()
+    expect(gitProvider.getStatus).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -174,7 +179,7 @@ describe('OrcaRuntimeService', () => {
     })
   })
 
-  it('routes SSH folder workspace file explorer paths through the filesystem provider', async () => {
+  it('refuses SSH folder workspace file explorer reads instead of reading this machine', async () => {
     const folderPath = '/srv/platform'
     const fsProvider = {
       stat: vi.fn(async (pathValue: string) => ({
@@ -201,24 +206,16 @@ describe('OrcaRuntimeService', () => {
     try {
       await expect(
         runtime.readFileExplorerDir(`id:${TEST_FOLDER_WORKSPACE_KEY}`, 'src')
-      ).resolves.toHaveLength(1)
+      ).rejects.toThrow(SshHostNotServedError)
       await expect(
         runtime.readFileExplorerPreview(`id:${TEST_FOLDER_WORKSPACE_KEY}`, 'src/app.ts')
-      ).resolves.toMatchObject({
-        content: 'remote\n',
-        isBinary: false
-      })
+      ).rejects.toThrow(SshHostNotServedError)
     } finally {
       unregisterSshFilesystemProvider('ssh-folder')
     }
 
-    expect(fsProvider.stat).toHaveBeenCalledWith(folderPath)
-    expect(fsProvider.readDir).toHaveBeenCalledWith('/srv/platform/src', {})
-    expect(fsProvider.stat).toHaveBeenCalledWith('/srv/platform/src/app.ts')
-    expect(fsProvider.readFile).toHaveBeenCalledWith('/srv/platform/src/app.ts', {
-      maxBinaryBytes: 10 * 1024 * 1024,
-      maxTextBytes: 512 * 1024
-    })
+    expect(fsProvider.readDir).not.toHaveBeenCalled()
+    expect(fsProvider.readFile).not.toHaveBeenCalled()
   })
 
   it('lists persisted SSH worktrees while the git provider is unavailable', async () => {

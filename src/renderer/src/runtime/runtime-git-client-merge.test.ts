@@ -36,7 +36,7 @@ describe('runtime git client merge operations', () => {
     gitAbortMerge.mockResolvedValue(undefined)
 
     await abortRuntimeGitMerge({
-      settings: { activeRuntimeEnvironmentId: null },
+      target: { kind: 'local' },
       worktreeId: 'wt-1',
       worktreePath: '/repo'
     })
@@ -54,7 +54,7 @@ describe('runtime git client merge operations', () => {
     })
 
     await abortRuntimeGitMerge({
-      settings: { activeRuntimeEnvironmentId: 'env-1' },
+      target: { kind: 'environment', environmentId: 'env-1' },
       worktreeId: 'wt-1',
       worktreePath: '/repo'
     })
@@ -72,7 +72,7 @@ describe('runtime git client merge operations', () => {
     gitAbortRebase.mockResolvedValue(undefined)
 
     await abortRuntimeGitRebase({
-      settings: { activeRuntimeEnvironmentId: null },
+      target: { kind: 'local' },
       worktreeId: 'wt-1',
       worktreePath: '/repo',
       connectionId: 'ssh-1'
@@ -91,7 +91,7 @@ describe('runtime git client merge operations', () => {
     })
 
     await abortRuntimeGitRebase({
-      settings: { activeRuntimeEnvironmentId: 'env-1' },
+      target: { kind: 'environment', environmentId: 'env-1' },
       worktreeId: 'wt-1',
       worktreePath: '/repo'
     })

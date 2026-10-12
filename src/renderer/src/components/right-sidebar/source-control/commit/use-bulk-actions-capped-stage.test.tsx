@@ -26,7 +26,7 @@ function renderBulkActions(grouped: SourceControlEntryGroups, isStatusTruncated:
     useSourceControlBulkActions({
       selectedKeys: new Set(),
       flatEntriesByKey: new Map(),
-      activeRepoSettings: null,
+      activeRepoTarget: { kind: 'local' },
       activeWorktreeId: 'wt-1',
       worktreePath: '/repo',
       grouped,

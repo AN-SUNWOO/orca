@@ -33,9 +33,6 @@ vi.mock('@/store', () => ({
 }))
 vi.mock('@/runtime/runtime-git-client', () => ({ getRuntimeGitStatus: vi.fn() }))
 vi.mock('@/lib/connection-context', () => ({ getConnectionId: () => null }))
-vi.mock('@/lib/worktree-runtime-owner', () => ({
-  getSettingsForWorktreeRuntimeOwner: () => null
-}))
 
 const repoMap = new Map<string, Repo>()
 

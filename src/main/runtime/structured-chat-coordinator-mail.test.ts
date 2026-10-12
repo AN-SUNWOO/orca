@@ -206,6 +206,7 @@ describe('a worker result reaches the structured chat that coordinates it', () =
   })
 
   it('leaves a pointer the person stopped while its agent was starting stopped', async () => {
+    observationClock.start()
     await openChat(COORDINATOR)
     const { runId, taskId } = await coordinatorRunAndTask()
     await host.close(COORDINATOR, 'evict')
@@ -214,7 +215,7 @@ describe('a worker result reaches the structured chat that coordinates it', () =
     await finishWorker(taskId)
     await vi.waitFor(() => expect(providerFaults.starts).toBe(before + 1), WAIT)
     // The person presses Stop while the agent is still starting.
-    const cancelled = await host.cancel(
+    const cancelling = host.cancel(
       { callerKey: 'test-surface' },
       {
         envelope: {
@@ -230,6 +231,8 @@ describe('a worker result reaches the structured chat that coordinates it', () =
         turnId: 'turn-x'
       }
     )
+    await observationClock.observe(400)
+    const cancelled = await cancelling
     expect(cancelled).toMatchObject({ ok: true })
     providerFaults.startDelayMs = 0
     // A fixed window, not a poll: a re-point would start the agent again in it.

@@ -5,7 +5,7 @@ import type { PtySpawnResult } from '../../../providers/types'
 import { LocalPtyProvider } from '../../../providers/local-pty-provider'
 import { isValidTerminalTabId } from '../../../../shared/terminal-tab-id'
 import { isTerminalLeafId } from '../../../../shared/stable-pane-id'
-import { getAppPtyId, getProvider, getRelayPtyId } from '../provider/registry'
+import { getProvider } from '../provider/registry'
 import { buildPtyHostEnv } from '../host-env/assembly'
 import {
   getCompatibleSelectedCodexHomePath,
@@ -21,7 +21,6 @@ import {
   recoverFreshSpawnProviderRouting,
   routesFreshSpawnsToLocalProvider
 } from '../host-env/fresh-spawn-routing'
-import { stripRemotePaneEnvWhenHooksDisabled } from '../provider/liveness'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import {
   isSafePtySessionId,
@@ -54,20 +53,15 @@ export async function prepareRuntimePtySpawn(
     }
   }
   ctx.cwd = ctx.deps.resolvePtySpawnStartupCwd(args.worktreeId, args.cwd)
+  // Only this machine spawns here: an `ssh:` connection throws, so every line below is local.
   ctx.provider = getProvider(getConnectionExecutionHostId(args.connectionId))
   const freshSpawnRecovery = ctx.preAdoptedStablePane
     ? undefined
-    : recoverFreshSpawnProviderRouting(
-        ctx.provider,
-        args.connectionId,
-        args.sessionId,
-        args.isNewSession
-      )
+    : recoverFreshSpawnProviderRouting(ctx.provider, args.sessionId, args.isNewSession)
   if (freshSpawnRecovery) {
     await freshSpawnRecovery
   }
-  ctx.isClaudeLaunch =
-    !ctx.preAdoptedStablePane && !args.connectionId && isClaudeLaunchCommand(args.command)
+  ctx.isClaudeLaunch = !ctx.preAdoptedStablePane && isClaudeLaunchCommand(args.command)
   // Why: runtime-created terminals carry no renderer-computed projectRuntime; resolve from worktreeId to honor the project's Windows runtime.
   // `args.shellOverride` is the per-request pick (`terminal create --shell`), read here the way
   // the renderer twin (ipc/spawn-preflight.ts) reads a tab's override. Without it a runtime create
@@ -75,7 +69,7 @@ export async function prepareRuntimePtySpawn(
   // default shell with the request typed into it. Still Windows-only: the override names a
   // Windows shell, and spawn-options applies it under the same platform gate.
   ctx.terminalRuntimeOptions =
-    process.platform === 'win32' && !args.connectionId
+    process.platform === 'win32'
       ? resolveLocalWindowsTerminalRuntimeOptions({
           requestedShellOverride: args.shellOverride,
           settings: ctx.deps.getSettings?.(),
@@ -85,17 +79,12 @@ export async function prepareRuntimePtySpawn(
         })
       : {
           shellOverride:
-            args.shellOverride ??
-            (process.platform === 'win32'
-              ? undefined
-              : ctx.deps.getSettings?.()?.terminalDefaultShell || undefined),
+            args.shellOverride ?? (ctx.deps.getSettings?.()?.terminalDefaultShell || undefined),
           terminalWindowsWslDistro: null
         }
   ctx.daemonShellOverride = ctx.terminalRuntimeOptions.shellOverride
   ctx.isDaemonHostSpawn =
-    !args.connectionId &&
-    !(ctx.provider instanceof LocalPtyProvider) &&
-    !routesFreshSpawnsToLocalProvider(ctx.provider)
+    !(ctx.provider instanceof LocalPtyProvider) && !routesFreshSpawnsToLocalProvider(ctx.provider)
   ctx.callerRequestedSessionId = args.sessionId?.trim()
   ctx.requestedSessionId =
     ctx.callerRequestedSessionId ??
@@ -105,22 +94,18 @@ export async function prepareRuntimePtySpawn(
   ctx.sessionId =
     ctx.requestedSessionId ??
     (ctx.isDaemonHostSpawn ? mintPtySessionId(args.worktreeId) : undefined)
-  ctx.effectiveSessionRelayId =
-    ctx.sessionId !== undefined ? getRelayPtyId(args.connectionId, ctx.sessionId) : undefined
-  ctx.effectiveSessionAppId =
-    ctx.sessionId !== undefined ? getAppPtyId(args.connectionId, ctx.sessionId) : undefined
+  ctx.effectiveSessionAppId = ctx.sessionId
   ctx.isNewDaemonSession =
     !ctx.preAdoptedStablePane &&
     ctx.isDaemonHostSpawn &&
     (ctx.callerRequestedSessionId === undefined || args.isNewSession === true)
-  ctx.expectedWslDistro = !args.connectionId
-    ? (resolveWslSessionContext({
-        cwd: ctx.cwd,
-        sessionId: ctx.sessionId,
-        shellOverride: ctx.terminalRuntimeOptions.shellOverride,
-        terminalWindowsWslDistro: ctx.terminalRuntimeOptions.terminalWindowsWslDistro
-      })?.distro ?? null)
-    : null
+  ctx.expectedWslDistro =
+    resolveWslSessionContext({
+      cwd: ctx.cwd,
+      sessionId: ctx.sessionId,
+      shellOverride: ctx.terminalRuntimeOptions.shellOverride,
+      terminalWindowsWslDistro: ctx.terminalRuntimeOptions.terminalWindowsWslDistro
+    })?.distro ?? null
   ctx.codexSelectionTarget = getCodexSelectionTargetForPty(
     ctx.daemonShellOverride,
     ctx.cwd,
@@ -142,7 +127,7 @@ export async function prepareRuntimePtySpawn(
   // Why: the drop still applies here, but this controller's result has no field for
   // notifyResumeUnavailable — runtime/relay panes start fresh without the notice.
   ctx.launchCommand = codexResumeLaunch.command
-  args.env = withClaudeProfileTerminalEnv(args.env, args.connectionId, ctx.codexSelectionTarget)
+  args.env = withClaudeProfileTerminalEnv(args.env, ctx.codexSelectionTarget)
   ctx.claudeAuth =
     ctx.isClaudeLaunch && ctx.deps.prepareClaudeAuth
       ? await ctx.deps.prepareClaudeAuth(ctx.codexSelectionTarget)
@@ -169,8 +154,7 @@ export async function prepareRuntimePtySpawn(
       ...(args.placement ? { placement: args.placement } : {})
     }
   }
-  const sshScopedEnv = stripRemotePaneEnvWhenHooksDisabled(args.connectionId, args.env)
-  ctx.env = ctx.claudeAuth ? { ...sshScopedEnv, ...ctx.claudeAuth.envPatch } : sshScopedEnv
+  ctx.env = ctx.claudeAuth ? { ...args.env, ...ctx.claudeAuth.envPatch } : args.env
   ctx.requestedAgentTeamsPath = ctx.env?.ORCA_AGENT_TEAMS_TEAM_ID
     ? ctx.env[resolvePathEnvKey(ctx.env, process.platform)]
     : undefined
@@ -183,20 +167,19 @@ export async function prepareRuntimePtySpawn(
     (await ctx.deps.getSelectedCodexHomePath?.(ctx.codexSelectionTarget, ctx.env, {
       launchesCodex
     })) ?? null
-  ctx.selectedCodexHomePath =
-    !ctx.preAdoptedStablePane && !args.connectionId
-      ? getCompatibleSelectedCodexHomePath(
-          ctx.codexSelectionTarget,
-          codexResumeHome
-            ? await ctx.deps.reconcileSharedRuntimeResumeHome(codexResumeHome, async () =>
-                getCompatibleSelectedCodexHomePath(
-                  ctx.codexSelectionTarget,
-                  await selectLaunchCodexHome()
-                )
+  ctx.selectedCodexHomePath = !ctx.preAdoptedStablePane
+    ? getCompatibleSelectedCodexHomePath(
+        ctx.codexSelectionTarget,
+        codexResumeHome
+          ? await ctx.deps.reconcileSharedRuntimeResumeHome(codexResumeHome, async () =>
+              getCompatibleSelectedCodexHomePath(
+                ctx.codexSelectionTarget,
+                await selectLaunchCodexHome()
               )
-            : await selectLaunchCodexHome()
-        )
-      : null
+            )
+          : await selectLaunchCodexHome()
+      )
+    : null
   if (
     !ctx.preAdoptedStablePane &&
     args.launchAgent === 'codex' &&

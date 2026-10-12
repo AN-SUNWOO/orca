@@ -11,6 +11,7 @@ import { registerPtyHandlers, buildPtyHostEnv } from './pty'
 import { buildJcodeRuntimeDir, shouldInjectJcodeRuntimeDir } from '../../shared/jcode-runtime-dir'
 import { makePaneKey } from '../../shared/stable-pane-id'
 import { selectShellStartupFeatures } from '../shell-startup-features'
+import { CODEX_REMOTE_VIEWER_SSH_CONNECTION } from './pty/host-env/codex-terminal-clipboard'
 
 vi.mock('electron', () => import('./pty-ipc-mock-registry').then((m) => m.electronModuleMock()))
 vi.mock('fs', () => import('./pty-ipc-mock-registry').then((m) => m.fsModuleMock()))
@@ -227,6 +228,40 @@ describe('registerPtyHandlers', () => {
           process.env.BROWSER = inheritedBrowser
         }
       }
+    })
+
+    describe('Codex terminal clipboard on headless runtimes (#23530)', () => {
+      const buildEnv = (launchAgent: 'codex' | 'claude', routeBrowserOpensToClient: boolean) =>
+        buildPtyHostEnv(
+          'pty-codex-clipboard',
+          {},
+          {
+            isPackaged: true,
+            userDataPath: '/tmp/orca-user-data',
+            selectedCodexHomePath: null,
+            agentStatusHooksEnabled: false,
+            launchCommand: launchAgent,
+            launchAgent,
+            routeBrowserOpensToClient
+          }
+        )
+
+      it.each([
+        ['codex', true, CODEX_REMOTE_VIEWER_SSH_CONNECTION],
+        ['codex', false, undefined],
+        ['claude', true, undefined]
+      ] as const)(
+        'launching %s with a remote viewer=%s sets SSH_CONNECTION=%s',
+        (launchAgent, remoteViewer, expected) => {
+          vi.stubEnv('SSH_CONNECTION', undefined)
+          vi.stubEnv('SSH_TTY', undefined)
+          try {
+            expect(buildEnv(launchAgent, remoteViewer).SSH_CONNECTION).toBe(expected)
+          } finally {
+            vi.unstubAllEnvs()
+          }
+        }
+      )
     })
 
     it('passes the PTY-resolved Codex home to the WSL relay lane', () => {

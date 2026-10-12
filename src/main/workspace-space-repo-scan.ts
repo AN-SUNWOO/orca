@@ -16,6 +16,8 @@ import {
   resolveFilesystemRouteForHost,
   resolveGitRouteForHost
 } from './providers/execution-host-provider-dispatch'
+import { getSshFilesystemProvider } from './providers/ssh-filesystem-dispatch'
+import { getSshGitProvider } from './providers/ssh-git-dispatch'
 import { createFolderWorktree, listRepoWorktrees } from './repo-worktrees'
 import { mergeWorktree } from './ipc/worktree-logic'
 import { getLocalProjectWorktreeGitOptions } from './project-runtime-git-options'
@@ -102,14 +104,15 @@ async function listWorktreesForSpaceScan(
       }
     }
     if (route.kind === 'ssh') {
-      if (!route.provider) {
+      const provider = getSshGitProvider(route.connectionId)
+      if (!provider) {
         return {
           ok: false,
           status: 'unavailable',
           error: `SSH connection "${route.connectionId}" is not connected.`
         }
       }
-      const worktrees = await route.provider.listWorktrees(repo.path, { signal })
+      const worktrees = await provider.listWorktrees(repo.path, { signal })
       throwIfWorkspaceSpaceScanAborted(signal)
       return { ok: true, worktrees }
     }
@@ -205,6 +208,8 @@ export async function scanWorkspaceSpaceRepo(args: {
     options.onProgress
   )
   const filesystemRoute = resolveFilesystemRouteForHost(getRepoExecutionHostId(repo))
+  const sshFilesystemProvider =
+    filesystemRoute.kind === 'ssh' ? getSshFilesystemProvider(filesystemRoute.connectionId) : null
   const rows = await mapWithConcurrency(worktrees, WORKTREE_SCAN_CONCURRENCY, async (worktree) => {
     throwIfWorkspaceSpaceScanAborted(options.signal)
     reportProgress(
@@ -217,12 +222,12 @@ export async function scanWorkspaceSpaceRepo(args: {
     )
     const row =
       filesystemRoute.kind !== 'local'
-        ? filesystemRoute.kind === 'ssh' && filesystemRoute.provider
+        ? sshFilesystemProvider
           ? await scanRemoteWorkspaceSpaceWorktree(
               repo,
               worktree,
               scannedAt,
-              filesystemRoute.provider,
+              sshFilesystemProvider,
               limiters.remoteFallbackTraversal,
               options.signal
             )

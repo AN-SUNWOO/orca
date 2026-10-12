@@ -206,11 +206,9 @@ describe('migration source fence', () => {
     const harness = setup()
     const flush = vi.spyOn(harness.claims, 'flush').mockImplementation(async () => {
       if (harness.target().orcadFence) {
-        harness.store.upsertSshRemotePtyLease({
-          targetId: TARGET.id,
-          ptyId: 'late-pty',
-          state: 'detached'
-        })
+        vi.spyOn(harness.store, 'getSshRemotePtyLeases').mockReturnValue([
+          { targetId: TARGET.id, ptyId: 'late-pty', state: 'detached', createdAt: 1, updatedAt: 1 }
+        ])
       }
     })
     await expect(harness.fence()).resolves.toMatchObject({ outcome: 'refused', verdict: 'live' })

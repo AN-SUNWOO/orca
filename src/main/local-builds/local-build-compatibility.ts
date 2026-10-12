@@ -4,7 +4,7 @@ import {
   type LocalBuildCompatibility
 } from '../../shared/local-build-compatibility'
 import { DegradedDaemonPtyProvider } from '../daemon/degraded-daemon-pty-provider'
-import { getDaemonProvider } from '../daemon/daemon-init'
+import { getDaemonProvider } from '../daemon/daemon-provider-state'
 import { getAllDaemonAdapters } from '../daemon/daemon-provider-routing'
 import { getLocalPtyProvider } from '../ipc/pty'
 import { LocalPtyProvider } from '../providers/local-pty-provider'

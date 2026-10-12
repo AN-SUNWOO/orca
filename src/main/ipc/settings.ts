@@ -302,7 +302,7 @@ export function registerSettingsHandlers(
       })
     }
 
-    return result
+    return store.getSettings()
   })
 
   ipcMain.handle(
@@ -310,7 +310,7 @@ export function registerSettingsHandlers(
     (event, args: { environmentId?: unknown }): GlobalSettings => {
       const requestedEnvironmentId = args?.environmentId
       if (requestedEnvironmentId !== null && typeof requestedEnvironmentId !== 'string') {
-        throw new Error('Invalid Active Server preference')
+        throw new Error('Invalid default host for new projects')
       }
       const requestedId = requestedEnvironmentId?.trim() || null
       const environmentId =

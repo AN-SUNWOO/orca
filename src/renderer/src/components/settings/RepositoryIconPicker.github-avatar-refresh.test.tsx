@@ -7,8 +7,7 @@ import type { Repo } from '../../../../shared/repo-types'
 import { RepositoryIconPicker } from './RepositoryIconPicker'
 
 vi.mock('@/runtime/runtime-rpc-client', () => ({
-  callRuntimeRpc: vi.fn(),
-  getActiveRuntimeTarget: () => ({ kind: 'local' })
+  callRuntimeRpc: vi.fn()
 }))
 
 vi.mock('./RepositoryIconColorSection', () => ({

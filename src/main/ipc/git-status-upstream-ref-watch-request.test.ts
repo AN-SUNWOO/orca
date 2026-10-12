@@ -29,6 +29,7 @@ vi.mock('./worktree-base-directory-watcher', () => ({
 }))
 
 import { applyGitStatusUpstreamRefWatchRequest } from './git-status-upstream-ref-watch-request'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 
 describe('applyGitStatusUpstreamRefWatchRequest', () => {
   beforeEach(() => {
@@ -67,36 +68,28 @@ describe('applyGitStatusUpstreamRefWatchRequest', () => {
     )
   })
 
-  it('routes SSH resolution through the current provider generation', async () => {
-    const exec = vi.fn().mockResolvedValue({
-      stdout:
-        'refs/heads/feature/main\0refs/remotes/team/fork/feature/main\0team/fork/feature/main\n'
-    })
+  it('keeps the SSH provider generation but refuses to resolve on an SSH host', async () => {
+    const exec = vi.fn()
     mocks.getProvider.mockReturnValue({ exec })
     mocks.getProviderGeneration.mockReturnValue(7)
 
-    await applyGitStatusUpstreamRefWatchRequest({} as Store, {
-      worktreeId: 'repo-1::/repo',
-      worktreePath: '/repo',
-      executionHostId: 'ssh:ssh-1',
-      connectionId: 'ssh-1',
-      branch: 'refs/heads/feature/main',
-      upstreamName: 'team/fork/feature/main'
-    })
+    await expect(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the SSH refusal throws before any store read.
+      applyGitStatusUpstreamRefWatchRequest({} as Store, {
+        worktreeId: 'repo-1::/repo',
+        worktreePath: '/repo',
+        executionHostId: 'ssh:ssh-1',
+        connectionId: 'ssh-1',
+        branch: 'refs/heads/feature/main',
+        upstreamName: 'team/fork/feature/main'
+      })
+    ).rejects.toThrow(SshHostNotServedError)
 
     expect(mocks.setWatch).toHaveBeenCalledWith(
       expect.objectContaining({ connectionId: 'ssh-1', providerGeneration: 7 }),
       expect.any(Function)
     )
-    expect(exec).toHaveBeenCalledWith(
-      [
-        'for-each-ref',
-        '--format=%(refname)%00%(upstream)%00%(upstream:short)',
-        '--count=1',
-        'refs/heads/feature/main'
-      ],
-      '/repo',
-      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 15_000 })
-    )
+    expect(exec).not.toHaveBeenCalled()
+    expect(mocks.gitExec).not.toHaveBeenCalled()
   })
 })

@@ -6,7 +6,7 @@ import { getConnectionId } from '@/lib/connection-context'
 import { getRuntimeGitConflictOperation } from '@/runtime/runtime-git-client'
 import { createCoalescedPollRunner, type SlowTaskBackoffOptions } from './coalesced-poll-runner'
 import { installWindowVisibilityInterval, isWindowVisible } from '@/lib/window-visibility-interval'
-import { getRightSidebarWorktreeRuntimeSettings } from './file-explorer-runtime-owner'
+import { getWorktreeGitOwnerTarget } from './worktree-git-owner-target'
 
 const CONFLICT_POLL_INTERVAL_MS = 3000
 
@@ -79,15 +79,16 @@ export function useStaleConflictOperationPolling(args: {
           const connectionId = getConnectionId(id) ?? undefined
           // Why: after explicit SSH disconnect the provider is intentionally
           // gone; keep remote polling quiet until the target reconnects.
-          if (!isConnectionReady(connectionId)) {
+          const target = getWorktreeGitOwnerTarget(id)
+          if (!isConnectionReady(connectionId) || !target) {
             continue
           }
-          const op = (await getRuntimeGitConflictOperation({
-            settings: getRightSidebarWorktreeRuntimeSettings(id),
+          const op = await getRuntimeGitConflictOperation({
+            target,
             worktreeId: id,
             worktreePath: path,
             connectionId
-          })) as GitConflictOperation
+          })
           if (!active) {
             return
           }

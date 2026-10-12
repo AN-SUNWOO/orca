@@ -412,6 +412,22 @@ describe('SshPortForwardManager', () => {
     expect(manager.listForwards('conn-2')).toHaveLength(1)
   })
 
+  it('closes only the ssh2 forwards bound to a client the connection replaced', async () => {
+    const conn = createMockConn()
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the mock implements the getClient/usesSystemSshTransport surface the ssh2 provider reads.
+    const sshConn = conn as never
+    await manager.addForward('conn-1', sshConn, 3000, 'localhost', 8080)
+    await manager.addForward('conn-2', sshConn, 3002, 'localhost', 8082)
+
+    await manager.closeStaleForwards('conn-1', sshConn)
+    expect(manager.listForwards('conn-1')).toHaveLength(1)
+
+    conn.getClient.mockReturnValue({ forwardOut: vi.fn() })
+    await manager.closeStaleForwards('conn-1', sshConn)
+    expect(manager.listForwards('conn-1')).toHaveLength(0)
+    expect(manager.listForwards('conn-2')).toHaveLength(1)
+  })
+
   it('dispose removes all forwards', async () => {
     const conn = createMockConn()
     await manager.addForward('conn-1', conn as never, 3000, 'localhost', 8080)

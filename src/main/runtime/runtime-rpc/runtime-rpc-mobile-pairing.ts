@@ -167,7 +167,7 @@ export class RuntimeRpcMobilePairing extends RuntimeRpcPairing {
     }
     const device = this.deviceRegistry?.getDevice(direct.deviceId)
     const publicKeyB64 = this.getE2EEPublicKey()
-    if (!device || !publicKeyB64) {
+    if (!device?.token || !publicKeyB64) {
       return refuseAutomaticWithoutRelay({
         code: 'e2ee_key_unavailable',
         stage: 'e2ee_missing',

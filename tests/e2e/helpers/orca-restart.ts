@@ -103,10 +103,7 @@ function createRestartLaunchIsolation(
     inheritedEnv: cleanEnv,
     launchEnv: {
       NODE_ENV: 'development',
-      ...((process.env.ORCA_E2E_SSH_LOCALHOST === '1' ||
-        process.env.ORCA_E2E_SSH_DOCKER === '1' ||
-        process.env.ORCA_E2E_NESTED_RUNTIME_SSH === '1') &&
-      !cleanEnv.ORCA_RELAY_PATH
+      ...(process.env.ORCA_E2E_SSH_DOCKER === '1' && !cleanEnv.ORCA_RELAY_PATH
         ? { ORCA_RELAY_PATH: path.join(process.cwd(), 'out', 'relay') }
         : {}),
       ...extraEnv,
@@ -265,7 +262,7 @@ export async function attachRepoAndOpenTerminal(page: Page, repoPath: string): P
             }
             // Why: repos.add emits a concurrent refresh whose generation can
             // supersede this fetch; poll until either refresh publishes the repo.
-            await store.getState().fetchRepos()
+            await store.getState().fetchRepos({ runtimeEnvironmentId: null, throwOnError: true })
             const repo = store.getState().repos.find((candidate) => candidate.id === repoId)
             if (!repo) {
               return false

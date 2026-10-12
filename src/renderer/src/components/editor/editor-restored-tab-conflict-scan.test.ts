@@ -15,9 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/runtime/runtime-file-client', () => ({
   readRuntimeFileContent: mocks.readRuntimeFileContent
 }))
-vi.mock('@/runtime/runtime-rpc-client', () => ({
-  settingsForRuntimeOwner: () => null
-}))
+vi.mock('@/runtime/runtime-rpc-client', () => ({}))
 vi.mock('@/lib/connection-context', () => ({
   getConnectionIdForFile: mocks.getConnectionIdForFile
 }))

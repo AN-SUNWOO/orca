@@ -10,6 +10,11 @@ const { spawnMock, resolveLocalServeRuntimeMock, serveWithOrcadMock } = vi.hoist
 }))
 
 vi.mock('child_process', () => ({ spawn: spawnMock, spawnSync: vi.fn() }))
+// Why: these cover host selection; the pre-exec profile check would read this machine's own profile.
+vi.mock('./serve-electron-preflight', () => ({
+  preflightElectronServe: () => null,
+  recordElectronServeStartupAbort: vi.fn()
+}))
 vi.mock('./serve-orcad-launch', async (importOriginal) => ({
   ...(await importOriginal<typeof ServeOrcadLaunch>()),
   resolveLocalServeRuntime: resolveLocalServeRuntimeMock,

@@ -134,14 +134,7 @@ export async function probeTrackedUpstreamBranches(
   upstreamsByBranchName: Map<string, TrackedUpstreamBranch | null>
 }> {
   const args = ['for-each-ref', '--format=%(refname)%00%(upstream)', 'refs/heads']
-  const route = requireReachableGitRoute(getConnectionExecutionHostId(connectionId))
-  if (route.kind === 'ssh') {
-    const result = await route.provider.exec(args, repoPath)
-    return {
-      probeFailed: false,
-      upstreamsByBranchName: parseTrackedUpstreamBranches(result.stdout)
-    }
-  }
+  requireReachableGitRoute(getConnectionExecutionHostId(connectionId))
   try {
     const result = await gitExecFileAsync(args, {
       cwd: repoPath,

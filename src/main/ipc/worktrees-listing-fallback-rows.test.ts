@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { listWorktreesMock, getSshGitProviderMock } from './worktrees-test-module-mocks'
+import { listWorktreesMock } from './worktrees-test-module-mocks'
 import { handlers, setupWorktreeHandlers, store } from './worktrees-test-harness'
 import { makeWorktreeMeta } from './worktrees-test-fixtures'
 import { buildDetectedGitWorktrees } from './worktrees/listing/ssh-worktree-fallback'
@@ -268,7 +268,7 @@ describe('registerWorktreeHandlers', () => {
     ])
   })
 
-  it('falls back to reconstructed SSH rows when provider listing throws', async () => {
+  it('lists reconstructed SSH rows from persisted metadata', async () => {
     const repo = {
       id: 'repo-ssh',
       path: '/remote/repo',
@@ -277,11 +277,7 @@ describe('registerWorktreeHandlers', () => {
       addedAt: 0,
       connectionId: 'conn-1'
     }
-    const provider = {
-      listWorktrees: vi.fn().mockRejectedValue(new Error('connection lost'))
-    }
     store.getRepo.mockReturnValue(repo)
-    getSshGitProviderMock.mockReturnValue(provider)
     store.getAllWorktreeMeta.mockReturnValue({
       'repo-ssh::/remote/feature-wt': makeWorktreeMeta({
         displayName: 'Feature workspace',
@@ -291,7 +287,7 @@ describe('registerWorktreeHandlers', () => {
 
     const listed = await handlers['worktrees:list'](null, { repoId: 'repo-ssh' })
 
-    expect(provider.listWorktrees).toHaveBeenCalledWith('/remote/repo')
+    expect(listWorktreesMock).not.toHaveBeenCalled()
     expect(listed).toEqual([
       expect.objectContaining({
         id: 'repo-ssh::/remote/feature-wt',

@@ -193,53 +193,6 @@ describe('#10284 SSH Host alias → github.com owner/repo', () => {
     expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
   })
 
-  it('preserves a one-shot SSH remote failure through candidate discovery', async () => {
-    const failure = new Error('relay request failed')
-    const provider = {
-      exec: vi
-        .fn()
-        .mockRejectedValueOnce(failure)
-        .mockResolvedValueOnce({ stdout: 'git@github.com:team/orca.git\n', stderr: '' })
-    }
-    getSshGitProviderMock.mockReturnValue(provider)
-
-    await expect(
-      getOwnerRepoForRemote(
-        '/remote/repo',
-        'origin',
-        'ssh-1',
-        {},
-        {
-          requireVerifiedSshProbe: true
-        }
-      )
-    ).rejects.toBe(failure)
-    await expect(getOwnerRepoForRemote('/remote/repo', 'origin', 'ssh-1')).resolves.toEqual({
-      owner: 'team',
-      repo: 'orca'
-    })
-    expect(provider.exec).toHaveBeenCalledTimes(2)
-    expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
-  })
-
-  it('keeps failed SSH alias classification unverifiable', async () => {
-    const provider = sshProvider('')
-    getSshGitProviderMock.mockReturnValue(provider)
-
-    await expect(
-      getOwnerRepoForRemote(
-        '/remote/repo',
-        'origin',
-        'ssh-1',
-        {},
-        {
-          requireVerifiedSshProbe: true
-        }
-      )
-    ).rejects.toThrow('Remote repository identity is unverifiable.')
-    expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
-  })
-
   it('isolates the same alias across native and WSL runtimes', async () => {
     resolveWithSshGMock.mockResolvedValueOnce(sshConfig('github.com'))
     commandExecFileAsyncMock.mockResolvedValueOnce({

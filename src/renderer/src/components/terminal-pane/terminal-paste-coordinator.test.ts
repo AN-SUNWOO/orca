@@ -78,19 +78,11 @@ const RUNTIME_MATRIX: { name: string; runtime: TerminalPasteRuntime }[] = [
     }
   },
   {
-    name: 'SSH Linux',
-    runtime: {
-      platform: 'linux',
-      runtimeKey: 'ssh:linux-prod',
-      kind: 'ssh'
-    }
-  },
-  {
-    name: 'SSH Windows',
+    name: 'Windows remote runtime',
     runtime: {
       platform: 'win32',
-      runtimeKey: 'ssh:windows-prod',
-      kind: 'ssh'
+      runtimeKey: 'remote-runtime:win32',
+      kind: 'remote-runtime'
     }
   },
   {
@@ -178,7 +170,7 @@ describe('terminal paste coordinator', () => {
       text,
       source: 'context-menu',
       target: terminalTarget({
-        runtime: { platform: 'linux', runtimeKey: 'ssh:prod', kind: 'ssh' }
+        runtime: { platform: 'linux', runtimeKey: 'remote:prod', kind: 'remote-runtime' }
       }),
       maxDirectBytes: 32,
       maxChunkBytes: 24
@@ -194,7 +186,7 @@ describe('terminal paste coordinator', () => {
 
     expect(result.status).toBe('pasted')
     expect(plan.mode).toBe('chunked')
-    expect(plan.runtimeKey).toBe('ssh:prod')
+    expect(plan.runtimeKey).toBe('remote:prod')
     expect(pasteText).not.toHaveBeenCalled()
     expect(writePty.mock.calls.map((call) => call[0]).join('')).toBe(
       normalizeTerminalPasteLineEndings(text)
@@ -437,7 +429,7 @@ describe('terminal paste coordinator', () => {
       })
 
       expect(getTerminalPasteOperationTimeoutMs(plan), name).toBe(
-        runtime.kind === 'ssh' || runtime.kind === 'remote-runtime'
+        runtime.kind === 'remote-runtime'
           ? TERMINAL_REMOTE_PASTE_OPERATION_TIMEOUT_MS
           : TERMINAL_PASTE_OPERATION_TIMEOUT_MS
       )

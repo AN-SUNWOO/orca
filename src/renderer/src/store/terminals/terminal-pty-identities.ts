@@ -1,20 +1,7 @@
 import type { AppState } from '../types'
 import type { TerminalLayoutSnapshot, TerminalTab } from '../../../../shared/terminal-tab-types'
-import type { DirectSshAuthority } from '../../../../shared/ssh-types'
 import { parseLegacyNumericPaneKey, parsePaneKey } from '../../../../shared/stable-pane-id'
 import { resolveDirectSshTerminalWorkspaceKeys } from '../slices/direct-ssh-terminal-workspace-scope'
-
-export function isCurrentDirectSshAuthority(
-  state: AppState,
-  authority: DirectSshAuthority
-): boolean {
-  const current = state.sshConnectionStates.get(authority.targetId)
-  return Boolean(
-    current?.status === 'connected' &&
-    current.providerEpoch === authority.providerEpoch &&
-    current.connectionGeneration === authority.connectionGeneration
-  )
-}
 
 export function resolveDirectSshTerminalKeys(state: AppState, targetId: string): Set<string> {
   return resolveDirectSshTerminalWorkspaceKeys(

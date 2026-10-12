@@ -29,11 +29,9 @@ import {
   claudeBackgroundTaskIdentity,
   claudeBackgroundTaskBody
 } from '../../claude/claude-background-task-row-journal'
-import {
-  claudeSubagentGroupBody,
-  claudeSubagentGroupIdentity
-} from '../../claude/claude-subagent-group-row'
+import { claudeSubagentGroupIdentity } from '../../claude/claude-subagent-journaled-roster'
 import { createTrackedJournalOpener } from '../agent-session-journal/journal-host-database-test-support'
+import { subagentGroupJournalBody } from '../agent-session-journal/journal-subagent-group-body'
 import { stampJournalEntryProvenance } from '../agent-session-journal/journal-item-provenance'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import { createDeferredStructuredAgentSessionEventSink } from './structured-agent-session-event-sink'
@@ -125,7 +123,7 @@ function openJournal(): Promise<AgentSessionJournal> {
 }
 
 describe('a roster entry’s provenance', () => {
-  const group = (agents: NativeChatSubagentEntry[]) => claudeSubagentGroupBody(GROUP, agents)
+  const group = (agents: NativeChatSubagentEntry[]) => subagentGroupJournalBody(GROUP, agents)
   const agentsOf = (body: AgentJournalItemBody) =>
     body.kind === 'message'
       ? body.blocks.flatMap((b) => (isSubagentGroupBlock(b) ? b.agents : []))
@@ -170,7 +168,7 @@ describe('settling an ended generation’s roster', () => {
     const journal = await openJournal()
     // Generation F spawns a child and starts two background commands, then dies uncleaned.
     await observeAt(journal, ENDED, [
-      [claudeSubagentGroupIdentity(GROUP), claudeSubagentGroupBody(GROUP, [child('a')])],
+      [claudeSubagentGroupIdentity(GROUP), subagentGroupJournalBody(GROUP, [child('a')])],
       [claudeBackgroundTaskIdentity('bg-1'), claudeBackgroundTaskBody(task('bg-1'))],
       [claudeBackgroundTaskIdentity('bg-2'), claudeBackgroundTaskBody(task('bg-2'))]
     ])
@@ -179,7 +177,7 @@ describe('settling an ended generation’s roster', () => {
     await observeAt(journal, LIVE, [
       [
         claudeSubagentGroupIdentity(GROUP),
-        claudeSubagentGroupBody(GROUP, [child('a'), child('b')])
+        subagentGroupJournalBody(GROUP, [child('a'), child('b')])
       ],
       [
         claudeBackgroundTaskIdentity('bg-2'),

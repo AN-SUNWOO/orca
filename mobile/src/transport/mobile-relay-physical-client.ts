@@ -1,5 +1,6 @@
 import type { PairingRelay } from '../../../src/shared/mobile-relay-pairing-offer'
 import { RelayPhoneHelloSchema } from '../../../src/shared/mobile-relay-phone-protocol'
+import { latchHostToE2EEV2 } from './e2ee-v2-host-latch'
 import { MobileE2EEV2ClientSession } from './mobile-e2ee-v2-client-session'
 import { MobileE2EEV2PhysicalChannel } from './mobile-e2ee-v2-physical-channel'
 import { createPairingRelayLogger, pairingRelayErrorDetail } from './pairing-relay-log'
@@ -65,6 +66,7 @@ export function connectMobileRelayForPairing(args: {
     decodeBinary: websocketPayloadToUint8,
     onAuthenticated: () => {
       authenticated = true
+      latchHostToE2EEV2(args.desktopPublicKeyB64)
       log('success', 'Relay: authenticated', 'Channel ready for RPC')
       resolveAuthenticated()
     },

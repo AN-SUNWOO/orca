@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { isDurableDaemonScopeSupported } from './daemon-cgroup-scope'
 import { DAEMON_EXIT_ENDPOINT_OCCUPIED } from './daemon-endpoint-ownership'
 import type { DaemonEndpointIdentity } from './daemon-hello-protocol'
@@ -10,10 +11,11 @@ import { parseDaemonReadyIdentity } from './daemon-ready-identity'
 import { unlinkOwnedDaemonPidFile } from './daemon-spawner'
 import { childProcessHasExited } from '@orca/process-host/process-tree-termination'
 
+/** How long a forked daemon gets to report ready over IPC, unless the caller overrides it. */
+export const DAEMON_CHILD_STARTUP_TIMEOUT_MS = 10_000
 const DAEMON_CHILD_TERMINATION_GRACE_MS = 5_000
 const DAEMON_CHILD_FORCE_EXIT_WAIT_MS = 1_000
 const STARTUP_STDERR_MAX_BYTES = 8192
-const DEFAULT_DAEMON_STARTUP_TIMEOUT_MS = 10_000
 
 export class DaemonEndpointUnavailableError extends Error {
   constructor(
@@ -24,9 +26,43 @@ export class DaemonEndpointUnavailableError extends Error {
   }
 }
 
+/** The failed attempt may still be alive, so no retry may start beside it. */
+class DaemonStartupCleanupError extends AggregateError {}
+
 export type LaunchedDaemonChild = {
   child: ChildProcess
   identity: DaemonEndpointIdentity
+}
+
+export async function launchDaemonChild(
+  options: DaemonChildSpawnOptions
+): Promise<LaunchedDaemonChild> {
+  // Why once: the probe is a synchronous systemd-run spawn; the AppImage fallback must not repeat it.
+  const scopeSupported = isDurableDaemonScopeSupported()
+  if (options.appImage) {
+    try {
+      // Why a fresh nonce: it names the scope unit, and a failed attempt's unit may still hold its
+      // FUSE server when the in-mount retry registers the original name.
+      return await launchDaemonChildAttempt(
+        { ...options, launchNonce: randomUUID() },
+        scopeSupported
+      )
+    } catch (error) {
+      if (
+        error instanceof DaemonEndpointUnavailableError ||
+        error instanceof DaemonStartupCleanupError
+      ) {
+        throw error
+      }
+      // Why: a missing/replaced AppImage or a refused FUSE mount must not cost the daemon; the
+      // in-mount launch (with its own scope fallback) still works while this window lives.
+      console.warn(
+        '[daemon] AppImage launch failed, retrying from the current mount:',
+        error instanceof Error ? error.message : String(error)
+      )
+    }
+  }
+  return launchDaemonChildInEitherScope({ ...options, appImage: undefined }, scopeSupported)
 }
 
 /**
@@ -37,10 +73,11 @@ export type LaunchedDaemonChild = {
  * for any reason but a lost endpoint race retries once, unscoped, so an environment that cannot
  * support isolation degrades to today's proven behavior instead of failing the launch outright.
  */
-export async function launchDaemonChild(
-  options: DaemonChildSpawnOptions
+async function launchDaemonChildInEitherScope(
+  options: DaemonChildSpawnOptions,
+  scopeSupported: boolean
 ): Promise<LaunchedDaemonChild> {
-  if (!isDurableDaemonScopeSupported()) {
+  if (!scopeSupported) {
     return launchDaemonChildAttempt(options, false)
   }
   try {
@@ -118,7 +155,7 @@ async function launchDaemonChildAttempt(
         await terminateLaunchedDaemonChild(child)
       } catch (cleanupError) {
         reject(
-          new AggregateError(
+          new DaemonStartupCleanupError(
             [startupError, cleanupError],
             'Daemon startup and child cleanup both failed'
           )
@@ -189,7 +226,7 @@ async function launchDaemonChildAttempt(
 
     timer = setTimeout(() => {
       void fail(new Error('Daemon startup timed out'))
-    }, options.startupTimeoutMs ?? DEFAULT_DAEMON_STARTUP_TIMEOUT_MS)
+    }, options.startupTimeoutMs ?? DAEMON_CHILD_STARTUP_TIMEOUT_MS)
 
     child.on('message', onReadyMessage)
     child.on('error', onStartupError)

@@ -1,5 +1,5 @@
 import { useAppStore } from '@/store'
-import { settingsForRuntimeOwner } from '@/runtime/runtime-rpc-client'
+import { requireRuntimeTargetForFileOwner } from '@/lib/file-owner-runtime-target'
 import {
   getRuntimeGitBranchDiff,
   getRuntimeGitCommitDiff,
@@ -36,13 +36,16 @@ export function fetchCombinedDiffSection({
     file.filePath,
     entry.path
   )
-  const state = useAppStore.getState()
-  const fileSettings = settingsForRuntimeOwner(state.settings, file.runtimeEnvironmentId)
+  const fileTarget = requireRuntimeTargetForFileOwner(
+    useAppStore.getState(),
+    file.worktreeId,
+    file.runtimeEnvironmentId
+  )
   if ((isBranchMode || (isAllMode && !('area' in entry))) && branchCompare) {
     return withDiffSectionLoadTimeout(
       getRuntimeGitBranchDiff(
         {
-          settings: fileSettings,
+          target: fileTarget,
           worktreeId: file.worktreeId,
           worktreePath: file.filePath,
           connectionId
@@ -64,7 +67,7 @@ export function fetchCombinedDiffSection({
     return withDiffSectionLoadTimeout(
       getRuntimeGitCommitDiff(
         {
-          settings: fileSettings,
+          target: fileTarget,
           worktreeId: file.worktreeId,
           worktreePath: file.filePath,
           connectionId
@@ -81,7 +84,7 @@ export function fetchCombinedDiffSection({
   return withDiffSectionLoadTimeout(
     getRuntimeGitDiff(
       {
-        settings: fileSettings,
+        target: fileTarget,
         worktreeId: file.worktreeId,
         worktreePath: file.filePath,
         connectionId

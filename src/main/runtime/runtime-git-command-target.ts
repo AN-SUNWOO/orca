@@ -9,8 +9,7 @@ import {
   resolveGitRouteForHost
 } from '../providers/execution-host-provider-dispatch'
 import type { createLocalGitProvider, LocalGitProvider } from '../providers/local-git-provider'
-import { sshGitProviderMissingError } from '../providers/ssh-git-dispatch'
-import type { SshGitProvider } from '../providers/ssh-git-provider'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import type { PullRequestLinkedIssueMeta } from '../source-control/pull-request-linked-issue'
 import { normalizeRuntimeRelativePath } from './runtime-relative-paths'
@@ -62,8 +61,8 @@ export type RuntimeGitCommandHost = {
  */
 export type RuntimeGitRoute =
   | { kind: 'local'; createProvider: typeof createLocalGitProvider }
-  /** `provider: null` is "remote and currently unreachable" — never "run it here". */
-  | { kind: 'ssh'; connectionId: string; provider: SshGitProvider | null }
+  /** An SSH target this process does not serve; it fails or reports unavailable, never runs here. */
+  | { kind: 'ssh'; connectionId: string }
 
 export function runtimeGitRouteForTarget(target: RuntimeGitTarget): RuntimeGitRoute {
   const route = resolveGitRouteForHost(target.executionHostId)
@@ -71,34 +70,29 @@ export function runtimeGitRouteForTarget(target: RuntimeGitTarget): RuntimeGitRo
     case 'local':
       return { kind: 'local', createProvider: route.createProvider }
     case 'ssh':
-      return { kind: 'ssh', connectionId: route.connectionId, provider: route.provider }
+      return { kind: 'ssh', connectionId: route.connectionId }
     case 'runtime':
       throw new ExecutionHostNotDispatchableError(route.hostId)
   }
 }
 
-/** A provider for the target's own host; an unreachable SSH host and a `runtime:` host both throw. */
-export function requireRuntimeGitProvider(
-  target: RuntimeGitTarget,
-  route: RuntimeGitRoute = runtimeGitRouteForTarget(target)
-): LocalGitProvider {
+/** The local route for work this process runs itself; `ssh:` and `runtime:` hosts throw. */
+export function requireLocalRuntimeGitRoute(
+  target: RuntimeGitTarget
+): Extract<RuntimeGitRoute, { kind: 'local' }> {
+  const route = runtimeGitRouteForTarget(target)
   if (route.kind === 'ssh') {
-    return requireSshRuntimeGitProvider(route)
+    throw new SshHostNotServedError(route.connectionId)
   }
-  return route.createProvider({
+  return route
+}
+
+/** A provider for the target's own host; an `ssh:` host and a `runtime:` host both throw. */
+export function requireRuntimeGitProvider(target: RuntimeGitTarget): LocalGitProvider {
+  return requireLocalRuntimeGitRoute(target).createProvider({
     ...localGitOptionsForTarget(target),
     getSharedLinkPaths: () => (target.repo ? getWorktreeSharedLinkPaths(target.repo) : [])
   })
-}
-
-/** For the few commands whose SSH arm needs relay-only methods. */
-export function requireSshRuntimeGitProvider(
-  route: Extract<RuntimeGitRoute, { kind: 'ssh' }>
-): SshGitProvider {
-  if (!route.provider) {
-    throw sshGitProviderMissingError(route.connectionId)
-  }
-  return route.provider
 }
 
 export function localGitOptionsForTarget(target: RuntimeGitTarget): GitRuntimeOptions {

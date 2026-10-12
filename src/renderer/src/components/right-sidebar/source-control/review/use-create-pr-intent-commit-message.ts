@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { operationGitContext } from '../listing/operation-target'
 import { generateRuntimeCommitMessage } from '@/runtime/runtime-git-client'
 import { useAppStore } from '@/store'
 import { isCustomAgentId } from '../../../../../../shared/commit-message-agent-spec'
@@ -59,9 +60,12 @@ export function useSourceControlCreatePrIntentCommitMessage({
       setGenerateInFlightByWorktree((prev) => ({ ...prev, [target.worktreeId]: true }))
       setGenerateErrors((prev) => ({ ...prev, [target.worktreeId]: null }))
       try {
-        const result = await generateRuntimeCommitMessage(target, {
-          sourceControlAiResolvedParams: resolvedCommitMessageAi.value.params
-        })
+        const result = await generateRuntimeCommitMessage(
+          operationGitContext(target, useAppStore.getState().settings),
+          {
+            sourceControlAiResolvedParams: resolvedCommitMessageAi.value.params
+          }
+        )
         if (!result.success) {
           if (!result.canceled) {
             setGenerateErrors((prev) => ({ ...prev, [target.worktreeId]: result.error }))

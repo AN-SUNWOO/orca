@@ -43,7 +43,7 @@ describe('useChecksPanelGeneration cancellation ownership', () => {
         connectionId: 'ssh-owner',
         repoId: 'repo-1',
         branch: 'feature',
-        runtimeTargetSettings: { activeRuntimeEnvironmentId: 'runtime-owner' }
+        runtimeTarget: { kind: 'environment' as const, environmentId: 'runtime-owner' }
       },
       seed: { base: 'main', title: '', body: '', draft: false },
       seedFieldRevisions: { base: 0, title: 0, body: 0, draft: 0 },
@@ -62,7 +62,7 @@ describe('useChecksPanelGeneration cancellation ownership', () => {
       branch: 'feature',
       handleBranchChangedByPullRequestGeneration: vi.fn(),
       hostedReviewCreateProvider: 'github',
-      ownerSettings: null,
+      ownerTarget: { kind: 'local' },
       prCreationDefaults: {
         draft: false,
         generateDetailsOnOpen: false,
@@ -79,7 +79,7 @@ describe('useChecksPanelGeneration cancellation ownership', () => {
     act(() => result.current.handleCancelGeneratePullRequestFieldsForActive())
 
     expect(runtime.cancel).toHaveBeenCalledWith({
-      settings: record.context.runtimeTargetSettings,
+      target: record.context.runtimeTarget,
       worktreeId: 'owner-worktree',
       worktreePath: '/workspace/owner',
       connectionId: 'ssh-owner'
@@ -118,7 +118,7 @@ describe('useChecksPanelGeneration outcome', () => {
       branch: 'feature',
       handleBranchChangedByPullRequestGeneration: vi.fn(),
       hostedReviewCreateProvider: 'github',
-      ownerSettings: null,
+      ownerTarget: { kind: 'local' },
       prCreationDefaults: {
         draft: false,
         generateDetailsOnOpen: false,
@@ -175,7 +175,7 @@ describe('useChecksPanelGeneration outcome', () => {
         branch: 'feature',
         handleBranchChangedByPullRequestGeneration: vi.fn(),
         hostedReviewCreateProvider: 'github',
-        ownerSettings: null,
+        ownerTarget: { kind: 'local' },
         prCreationDefaults: {
           draft: false,
           generateDetailsOnOpen: false,
@@ -239,7 +239,7 @@ describe('useChecksPanelGeneration outcome', () => {
         branch: 'feature',
         handleBranchChangedByPullRequestGeneration: vi.fn(),
         hostedReviewCreateProvider: 'github',
-        ownerSettings: null,
+        ownerTarget: { kind: 'local' },
         prCreationDefaults: {
           draft: false,
           generateDetailsOnOpen: false,

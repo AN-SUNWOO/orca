@@ -78,6 +78,9 @@ jobs:
         with:
           resolve-windows-cache: 'true'
           restore-windows-cache: 'true'
+      - uses: ./.github/actions/prepare-windows-cli-launcher
+        with:
+          arches: x64
       - name: Build the win32-x64 orcad template
         shell: bash
         run: |

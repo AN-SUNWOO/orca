@@ -1,12 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import type { HostAuthority } from '../../../shared/host-authority'
 import type { ExecutionHostOwnerMatch } from '../../../shared/worktree-execution-host-resolution'
 import {
-  getLegacyFocusFallbackCount,
-  resetLegacyFocusFallbackCountForTest,
   resolveOwner,
-  resolveOwnerWithLegacyFocus,
+  runtimeTargetForWorkspaceOwner,
   type WorkspaceOwnerRef
 } from './resolve-owner'
 import type {
@@ -59,8 +57,6 @@ type Row = {
   rows: WorktreeOperationRouteState
   ref: WorkspaceOwnerRef
   owner: Match
-  /** Today's focus-reading answer where it differs from `owner`. */
-  legacy?: Partial<Record<ActiveServer, Match>>
   savedServers?: string[]
 }
 
@@ -75,16 +71,14 @@ const ROWS: Row[] = [
     name: 'local, unstamped legacy row',
     rows: { repos: [{ id: 'repo-1' }], worktreesByRepo: { 'repo-1': [worktree()] } },
     ref: { workspaceId: WORKTREE_ID },
-    owner: selfAt('local'),
-    legacy: { other: missing, deleted: missing }
+    owner: selfAt('local')
   },
   {
     name: 'local, unstamped legacy row, one saved server',
     rows: { repos: [{ id: 'repo-1' }], worktreesByRepo: { 'repo-1': [worktree()] } },
     ref: { workspaceId: WORKTREE_ID },
     owner: selfAt('local'),
-    savedServers: ['env-other'],
-    legacy: { other: envAt('env-other'), deleted: missing }
+    savedServers: ['env-other']
   },
   {
     name: 'direct SSH',
@@ -207,8 +201,7 @@ const ROWS: Row[] = [
     rows: { folderWorkspaces: [folder(null)] },
     ref: { workspaceId: 'folder:f1' },
     owner: selfAt('local'),
-    savedServers: ['env-other'],
-    legacy: { other: envAt('env-other') }
+    savedServers: ['env-other']
   },
   {
     name: 'unknown id',
@@ -228,16 +221,40 @@ function withActiveServer(row: Row, active: ActiveServer): WorktreeOperationRout
 }
 
 describe('resolveOwner characterization', () => {
-  beforeEach(() => resetLegacyFocusFallbackCountForTest())
-
   describe.each(ROWS)('$name', (row) => {
     it.each(ACTIVE_SERVERS)('Active Server = %s', (active) => {
       const state = withActiveServer(row, active)
       expect(resolveOwner(state, row.ref)).toEqual(row.owner)
-
-      const legacy = row.legacy?.[active]
-      expect(resolveOwnerWithLegacyFocus(state, row.ref)).toEqual(legacy ?? row.owner)
-      expect(getLegacyFocusFallbackCount()).toBe(legacy ? 1 : 0)
     })
+  })
+})
+
+describe('runtimeTargetForWorkspaceOwner', () => {
+  const settings = { activeRuntimeEnvironmentId: 'env-other' }
+  it('dials the owner, not the focused server', () => {
+    const rows: WorktreeOperationRouteState = {
+      settings,
+      repos: [{ id: 'repo-1', executionHostId: 'runtime:env-a' }],
+      worktreesByRepo: { 'repo-1': [worktree('runtime:env-a', 'env-a')] }
+    }
+    expect(runtimeTargetForWorkspaceOwner(rows, { workspaceId: WORKTREE_ID })).toEqual({
+      kind: 'environment',
+      environmentId: 'env-a'
+    })
+  })
+
+  it('rides this app for local and direct SSH owners', () => {
+    const sshRows: WorktreeOperationRouteState = {
+      settings,
+      repos: [{ id: 'repo-1', connectionId: 'box' }],
+      worktreesByRepo: { 'repo-1': [worktree('ssh:box')] }
+    }
+    expect(runtimeTargetForWorkspaceOwner(sshRows, { workspaceId: WORKTREE_ID })).toEqual({
+      kind: 'local'
+    })
+  })
+
+  it('has no transport when no row names the workspace', () => {
+    expect(runtimeTargetForWorkspaceOwner({ settings }, { workspaceId: WORKTREE_ID })).toBeNull()
   })
 })

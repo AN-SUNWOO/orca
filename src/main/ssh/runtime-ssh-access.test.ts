@@ -1,3 +1,4 @@
+import { pairedRuntimeConnectionFromOffer } from '../../shared/paired-runtime-connection'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -131,7 +132,10 @@ describe('independent runtime SSH access coordinator', () => {
       events.push('verify')
       return {
         verifiedRuntimeId: 'runtime',
-        verifiedPairing: { ...pairing, endpoint: 'ws://127.0.0.1:41000' },
+        verifiedConnection: pairedRuntimeConnectionFromOffer({
+          ...pairing,
+          endpoint: 'ws://127.0.0.1:41000'
+        }),
         runtimeStatus: {}
       }
     })
@@ -295,7 +299,10 @@ describe('independent runtime SSH access coordinator', () => {
               ? { generation: 4 }
               : { orcadFence: { environmentId: 'other' } })
         }
-        return { verifiedRuntimeId: 'runtime', verifiedPairing: pairing }
+        return {
+          verifiedRuntimeId: 'runtime',
+          verifiedConnection: pairedRuntimeConnectionFromOffer(pairing)
+        }
       })
       await expect(linkRuntimeSshAccess(userDataPath, request())).rejects.toThrow('changed')
       expect(current().sshAccess).toBeUndefined()

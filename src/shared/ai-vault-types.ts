@@ -218,6 +218,8 @@ export type AiVaultScanIssue = {
 }
 
 export type AiVaultListArgs = {
+  /** Opts a selected runtime-host refresh into content-conditional replies. */
+  afterFingerprint?: string | null
   /** Opt-in promises this client starts IDE history in a new CLI conversation. */
   includeAntigravityIdeSessions?: boolean
   limit?: number
@@ -231,6 +233,9 @@ export type AiVaultListArgs = {
 }
 
 export type AiVaultListResult = {
+  fingerprint?: string
+  /** Requires the caller to reuse the exact previously received body. */
+  unchanged?: true
   sessions: AiVaultSession[]
   issues: AiVaultScanIssue[]
   scannedAt: string

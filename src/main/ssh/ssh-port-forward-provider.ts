@@ -20,6 +20,8 @@ export type StartedPortForward = {
   entry: PortForwardEntry
   close: () => Promise<void>
   dispose: () => void
+  /** False once `conn` no longer carries the transport this forward tunnels through. */
+  isLive?: (conn: SshConnection) => boolean
 }
 
 export type SshPortForwardProvider = {

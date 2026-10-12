@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { WEDGED_DAEMON_GRACE_RETRIES } from './daemon-init'
+import { WEDGED_DAEMON_GRACE_RETRIES } from './daemon-replacement-preflight'
 import { FAKE_RUNTIME_DIR } from './daemon-init-test-harness'
 import {
   DAEMON_RECOVERY_BUDGET_MS,

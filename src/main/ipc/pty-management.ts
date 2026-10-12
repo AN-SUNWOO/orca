@@ -3,9 +3,9 @@ import { DegradedDaemonPtyProvider } from '../daemon/degraded-daemon-pty-provide
 import type { DaemonPtyAdapter } from '../daemon/daemon-pty-adapter'
 import {
   getCurrentDaemonMacTccAttributionHealth,
-  getDaemonProvider,
-  restartDaemon
-} from '../daemon/daemon-init'
+  getDaemonProvider
+} from '../daemon/daemon-provider-state'
+import { restartDaemon } from '../daemon/daemon-provider-restart'
 import { getAllDaemonAdapters, getCurrentDaemonAdapter } from '../daemon/daemon-provider-routing'
 import {
   getDaemonFolderAccessMismatch,

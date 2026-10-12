@@ -161,6 +161,11 @@ export function NativeChatMessageList({
     subagentDisclosure,
     openSubagentSections
   } = useNativeChatSubagentSections(messages, subagentRows, subagentRoster)
+  // Folded subagent rows stay loaded, so a reopened reply keeps its reveal.
+  const loadedMessageIds = useMemo(
+    () => new Set([...messages.map(({ id }) => id), ...subagentSections.pathOf.keys()]),
+    [messages, subagentSections]
+  )
   const taskListPredecessors = useMemo(() => nativeChatTaskListPredecessors(messages), [messages])
   const taskListState = useMemo(() => nativeChatTaskListState(messages), [messages])
   // Each row's turn, which turn is live, and the order the rows draw in, resolved once.
@@ -267,11 +272,8 @@ export function NativeChatMessageList({
   })
   const requestRailJump = useCallback((item: NativeChatRailItem) => {
     navigationSequence.current += 1
-    setNavigationRequest({
-      kind: 'rail',
-      messageId: item.id,
-      requestId: navigationSequence.current
-    })
+    const requestId = navigationSequence.current
+    setNavigationRequest({ kind: 'rail', messageId: item.id, requestId })
   }, [])
   const railHistoryJump = useNativeChatRailHistoryJump({
     items: rail.items,
@@ -304,10 +306,8 @@ export function NativeChatMessageList({
         openSubagentSections(target.subagentSections)
       }
       navigationSequence.current += 1
-      setNavigationRequest({
-        kind: 'diff',
-        target: { ...target, requestId: navigationSequence.current }
-      })
+      const requestId = navigationSequence.current
+      setNavigationRequest({ kind: 'diff', target: { ...target, requestId } })
     },
     [beginNavigation, readerLeavesEnd, openSubagentSections]
   )
@@ -396,6 +396,7 @@ export function NativeChatMessageList({
               >
                 <NativeChatTranscriptItems
                   slots={slots}
+                  loadedMessageIds={loadedMessageIds}
                   context={rowContext}
                   window={transcriptWindow}
                 />

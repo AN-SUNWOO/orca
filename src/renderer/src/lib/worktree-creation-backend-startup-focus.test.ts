@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type * as SyncRuntimeGraphModule from '@/runtime/sync-runtime-graph'
+import type * as MountedTerminalTabRegistryModule from '@/runtime/mounted-terminal-tab-registry'
 import type { PreloadApi } from '../../../preload/api-types'
 
 type CreateTerminalPayload = Parameters<Parameters<PreloadApi['ui']['onCreateTerminal']>[0]>[0]
@@ -8,8 +8,8 @@ const { focusRuntimeTerminalSurface } = vi.hoisted(() => ({
   focusRuntimeTerminalSurface: vi.fn(() => true)
 }))
 
-vi.mock('@/runtime/sync-runtime-graph', async (importOriginal) => ({
-  ...(await importOriginal<typeof SyncRuntimeGraphModule>()),
+vi.mock('@/runtime/mounted-terminal-tab-registry', async (importOriginal) => ({
+  ...(await importOriginal<typeof MountedTerminalTabRegistryModule>()),
   focusRuntimeTerminalSurface
 }))
 

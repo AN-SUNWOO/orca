@@ -49,11 +49,10 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
     operation: 'resume' | 'create',
     signal?: AbortSignal
   ): Promise<boolean> {
-    const provider = workspace.connectionId
-      ? this.getSshProviderFn?.(workspace.connectionId)
-      : this.getLocalProvider()
+    // Why: an SSH workspace has no provider here; an unavailable route is not proof of an old
+    // owner, so preserve the structured failure.
+    const provider = workspace.connectionId ? null : this.getLocalProvider()
     if (!provider) {
-      // An unavailable route is not proof of an old owner; preserve the structured failure.
       return true
     }
     const probe =
@@ -61,8 +60,8 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
         ? provider.supportsAgentSessionClaims
         : provider.supportsAgentSessionCreateOperations
     if (!probe) {
-      // Local in-process PTYs need no wire negotiation; unknown SSH providers are legacy.
-      return workspace.connectionId === null
+      // Local in-process PTYs need no wire negotiation.
+      return true
     }
     try {
       return (await probe.call(provider, { signal })) === true
@@ -168,6 +167,7 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
       tabId: request.placement?.tabId,
       leafId: request.placement?.leafId,
       agentSessionClaim: claim,
+      ...(request.spawnIntent ? { spawnIntent: request.spawnIntent } : {}),
       signal: _caller.signal
     })
     return {

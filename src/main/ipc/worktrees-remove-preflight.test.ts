@@ -10,10 +10,7 @@ import {
   getEffectiveHooksMock,
   runHookMock,
   gitExecFileAsyncMock,
-  getSshGitProviderMock,
-  getSshFilesystemProviderMock,
-  killAllProcessesForWorktreeMock,
-  getSshPtyProviderMock
+  killAllProcessesForWorktreeMock
 } from './worktrees-test-module-mocks'
 import { handlers, setupWorktreeHandlers, store } from './worktrees-test-harness'
 import { mockKnownFeatureWorktree } from './worktrees-test-fixtures'
@@ -293,46 +290,5 @@ describe('registerWorktreeHandlers', () => {
     expect(gitExecFileAsyncMock).toHaveBeenCalledWith(['worktree', 'prune'], {
       cwd: '/workspace/repo'
     })
-  })
-
-  it('fails closed when the SSH PTY provider is unavailable', async () => {
-    const repo = {
-      id: 'repo-ssh',
-      path: '/remote/repo',
-      displayName: 'ssh',
-      badgeColor: '#000',
-      addedAt: 0,
-      connectionId: 'conn-1',
-      worktreeBaseRef: null
-    }
-    store.getRepos.mockReturnValue([repo])
-    store.getRepo.mockReturnValue(repo)
-    const removeWorktree = vi.fn()
-    getSshGitProviderMock.mockReturnValue({
-      listWorktrees: vi.fn().mockResolvedValue([
-        { path: '/remote/repo', isMainWorktree: true },
-        {
-          path: '/remote/feature-wt',
-          head: 'feature',
-          branch: 'feature',
-          isMainWorktree: false
-        }
-      ]),
-      worktreeIsClean: vi.fn().mockResolvedValue({ clean: true }),
-      removeWorktree
-    })
-    getSshFilesystemProviderMock.mockReturnValue({
-      readFile: vi.fn().mockRejectedValue(new Error('missing'))
-    })
-    getSshPtyProviderMock.mockReturnValue(undefined)
-
-    await expect(
-      handlers['worktrees:remove'](null, {
-        worktreeId: 'repo-ssh::/remote/feature-wt'
-      })
-    ).rejects.toThrow('PTY provider unavailable for worktree deletion')
-
-    expect(removeWorktree).not.toHaveBeenCalled()
-    expect(killAllProcessesForWorktreeMock).not.toHaveBeenCalled()
   })
 })

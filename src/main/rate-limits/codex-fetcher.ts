@@ -14,6 +14,8 @@ import {
 import { isCodexStateDbBackfillPending } from '../codex/codex-state-db'
 import { startCodexStateDbBackfillRecoveryInBackground } from '../codex/codex-state-db-backfill-recovery'
 import { spawnProcess } from '@orca/process-host'
+import { buildConfiguredProxyEnv } from '../../shared/network-proxy'
+import { getMainHttpClient } from '../network/http-client'
 import { probeCodexAuthPresence } from './codex-auth-presence'
 import {
   fetchCodexRateLimitsViaBackend,
@@ -78,16 +80,9 @@ function processEnvWithoutCodexHome(): NodeJS.ProcessEnv {
   return env
 }
 
-function fetchCodexUsage(url: string, init: RequestInit): Promise<Response> {
-  return fetch(url, init)
-}
-
-function fetchCodexResetCredits(url: string, init: RequestInit): Promise<Response> {
-  return fetch(url, init)
-}
-
-function consumeCodexResetCredit(url: string, init: RequestInit): Promise<Response> {
-  return fetch(url, init)
+function requestCodexBackend(url: string, init: RequestInit): Promise<Response> {
+  // Keep account authentication explicit; the desktop session may hold unrelated cookies.
+  return getMainHttpClient().fetch(url, { ...init, credentials: 'omit' })
 }
 
 async function fetchViaRpc(options?: CodexRateLimitFetchOptions): Promise<ProviderRateLimits> {
@@ -107,6 +102,8 @@ async function fetchViaRpc(options?: CodexRateLimitFetchOptions): Promise<Provid
     cwd: resolveHiddenRateLimitPtyCwd(),
     env: withCliRuntimeOnPath(codexCommand, {
       ...(wslCodex ? processEnvWithoutCodexHome() : process.env),
+      // WSL probes keep the guest's own proxy env; a Windows proxy address may not resolve there.
+      ...(wslCodex ? {} : buildConfiguredProxyEnv(options?.networkProxySettings)),
       ...(options?.codexHomePath && !wslCodex ? { CODEX_HOME: options.codexHomePath } : {})
     })
   })
@@ -124,15 +121,15 @@ export function consumeCodexRateLimitResetCredit(options: {
   codexHomePath?: string | null
   idempotencyKey: string
 }): Promise<CodexRateLimitResetOutcome> {
-  return consumeCodexRateLimitResetCreditFromBackend(options, consumeCodexResetCredit)
+  return consumeCodexRateLimitResetCreditFromBackend(options, requestCodexBackend)
 }
 
 async function supplementBackendMetadata(
   limits: ProviderRateLimits,
   options?: CodexRateLimitFetchOptions
 ): Promise<ProviderRateLimits> {
-  const withSession = await supplementCodexSessionWindow(limits, fetchCodexUsage, options)
-  return supplementCodexRateLimitResetCredits(withSession, fetchCodexResetCredits, options)
+  const withSession = await supplementCodexSessionWindow(limits, requestCodexBackend, options)
+  return supplementCodexRateLimitResetCredits(withSession, requestCodexBackend, options)
 }
 
 function codexUnavailable(error: string, status: 'error' | 'unavailable'): ProviderRateLimits {
@@ -150,12 +147,12 @@ async function fetchBackendUsage(
   options: CodexRateLimitFetchOptions | undefined
 ): Promise<ProviderRateLimits | null> {
   try {
-    const result = await fetchCodexRateLimitsViaBackend(fetchCodexUsage, options)
+    const result = await fetchCodexRateLimitsViaBackend(requestCodexBackend, options)
     if (options?.signal?.aborted) {
       return abortedCodexRateLimitResult()
     }
     return result
-      ? supplementCodexRateLimitResetCredits(result, fetchCodexResetCredits, options)
+      ? supplementCodexRateLimitResetCredits(result, requestCodexBackend, options)
       : null
   } catch {
     return options?.signal?.aborted ? abortedCodexRateLimitResult() : null

@@ -15,6 +15,17 @@ export const pairScanStyles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm
   },
+  notice: {
+    color: colors.textPrimary,
+    backgroundColor: colors.bgRaised,
+    borderColor: colors.borderSubtle,
+    borderWidth: 1,
+    borderRadius: radii.card,
+    fontSize: typography.bodySize,
+    lineHeight: 20,
+    padding: spacing.md,
+    marginBottom: spacing.lg
+  },
   steps: {
     gap: spacing.sm,
     marginBottom: spacing.lg,

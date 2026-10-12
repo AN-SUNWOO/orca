@@ -134,7 +134,6 @@ async function convertedThenAdded(addOnOlderBuild: () => string): Promise<string
     convertSshTargetToManagedOrcad(userDataPath, {
       sshTargetId: TARGET.id,
       name: 'Managed',
-      listRelayPtyIds: Object.assign(async () => [], { previous: async () => [] }),
       censusHost: async () => ({ verdict: 'exited', count: 0 }),
       destinationFor: () => destination,
       releaseDirectSession: async () => {},
@@ -148,12 +147,8 @@ async function convertedThenAdded(addOnOlderBuild: () => string): Promise<string
   return worktreeId
 }
 
-/** The relay answers only after `whileChecking` ran, as a user typing during the check would. */
+/** The census answers only after `whileChecking` ran, as a user typing during the check would. */
 function deltaMoveTypingDuringTerminalCheck(whileChecking: () => void) {
-  const list = async (): Promise<string[]> => {
-    whileChecking()
-    return []
-  }
   return runOrcadDeltaMove({
     userDataPath,
     store,
@@ -161,8 +156,10 @@ function deltaMoveTypingDuringTerminalCheck(whileChecking: () => void) {
     target: store.getSshTarget(TARGET.id)!,
     environment: listEnvironments(userDataPath)[0]!,
     destination,
-    listRelayPtyIds: Object.assign(list, { previous: async () => [] }),
-    censusHost: async () => ({ verdict: 'exited', count: 0 }),
+    censusHost: async () => {
+      whileChecking()
+      return { verdict: 'exited', count: 0 }
+    },
     releaseDirectSession: async () => {},
     ensureTunnel: async () => {},
     runTargetLifecycle,

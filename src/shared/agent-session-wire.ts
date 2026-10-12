@@ -473,9 +473,7 @@ export type AgentSessionSlashCommand = {
 /** The provider's own command surface, read per session. Additive read-only
  *  surface: a host that predates it answers `method_not_found`, and the client
  *  keeps rendering its curated catalog. */
-export type AgentSessionCommandsResult = {
-  commands?: AgentSessionSlashCommand[]
-}
+export type AgentSessionCommandsResult = { commands?: AgentSessionSlashCommand[] }
 
 /** Longest objective a client may send; matches the provider's own limit. */
 export const AGENT_SESSION_THREAD_GOAL_OBJECTIVE_MAX_LENGTH = 4000
@@ -503,6 +501,8 @@ export type AgentSessionOptionsResult = {
    *  `current` is the newest of each part the whole journal records, for a
    *  client whose loaded page starts after the row that carries it. */
   contextUsage?: { current: AgentSessionContextUsage; contextFloor?: AgentJournalCursor }
+  /** This session takes image attachments. Absent = unknown (an older host). */
+  acceptsImages?: boolean
   models: AgentSessionModelOption[]
   /** Session/account/transport support. Absent means unknown, never unsupported. */
   fastModeSupport?: AgentSessionFastModeSupport

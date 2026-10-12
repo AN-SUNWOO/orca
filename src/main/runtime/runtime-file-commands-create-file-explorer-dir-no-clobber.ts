@@ -2,9 +2,8 @@
 import { RuntimeFileCommandsWithWriteFileExplorerFile } from './runtime-file-commands-write-file-explorer-file'
 import { assertRuntimeFileMutationExpectation } from './runtime-file-commands-mobile-file-list-limit'
 import {
-  requireRuntimeFileProvider,
-  requireSshRuntimeFileProvider,
-  runtimeFileRouteForTarget
+  requireLocalRuntimeFileRoute,
+  requireRuntimeFileProvider
 } from './runtime-file-command-target'
 import { resolveAuthorizedPath } from '../ipc/filesystem-auth'
 import { constants, copyFile, mkdir, rm } from 'node:fs/promises'
@@ -47,15 +46,8 @@ export class RuntimeFileCommandsWithCreateFileExplorerDirNoClobber extends Runti
       expectedSshTargetId,
       expectedSshConnectionGeneration
     )
-    const route = runtimeFileRouteForTarget(tempTarget)
-    // Why: the local arm commits through the resolved (not symlink-preserving) temp and final paths.
-    if (route.kind === 'ssh') {
-      const provider = requireSshRuntimeFileProvider(route)
-      await provider.copy(tempTarget.path, finalTarget.path)
-      await provider.deletePath(tempTarget.path, false).catch(() => {})
-      return { ok: true }
-    }
-
+    requireLocalRuntimeFileRoute(tempTarget)
+    // Why: commit through the resolved (not symlink-preserving) temp and final paths.
     const store = this.host.requireStore()
     const tempPath = await resolveAuthorizedPath(tempTarget.path, store)
     const finalPath = await resolveAuthorizedPath(finalTarget.path, store)

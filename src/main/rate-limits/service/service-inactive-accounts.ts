@@ -13,7 +13,9 @@ export abstract class RateLimitServiceInactiveAccounts extends RateLimitServiceP
     if (this.inactiveClaudeFetching.size > 0) {
       return
     }
-    const accounts = this.inactiveClaudeAccountsResolver?.() ?? []
+    const accounts = (this.inactiveClaudeAccountsResolver?.() ?? []).filter(
+      (account) => !this.isRetryAfterActive(this.inactiveClaudeCache.get(account.id) ?? null)
+    )
     if (accounts.length === 0) {
       return
     }
@@ -142,6 +144,7 @@ export abstract class RateLimitServiceInactiveAccounts extends RateLimitServiceP
           // Why: point fetchCodexRateLimits at the managed home directly, avoiding materializing credentials into the shared runtime location.
           const fresh = await fetchCodexRateLimits({
             codexHomePath: home.managedHomePath,
+            networkProxySettings: this.networkProxySettingsResolver?.(),
             signal
           })
           if (

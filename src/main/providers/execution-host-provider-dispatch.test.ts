@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   ExecutionHostNotDispatchableError,
-  requireFilesystemProviderForHost,
-  requireGitProviderForHost,
   requireReachableFilesystemRoute,
   requireReachableGitRoute,
   resolveFilesystemRouteForHost,
@@ -16,7 +14,7 @@ import {
   registerSshFilesystemProvider,
   unregisterSshFilesystemProvider
 } from './ssh-filesystem-dispatch'
-import { clearSshPlainSshMode, setSshPlainSshMode } from '../ssh/ssh-plain-ssh-mode'
+import { SSH_HOST_NOT_SERVED_MESSAGE, SshHostNotServedError } from './ssh-host-not-served-error'
 
 const connectionId = 'host-dispatch-target'
 const gitProvider = { listWorktrees: async () => [] } as never
@@ -41,38 +39,13 @@ describe('execution host provider dispatch', () => {
     })
   })
 
-  it('routes an ssh host to its registered provider', () => {
+  it('routes an ssh host to a provider-less entry, even with a registered provider', () => {
     registerSshGitProvider(connectionId, gitProvider)
     registerSshFilesystemProvider(connectionId, filesystemProvider)
 
-    expect(resolveGitRouteForHost(`ssh:${connectionId}`)).toEqual({
-      kind: 'ssh',
-      hostId: `ssh:${connectionId}`,
-      connectionId,
-      provider: gitProvider
-    })
-    expect(resolveFilesystemRouteForHost(`ssh:${connectionId}`)).toEqual({
-      kind: 'ssh',
-      hostId: `ssh:${connectionId}`,
-      connectionId,
-      provider: filesystemProvider
-    })
-    expect(requireGitProviderForHost(`ssh:${connectionId}`)).toBe(gitProvider)
-    expect(requireFilesystemProviderForHost(`ssh:${connectionId}`)).toBe(filesystemProvider)
-  })
-
-  it('answers `unreachable`, not `local`, for an ssh host with no registered provider', () => {
-    const route = resolveGitRouteForHost(`ssh:${connectionId}`)
-
-    // The distinction the old `connectionId ? ssh : local` shape could not spell.
-    expect(route.kind).toBe('ssh')
-    expect(route.kind === 'ssh' && route.provider).toBeNull()
-    expect(() => requireGitProviderForHost(`ssh:${connectionId}`)).toThrow(
-      /Remote connection dropped/
-    )
-    expect(() => requireFilesystemProviderForHost(`ssh:${connectionId}`)).toThrow(
-      /Remote connection dropped/
-    )
+    const expected = { kind: 'ssh', hostId: `ssh:${connectionId}`, connectionId }
+    expect(resolveGitRouteForHost(`ssh:${connectionId}`)).toStrictEqual(expected)
+    expect(resolveFilesystemRouteForHost(`ssh:${connectionId}`)).toStrictEqual(expected)
   })
 
   it('routes a runtime host to its own entry instead of collapsing it into local', () => {
@@ -88,26 +61,6 @@ describe('execution host provider dispatch', () => {
     })
   })
 
-  it('refuses to hand a runtime host to this process’s ssh table', () => {
-    // A runtime repo row carries the *server's* nested target id. Dialling it here would reach a
-    // same-named target in this client's namespace.
-    registerSshGitProvider(connectionId, gitProvider)
-
-    expect(() => requireGitProviderForHost('runtime:env-7')).toThrow(
-      ExecutionHostNotDispatchableError
-    )
-    expect(() => requireFilesystemProviderForHost('runtime:env-7')).toThrow(
-      ExecutionHostNotDispatchableError
-    )
-  })
-
-  it('refuses to serve a local host from the remote-only accessor', () => {
-    expect(() => requireGitProviderForHost('local')).toThrow(ExecutionHostNotDispatchableError)
-    expect(() => requireFilesystemProviderForHost('local')).toThrow(
-      ExecutionHostNotDispatchableError
-    )
-  })
-
   it.each([null, undefined, '', 'nonsense', 'ssh:', 'runtime:', 'ssh:a|b'])(
     'throws instead of answering local for the unresolvable host %p',
     (hostId) => {
@@ -117,41 +70,36 @@ describe('execution host provider dispatch', () => {
   )
 
   describe('reachable routes for work this process runs', () => {
-    it('keeps `local` explicit and returns a connected ssh host with its provider', () => {
+    it('keeps `local` explicit', () => {
       expect(requireReachableGitRoute('local')).toMatchObject({ kind: 'local', hostId: 'local' })
       expect(requireReachableFilesystemRoute('local')).toMatchObject({ kind: 'local' })
-
-      registerSshGitProvider(connectionId, gitProvider)
-      registerSshFilesystemProvider(connectionId, filesystemProvider)
-      expect(requireReachableGitRoute(`ssh:${connectionId}`)).toMatchObject({
-        kind: 'ssh',
-        connectionId,
-        provider: gitProvider
-      })
-      expect(requireReachableFilesystemRoute(`ssh:${connectionId}`)).toMatchObject({
-        kind: 'ssh',
-        provider: filesystemProvider
-      })
     })
 
-    it('throws for an unreachable ssh host instead of running it here', () => {
-      expect(() => requireReachableGitRoute(`ssh:${connectionId}`)).toThrow(
-        /Remote connection dropped/
-      )
-      expect(() => requireReachableFilesystemRoute(`ssh:${connectionId}`)).toThrow(
-        /Remote connection dropped/
-      )
-    })
-
-    it('names a plain SSH host’s missing git as unsupported, not dropped', () => {
-      setSshPlainSshMode(connectionId, { reason: 'no_runtime', message: 'm' })
-      try {
-        expect(() => requireReachableGitRoute(`ssh:${connectionId}`)).toThrow(
-          'Git needs the Orca remote server'
+    // Characterization: the message is the one an unreachable ssh host already showed.
+    it.each([false, true])(
+      'throws the typed not-served error for an ssh host (provider registered: %s)',
+      (registered) => {
+        if (registered) {
+          registerSshGitProvider(connectionId, gitProvider)
+          registerSshFilesystemProvider(connectionId, filesystemProvider)
+        }
+        for (const require of [requireReachableGitRoute, requireReachableFilesystemRoute]) {
+          expect(() => require(`ssh:${connectionId}`)).toThrow(SshHostNotServedError)
+          expect(() => require(`ssh:${connectionId}`)).toThrow(
+            'Remote connection dropped. Click Reconnect on the SSH target before retrying.'
+          )
+        }
+        expect(SSH_HOST_NOT_SERVED_MESSAGE).toBe(
+          'Remote connection dropped. Click Reconnect on the SSH target before retrying.'
         )
-      } finally {
-        clearSshPlainSshMode(connectionId)
       }
+    )
+
+    it('never hands an ssh host a local provider factory', () => {
+      expect(resolveGitRouteForHost(`ssh:${connectionId}`)).not.toHaveProperty('createProvider')
+      expect(resolveFilesystemRouteForHost(`ssh:${connectionId}`)).not.toHaveProperty(
+        'createProvider'
+      )
     })
 
     it('refuses a runtime host', () => {

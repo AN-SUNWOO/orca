@@ -30,7 +30,6 @@ import {
 import {
   contextualTourOutcomeSchema,
   contextualTourShownSchema,
-  directSshReconnectOperationSchema,
   editorExternalChangeConflictActionSchema,
   editorExternalChangeConflictShownSchema,
   setupGuideClosedSchema,
@@ -203,7 +202,6 @@ export const eventSchemas = {
   editor_external_change_conflict_shown: editorExternalChangeConflictShownSchema,
   editor_external_change_conflict_action: editorExternalChangeConflictActionSchema,
 
-  direct_ssh_reconnect_operation: directSshReconnectOperationSchema,
   ssh_remote_runtime_resolved: sshRemoteRuntimeResolvedSchema,
   ssh_host_server_decided: sshHostServerDecidedSchema,
   ssh_host_server_conversion: sshHostServerConversionSchema,

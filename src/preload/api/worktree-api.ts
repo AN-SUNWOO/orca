@@ -15,10 +15,6 @@ import type {
   FolderWorkspacePathStatus,
   FolderWorkspacePathStatusRequest
 } from '../../shared/folder-workspace-path-status'
-import type {
-  HostLineageSnapshot,
-  ListDesktopLineageForHostArgs
-} from '../../shared/host-lineage-contract'
 import type { FolderWorkspace } from '../../shared/folder-workspace-types'
 import type {
   WorktreeBaseStatusEvent,
@@ -126,12 +122,11 @@ export type WorktreeApi = {
     worktreeId: string
     executionHostId?: ExecutionHostId
     updates: Partial<WorktreeMeta>
-  }) => Promise<Worktree>
+  }) => Promise<Worktree | null>
   listLineage: () => Promise<{
     lineage: Record<string, WorktreeLineage>
     workspaceLineage?: Record<string, WorkspaceLineage>
   }>
-  listLineageForHost?: (args: ListDesktopLineageForHostArgs) => Promise<HostLineageSnapshot>
   updateLineage: (args: {
     worktreeId: string
     parentWorktreeId?: string

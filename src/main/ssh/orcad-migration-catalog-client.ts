@@ -1,3 +1,4 @@
+import { pairedRuntimeConnectionFromOffer } from '../../shared/paired-runtime-connection'
 import {
   parseOrcadMigrationCatalogAbortResult,
   parseOrcadMigrationCatalogState
@@ -150,7 +151,7 @@ async function sendSupportedMigrationRequest(
   requiresExtraAgentArgs = false
 ): Promise<RuntimeRpcResponse<unknown>> {
   const response = await sendRemoteRuntimeRequestWithStatusPreflight<unknown>(
-    pairing,
+    pairedRuntimeConnectionFromOffer(pairing),
     method,
     params,
     options.timeoutMs ?? 15_000,

@@ -87,10 +87,7 @@ describe('WSL SQLite runtime preparation', () => {
         args: ['-e', expect.stringMatching(/require\('node:sqlite'\).*backup/)]
       })
     )
-    expect(mocks.bundles.mock.calls.map(([platform]) => platform)).toEqual([
-      'linux-x64',
-      'linux-arm64'
-    ])
+    expect(mocks.bundles.mock.calls.map(([platform]) => platform)).toEqual(['wsl'])
     expect(mocks.download).not.toHaveBeenCalled()
   })
 
@@ -263,7 +260,7 @@ describe('WSL SQLite runtime preparation', () => {
     mocks.run.mockResolvedValueOnce(success(''))
     await prepare([home])
     await vi.waitFor(async () =>
-      expect((await prepare([home]))[0]?.error).toContain('No OpenCode database')
+      expect((await prepare([home]))[0]?.error).toContain('No OpenCode or ZCode database')
     )
     expect(mocks.run).toHaveBeenCalledOnce()
     expect(mocks.download).not.toHaveBeenCalled()
@@ -274,16 +271,19 @@ describe('WSL SQLite runtime preparation', () => {
     expect(mocks.running).toHaveBeenCalledWith(expect.any(Array), { requireConfirmed: true })
   })
 
-  it.skipIf(process.platform === 'win32')(
-    'keeps the discovery default visible when guest overrides point elsewhere',
-    async () => {
+  it.skipIf(process.platform === 'win32').each(['opencode', 'zcode'] as const)(
+    'prepares a %s-only distro despite unrelated OpenCode overrides',
+    async (agent) => {
       await prepared()
       const script = mocks.run.mock.calls[0]?.[0].script
       const directory = await mkdtemp(join(tmpdir(), 'orca-wsl-presence-'))
       try {
-        const data = join(directory, '.local', 'share', 'opencode')
+        const data =
+          agent === 'zcode'
+            ? join(directory, '.zcode', 'cli', 'db')
+            : join(directory, '.local', 'share', 'opencode')
         await mkdir(data, { recursive: true })
-        await writeFile(join(data, 'opencode.db'), '')
+        await writeFile(join(data, agent === 'zcode' ? 'db.sqlite' : 'opencode.db'), '')
         const result = await runProcess({
           program: '/bin/sh',
           args: ['-c', script],

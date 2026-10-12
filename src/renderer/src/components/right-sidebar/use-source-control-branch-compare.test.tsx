@@ -54,7 +54,7 @@ function Probe(props: {
   remoteStatus?: GitUpstreamStatus | undefined
 }): null {
   latest = useSourceControlBranchCompare({
-    activeRepoSettings: null,
+    activeRepoTarget: { kind: 'local' },
     activeWorktreeId: props.worktreeId === undefined ? 'A' : props.worktreeId,
     worktreePath: '/a',
     compareBaseRef: props.compareBaseRef === undefined ? 'origin/main' : props.compareBaseRef,

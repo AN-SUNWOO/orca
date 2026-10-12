@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GitWorktreeInfo, Worktree } from '../../shared/worktree/types'
+import type { Worktree } from '../../shared/worktree/types'
 import type { ProviderRequestId } from '../../shared/detected-worktree-provider-contract'
 import {
   LOCAL_EXECUTION_HOST_ID,
@@ -121,11 +121,7 @@ describe('registerWorktreeHandlers', () => {
       displayName: 'remote repo',
       connectionId: 'target-a'
     }
-    const provider = { listWorktrees: vi.fn().mockResolvedValue([]) }
     store.getRepos.mockImplementation(() => [{ ...localRepo }, { ...sshRepo }])
-    getSshGitProviderMock.mockImplementation((targetId) =>
-      targetId === 'target-a' ? provider : undefined
-    )
     const expectedAuthority = getSshProviderAuthority('target-a')
 
     const result = await handlers['worktrees:listDetected'](ipcEvent, {
@@ -135,11 +131,9 @@ describe('registerWorktreeHandlers', () => {
       expectedAuthority
     })
 
-    expect(provider.listWorktrees).toHaveBeenCalledWith('/remote/repo', {
-      signal: expect.any(AbortSignal)
-    })
+    expect(listWorktreesMock).not.toHaveBeenCalled()
     expect(result).toEqual({
-      status: 'complete',
+      status: 'non-authoritative',
       providerRequestId: 'request-1',
       repoId: 'shared-repo',
       authority: {
@@ -149,8 +143,8 @@ describe('registerWorktreeHandlers', () => {
       },
       result: {
         repoId: 'shared-repo',
-        authoritative: true,
-        source: 'git',
+        authoritative: false,
+        source: 'metadata-fallback',
         catalogVersion: anyCatalogVersion,
         worktrees: []
       }
@@ -664,7 +658,6 @@ describe('registerWorktreeHandlers', () => {
         createdAt: 0
       }
     })
-    getSshGitProviderMock.mockReturnValue({ listWorktrees: vi.fn().mockResolvedValue([]) })
     const expectedAuthority = getSshProviderAuthority('target-a')
 
     const result = await handlers['worktrees:listDetected'](ipcEvent, {
@@ -674,7 +667,7 @@ describe('registerWorktreeHandlers', () => {
       expectedAuthority
     })
 
-    expect(result).toMatchObject({ status: 'complete' })
+    expect(result).toMatchObject({ status: 'non-authoritative' })
     expect(store.removeWorktreeLineage).not.toHaveBeenCalled()
     expect(store.setWorktreeMeta).not.toHaveBeenCalled()
   })
@@ -774,52 +767,5 @@ describe('registerWorktreeHandlers', () => {
     expect(wrongProviderOwnerResult).toMatchObject({ status: 'rejected' })
     expect(getSshGitProviderMock).not.toHaveBeenCalled()
     expect(listWorktreesMock).not.toHaveBeenCalled()
-  })
-
-  it('rejects a provider replacement during the SSH await without durable mutations', async () => {
-    let resolveList: (worktrees: GitWorktreeInfo[]) => void = () => {}
-    const firstProvider = {
-      listWorktrees: vi.fn(
-        () =>
-          new Promise<GitWorktreeInfo[]>((resolve) => {
-            resolveList = resolve
-          })
-      )
-    }
-    const replacementProvider = { listWorktrees: vi.fn().mockResolvedValue([]) }
-    let currentProvider = firstProvider
-    const sshRepo = {
-      id: 'repo-1',
-      path: '/remote/repo',
-      displayName: 'repo',
-      badgeColor: '#000',
-      addedAt: 0,
-      connectionId: 'target-a'
-    }
-    store.getRepos.mockReturnValue([sshRepo])
-    getSshGitProviderMock.mockImplementation(() => currentProvider)
-    const expectedAuthority = getSshProviderAuthority('target-a')
-
-    const pending = handlers['worktrees:listDetected'](ipcEvent, {
-      providerRequestId: 'request-1' as ProviderRequestId,
-      repoId: sshRepo.id,
-      executionHostId: toSshExecutionHostId('target-a'),
-      expectedAuthority
-    })
-    await Promise.resolve()
-    currentProvider = replacementProvider
-    resolveList([
-      {
-        path: '/remote/repo',
-        head: 'stale-head',
-        branch: 'refs/heads/main',
-        isBare: false,
-        isMainWorktree: true
-      }
-    ])
-
-    await expect(pending).resolves.toMatchObject({ status: 'stale' })
-    expect(store.setWorktreeMeta).not.toHaveBeenCalled()
-    expect(store.removeWorktreeLineage).not.toHaveBeenCalled()
   })
 })

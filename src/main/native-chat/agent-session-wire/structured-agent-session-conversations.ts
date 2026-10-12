@@ -104,4 +104,9 @@ export class StructuredAgentSessionConversations extends Map<
   lastActivityAt(sessionId: string): number | undefined {
     return this.activity.get(sessionId)
   }
+
+  /** Some conversation holds a running provider child. */
+  hasLoadedProviders(): boolean {
+    return [...this.values()].some(({ child }) => child !== null)
+  }
 }

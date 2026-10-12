@@ -43,7 +43,6 @@ vi.mock('./terminal-paste-coordinator', () => ({
   executeTerminalPastePlan: vi.fn()
 }))
 vi.mock('./terminal-paste-runtime', () => ({ resolveTerminalPasteRuntime: vi.fn() }))
-vi.mock('./terminal-paste-ssh-platform', () => ({ getTerminalPasteSshRemotePlatform: vi.fn() }))
 vi.mock('./terminal-bracketed-paste', () => ({ pasteTerminalText: vi.fn() }))
 vi.mock('./terminal-pty-paste-writer', () => ({ writeTerminalPastePtyInput: vi.fn() }))
 vi.mock('./terminal-paste-errors', () => ({ formatTerminalPasteExecutionError: vi.fn() }))

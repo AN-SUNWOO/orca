@@ -37,9 +37,11 @@ export function registerRuntimeWindowLifecycle(
   })
   const send = rendererNotifications.send
   runtime.setNotifier({
-    worktreesChanged: (repoId, renamed) => {
+    worktreesChanged: (repoId, renamed, options) => {
       // Why: clear scan caches before the renderer handles this event, so it can't read stale TTL entries after a mutation.
-      runWorktreeChangeInvalidators(repoId)
+      if (options?.invalidateGitScans !== false) {
+        runWorktreeChangeInvalidators(repoId)
+      }
       send('worktrees:changed', renamed ? { repoId, renamed } : { repoId })
     },
     worktreeBaseStatus: (event) => send('worktree:baseStatus', event),

@@ -4,9 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Repo } from '../../../../shared/repo-types'
 
 const mocks = vi.hoisted(() => {
-  const worktreesByRepo: Record<string, { id: string; hostId?: string }[]> = {}
+  const worktreesByRepo: Record<
+    string,
+    { id: string; hostId?: string; ephemeralVmCheckoutMode?: 'provisioned-root' }[]
+  > = {}
   const tabsByWorktree: Record<string, { id: string }[]> = {}
   const ptyIdsByTabId: Record<string, string[]> = {}
+  const runtimeEnvironments: { id: string; orcadDeployment?: { sshTargetId: string } }[] = []
   return {
     state: {
       activeModal: 'confirm-remove-folder' as string | null,
@@ -16,6 +20,7 @@ const mocks = vi.hoisted(() => {
         hostId: 'ssh:target-1'
       } as Record<string, unknown>,
       repos: [] as Repo[],
+      runtimeEnvironments,
       sshTargetLabels: new Map<string, string>(),
       removedSshTargetLabels: new Map<string, string>(),
       worktreesByRepo,
@@ -82,6 +87,20 @@ describe('RemoveFolderDialog', () => {
     mocks.state.worktreesByRepo = {}
     mocks.state.tabsByWorktree = {}
     mocks.state.ptyIdsByTabId = {}
+    mocks.state.runtimeEnvironments = []
+  })
+
+  it("warns about VM recipe cleanup for a project on a recipe VM's managed server", () => {
+    mocks.state.modalData.hostId = 'runtime:env-vm'
+    mocks.state.repos = [repo(null, 'runtime:env-vm')]
+    mocks.state.runtimeEnvironments = [
+      { id: 'env-vm', orcadDeployment: { sshTargetId: 'runtime-ssh-runtime-1' } }
+    ]
+
+    const html = renderToStaticMarkup(<RemoveFolderDialog />)
+
+    expect(html).toContain('Its VM recipe determines whether the environment')
+    expect(html).not.toContain('It is still on your disk')
   })
 
   it('warns that VM recipe cleanup controls file deletion', () => {
@@ -93,6 +112,18 @@ describe('RemoveFolderDialog', () => {
     expect(html).toContain('Its VM recipe determines whether the environment')
     expect(html).toContain('files are permanently deleted')
     expect(html).not.toContain('Its files stay on')
+  })
+
+  it('warns about VM recipe cleanup for an adopted provisioned root before the catalog loads', () => {
+    mocks.state.modalData.hostId = 'runtime:env-vm'
+    mocks.state.repos = [repo(null, 'runtime:env-vm')]
+    mocks.state.worktreesByRepo = {
+      'repo-1': [
+        { id: 'repo-1::/vm', hostId: 'runtime:env-vm', ephemeralVmCheckoutMode: 'provisioned-root' }
+      ]
+    }
+
+    expect(renderToStaticMarkup(<RemoveFolderDialog />)).toContain('Its VM recipe determines')
   })
 
   it('keeps the file-preservation promise for ordinary SSH projects', () => {

@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
 
-import { resolvePairConfirmRouteState } from './pair-confirm-state'
+import { describePairingHost, resolvePairConfirmRouteState } from './pair-confirm-state'
 import type { PairingOffer } from './types'
 
 function encodeOffer(offer: PairingOffer): string {
@@ -50,5 +50,30 @@ describe('resolvePairConfirmRouteState', () => {
       offer: null,
       errorMessage: 'Not a valid pairing code'
     })
+  })
+})
+
+describe('describePairingHost', () => {
+  const publicKeyB64 = Buffer.alloc(32, 7).toString('base64')
+
+  it('shows the endpoint and a host key fingerprint before pairing', () => {
+    const host = describePairingHost({
+      v: 2,
+      endpoint: 'ws://192.168.1.10:6768',
+      deviceToken: 'token-abc',
+      publicKeyB64
+    })
+    expect(host.endpoint).toBe('ws://192.168.1.10:6768')
+    expect(host.keyFingerprint).toMatch(/^[A-Za-z0-9_-]{16}$/)
+  })
+
+  it('omits the fingerprint for an unreadable key', () => {
+    const host = describePairingHost({
+      v: 2,
+      endpoint: 'ws://192.168.1.10:6768',
+      deviceToken: 'token-abc',
+      publicKeyB64: 'pubkey-xyz'
+    })
+    expect(host.keyFingerprint).toBeNull()
   })
 })

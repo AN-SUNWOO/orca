@@ -49,7 +49,6 @@ export type PtyIpcSpawnState = {
   isMintedSessionId: boolean
   effectiveSessionId: string | undefined
   effectiveSessionAppId: string | undefined
-  effectiveSessionRelayId: string | undefined
   expectedWslDistro: string | null
   baseEnv: Record<string, string> | undefined
   effectiveLaunchConfig: SleepingAgentLaunchConfig | undefined
@@ -125,7 +124,6 @@ export function createPtyIpcSpawnState(
     isMintedSessionId: false,
     effectiveSessionId: undefined,
     effectiveSessionAppId: undefined,
-    effectiveSessionRelayId: undefined,
     expectedWslDistro: null,
     baseEnv: undefined,
     effectiveLaunchConfig: undefined,

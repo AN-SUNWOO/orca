@@ -46,6 +46,7 @@ let queued: string[]
 let claude: ReturnType<typeof fakeClaude>
 
 beforeEach(async () => {
+  vi.useFakeTimers()
   root = await mkdtemp(join(tmpdir(), 'orca-claude-queued-stop-'))
   resetHostTestOperationIds()
   queued = []
@@ -107,9 +108,13 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await adapter.closeAll()
-  await host.flushAllStreamedEvents()
-  await rm(root, { recursive: true, force: true })
+  try {
+    await adapter.closeAll()
+    await host.flushAllStreamedEvents()
+    await rm(root, { recursive: true, force: true })
+  } finally {
+    vi.useRealTimers()
+  }
 })
 
 function eventually(assertion: () => unknown): Promise<unknown> {
@@ -368,7 +373,7 @@ it('a card sent now into the running turn comes back paused when Stop withdraws 
   }, 5_000)
   // A drain ignoring the pause re-sends only after the stopped turn ends: watch past that.
   await eventually(async () => expect(await liveTurnId()).toBeNull())
-  await new Promise((resolve) => setTimeout(resolve, 2_500))
+  await vi.advanceTimersByTimeAsync(2_500)
   expect(connection.sent).toHaveLength(2)
   expect(await sends()).toEqual([{ state: 'rejected', reason: DISPATCH_REJECTED_CANCELLED }])
 }, 20_000)

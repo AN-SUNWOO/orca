@@ -15,10 +15,10 @@ import {
 import type { IncomingMessage } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
-import { createRemoteJWKSet } from 'jose'
 import { WebSocketServer } from 'ws'
 import type WebSocket from 'ws'
 import type { RawData } from 'ws'
+import { CellAdmitEffectiveWriter } from './cell-admit-effective-writer.js'
 import { ReserveDeadMan, reserveDeadManWindowMs } from './cell-reserve-dead-man.js'
 import { createRelayApp } from './app.js'
 import { classifyAssignmentLease } from './assignment-lease.js'
@@ -44,13 +44,19 @@ import type { AppliedControlFlags } from './relay-control-flag-channel.js'
 import { createRelayLocalReadiness } from './relay-local-readiness.js'
 import { createRelayReadiness } from './relay-readiness.js'
 import { createRelayTokenVerifier, readBearer } from './relay-token-verifier.js'
+import { createStaleIfErrorJWKSet } from './stale-if-error-jwks.js'
 import { closeRelayWebSocket } from './relay-websocket-close.js'
 import { ShadowDirectoryCompare } from './shadow-directory-compare.js'
-import { startShadowSeatPoller } from './shadow-seat-directory.js'
+import { type ShadowSeatPoller, startShadowSeatPoller } from './shadow-seat-directory.js'
 import { CellReserveClient } from './cell-reserve-client.js'
 import { googleMetadataIdentityToken, reusedIdentityToken } from './google-metadata-identity-token.js'
 import { ReserveAssignment } from './reserve-assignment.js'
 import { ReservePlacer } from './reserve-placement.js'
+import {
+  reconcileReserveLedger,
+  RESERVE_LEDGER_RECONCILE_MS,
+  ReserveLedgerWriter
+} from './reserve-ledger-writer.js'
 import { ProcessQueuedByteBudget } from './splice-forwarder.js'
 
 // A malformed percent-escape in the request target must be a client error, never a URIError
@@ -152,9 +158,11 @@ export function createRelayServer(
     perMessageDeflate: false,
     maxPayload: 1024 * 1024
   })
-  const relayJwks = createRemoteJWKSet(new URL(config.jwksUrl))
+  const relayJwks = createStaleIfErrorJWKSet(new URL(config.jwksUrl))
   const verifyRelayToken = createRelayTokenVerifier(config, relayJwks)
   const store = new RelayCredentialStore(observedDatabase, options.now)
+  // Bound once the poller below exists; without one, no poll ever reads as dead.
+  const pollEvidence: { deadCellVerdict?: ShadowSeatPoller['deadCellVerdict'] } = {}
   const assignments = new RelayAssignmentStore(observedDatabase, options.now, {
     requireLiveCells: config.role === 'director',
     placementLoadBand: config.role === 'director' ? new PlacementLoadBand(options.random) : undefined,
@@ -163,7 +171,8 @@ export function createRelayServer(
     regionalRehomeDirectorRegion:
       config.role === 'director' ? (config.region ?? RELAY_DEFAULT_REGION) : undefined,
     recordControlRenewal: (durationMs, outcome) =>
-      observability.recordControlRenewal?.(durationMs, outcome)
+      observability.recordControlRenewal?.(durationMs, outcome),
+    deadCellVerdict: (cellId, now) => pollEvidence.deadCellVerdict?.(cellId, now) ?? null
   })
   const readiness = createRelayReadiness(observedDatabase, config.jwksUrl, {
     jwksGraceMs: config.readinessJwksGraceMs,
@@ -179,12 +188,18 @@ export function createRelayServer(
     listCells: () => assignments.seatFeedCells(),
     reserver: () => placing.on
   })
+  pollEvidence.deadCellVerdict = shadowSeatPoller?.deadCellVerdict
   const shadowCompare = shadowSeatPoller
     ? new ShadowDirectoryCompare(shadowSeatPoller.directory, options.now)
     : undefined
   // Step 5 on directors: needs the map and the rehome credential the cells verify.
   const directorId = randomUUID()
   const rehomeAudience = config.rehomeAudience
+  // Only a director that books writes rows, and only for the joins it booked.
+  const reserveLedger =
+    config.role === 'director' && shadowSeatPoller && config.reservePlacement === 'on'
+      ? new ReserveLedgerWriter(observedDatabase, { now: options.now })
+      : undefined
   const reservePlacement =
     config.role === 'director' &&
     shadowSeatPoller &&
@@ -204,6 +219,7 @@ export function createRelayServer(
             )
           }),
           readRow: async (identity) => await assignments.hostWhereabouts(identity),
+          databaseBusy: () => readRelayDatabasePoolPressure(database).databasePoolWaiting > 0,
           now: options.now,
           random: options.random
         })
@@ -228,6 +244,68 @@ export function createRelayServer(
         }, 60_000)
       : null
   offWithReserveTimer?.unref()
+  if (reserveLedger && shadowSeatPoller) {
+    const directory = shadowSeatPoller.directory
+    directory.onBookedJoin = (join) => {
+      if (join.reservedBy !== directorId) return
+      reserveLedger.enqueue({
+        userId: join.userId,
+        relayHostId: join.relayHostId,
+        cellId: join.cellId,
+        epoch: join.epoch
+      })
+    }
+    reserveLedger.start()
+    const reconcile = (): void => {
+      const now = (options.now ?? Date.now)()
+      void reconcileReserveLedger({
+        writer: reserveLedger,
+        seats: () =>
+          directory
+            .cellIds()
+            .filter((cellId) => directory.admitModeOf(cellId) === 'reserve')
+            .flatMap((cellId) =>
+              directory.seatsOnCell(cellId).map(({ userId, relayHostId, seat }) => ({
+                userId,
+                relayHostId,
+                cellId,
+                epoch: seat.epoch,
+                joinedAt: seat.joinedAt
+              }))
+            ),
+        demote: (seat, row) => {
+          reservePlacement?.demoteSeat(seat)
+          // The re-assign mints above the row, so the mirror can take it.
+          reservePlacement?.raiseEpochFloor(seat, row.epoch)
+          console.warn(
+            JSON.stringify({
+              event: 'orca_relay_reserve_ledger_seat_behind_row',
+              cellId: seat.cellId,
+              epoch: seat.epoch,
+              rowEpoch: row.epoch
+            })
+          )
+        },
+        now
+      })
+        .catch(() => console.warn('[orca-relay] reserve ledger reconcile deferred'))
+        .finally(schedule)
+    }
+    // Jittered, so five directors do not reconcile together.
+    const schedule = (): void => {
+      const random = options.random ?? Math.random
+      setTimeout(reconcile, RESERVE_LEDGER_RECONCILE_MS + random() * 60_000).unref?.()
+    }
+    // A restart loses the queue: the first run goes as soon as the map is complete.
+    const clock = options.now ?? Date.now
+    const bootedAt = clock()
+    const firstRun = setInterval(() => {
+      if (!directory.isComplete() && clock() - bootedAt < RESERVE_LEDGER_RECONCILE_MS) return
+      clearInterval(firstRun)
+      reconcile()
+    }, 1_000)
+    firstRun.unref?.()
+  }
   const configuredConnectionLimits =
     config.connectionHardCap === undefined
       ? null
@@ -309,6 +387,15 @@ export function createRelayServer(
   // Expired bookings give their units back even while no director is reserving. A flip out of
   // reserve mode voids the bookings and registers every control admitted from memory.
   let appliedAdmitMode = effectiveAdmitMode()
+  const admitEffective =
+    config.role === 'cell' && reserveBook
+      ? new CellAdmitEffectiveWriter({
+          write: async (mode) =>
+            await assignments.recordCellAdmitEffective({ cellId: config.cellId, cellIncarnation, mode }),
+          databaseBusy: () => readRelayDatabasePoolPressure(database).databasePoolWaiting > 0,
+          now: options.now ?? Date.now
+        })
+      : undefined
   const reserveSweepTimer = reserveBook
     ? setInterval(() => {
         reserveBook.sweep()
@@ -318,6 +405,8 @@ export function createRelayServer(
           sessions.reregisterMemoryControls()
         }
         appliedAdmitMode = admitMode
+        // A booted cell runs db defaults until its first flag read, so it writes nothing until then.
+        admitEffective?.tick(admitMode, options.cellFlags?.().flags.admitMode === 'reserve')
       }, RESERVE_MODE_WATCH_MS)
     : null
   reserveSweepTimer?.unref()
@@ -349,6 +438,7 @@ export function createRelayServer(
           cellReserverPoll: () => reserveDeadMan?.contact(),
           // Reserve until every control it admitted from memory holds a lease again: the flag
           // workflow records db in Postgres (and sweeps resume) only after this says db.
+          cellAdmitModeRaw: effectiveAdmitMode,
           cellAdmitModeEffective: (): 'db' | 'reserve' =>
             effectiveAdmitMode() === 'reserve' || sessions.reregistrationPending() > 0
               ? 'reserve'

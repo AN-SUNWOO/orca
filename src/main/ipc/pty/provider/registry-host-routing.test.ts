@@ -10,11 +10,11 @@ import {
   hasPtyProviderForInspection,
   PtyHostNotDispatchableError,
   registeredPtyProviders,
-  registerSshPtyProvider,
   setLocalPtyProvider,
-  tryGetProviderForPty,
-  unregisterSshPtyProvider
+  tryGetProviderForPty
 } from './registry'
+import { isPtyAlreadyGoneError } from './liveness'
+import { SessionNotFoundError } from '../../../daemon/daemon-errors'
 
 function answeringProvider(): IPtyProvider {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the routed calls below only touch these members.
@@ -61,39 +61,46 @@ describe('PTY registry keyed by execution host', () => {
   const originalLocal = getLocalPtyProvider()
   afterEach(() => {
     setLocalPtyProvider(originalLocal)
-    unregisterSshPtyProvider('box 1')
     deletePtyOwnership('wt-1@@abcd1234')
   })
 
-  it('lists this machine and each relay under its host id', () => {
+  it('dispatches only this machine; every other host is not dispatchable here', () => {
     const local = answeringProvider()
-    const relay = answeringProvider()
     setLocalPtyProvider(local)
-    registerSshPtyProvider('box 1', relay)
 
-    expect(registeredPtyProviders()).toEqual([
-      { provider: local, hostId: 'local' },
-      { provider: relay, hostId: 'ssh:box%201' }
-    ])
+    expect(registeredPtyProviders()).toEqual([{ provider: local, hostId: 'local' }])
     expect(getProvider('local')).toBe(local)
-    expect(getProvider('ssh:box%201')).toBe(relay)
+    expect(() => getProvider('ssh:box%201')).toThrow(PtyHostNotDispatchableError)
+    // Why: the renderer matches this prefix to show the reconnect affordance.
     expect(() => getProvider('ssh:box-2')).toThrow('No PTY provider for connection "box-2"')
-    expect(() => getProvider('runtime:env-1')).toThrow(PtyHostNotDispatchableError)
+    expect(() => getProvider('runtime:env-1')).toThrow(
+      'PTY host "runtime:env-1" is not dispatchable from this process'
+    )
   })
 
-  it('routes by the recorded owner first, then by the host the id names', () => {
-    const relay = answeringProvider()
-    registerSshPtyProvider('box 1', relay)
+  it('keeps an SSH-owned PTY attributed to its host, never to this machine', () => {
+    const local = answeringProvider()
+    setLocalPtyProvider(local)
 
     setPtyOwnership('wt-1@@abcd1234', 'ssh:box%201')
-    expect(getProviderForPty('wt-1@@abcd1234')).toBe(relay)
+    expect(() => getProviderForPty('wt-1@@abcd1234')).toThrow(PtyHostNotDispatchableError)
     expect(getPtySshConnectionId('wt-1@@abcd1234')).toBe('box 1')
-    expect(getProviderForPty('ssh:box%201@@pty-1')).toBe(relay)
-
-    unregisterSshPtyProvider('box 1')
-    // Why: a detached relay keeps its PTYs attributed to it, never to this machine.
     expect(tryGetProviderForPty('ssh:box%201@@pty-1')).toBeUndefined()
     expect(hasPtyProviderForInspection('ssh:box%201@@pty-1')).toBe(false)
     expect(getPtySshConnectionId('ssh:box%201@@pty-1')).toBe('box 1')
+  })
+
+  // Why: an undispatchable SSH PTY is unverifiable, so no predicate may read it as gone or exited.
+  it('never treats the not-dispatchable error as evidence the PTY is gone', () => {
+    let error: unknown
+    try {
+      getProviderForPty('ssh:box%201@@pty-1')
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toBeInstanceOf(PtyHostNotDispatchableError)
+    expect(isPtyAlreadyGoneError(error)).toBe(false)
+    // Stable-pane adoption certifies an exit only from this class.
+    expect(error).not.toBeInstanceOf(SessionNotFoundError)
   })
 })

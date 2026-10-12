@@ -29,6 +29,7 @@ export type FetchedFolderWorkspace = {
 type WorktreeEventRow = {
   repoId: string
   renamed?: { oldWorktreeId: string; newWorktreeId: string }
+  sortOrderOnly?: boolean
 }
 /** A worktree change or activation an endpoint pushed; the endpoint is its only owner fact. */
 export type EndpointWorktreeEvent = { kind: 'worktreeEvent'; row: WorktreeEventRow }

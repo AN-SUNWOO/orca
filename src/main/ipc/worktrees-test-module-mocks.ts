@@ -95,7 +95,6 @@ export const recordRemovalSnapshotPruneMock: ModuleMock = vi.fn()
 export const killAllProcessesForWorktreeMock: ModuleMock = vi.fn()
 export const clearProviderPtyStateMock: ModuleMock = vi.fn()
 export const getLocalPtyProviderMock: ModuleMock = vi.fn()
-export const getSshPtyProviderMock: ModuleMock = vi.fn()
 
 // Why: vi.mock factories are hoisted per test file, so each file calls these builders instead of
 // closing over module-scope bindings.
@@ -272,6 +271,5 @@ export const worktreeTeardownModuleMock = () => ({
 
 export const ptyModuleMock = () => ({
   clearProviderPtyState: clearProviderPtyStateMock,
-  getLocalPtyProvider: getLocalPtyProviderMock,
-  getSshPtyProvider: getSshPtyProviderMock
+  getLocalPtyProvider: getLocalPtyProviderMock
 })

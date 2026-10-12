@@ -17,6 +17,7 @@ import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import type { RuntimeClientEvent } from '../../../../shared/runtime-client-events'
 import { navigationTargetsClients } from '../../../../shared/runtime-navigation'
 import { useAppStore } from '../../store'
+import { invalidateRemoteWorktreeLineage } from '../../store/slices/worktrees/metadata/worktree-lineage-readiness'
 import { adoptFromEndpoint, type OwnedWorktreeEvent } from '../../store/adopt-from-endpoint'
 import { createRuntimeClientEventsSync } from '../runtime-client-events-sync'
 import {
@@ -82,6 +83,10 @@ export function registerRuntimeClientIpcBridge(
       console.error('Failed to refresh runtime projects:', error)
     }
   })
+  const requestProjectRefresh = (environmentId: string): void => {
+    invalidateRemoteWorktreeLineage(useAppStore.getState, environmentId)
+    runtimeProjectRefreshScheduler.request(environmentId)
+  }
 
   const handleRuntimeClientEvent = (
     environmentId: string,
@@ -104,7 +109,7 @@ export function registerRuntimeClientIpcBridge(
       return
     }
     if (event.type === 'reposChanged') {
-      runtimeProjectRefreshScheduler.request(environmentId)
+      requestProjectRefresh(environmentId)
       return
     }
     if (event.type === 'automationsChanged') {
@@ -122,9 +127,15 @@ export function registerRuntimeClientIpcBridge(
     }
     const endpoint = { kind: 'environment' as const, environmentId }
     if (event.type === 'worktreesChanged') {
+      if (event.sortOrderOnly !== true) {
+        invalidateRemoteWorktreeLineage(useAppStore.getState, environmentId)
+      }
       const owned = adoptFromEndpoint(endpoint, {
         kind: 'worktreeEvent',
-        row: { repoId: event.repoId }
+        row: {
+          repoId: event.repoId,
+          ...(event.sortOrderOnly === true ? { sortOrderOnly: true } : {})
+        }
       })
       void ensureRuntimeEventRepoKnown(environmentId, owned).then(() =>
         worktreeChangeRefreshQueue.enqueue(owned)
@@ -206,7 +217,7 @@ export function registerRuntimeClientIpcBridge(
                 void state.refreshRuntimeEnvironmentStatus(environmentId)
               }
             },
-            requestProjectRefresh: () => runtimeProjectRefreshScheduler.request(environmentId),
+            requestProjectRefresh: () => requestProjectRefresh(environmentId),
             markEnvironmentSshStateStale: () =>
               useAppStore.getState().markEnvironmentSshStateStale(environmentId),
             hydrateEnvironmentSshState: () =>
@@ -226,7 +237,7 @@ export function registerRuntimeClientIpcBridge(
     initialRuntimeEnvironmentState
   )
   for (const environmentId of runtimeClientEventEnvironmentIds) {
-    runtimeProjectRefreshScheduler.request(environmentId)
+    requestProjectRefresh(environmentId)
   }
   const reachableRuntimeEnvironmentIds = getReachableRuntimeEnvironmentIds(
     initialRuntimeEnvironmentState
@@ -239,7 +250,7 @@ export function registerRuntimeClientIpcBridge(
     getReachableEnvironmentIds: getReachableRuntimeEnvironmentIds,
     requestProjectRefresh: (environmentId) =>
       // The scheduler coalesces bursts per environment.
-      runtimeProjectRefreshScheduler.request(environmentId),
+      requestProjectRefresh(environmentId),
     markEnvironmentSshStateStale: (environmentId) => {
       // No-op when the environment has no SSH bucket (e.g. web client).
       useAppStore.getState().markEnvironmentSshStateStale(environmentId)

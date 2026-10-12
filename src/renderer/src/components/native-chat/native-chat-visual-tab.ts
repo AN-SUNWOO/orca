@@ -1,12 +1,4 @@
-import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
-
-/** A chat visual opened as its own workspace tab. Identity only, never the HTML. */
-export type OpenChatVisualTabState = {
-  target: RuntimeClientTarget
-  sessionId: string
-  file: string
-  title: string | null
-}
+import type { OpenChatVisualTabState } from '../../../../shared/editor-tab-view-types'
 
 /** One tab per visual, so opening the same visual again focuses its tab. */
 export function buildChatVisualTabId(

@@ -57,9 +57,21 @@ it('shows a finished resume as a result, in the past tense, once nothing is left
   expect(dialog()?.textContent).not.toContain('Resuming restores')
   expect(tree()?.querySelectorAll('[role="checkbox"]')).toHaveLength(0)
   expect(tree()?.textContent).not.toContain('Select all')
-  expect(dialog()?.textContent).not.toContain("Don't ask again")
+  // Auto-resume is still off, so the box stays after Resume.
+  expect(dialog()?.textContent).toContain("Don't ask again")
   // The user pressed Resume, so nothing says it happened on its own.
-  expect(dialog()?.textContent).not.toContain('automatically')
+  expect(dialog()?.textContent).not.toContain('Resumed automatically')
+})
+
+it('saves "Don\'t ask again" ticked on a finished resume the user started', async () => {
+  fakeHost()
+  await mountSurfaces()
+  await act(async () => button('Resume 2 chats').click())
+  await act(async () => lastToastShow()?.())
+  expect(dialog()?.textContent).toContain('Resumed 2 of 2 chats')
+  await act(async () => dontAskAgain().click())
+  await act(async () => button('Done').click())
+  expect(useAppStore.getState().settings?.nativeChatResumeWorkOnRestart).toBe(true)
 })
 
 it('does not restore a hidden picker preference when closing a run', async () => {
@@ -81,7 +93,8 @@ it('does not restore a hidden picker preference when closing a run', async () =>
   await host.release('a', 'b')
   await act(async () => lastToastShow()?.())
   expect(dialog()?.textContent).toContain('Resumed 2 of 2 chats')
-  expect(dialog()?.textContent).not.toContain("Don't ask again")
+  // Turned off elsewhere, the box is back, unticked: the earlier tick was consumed.
+  expect(dontAskAgain().getAttribute('data-state')).toBe('unchecked')
   await act(async () =>
     useAppStore.getState().updateSettings({ nativeChatResumeWorkOnRestart: false })
   )

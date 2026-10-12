@@ -59,7 +59,8 @@ import { moveInTree } from './native-chat-resume-tree-keys'
  * not carry on. The run lives in the store, as a skill update's does, so the dialog is one view of it:
  * reopened mid-run, each chat in it shows where it stands in its checkbox's place, and the dialog
  * stays on that run until it is closed after the run has finished. Once no chat is left to choose,
- * it is a result: no Select all, no checkbox column, and no "don't ask again" box.
+ * it is a result: no Select all and no checkbox column. The "don't ask again" box stays while
+ * the setting is off.
  *
  * A chat an earlier resume could not carry on is listed too, as the same row plus what went wrong
  * and what to do; selecting it and resuming is a retry, unless the host says a retry cannot run.
@@ -96,6 +97,9 @@ export function NativeChatResumeOnRestartModal(): React.JSX.Element | null {
   )
   const updateSettings = useAppStore((store) => store.updateSettings)
   const [dontAskAgain, setDontAskAgain] = useState(false)
+  const autoResumeOn = useAppStore(
+    (store) => store.settings?.nativeChatResumeWorkOnRestart === true
+  )
   const resumeButtonRef = useRef<HTMLButtonElement>(null)
   // The store's: the resume outlives this dialog, which can close or reopen mid-run.
   const resuming = useNativeChatRestartResuming()
@@ -157,18 +161,20 @@ export function NativeChatResumeOnRestartModal(): React.JSX.Element | null {
   }, [offerEnabled, open, run])
   const allSelection = resumeSelectionState(selectable, ticked)
   const choosing = runPanel?.choosing ?? true
+  // While the setting is off the box stays, before and after Resume; an automatic run explains itself.
+  const showDontAskAgain = !autoResumeOn && runPanel?.startedBy !== 'launch'
 
   const toggleSelected = useCallback((sessionId: string, checked: boolean) => {
     setOverrides((current) => new Map(current).set(sessionId, checked))
   }, [])
 
-  /** Consume the picker's choice once; run actions must not replay a hidden checkbox. */
+  /** Consume the box's choice once; a hidden box must never replay. */
   const persistPreference = useCallback(async (): Promise<void> => {
-    if (dontAskAgain && run === null) {
+    if (dontAskAgain && showDontAskAgain) {
       setDontAskAgain(false)
       await updateSettings({ nativeChatResumeWorkOnRestart: true }).catch(() => undefined)
     }
-  }, [dontAskAgain, run, updateSettings])
+  }, [dontAskAgain, showDontAskAgain, updateSettings])
 
   // Never closes the dialog: only the user's own ways out do, and the store once nothing is left.
   const resume = useCallback(
@@ -344,36 +350,34 @@ export function NativeChatResumeOnRestartModal(): React.JSX.Element | null {
 
         {/* Two controls: one deletes the offer, one acts on it. Closing snoozes, so it needs none. */}
         <DialogFooter className="sm:items-center">
-          {/* The box answers the offer's question, so a run shows only how it started. */}
-          {runPanel ? (
-            runPanel.startedBy === 'launch' && (
-              <NativeChatResumeAutoNote inFlight={busy} onOpenSettings={snooze} />
-            )
+          {runPanel?.startedBy === 'launch' ? (
+            <NativeChatResumeAutoNote inFlight={busy} onOpenSettings={snooze} />
           ) : (
-            // Why order-last: the narrow footer stacks bottom-up, so this keeps the option above the actions.
-            <label className="order-last flex min-w-0 items-start gap-2.5 sm:order-none sm:mr-auto">
-              <Checkbox
-                checked={dontAskAgain}
-                disabled={busy}
-                onCheckedChange={(next) => setDontAskAgain(next === true)}
-                className="mt-0.5"
-              />
-              <span className="min-w-0 space-y-0.5">
-                <span className="block text-sm">
-                  {translate(
-                    'auto.components.NativeChatResumeOnRestartModal.dontAskAgain',
-                    "Don't ask again (resume automatically)"
-                  )}
+            showDontAskAgain && (
+              // Why order-last: the narrow footer stacks bottom-up, so this keeps the option above the actions.
+              <label className="order-last flex min-w-0 items-start gap-2.5 sm:order-none sm:mr-auto">
+                <Checkbox
+                  checked={dontAskAgain}
+                  onCheckedChange={(next) => setDontAskAgain(next === true)}
+                  className="mt-0.5"
+                />
+                <span className="min-w-0 space-y-0.5">
+                  <span className="block text-sm">
+                    {translate(
+                      'auto.components.NativeChatResumeOnRestartModal.dontAskAgain',
+                      "Don't ask again (resume automatically)"
+                    )}
+                  </span>
+                  {/* Where to undo it; what it does is the body copy's job. */}
+                  <span className="block text-xs text-muted-foreground">
+                    {translate(
+                      'auto.components.NativeChatResumeOnRestartModal.dontAskAgainHint',
+                      'You can turn this off in Settings → Experimental → Chat UI.'
+                    )}
+                  </span>
                 </span>
-                {/* Where to undo it; what it does is the body copy's job. */}
-                <span className="block text-xs text-muted-foreground">
-                  {translate(
-                    'auto.components.NativeChatResumeOnRestartModal.dontAskAgainHint',
-                    'You can turn this off in Settings → Experimental → Chat UI.'
-                  )}
-                </span>
-              </span>
-            </label>
+              </label>
+            )
           )}
           {rows.length === 0 || (run?.inFlight === false && !choosing) ? (
             <Button ref={resumeButtonRef} variant="default" size="sm" onClick={snooze}>

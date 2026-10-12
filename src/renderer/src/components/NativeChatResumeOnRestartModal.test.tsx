@@ -569,9 +569,9 @@ it('lists a chat the resume could not carry on when the dialog reopens, with wha
   const dialog = document.querySelector('[role="dialog"]')
   expect(dialog).not.toBeNull()
   expect(dialog?.textContent).toContain('Resumed 1 of 2 chats')
-  // The box answers the offer's question; a run the user started says nothing about it.
-  expect(dialog?.textContent).not.toContain("Don't ask again")
-  expect(dialog?.textContent).not.toContain('automatically')
+  // The setting is still off, so the box stays after Resume.
+  expect(dialog?.textContent).toContain("Don't ask again")
+  expect(dialog?.textContent).not.toContain('Resumed automatically')
   expect(dialog?.textContent).not.toContain('Dismiss failed')
   expect(runStatus('Prompt a')).toBe('Prompt a: Resumed')
   expect(chatBoxes()).toHaveLength(1)

@@ -7,14 +7,12 @@ import {
 import {
   listWorktreesMock,
   removeWorktreeMock,
-  getSshGitProviderMock,
   getSshFilesystemProviderMock,
   deleteWorktreeHistoryDirMock,
   advertisedUrlWatcherForgetWorktreeMock,
   killAllProcessesForWorktreeMock,
   clearProviderPtyStateMock,
   getLocalPtyProviderMock,
-  parseOrcaYamlMock,
   hasHooksFileMock
 } from './worktrees-test-module-mocks'
 import { handlers, mainWindow, setupWorktreeHandlers, store } from './worktrees-test-harness'
@@ -44,18 +42,11 @@ vi.mock('../github/client', async () =>
 vi.mock('../source-control/hosted-review', async () =>
   (await import('./worktrees-test-module-mocks')).hostedReviewModuleMock()
 )
-vi.mock('../providers/ssh-git-dispatch', async () =>
-  (await import('./worktrees-test-module-mocks')).sshGitDispatchModuleMock()
-)
 vi.mock('../providers/ssh-filesystem-dispatch', async () =>
   (await import('./worktrees-test-module-mocks')).sshFilesystemDispatchModuleMock()
 )
 vi.mock('./worktree-symlinks', async () =>
   (await import('./worktrees-test-module-mocks')).worktreeSymlinksModuleMock()
-)
-vi.mock('./ssh', async () => (await import('./worktrees-test-module-mocks')).sshModuleMock())
-vi.mock('../ssh/ssh-target-registry', async () =>
-  (await import('./worktrees-test-module-mocks')).sshTargetRegistryModuleMock()
 )
 vi.mock('../hooks', async () => (await import('./worktrees-test-module-mocks')).hooksModuleMock())
 vi.mock('../setup-runner-script-text', async (importOriginal) =>
@@ -126,8 +117,6 @@ describe('registerWorktreeHandlers', () => {
       store.getRepos.mockReturnValue([repo])
       store.getRepo.mockReturnValue(repo)
       getLocalPtyProviderMock.mockReturnValue(ptyProvider)
-      // Why: a removed/disconnected SSH target has no live provider; forgetLocal must not reach for one.
-      getSshGitProviderMock.mockReturnValue(undefined)
 
       const result = await handlers['worktrees:forgetLocal'](null, { worktreeId })
 
@@ -152,7 +141,6 @@ describe('registerWorktreeHandlers', () => {
         repoId: 'repo-1'
       })
       // The whole point: local-only cleanup never dispatches to the SSH provider.
-      expect(getSshGitProviderMock).not.toHaveBeenCalled()
       expect(getSshFilesystemProviderMock).not.toHaveBeenCalled()
       expect(listWorktreesMock).not.toHaveBeenCalled()
       expect(removeWorktreeMock).not.toHaveBeenCalled()
@@ -210,7 +198,6 @@ describe('registerWorktreeHandlers', () => {
       expect(mainWindow.webContents.send).toHaveBeenCalledWith('worktrees:changed', {
         repoId: 'repo-gone'
       })
-      expect(getSshGitProviderMock).not.toHaveBeenCalled()
       expect(removeWorktreeMock).not.toHaveBeenCalled()
     })
 
@@ -378,14 +365,8 @@ describe('worktree execution-host disambiguation', () => {
       connectionId: null,
       executionHostId: 'ssh:conn-1' as const
     }
-    const provider = {
-      listWorktrees: vi.fn(),
-      removeWorktree: vi.fn(),
-      worktreeIsClean: vi.fn()
-    }
     store.getRepo.mockReturnValue(brokenRepo)
     store.getRepos.mockReturnValue([brokenRepo])
-    getSshGitProviderMock.mockReturnValue(provider)
 
     await expect(
       handlers['worktrees:remove'](null, {
@@ -397,7 +378,6 @@ describe('worktree execution-host disambiguation', () => {
     )
 
     expect(listWorktreesMock).not.toHaveBeenCalled()
-    expect(provider.listWorktrees).not.toHaveBeenCalled()
     expect(removeWorktreeMock).not.toHaveBeenCalled()
   })
 
@@ -493,7 +473,6 @@ describe('worktree execution-host disambiguation', () => {
     ).rejects.toThrow('Repo not found: repo-shared')
 
     expect(removeWorktreeMock).not.toHaveBeenCalled()
-    expect(getSshGitProviderMock).not.toHaveBeenCalled()
   })
 
   it('inspects hooks on the requested host when repo ids collide', async () => {
@@ -504,29 +483,25 @@ describe('worktree execution-host disambiguation', () => {
       badgeColor: '#000',
       addedAt: 0
     }
-    const sshRepo = { ...localRepo, path: '/remote/repo', connectionId: 'conn-1' }
-    const fsProvider = {
-      readFile: vi.fn().mockResolvedValue({
-        content: 'scripts:\n  archive: remote-cleanup',
-        isBinary: false
-      })
+    const sshRepo = {
+      ...localRepo,
+      path: '/remote/repo',
+      connectionId: 'conn-1'
     }
     store.getRepos.mockReturnValue([localRepo, sshRepo])
-    getSshFilesystemProviderMock.mockReturnValue(fsProvider)
-    parseOrcaYamlMock.mockReturnValue({ scripts: { archive: 'remote-cleanup' } })
 
+    // Why: this process serves no SSH filesystem, so the SSH host answers error, never local hooks.
     await expect(
       handlers['hooks:check'](null, {
         repoId: 'repo-shared',
         hostId: 'ssh:conn-1'
       })
     ).resolves.toEqual({
-      status: 'ok',
-      hasHooks: true,
-      hooks: { scripts: { archive: 'remote-cleanup' } },
+      status: 'error',
+      hasHooks: false,
+      hooks: null,
       mayNeedUpdate: false
     })
-    expect(fsProvider.readFile).toHaveBeenCalledWith('/remote/repo/orca.yaml')
     expect(hasHooksFileMock).not.toHaveBeenCalled()
   })
 
@@ -559,32 +534,21 @@ describe('worktree execution-host disambiguation', () => {
       badgeColor: '#000',
       addedAt: 0
     }
-    const sshRepo = { ...localRepo, path: '/remote/repo', connectionId: 'conn-1' }
-    const fsProvider = {
-      readFile: vi.fn(async (filePath: string) => {
-        if (filePath === '/remote/repo/.superset/config.json') {
-          return { content: '{"setup":"remote setup"}', isBinary: false }
-        }
-        throw Object.assign(new Error('missing'), { code: 'ENOENT' })
-      }),
-      stat: vi.fn().mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+    const sshRepo = {
+      ...localRepo,
+      path: '/remote/repo',
+      connectionId: 'conn-1'
     }
     store.getRepos.mockReturnValue([localRepo, sshRepo])
     store.getRepo.mockReturnValue(localRepo)
-    getSshFilesystemProviderMock.mockReturnValue(fsProvider)
 
+    // Why: this process serves no SSH filesystem, so the SSH host offers no imports.
     await expect(
       handlers['hooks:inspectSetupScriptImports'](null, {
         repoId: 'repo-shared',
         hostId: 'ssh:conn-1'
       })
-    ).resolves.toContainEqual(
-      expect.objectContaining({
-        provider: 'superset',
-        setup: 'remote setup'
-      })
-    )
-    expect(fsProvider.readFile).toHaveBeenCalledWith('/remote/repo/.superset/config.json')
+    ).resolves.toEqual([])
   })
 
   it('does not coalesce forget requests for the same id on different hosts', async () => {

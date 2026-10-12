@@ -290,7 +290,7 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          pnpm run typecheck:ci
+          pnpm run typecheck:ci --bun-concurrency=2 --bun-threads=2
 
       - name: Check Zustand selector fan-out budget
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -348,7 +348,7 @@ jobs:
 
       - name: Check compatibility-folder imports
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:compat-boundary-imports
+        run: bun config/scripts/check-compat-boundary-imports.mjs
 
       - name: Check Node runtime pin
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -356,6 +356,7 @@ jobs:
 
       # Why: extraction writes sorted evidence to an isolated temporary path,
       # so feature PRs need one normalized AST pass rather than a three-OS matrix.
+      # Use preflight's pinned Bun even when the optional local pin differs.
       - name: Verify localization extraction
         if: '!cancelled()'
         id: localization-extraction
@@ -372,7 +373,7 @@ jobs:
             scope="$(node config/scripts/localization-extraction-change-scope.mjs "$RUNNER_TEMP/localization-changes")" && [ "$scope" = false ]; then
             echo "Localization extraction inputs are unchanged."
           else
-            pnpm run verify:localization-extraction
+            bun config/scripts/verify-localization-extraction.mjs
           fi
 
       # Why both: the ratchet proves nothing reachable from the runtime imports electron,
@@ -1236,6 +1237,7 @@ jobs:
         run: >-
           pnpm exec vitest run --config config/vitest.config.ts
           config/scripts/nsis-process-check.test.mjs
+          config/scripts/idle-cpu-process-sampling.test.mjs
 
       - name: Test Windows-specific boundaries
         run: >-

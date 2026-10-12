@@ -6,7 +6,7 @@ import {
   type ServerTarget
 } from '../../shared/node-runtime-pin'
 import { ORCAD_SERVER_TARGET_FILENAME } from '../../shared/orcad-artifacts'
-import type { SshConnection } from './ssh-connection'
+import type { RemoteInstallTransport } from './remote-install-transport'
 import { execCommand } from './ssh-relay-deploy-helpers'
 import type { RemoteHostPlatform } from './ssh-remote-platform'
 
@@ -44,7 +44,7 @@ export function parseGlibcVersion(output: string): GlibcVersion | null {
 }
 
 export async function resolveOrcadDeploymentTargetFacts(options: {
-  conn: SshConnection
+  conn: RemoteInstallTransport
   host: RemoteHostPlatform
   signal?: AbortSignal
   exec?: (command: string) => Promise<string>

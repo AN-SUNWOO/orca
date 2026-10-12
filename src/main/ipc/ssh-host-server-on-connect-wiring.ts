@@ -26,14 +26,10 @@ import { setSshHostServerStatus } from '../ssh/ssh-host-server-status'
 import { trackSshHostServerEvent } from '../ssh/ssh-host-server-telemetry'
 import { knownSshHostPlatform } from '../ssh/ssh-host-platform-memo'
 import { knownOrcadTunnelTransport } from '../ssh/orcad-tunnel-transport-memo'
-import {
-  getSshTargetRegistryStore,
-  hasRegisteredDirectSshAuthority
-} from '../ssh/ssh-target-registry'
+import { getSshTargetRegistryStore } from '../ssh/ssh-target-registry'
 import { releaseUnreachableOrcadSetup } from '../ssh/orcad-unreachable-setup-release'
 import { getCurrentMainWindow } from './ssh-ipc-context'
 import { broadcastSshState } from './ssh-renderer-broadcast'
-import { disconnectRegisteredSshTarget } from './ssh-session-teardown'
 import { connectInFlight } from './ssh-connect-attempt-registry'
 
 export function hostServerOnConnectDeps(userDataPath: string): HostServerOnConnectDeps {
@@ -100,14 +96,8 @@ export function hostServerOnConnectDeps(userDataPath: string): HostServerOnConne
         // The connect's own census already answered; a conversion before any session reuses it.
         censusHost: (host) =>
           hostProof ? Promise.resolve(hostProof) : censusHostRelayTerminalsFor(host)(),
-        destinationFor: orcadMigrationDestinationFor,
-        // Why guarded: this runs before the connect registers a session, and an unconditional
-        // disconnect would cancel the very connect attempt that asked for the conversion.
-        releaseDirectSession: async (targetId) => {
-          if (hasRegisteredDirectSshAuthority(targetId)) {
-            await disconnectRegisteredSshTarget(targetId)
-          }
-        }
+        // Why no releaseDirectSession: a disconnect here would cancel the connect that asked for it.
+        destinationFor: orcadMigrationDestinationFor
       }),
     abandonDeploy: async (target) => {
       const environmentId =

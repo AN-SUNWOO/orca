@@ -57,8 +57,7 @@ async function setup() {
     targetId: TARGET.id,
     destinationEnvironmentId: 'env-1',
     destinationName: 'Managed',
-    terminalProof: { verdict: 'exited', provenPtyIds: [] },
-    hasDirectSshAuthority: () => false
+    terminalProof: { verdict: 'exited', provenPtyIds: [] }
   })
   if (fenced.outcome !== 'fenced') {
     throw new Error('expected a fence')

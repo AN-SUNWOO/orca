@@ -26,9 +26,9 @@ import { emptyOrcadActivationRecord } from './orcad-activation-record'
 import { serializeOrcadActivationTransaction } from './orcad-activation-transaction'
 import { createOrcadActivationTransaction } from './orcad-activation-transaction-transitions'
 import { getRemoteHostPlatform } from './ssh-remote-platform'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 
-const conn = {} as SshConnection
+const conn: OrcadHostTransport = Object.create(null)
 const host = getRemoteHostPlatform('linux-x64')
 const mockExec = vi.mocked(execCommand)
 

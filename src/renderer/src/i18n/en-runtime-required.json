@@ -3167,6 +3167,16 @@
     "finishEditing": "Save or cancel the preset to continue creating your workspace.",
     "pathHelp": "One repository-relative directory per line. Spaces within a path are preserved."
   },
+  "terminal": {
+    "newerDaemonBanner": {
+      "reopenTerminal_one": "Reopen terminal",
+      "reopenTerminal_other": "Reopen {{count}} terminals",
+      "reopened_one": "Reopened {{count}} terminal",
+      "reopened_other": "Reopened {{count}} terminals",
+      "resumed_one": "{{count}} agent session resumed.",
+      "resumed_other": "{{count}} agent sessions resumed."
+    }
+  },
   "worktreeJumpPalette": {
     "filter": {
       "chipOverflow": "+{{value0}}",

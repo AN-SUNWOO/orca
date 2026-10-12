@@ -60,7 +60,6 @@ function setup() {
       destinationEnvironmentId: 'env-1',
       destinationName: 'Managed',
       terminalProof: exited,
-      hasDirectSshAuthority: () => false,
       ...overrides
     })
   const target = () => store.getSshTarget(TARGET.id)!
@@ -178,14 +177,6 @@ describe('migration source fence', () => {
     })
     expect(harness.target().orcadFence).toBeUndefined()
     expect(listOrcadMigrationSourceCutovers(harness.userDataPath)).toEqual([])
-  })
-
-  it('refuses while the host is still connected directly', async () => {
-    const harness = setup()
-    await expect(harness.fence({ hasDirectSshAuthority: () => true })).resolves.toMatchObject({
-      code: 'orcad_migration_direct_ssh_connected'
-    })
-    expect(harness.target().orcadFence).toBeUndefined()
   })
 
   it('keeps a blocker it could not read unverifiable, never live', async () => {

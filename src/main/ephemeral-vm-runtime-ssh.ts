@@ -1,4 +1,5 @@
-import { connectRegisteredSshTarget, getSshConnectionStore } from './ipc/ssh'
+import { getSshConnectionStore } from './ipc/ssh'
+import { connectRegisteredSshTarget } from './ssh/ssh-target-registry'
 import {
   disconnectRegisteredSshTarget,
   removeRegisteredSshTarget

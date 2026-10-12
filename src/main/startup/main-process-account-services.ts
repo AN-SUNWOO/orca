@@ -13,6 +13,7 @@ import { getOrcaManagedCodexHomePath } from '../codex/codex-home-paths'
 import { getInitialCodexRateLimitTarget } from '../rate-limits/codex-rate-limit-target'
 import { getInitialClaudeRateLimitTarget } from '../rate-limits/claude-rate-limit-target'
 import { getKimiRuntimeTarget, resolveKimiHome } from '../kimi/kimi-runtime-home'
+import { isWslDistroRunningForBackgroundWork } from '../wsl-background-distro-gate'
 import { readMiniMaxSessionCookie } from '../minimax/minimax-cookie-store'
 import { readMiniMaxApiKey } from '../minimax/minimax-api-key-store'
 import { readZcodePlanApiKey } from '../zcode/zcode-plan-api-key-store'
@@ -78,8 +79,12 @@ export function initializeMainProcessAccountServices(): void {
   state.codexSessionMigration.scheduleInitialRun()
   state.claudeRuntimeAuth = new ClaudeRuntimeAuthService(store)
   state.claudeAccounts = new ClaudeAccountService(store, state.rateLimits, state.claudeRuntimeAuth)
-  state.rateLimits.setCodexHomePathResolver((target) =>
-    state.codexRuntimeHome!.prepareForRateLimitFetch(target)
+  // Why: quota polls are background work and must not boot a stopped distro; user-driven
+  // resets call prepareForRateLimitFetch directly.
+  state.rateLimits.setCodexHomePathResolver(async (target) =>
+    target?.runtime === 'wsl' && !(await isWslDistroRunningForBackgroundWork(target.wslDistro))
+      ? { kind: 'skip' }
+      : state.codexRuntimeHome!.prepareForRateLimitFetch(target)
   )
   state.rateLimits.setCodexFetchTarget(getInitialCodexRateLimitTarget(store.getSettings()))
   // Why: Kimi's CLI refreshes its OAuth token in whichever runtime it runs in, so the

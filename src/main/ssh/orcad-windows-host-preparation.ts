@@ -11,11 +11,11 @@ import type { NodeRuntimeTarget } from '../../shared/node-runtime-pin'
 import { ensureRemoteOrcadNodeRuntime } from './orcad-remote-node-runtime'
 import { installOrcadWindowsHostScript, orcadRemoteBaseDir } from './orcad-remote-windows-node'
 import { materializeNodeRuntimeArchive } from './pinned-runtime-materializer'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { joinRemotePath, type RemoteHostPlatform } from './ssh-remote-platform'
 
 export async function prepareWindowsOrcadHost(options: {
-  conn: SshConnection
+  conn: OrcadHostTransport
   host: RemoteHostPlatform
   remoteHome: string
   serverTarget: NodeRuntimeTarget

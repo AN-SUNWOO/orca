@@ -18,7 +18,7 @@ import {
   orcadReadinessWaitCommand,
   parseOrcadReadinessWaitOutput
 } from './orcad-remote-readiness-wait'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { errorMessage } from '../../shared/error-message'
 import { execCommand, isUnconfirmedSshCommandTermination } from './ssh-relay-deploy-helpers'
 import {
@@ -35,7 +35,7 @@ import { isWindowsRemoteHost, type RemoteHostPlatform } from './ssh-remote-platf
 const READINESS_RETRY_PAUSE_MS = 1_000
 
 export type OrcadRemoteExecTarget = {
-  conn: SshConnection
+  conn: OrcadHostTransport
   host: RemoteHostPlatform
   signal?: AbortSignal
   /** Locates the runtime store for host-record scripts; required on Windows, unused elsewhere. */

@@ -1,6 +1,5 @@
 import type { PairingOfferUnavailableReason } from '../runtime/runtime-rpc'
 import type { OrcadHealth } from '../orcad/orcad-health'
-import { toVerifiedPairingLink } from '../../shared/pairing'
 
 export type ServePairingUnavailableReason = PairingOfferUnavailableReason | 'disabled_by_operator'
 
@@ -120,12 +119,6 @@ function renderHumanReadiness(readiness: ServeReadiness): string {
       lines.push(`Mobile pairing QR:\n${readiness.pairing.qr}`)
     }
     lines.push(`Pairing URL: ${readiness.pairing.url}`)
-    // Why: tapping an `orca://` link on a phone hands the code to whichever app claimed the scheme.
-    const phoneLink =
-      readiness.pairing.scope === 'mobile' ? toVerifiedPairingLink(readiness.pairing.url) : null
-    if (phoneLink) {
-      lines.push(`Phone pairing link: ${phoneLink}`)
-    }
   } else {
     lines.push(`Pairing unavailable: ${readiness.pairing.reason}`)
     lines.push(`Pairing guidance: ${readiness.pairing.guidance}`)

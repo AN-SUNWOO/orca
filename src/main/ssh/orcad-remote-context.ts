@@ -6,7 +6,7 @@ import { readOrcadActivationRecord } from './orcad-activation-record-store'
 import { resolveOrcadRuntimeTarget } from './orcad-runtime-target'
 import { prepareWindowsOrcadHost } from './orcad-windows-host-preparation'
 import { execOrcadRemote } from './orcad-remote-runtime-control'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { readRemoteHomeCommand } from './ssh-remote-commands'
 import {
   isWindowsRemoteHost,
@@ -23,7 +23,7 @@ export type OrcadRemoteContext = {
   activationRecord: OrcadActivationRecord
   /** A compat runtime on hosts below the default runtime's glibc floor (design D6 rung B). */
   serverTarget: NodeRuntimeTarget
-  connection: SshConnection
+  connection: OrcadHostTransport
   host: RemoteHostPlatform
   remoteHome: string
   target: SshTarget
@@ -32,7 +32,7 @@ export type OrcadRemoteContext = {
 
 export async function resolveOrcadRemoteContext(
   target: SshTarget,
-  connection: SshConnection,
+  connection: OrcadHostTransport,
   signal?: AbortSignal,
   detectedHost?: RemoteHostPlatform
 ): Promise<OrcadRemoteContext> {

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { pinnedNodeRuntimeAsset } from '../../shared/node-runtime-pin'
 import { runProcess } from '@orca/process-host'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import {
   ensureRemoteOrcadNodeRuntime,
   posixNodeRuntimeExecutable,
@@ -21,7 +21,7 @@ vi.mock('./ssh-relay-deploy-helpers', () => ({ execCommand: vi.fn() }))
 vi.mock('./ssh-relay-install-transfers', () => ({ uploadRelayDirectory: vi.fn() }))
 
 // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: every remote call goes through the mocked execCommand, which runs it in a local shell.
-const conn = {} as SshConnection
+const conn = {} as OrcadHostTransport
 const host = getRemoteHostPlatform('linux-x64')
 const target = 'linux-x64-glibc'
 let root: string

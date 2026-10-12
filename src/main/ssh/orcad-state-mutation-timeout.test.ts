@@ -41,7 +41,7 @@ import { rollbackOrcad } from './orcad-remote-rollback'
 import { recoverInterruptedOrcadActivation } from './orcad-activation-recovery'
 import { getRemoteHostPlatform } from './ssh-remote-platform'
 import { SSH_EXEC_TIMEOUT_CODE, isUnconfirmedSshCommandTermination } from './ssh-relay-exec-command'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { BUILD_HASH, FakeOrcadHost, NEW, OLD } from './orcad-activation-host-test-harness'
 import { isSnapshotCaptureCommand } from './orcad-snapshot-capture-command'
 
@@ -52,7 +52,7 @@ let running = false
 
 const slot = {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: execCommand is mocked, so nothing reads the connection.
-  conn: {} as SshConnection,
+  conn: {} as OrcadHostTransport,
   host: getRemoteHostPlatform('linux-x64'),
   remoteHome: '/home/u',
   nodePath: '/usr/bin/node',

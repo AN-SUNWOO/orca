@@ -32,7 +32,7 @@ export const AgentJournalSubmissionSchema = z.object({
 export function isAdmissibleAgentJournalSubmission(
   value: unknown
 ): value is AgentJournalSubmission {
-  return AgentJournalSubmissionSchema.safeParse(value).success
+  return AgentJournalSubmissionSchema.validate(value)
 }
 
 /** Compile-time proof that every submission this build writes is admissible. */

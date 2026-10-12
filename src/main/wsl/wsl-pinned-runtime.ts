@@ -12,7 +12,7 @@ import {
 } from '../ssh/orcad-remote-node-runtime'
 import { getRemoteHostPlatform } from '../ssh/ssh-remote-platform'
 import { assertRemoteNodeRuntimePromoted } from '../ssh/orcad-remote-node-runtime-report'
-import { isGlibcBelow, PINNED_NODE_GLIBC_FLOOR } from '../ssh/ssh-relay-pinned-node'
+import { isGlibcBelow, PINNED_NODE_GLIBC_FLOOR } from '../ssh/pinned-runtime-host-target'
 import type { WslSpec } from './wsl-runner'
 
 const downloads = new Map<string, Promise<string>>()

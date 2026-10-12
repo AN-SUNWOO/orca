@@ -3,18 +3,16 @@ import { connect, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
-import type { ClientChannel } from 'ssh2'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { OrcadStdioBridgeUnavailableError } from './orcad-host-unavailable'
 import type { OrcadStdioBridge } from './orcad-stdio-bridge'
-import {
-  ORCAD_STDIO_BRIDGE_MAX_CHANNELS,
-  OrcadStdioBridgePortForwardProvider
-} from './orcad-stdio-bridge-provider'
+import { ORCAD_STDIO_BRIDGE_MAX_CHANNELS } from './orcad-stdio-bridge-listener'
+import { OrcadStdioBridgePortForwardProvider } from './orcad-stdio-bridge-provider'
 import { spawnLocalBridgeChannel, startEchoServer } from './orcad-stdio-bridge-test-channel'
 import { ORCAD_WINDOWS_HOST_SCRIPT } from './orcad-windows-host-script'
 import type { SshConnection } from './ssh-connection'
 import type { StartedPortForward } from './ssh-port-forward-provider'
+import type { RemoteCommandChannel } from './remote-install-transport'
 
 let echo: { server: Server; port: number }
 let script: string
@@ -46,7 +44,7 @@ const conn = { getClient: () => ({}) } as unknown as SshConnection
 const bridge: OrcadStdioBridge = { command: 'bridge', mode: 'base64', wrapCommand: false }
 
 /** The real bridge, run locally through the Windows host script's base64 framing. */
-const localBridge = (): ClientChannel =>
+const localBridge = (): RemoteCommandChannel =>
   spawnLocalBridgeChannel(process.execPath, [script, 'stdio-bridge', String(echo.port)])
 
 async function startProvider(
@@ -138,7 +136,7 @@ describe('the managed tunnel over the stdio bridge', () => {
       const channel = Object.assign(new PassThrough(), { stderr: new PassThrough(), close() {} })
       channels.push(channel)
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the provider uses only the stream, `stderr`, `close`, and events.
-      return channel as unknown as ClientChannel
+      return channel as unknown as RemoteCommandChannel
     })
     const forward = await startProvider({ openChannel })
     const lost = await dial(forward.entry.localPort)
@@ -158,7 +156,7 @@ describe('the managed tunnel over the stdio bridge', () => {
       })
       channels.push(channel)
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the provider uses only the stream, `stderr`, `close`, and events.
-      return channel as unknown as ClientChannel
+      return channel as unknown as RemoteCommandChannel
     })
     const forward = await startProvider({ openChannel })
     const sockets = await Promise.all(

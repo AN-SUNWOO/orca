@@ -10,9 +10,7 @@ import {
   join,
   mkdtemp,
   randomUUID,
-  registerSshGitProvider,
-  tmpdir,
-  unregisterSshGitProvider
+  tmpdir
 } from '../orca-runtime-test-mocks.spec'
 import {
   TEST_FOLDER_PROJECT_GROUP_ID,
@@ -25,6 +23,7 @@ import {
   expectStablePaneKeyEnv,
   makeFolderProjectGroup,
   makeFolderWorkspace,
+  makeWorktreeMeta,
   store
 } from '../orca-runtime-test-fixtures.spec'
 
@@ -65,6 +64,10 @@ describe('OrcaRuntimeService', () => {
       ...store,
       getRepos: () => [remoteRepo],
       getRepo: (id: string) => (id === TEST_REPO_ID ? remoteRepo : undefined),
+      // Why: this process serves no SSH git, so the SSH repo resolves from its stored rows.
+      getAllWorktreeMeta: () => ({
+        [`${TEST_REPO_ID}::C:/remote/repo`]: makeWorktreeMeta()
+      }),
       getSettings: () => ({
         ...store.getSettings(),
         disabledTuiAgents: [],
@@ -74,20 +77,7 @@ describe('OrcaRuntimeService', () => {
         agentDefaultEnv: {}
       })
     }
-    const provider = {
-      exec: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
-      listWorktrees: vi.fn().mockResolvedValue([
-        {
-          path: 'C:/remote/repo',
-          head: 'abc',
-          branch: 'main',
-          isBare: false,
-          isMainWorktree: true
-        }
-      ])
-    }
     const spawn = vi.fn().mockResolvedValue({ id: 'pty-remote-windows-bare' })
-    registerSshGitProvider('ssh-1', provider as never)
     const runtime = new OrcaRuntimeService(remoteStore as never)
     runtime.setPtyController({
       spawn,
@@ -96,21 +86,17 @@ describe('OrcaRuntimeService', () => {
       getForegroundProcess: async () => null
     })
 
-    try {
-      const terminal = await runtime.createTerminal('path:C:/remote/repo', {
-        command: 'claude',
-        title: 'worker'
-      })
+    const terminal = await runtime.createTerminal('path:C:/remote/repo', {
+      command: 'claude',
+      title: 'worker'
+    })
 
-      const spawnCall = spawn.mock.calls[0]?.[0] as { command?: string } | undefined
-      expect(spawnCall?.command).toBe("claude '--dangerously-skip-permissions'")
-      expect(terminal).toMatchObject({
-        executionHostId: 'ssh:ssh-1',
-        hostPlatform: 'linux'
-      })
-    } finally {
-      unregisterSshGitProvider('ssh-1')
-    }
+    const spawnCall = spawn.mock.calls[0]?.[0] as { command?: string } | undefined
+    expect(spawnCall?.command).toBe("claude '--dangerously-skip-permissions'")
+    expect(terminal).toMatchObject({
+      executionHostId: 'ssh:ssh-1',
+      hostPlatform: 'linux'
+    })
   })
 
   it('matches canonical bare agent commands when a command override is configured', async () => {

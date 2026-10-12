@@ -41,8 +41,8 @@ import {
 } from './provider-account-visibility'
 import { GrokAccountsSection } from './GrokAccountsSection'
 import { AntigravityAccountsSection } from './AntigravityAccountsSection'
-import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
-import { getSettingsHostScopeEnvironmentId } from './settings-host-scope'
+import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
+import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
 import { CursorAccountsSection } from './CursorAccountsSection'
 import { ZcodePlanAccountsSection } from './ZcodePlanAccountsSection'
 import type {
@@ -112,7 +112,7 @@ export function AccountsPane({
   // below goes to the host chosen in the page, never to the focused one.
   const accountOwner = hostScope.target
   const isRemoteAccountScope = accountOwner.kind === 'environment'
-  const scopeEnvironmentId = getSettingsHostScopeEnvironmentId(hostScope)
+  const scopeEnvironmentId = runtimeTargetEnvironmentId(hostScope.target)
   // Why: a select/remove can outlive a host change; its result
   // belongs to the owner it was sent to, not the one now shown.
   const accountOwnerKey = getProviderAccountsOwnerKey(accountOwner)

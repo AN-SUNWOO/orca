@@ -58,7 +58,6 @@ import { emptyOrcadActivationRecord, type OrcadActivationRecord } from './orcad-
 import { getRemoteHostPlatform } from './ssh-remote-platform'
 import { isReadinessRead } from './orcad-activation-host-test-harness'
 import { isSnapshotCaptureCommand } from './orcad-snapshot-capture-command'
-import type { SshConnection } from './ssh-connection'
 
 const mockExec = vi.mocked(execCommand)
 const ACTIVE = '0.2.0+bb01'
@@ -177,7 +176,7 @@ function scriptHost(log: string[], overrides: HostOverrides = {}): void {
 
 function options(overrides: Partial<OrcadRollbackOptions> = {}): OrcadRollbackOptions {
   return {
-    conn: {} as SshConnection,
+    conn: Object.create(null),
     host: getRemoteHostPlatform('linux-x64'),
     remoteHome: '/home/u',
     record: record(),

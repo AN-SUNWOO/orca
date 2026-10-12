@@ -4583,9 +4583,8 @@
         "SkillFreshnessRow": {
           "statusUpdateAvailable": "有更新",
           "statusCantUpdate": "无法更新",
-          "cantUpdateReason": "此技能安装在 Orca 无法安全更新的位置，因此 npx skills update 命令不会更改它。",
+          "cantUpdateReason": "此技能安装在 Orca 无法安全更新的位置，因此 更新命令不会更改它。",
           "chipCurrent": "最新",
-          "chipUnrecognized": "无法识别",
           "chipInaccessible": "无法访问",
           "chipDuplicate": "重复",
           "chipExternalLink": "外部链接",
@@ -4594,26 +4593,20 @@
           "chipInRepo": "在仓库中",
           "chipPluginCache": "插件缓存",
           "tipCurrent": "这里的技能已是最新，更新不会更改它。",
-          "tipUnrecognized": "这里的技能内容与任何官方版本都不匹配，因此 Orca 无法安全更新它。请移除或替换此处的内容以允许更新。",
           "tipInaccessible": "Orca 无法读取这里的技能（权限或文件错误），因此无法检查或更新它。",
-          "tipDuplicate": "此技能除主副本外还安装在这里，因此 npx skills update 命令无法访问它。请移除它以允许更新。",
+          "tipDuplicate": "此技能除主副本外还安装在这里，因此 更新命令无法访问它。请移除它以允许更新。",
           "tipExternalLink": "这是一个指向 Orca 技能文件夹之外的快捷方式；更新不会跟随它。",
           "tipBrokenLink": "这是一个指向已不存在内容的快捷方式，可以安全删除。",
           "tipReadOnly": "这里的技能位于只读位置，需更改其权限后才能更新。",
           "tipInRepo": "这里的技能位于某个项目内，而非全局技能；Orca 只更新全局技能。",
           "tipPluginCache": "这里的技能由插件管理；请改为更新插件。",
-          "skippedReasonUnrecognized": "此处的副本与官方版本不一致 — 它可能被修改过，或是同名但内容不同的技能。Orca 将其排除在更新之外，以免覆盖它。如果您希望 Orca 更新此技能，请删除它。",
           "skippedReasonReadOnly": "此副本位于只读位置，因此 Orca 未将其纳入更新。请更改其权限，让 Orca 更新它。",
           "skippedReasonInaccessible": "Orca 无法读取此副本，因此未将该技能纳入更新。",
           "skippedReasonInRepo": "这是项目技能而非全局技能 — Orca 只更新您的全局技能，因此将其排除在更新之外。",
           "skippedReasonPluginCache": "此技能由插件管理，因此 Orca 未将其纳入更新 — 请改为更新插件。",
           "skippedReasonExternalLink": "此副本是指向 Orca 技能文件夹之外的快捷方式，因此 Orca 未将其纳入更新。",
           "skippedReasonBrokenLink": "此副本是指向已不存在内容的快捷方式，因此 Orca 将其排除 — 您可以放心删除。",
-          "skippedReasonDuplicate": "这是独立的副本，因此更新不会触及它 — 该命令只刷新主副本。请删除此副本并重新安装技能，使此位置跟随主副本。",
-          "skippedReasonNewer": "此副本的版本比当前 Orca 版本内置的更新，因此 Orca 未动它，以免回退。更新 Orca 后两者将恢复一致。",
-          "skippedReasonStaleRecord": "技能更新器没有此副本的有效记录，因此它报告技能已是最新且不做任何更改。请重新安装，使记录恢复一致：{{value0}}",
-          "chipNewer": "Newer",
-          "tipNewer": "此副本的版本比当前 Orca 版本内置的更新。"
+          "skippedReasonDuplicate": "这是独立的副本，因此更新不会触及它 — 该命令只刷新主副本。请删除此副本并重新安装技能，使此位置跟随主副本。"
         },
         "SkillFreshnessUpdateDialog": {
           "title": "更新技能",
@@ -4654,7 +4647,9 @@
           "scanOutsideRoot": "此插件路径指向插件缓存之外，Orca 已将其跳过。",
           "scanIoErrorWithCode": "Orca 无法读取此插件路径（{{value0}}）。",
           "scanIoError": "Orca 无法读取此插件路径。",
-          "scanIssueLimit": "被跳过的插件文件夹过多，Orca 无法逐一列出。"
+          "scanIssueLimit": "被跳过的插件文件夹过多，Orca 无法逐一列出。",
+          "unselectedForeignOne": "有 1 个非 Orca 安装的技能未选中。",
+          "unselectedForeignMany": "有 {{value0}} 个非 Orca 安装的技能未选中。"
         },
         "SkillFreshnessStatusPill": {
           "updateAvailable": "有可用更新",
@@ -4669,8 +4664,12 @@
           "stillOutdated": "更新运行后仍为过期状态。"
         },
         "SkillUpdateRow": {
-          "oneLocation": "1 location",
-          "manyLocations": "{{value0}} locations"
+          "oneLocation": "1 个位置",
+          "manyLocations": "{{value0}} 个位置",
+          "notFromOrca": "非 Orca 安装",
+          "notFromOrcaSourceTip": "安装自 {{value0}}。选中后会替换为 Orca 的版本。",
+          "notFromOrcaNoRecordTip": "此副本没有 Orca 安装记录。选中后会替换为 Orca 的版本。",
+          "includeSkill": "包含 {{value0}}"
         },
         "host": {
           "local": "此机器",

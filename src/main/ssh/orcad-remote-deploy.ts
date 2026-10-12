@@ -8,7 +8,7 @@
  */
 import { logOrcadActivationOutcome } from './orcad-activation-outcome-log'
 import { join } from 'node:path'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { ORCAD_INSTALL_MODEL } from './remote-install-model'
 import { computeRemoteInstallDir, readLocalFullVersion } from './ssh-relay-versioned-install'
 import { readOrcadActivationRecord } from './orcad-activation-record-store'
@@ -33,7 +33,7 @@ import { activateInstalledOrcad } from './orcad-installed-activation'
 import { orcadActivationFenceRefusal } from './orcad-activation-fence-hold'
 
 export type OrcadDeployOptions = {
-  conn: SshConnection
+  conn: OrcadHostTransport
   host: RemoteHostPlatform
   remoteHome: string
   /** An already assembled bundle; otherwise materialize the packaged template for this host. */

@@ -20,12 +20,11 @@ import { SshConnectionStore } from './ssh-connection-store'
 
 const mocks = vi.hoisted(() => {
   const state: { targetStore: unknown } = { targetStore: null }
-  return { state, deploy: vi.fn(), ensureTunnel: vi.fn(), directAuthority: vi.fn() }
+  return { state, deploy: vi.fn(), ensureTunnel: vi.fn() }
 })
 vi.mock('./ssh-target-registry', () => ({
   getSshConnectionManager: () => ({}),
-  getSshTargetRegistryStore: () => mocks.state.targetStore,
-  hasRegisteredDirectSshAuthority: mocks.directAuthority
+  getSshTargetRegistryStore: () => mocks.state.targetStore
 }))
 vi.mock('./orcad-runtime-deployment', () => ({ createManagedOrcadEnvironment: mocks.deploy }))
 vi.mock('./orcad-managed-tunnel', () => ({
@@ -66,7 +65,6 @@ beforeEach(() => {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: SshConnectionStore wraps the real test store it is given.
   mocks.state.targetStore = new SshConnectionStore(store as never)
   destination = fakeOrcadMigrationDestination()
-  mocks.directAuthority.mockReturnValue(false)
   mocks.ensureTunnel.mockResolvedValue(undefined)
   // Registers the server the fence named, as the real deploy would after pairing.
   mocks.deploy.mockImplementation(async (path: string, args: { name: string }) => {

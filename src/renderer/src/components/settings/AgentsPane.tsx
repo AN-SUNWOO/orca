@@ -51,7 +51,8 @@ import {
 import { AgentAvailabilityControl, type AgentCatalogRowProps } from './AgentCatalogRow'
 import { AgentDefaultSetting } from './AgentDefaultSetting'
 import { AgentDetectionCatalog } from './AgentDetectionCatalog'
-import { getSettingsHostScopeEnvironmentId, type SettingsHostScope } from './settings-host-scope'
+import type { SettingsHostScope } from './settings-host-scope'
+import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
 
 export {
   buildAgentAvailabilitySettingsUpdate,
@@ -158,7 +159,7 @@ export function AgentsPane({
   wslDistros,
   wslCapabilitiesLoading
 }: AgentsPaneProps): React.JSX.Element {
-  const activeServerEnvironmentId = getSettingsHostScopeEnvironmentId(hostScope)
+  const activeServerEnvironmentId = runtimeTargetEnvironmentId(hostScope.target)
   const agentDetectionTarget = useMemo<AgentDetectionTarget>(
     () =>
       activeServerEnvironmentId

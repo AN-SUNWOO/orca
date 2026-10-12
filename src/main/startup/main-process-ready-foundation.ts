@@ -41,7 +41,10 @@ import { writeHttp1CompatibilityMarker } from './http1-compatibility-marker'
 import { mainProcessState as state } from './main-process-state'
 import { syncMacMenuBarIcon } from './main-window-actions'
 import { updateGpuAccelerationAboutPanel } from './gpu-lifecycle'
-import { reconcileManagedWslCliRegistrations } from '../cli/wsl-cli-registration-reconciliation'
+import {
+  logWslCliReconciliationResults,
+  reconcileManagedWslCliRegistrations
+} from '../cli/wsl-cli-registration-reconciliation'
 import { createWslCliReconciliationStartupBarrier } from './wsl-cli-reconciliation-startup-barrier'
 import { agentHookServer } from '../agent-hooks/server'
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
@@ -105,15 +108,7 @@ export async function initializeReadyFoundation(): Promise<void> {
     appVersion: app.getVersion()
   })
     .then((results) => {
-      for (const result of results) {
-        if (result.outcome === 'failed') {
-          console.warn(
-            `[wsl-cli] ${result.distro} managed registration reconciliation failed: ${result.error}`
-          )
-        } else if (result.outcome === 'repaired') {
-          console.log(`[wsl-cli] Repaired managed registration in ${result.distro}.`)
-        }
-      }
+      logWslCliReconciliationResults(results)
       state.managedWslCliReconciliationStatus = 'settled'
     })
     .catch((error) => {

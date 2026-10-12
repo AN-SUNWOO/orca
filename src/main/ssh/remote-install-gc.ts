@@ -5,7 +5,7 @@
  * models run, and because the ownership rule below is the whole point of separating them:
  * a pass only ever sees, and only ever deletes, directories belonging to `model`.
  */
-import type { SshConnection } from './ssh-connection'
+import type { RemoteInstallTransport } from './remote-install-transport'
 import { RELAY_REMOTE_DIR } from './relay-protocol'
 import { execHostCommand } from './ssh-relay-host-exec'
 import { probeInstallLockExistsCommand } from './ssh-relay-install-lock-commands'
@@ -82,7 +82,7 @@ export type RemoteInstallGcOptions = {
  * a hand-rolled listing can make one model delete the other's live install.
  */
 export async function gcOldRemoteInstallVersions(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   model: RemoteInstallModel,
   remoteHome: string,
   currentDirAbsPath: string,
@@ -201,7 +201,7 @@ export async function gcOldRemoteInstallVersions(
 }
 
 async function isCandidateSafeToRemove(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   model: RemoteInstallModel,
   dir: string,
   name: string,
@@ -263,7 +263,7 @@ async function isCandidateSafeToRemove(
  * (relay-version-dir-liveness.ts), and the previous completed build is pinned (design D5).
  */
 export async function gcOldRelayVersions(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   remoteHome: string,
   currentDirAbsPath: string,
   host: RemoteHostPlatform = DEFAULT_REMOTE_HOST,
@@ -314,7 +314,7 @@ export async function gcOldRelayVersions(
 
 /** GC deletes a relay version dir only on `exited`; see relay-version-dir-liveness.ts. */
 export async function probeRelayVersionDirLiveness(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   dir: string,
   host: RemoteHostPlatform = DEFAULT_REMOTE_HOST,
   options?: {

@@ -194,7 +194,13 @@ describe('SubagentTracker', () => {
       groupOf: (id) => (id.startsWith('old-') ? `old-turn-${id.slice(4)}` : null),
       claimGroup: (groupId) => ({
         entries: [
-          { id: `old-${groupId.slice(9)}`, label: 'Old', state: 'completed', startedAt: 1, settledAt: 2 }
+          {
+            id: `old-${groupId.slice(9)}`,
+            label: 'Old',
+            state: 'completed',
+            startedAt: 1,
+            settledAt: 2
+          }
         ],
         placement: groupId
       })

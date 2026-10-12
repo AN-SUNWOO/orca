@@ -6,7 +6,9 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
+  utimesSync,
   writeFileSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -105,10 +107,20 @@ function fixture(env: NodeJS.ProcessEnv = {}) {
 
 function signIn(stateDir: string, email: string, organizationUuid?: string): void {
   mkdirSync(stateDir, { recursive: true })
+  const stateFile = join(stateDir, '.claude.json')
+  const previousMtimeMs = existsSync(stateFile) ? statSync(stateFile).mtimeMs : 0
   writeFileSync(
-    join(stateDir, '.claude.json'),
+    stateFile,
     JSON.stringify({ oauthAccount: { emailAddress: email, organizationUuid } })
   )
+  // Equal-size fixture revisions must invalidate the real reader's mtime cache.
+  const mtime = new Date(
+    Math.max(
+      Math.floor(Date.now() / 1000) * 1000,
+      Math.floor(previousMtimeMs / 1000) * 1000 + 2_000
+    )
+  )
+  utimesSync(stateFile, mtime, mtime)
 }
 
 describe('ClaudeProfileRouter', () => {

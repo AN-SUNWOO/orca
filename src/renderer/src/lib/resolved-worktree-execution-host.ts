@@ -15,6 +15,10 @@ import {
   findIndexedWorktreeOwnerForHost
 } from './worktree-runtime-owner-index'
 import type { WorktreeRuntimeOwnerState } from './worktree-runtime-owner'
+import {
+  runtimeTargetForExecutionHostId,
+  type RuntimeClientTarget
+} from '@/runtime/runtime-client-target'
 
 function getResolvedFolderHost(
   state: WorktreeRuntimeOwnerState,
@@ -94,4 +98,19 @@ export function getResolvedExecutionHostIdForWorktree(
   return repo.connectionId?.trim()
     ? toSshExecutionHostId(repo.connectionId)
     : LOCAL_EXECUTION_HOST_ID
+}
+
+/**
+ * RPC target of the focused workspace's owner row; `null` when nothing is focused, ownership is
+ * unproven, or the owner has no RPC route (direct SSH). Callers pick their own fallback.
+ */
+export function getActiveWorkspaceOwnerTarget(
+  state: WorktreeRuntimeOwnerState
+): RuntimeClientTarget | null {
+  // Why: with no paired server every RPC owner is this app; skip the owner-index build.
+  if (state.runtimeEnvironmentCatalogHydrated && state.runtimeEnvironments?.length === 0) {
+    return null
+  }
+  const hostId = getResolvedExecutionHostIdForWorktree(state, state.activeWorktreeId)
+  return hostId ? runtimeTargetForExecutionHostId(hostId) : null
 }

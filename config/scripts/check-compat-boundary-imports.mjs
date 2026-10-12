@@ -35,7 +35,15 @@ function importTarget(file, specifier) {
 
 export function assessCompatBoundaryImports(sources, folders = COMPAT_FOLDERS) {
   const violations = []
+  const folderNames = folders.map(({ folder }) => path.posix.basename(folder))
   for (const [file, contents] of sources) {
+    // Escapes can hide a folder name; relative imports can inherit it from the file path.
+    if (
+      !contents.includes('\\') &&
+      !folderNames.some((name) => contents.includes(name) || file.includes(name))
+    ) {
+      continue
+    }
     for (const specifier of collectModuleSpecifiers(file, contents)) {
       const target = importTarget(file, specifier)?.replace(/\.[cm]?[jt]sx?$/, '')
       const compat = folders.find(

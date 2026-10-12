@@ -25,7 +25,6 @@ export type MobileApi = {
         /** Natural bitmap width and height in pixels. */
         qrSize: number | null
         qrError?: 'encoding_failed'
-        /** Phone-facing copy link: verified https, code in the fragment. The QR keeps `orca://`. */
         pairingUrl: string
         /** Null when no direct address was advertised — the QR pairs over Relay alone. */
         endpoint: string | null

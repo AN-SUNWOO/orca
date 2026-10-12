@@ -2,7 +2,6 @@ import { app, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
 import type { RuntimeAccessGrant } from '../../shared/runtime-access-grants'
 import type { MobilePairingConnectionMode } from '../../shared/mobile-pairing-connection-mode'
 import { classifyRemotePairingHostname } from '../../shared/remote-pairing-address'
-import { toVerifiedPairingLink } from '../../shared/pairing'
 import type { RuntimePairingReach } from '../../shared/runtime-pairing-reach'
 import type { DeviceEntry } from '../runtime/device-registry'
 import { NETWORK_EXPOSURE_FAILED_GUIDANCE } from '../runtime/network-exposure-guidance'
@@ -135,9 +134,7 @@ export function registerMobileHandlers(
         qrDataUrl: qr.ok ? qr.qrDataUrl : null,
         qrSize: qr.ok ? qr.qrSize : null,
         ...(!qr.ok ? { qrError: qr.reason } : {}),
-        // Why: the QR keeps the custom scheme older phones' scanners read, but a copied link can be
-        // tapped, and an `orca://` tap goes to whichever app claimed the scheme.
-        pairingUrl: toVerifiedPairingLink(offer.pairingUrl) ?? offer.pairingUrl,
+        pairingUrl: offer.pairingUrl,
         // Why: with nothing advertised the offer's endpoint is the loopback fallback, which points at
         // whichever device scans the QR — never this host. Report no endpoint so the UI omits it
         // instead of printing an address the phone can't reach.

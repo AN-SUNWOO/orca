@@ -12,7 +12,7 @@
  * reachable by migrating the cleanup scan, so those rows now surface as removable candidates.
  *
  * Routing is now one answer for the whole removal, taken from the host the prune already used, so
- * list, remove and prune cannot disagree. The ambiguous `provider: SshGitProvider | null` carrier
+ * list, remove and prune cannot disagree. The ambiguous nullable SSH-provider carrier
  * is deleted from the callees rather than supplemented, which makes every remaining reader a
  * compile error in the typed modules that do the destructive work.
  *

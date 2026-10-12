@@ -24,14 +24,13 @@ import { decommissionRemoteOrcad } from './orcad-remote-decommission'
 import { recoverInterruptedOrcadActivation } from './orcad-activation-recovery'
 import { parseOrcadActivationRecord } from './orcad-activation-record'
 import { getRemoteHostPlatform } from './ssh-remote-platform'
-import type { SshConnection } from './ssh-connection'
 import type { OrcadTerminalCensus } from '../../shared/orcad-terminal-census'
 import { FakeOrcadHost, OLD, type CrashMode } from './orcad-activation-host-test-harness'
 
 let host = new FakeOrcadHost()
 
 const slot = {
-  conn: {} as SshConnection,
+  conn: Object.create(null),
   host: getRemoteHostPlatform('linux-x64'),
   remoteHome: '/home/u',
   nodePath: '/usr/bin/node',

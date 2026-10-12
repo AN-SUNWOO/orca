@@ -346,7 +346,7 @@ describe('registerMobileHandlers', () => {
     await expect(handlers.get('mobile:getPairingQR')?.(null, {})).resolves.toMatchObject({
       available: true,
       qrSize: 58,
-      pairingUrl: 'https://www.onorca.dev/pair#mobile',
+      pairingUrl: 'orca://pair#mobile',
       endpoint: 'ws://100.102.47.57:6768',
       deviceId: 'mobile-1',
       connectionMode: 'automatic'
@@ -426,7 +426,7 @@ describe('registerMobileHandlers', () => {
       qrDataUrl: null,
       qrSize: null,
       qrError: 'encoding_failed',
-      pairingUrl: 'https://www.onorca.dev/pair#copy-me',
+      pairingUrl: 'orca://pair?code=copy-me',
       endpoint: 'wss://pair.example/oversized',
       deviceId: 'mobile-large',
       connectionMode: 'local-only'

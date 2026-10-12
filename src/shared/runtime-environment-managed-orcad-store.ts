@@ -91,6 +91,8 @@ export function addManagedOrcadEnvironment(
 export function removeManagedOrcadEnvironment(userDataPath: string, environmentId: string): void {
   const store = readPersistedEnvironmentStore(userDataPath)
   const persisted = resolveEnvironmentFromStore(store, environmentId)
+  // Throws before the store write when the entry is unreadable, so its link is never orphaned.
+  readCurrentRuntimeEnvironmentSidecarEntry(userDataPath, persisted)
   const remaining = store.environments.filter((entry) => entry.id !== persisted.id)
   writeEnvironmentStore(userDataPath, { version: 1, environments: remaining })
   writeRuntimeEnvironmentSidecarEntry(userDataPath, remaining, persisted, null)

@@ -1,6 +1,4 @@
 import type { SshConnectionStore } from './ssh-connection-store'
-import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
-import type { SshChannelMultiplexer } from './ssh-channel-multiplexer'
 import type { SshConnectionManager } from './ssh-connection-manager'
 import type {
   SshConnectionState,
@@ -21,8 +19,8 @@ import type {
  * This holds only the registry: the store plus the two callbacks the handler layer
  * installs. `registerSshHandlers` populates it; the runtime reads it. Keeping the
  * indirection (rather than the runtime holding a manager directly) is deliberate —
- * SSH providers register after construction and may reconnect, so callers must
- * resolve the current generation rather than freeze one.
+ * `registerSshHandlers` may re-run, so callers must resolve the current generation
+ * rather than freeze one.
  */
 
 let sshStore: SshConnectionStore | null = null
@@ -88,16 +86,7 @@ export function getRegisteredSshTargetMutations(): SshTargetMutations {
   return registeredSshTargetMutations
 }
 
-/**
- * The relay channel multiplexer is gone, so no SSH target is served here: every caller is a dead
- * SSH arm and gets the typed "not served" error, never an `exited` verdict.
- */
-export function getActiveMultiplexer(connectionId: string): SshChannelMultiplexer | undefined {
-  throw new SshHostNotServedError(connectionId)
-}
-
 let registeredGetSshConnectionManager: (() => SshConnectionManager | null) | null = null
-let registeredHasDirectSshAuthority: ((targetId: string) => boolean) | null = null
 
 export function setSshConnectionManagerResolver(
   resolve: (() => SshConnectionManager | null) | null
@@ -115,15 +104,4 @@ export function setSshConnectionManagerResolver(
  */
 export function getSshConnectionManager(): SshConnectionManager | null {
   return registeredGetSshConnectionManager?.() ?? null
-}
-
-export function setDirectSshAuthorityResolver(
-  resolve: ((targetId: string) => boolean) | null
-): void {
-  registeredHasDirectSshAuthority = resolve
-}
-
-/** Whether this process currently holds the target's relay session; false when unregistered. */
-export function hasRegisteredDirectSshAuthority(targetId: string): boolean {
-  return registeredHasDirectSshAuthority?.(targetId) ?? false
 }

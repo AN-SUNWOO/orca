@@ -18,6 +18,10 @@ const NATIVE_IME_PRODUCT_SOURCE =
 const NATIVE_IME_HARNESS =
   /^(?:config\/scripts\/focus-nested-wayland-terminal\.sh$|config\/scripts\/(?:run-terminal-ibus-hangul-e2e|terminal-ime-engagement-receipt)\.mjs$|tests\/e2e\/terminal-ime-(?:boundary-probe|byte-reader|engagement-receipt)\.ts$|tests\/e2e\/terminal-(?:ibus-hangul|hangul-terminating-digit|macos-2set-korean)-native\.spec\.ts$)/
 
+/** Managed-SSH harness helpers; every managed-SSH spec runs in one job, so any route may claim them. */
+const MANAGED_SSH_HARNESS =
+  /^tests\/e2e\/helpers\/(?:orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-template-variant|orcad-upgrade-profile|docker-ssh-host-target)\.ts$/
+
 export const PR_E2E_SOURCE_ROUTES = [
   {
     id: 'ssh.orcad-editor-ownership',
@@ -108,9 +112,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'ssh.orcad-auto-convert',
     specs: ['tests/e2e/ssh-orcad-auto-convert.spec.ts'],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/(?:orcad-convert-(?:flow|host)|orcad-template-variant|orcad-upgrade-profile)\.ts$/.test(
-        file
-      ) ||
+      MANAGED_SSH_HARNESS.test(file) ||
       (isProductSource(file) &&
         /^src\/main\/(?:ipc\/ssh-host-server-|ssh\/(?:ssh-host-server-|orcad-runtime-conversion|orcad-migration-|orcad-retained-source|orcad-runtime-deployment))/.test(
           file
@@ -147,9 +149,8 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'ssh.orcad-browser-drop-owner',
     specs: ['tests/e2e/ssh-orcad-browser-drop-owner.spec.ts'],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/(?:orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-host-target|browser-split-(?:guest-probes|page-server))\.ts$/.test(
-        file
-      ) ||
+      MANAGED_SSH_HARNESS.test(file) ||
+      /^tests\/e2e\/helpers\/browser-split-(?:guest-probes|page-server)\.ts$/.test(file) ||
       (isProductSource(file) &&
         /^src\/renderer\/src\/(?:lib\/(?:file-preview|workspace-file-drag|worktree-runtime-owner|connection-context)\.ts|components\/(?:right-sidebar\/FileExplorer(?:Row|VirtualRows)\.tsx|browser-pane\/(?:navigate\/use-browser-page-navigation-downloads\.ts|host-guest\/attach-browser-page-webview\.ts)))$/.test(
           file
@@ -159,9 +160,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'ssh.orcad-open-in-owner',
     specs: ['tests/e2e/ssh-orcad-open-in-owner.spec.ts'],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/(?:orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-host-target)\.ts$/.test(
-        file
-      ) ||
+      MANAGED_SSH_HARNESS.test(file) ||
       (isProductSource(file) &&
         /^src\/renderer\/src\/(?:lib\/(?:local-path-open-guard|external-editor-open-capability|worktree-runtime-owner)\.ts|components\/(?:sidebar\/(?:WorktreeOpenInMenu|WorktreeContextMenuView)\.tsx|right-sidebar\/(?:FileExplorer(?:Toolbar)?\.tsx|source-control\/listing\/entry-context-menu\.tsx)))$/.test(
           file
@@ -171,9 +170,8 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'ssh.orcad-terminal-root-owner',
     specs: ['tests/e2e/ssh-orcad-terminal-root-owner.spec.ts'],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/(?:terminal-workspace-root-link|orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-upgrade-profile|docker-ssh-host-target)\.ts$/.test(
-        file
-      ) ||
+      MANAGED_SSH_HARNESS.test(file) ||
+      file === 'tests/e2e/helpers/terminal-workspace-root-link.ts' ||
       (isProductSource(file) &&
         /^src\/renderer\/src\/(?:components\/terminal-pane\/terminal-(?:worktree-path-link|file-link-actions|file-link-hit-testing|file-open-routing|link-handlers)\.ts|lib\/(?:workspace-file-host-routing|worktree-owner-route|worktree-operation-route|worktree-operation-catalog-route)\.ts)$/.test(
           file
@@ -183,7 +181,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'ssh.orcad-idle-exit',
     specs: ['tests/e2e/ssh-orcad-idle-exit.spec.ts'],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/orcad-convert-(?:flow|host)\.ts$/.test(file) ||
+      MANAGED_SSH_HARNESS.test(file) ||
       (isProductSource(file) &&
         /^src\/(?:main\/(?:orcad\/orcad-(?:idle-|managed-idle-)|ssh\/orcad-(?:managed-serving|managed-wake|managed-tunnel|recovery-slot|remote-launch|remote-runtime-control))|shared\/orcad-idle-exit)/.test(
           file
@@ -198,7 +196,8 @@ export const PR_E2E_SOURCE_ROUTES = [
       'tests/e2e/ssh-orcad-vm-provisioned-root.spec.ts'
     ],
     matches: (file) =>
-      /^tests\/e2e\/helpers\/(?:orcad-managed-workspace|orcad-convert-(?:flow|host)|orcad-upgrade-profile|paired-host-terminal|terminal-workspace-root-link)\.ts$/.test(
+      MANAGED_SSH_HARNESS.test(file) ||
+      /^tests\/e2e\/helpers\/(?:paired-host-terminal|terminal-workspace-root-link)\.ts$/.test(
         file
       ) ||
       (isProductSource(file) &&

@@ -1,4 +1,5 @@
 import { ensureWslHookRelayForReattach } from '../../../agent-hooks/wsl-hook-relay-reattach'
+import { noteWslDistrosRunning } from '../../../wsl-background-distro-gate'
 import { classifyError } from '../../../telemetry/classify-error'
 import { track } from '../../../telemetry/client'
 import { getCohortAtEmit } from '../../../telemetry/cohort-classifier'
@@ -96,10 +97,13 @@ export async function executePtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<void> {
       }
     }
     ensureWslHookRelayForReattach(ctx.result)
-    ctx.deps.runtime?.preparePtyExecutionContext?.(
-      ctx.result.id,
+    const spawnedWslDistro =
       ctx.result.wslDistro === undefined ? ctx.expectedWslDistro : ctx.result.wslDistro
-    )
+    if (spawnedWslDistro && !args.connectionId) {
+      // A local WSL terminal is user-initiated, so background work held for this distro may run.
+      noteWslDistrosRunning([spawnedWslDistro])
+    }
+    ctx.deps.runtime?.preparePtyExecutionContext?.(ctx.result.id, spawnedWslDistro)
     ctx.spawnTiming.mark('provider_spawn')
   } catch (err) {
     if (

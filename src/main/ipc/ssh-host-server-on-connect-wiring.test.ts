@@ -23,8 +23,7 @@ vi.mock('../../shared/app-environment', () => ({
   getAppEnvironment: () => ({ getVersion: () => '1.5.0', getPath: () => '/tmp/unused' })
 }))
 vi.mock('../ssh/ssh-target-registry', () => ({
-  getSshTargetRegistryStore: () => mocks.registry.current,
-  hasRegisteredDirectSshAuthority: () => false
+  getSshTargetRegistryStore: () => mocks.registry.current
 }))
 vi.mock('../ssh/orcad-runtime-deployment', () => ({ createManagedOrcadEnvironment: mocks.deploy }))
 vi.mock('../ssh/orcad-runtime-conversion', () => ({

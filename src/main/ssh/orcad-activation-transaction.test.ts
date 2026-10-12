@@ -36,7 +36,6 @@ import {
 import { FakeOrcadHost, NEW, OLD } from './orcad-activation-host-test-harness'
 import { withRolledBackVersion } from './orcad-activation-record'
 import { getRemoteHostPlatform } from './ssh-remote-platform'
-import type { SshConnection } from './ssh-connection'
 
 const T = new Date('2026-02-02T00:00:00.000Z')
 const ID = '7f1c2a7e-6c1b-4a8e-9f0e-0a1b2c3d4e5f'
@@ -168,7 +167,7 @@ describe('planOrcadTransactionRecovery', () => {
 
 describe('activation fence', () => {
   const target = {
-    conn: {} as SshConnection,
+    conn: Object.create(null),
     host: getRemoteHostPlatform('linux-x64'),
     remoteHome: '/home/u'
   }

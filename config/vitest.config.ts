@@ -10,7 +10,11 @@ import { createWorkspaceSourceResolver } from './scripts/workspace-source-export
 const balancedShards = process.env.ORCA_BALANCE_UNIT_SHARDS === '1'
 const measurementFile = 'src/main/foreign-sqlite-readers/foreign-sqlite-reader-event-loop.test.ts'
 const transforms = {
-  define: { ORCA_FEATURE_WALL_ENABLED: 'true' },
+  define: {
+    ORCA_FEATURE_WALL_ENABLED: 'true',
+    // Why: tests only interpolate it; they must not depend on the checkout's HEAD.
+    ORCA_BUILD_COMMIT: JSON.stringify('0'.repeat(40))
+  },
   resolve: {
     alias: [
       ...createWorkspaceSourceResolver().aliases,

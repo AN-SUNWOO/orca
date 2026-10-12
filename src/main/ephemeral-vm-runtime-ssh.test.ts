@@ -5,8 +5,10 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(async () => {})
 }))
 
+vi.mock('./ssh/ssh-target-registry', () => ({
+  connectRegisteredSshTarget: mocks.connect
+}))
 vi.mock('./ipc/ssh', () => ({
-  connectRegisteredSshTarget: mocks.connect,
   getSshConnectionStore: () => ({
     upsertRuntimeOwnedTarget: (runtimeId: string) => ({
       id: `runtime-ssh-${runtimeId}`,

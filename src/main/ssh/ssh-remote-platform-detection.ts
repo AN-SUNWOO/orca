@@ -1,4 +1,4 @@
-import type { SshConnection } from './ssh-connection'
+import type { RemoteInstallTransport } from './remote-install-transport'
 import {
   getProcessOutputFields,
   iterateProcessOutputLines
@@ -22,7 +22,7 @@ type PlatformProbeOutcome =
   | { kind: 'failed'; error: unknown }
 
 export async function detectRemoteHostPlatform(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   options?: { signal?: AbortSignal }
 ): Promise<RemoteHostPlatform | null> {
   const uname = await detectUnamePlatform(conn, options?.signal)
@@ -123,7 +123,7 @@ function summarizeProbeOutput(output: string, maxChars: number): string {
 }
 
 async function detectUnamePlatform(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   signal?: AbortSignal
 ): Promise<PlatformProbeOutcome> {
   try {
@@ -140,7 +140,7 @@ async function detectUnamePlatform(
 }
 
 async function detectWindowsPlatform(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   signal?: AbortSignal
 ): Promise<PlatformProbeOutcome> {
   try {

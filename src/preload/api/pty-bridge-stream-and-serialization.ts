@@ -4,6 +4,7 @@ import type { TerminalSideEffectBatch } from '../../shared/terminal-side-effect-
 import type { PreloadApi } from '../api-types'
 import type { TerminalProcessInspection } from '../../shared/terminal-process-inspection'
 import type { CodexSharedServerStatus } from '../../shared/codex-shared-server-command'
+import type { NewerDaemonHeldScreen, NewerDaemonReopenResult } from '../../shared/newer-daemon-hold'
 
 export const ptyStreamAndSerializationApi = {
   inspectProcess: (
@@ -27,6 +28,10 @@ export const ptyStreamAndSerializationApi = {
     id: string,
     target: { runtime: 'host' } | { runtime: 'wsl'; wslDistro: string }
   ): Promise<boolean> => ipcRenderer.invoke('pty:openedBeforeClaudeAccounts', { id, target }),
+  readNewerDaemonHeldScreen: (sessionId: string): Promise<NewerDaemonHeldScreen | null> =>
+    ipcRenderer.invoke('pty:readNewerDaemonHeldScreen', { sessionId }),
+  reopenNewerDaemonTerminals: (): Promise<NewerDaemonReopenResult> =>
+    ipcRenderer.invoke('pty:reopenNewerDaemonTerminals'),
   getCwd: (id: string): Promise<string> => ipcRenderer.invoke('pty:getCwd', { id }),
   getSize: (id: string): Promise<{ cols: number; rows: number } | null> =>
     ipcRenderer.invoke('pty:getSize', { id }),

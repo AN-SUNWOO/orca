@@ -36,7 +36,6 @@ export function createSshIpcHarness(mocks: SshIpcMocks): SshIpcHarness {
     mockSshStore,
     mockConnectionManager,
     mockMux,
-    mockRegisterSshGitProvider,
     mockPortForwardManager,
     mockPortScannerCallbacks,
     mockNextConnectionManagers,
@@ -118,7 +117,6 @@ export function createSshIpcHarness(mocks: SshIpcMocks): SshIpcHarness {
     mockMux.onDispose.mockReset().mockReturnValue(() => {})
     mockMux.request.mockReset().mockResolvedValue({})
     mockMux.probeLiveness.mockReset().mockResolvedValue(false)
-    mockRegisterSshGitProvider.mockReset()
     mockPortForwardManager.addForward.mockReset()
     mockPortForwardManager.updateForward.mockReset()
     mockPortForwardManager.removeForward.mockReset()

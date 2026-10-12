@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { getResolvedExecutionHostIdForWorktree } from './resolved-worktree-execution-host'
+import type { ExecutionHostId } from '../../../shared/execution-host'
+import {
+  getActiveWorkspaceOwnerTarget,
+  getResolvedExecutionHostIdForWorktree
+} from './resolved-worktree-execution-host'
 import type { WorktreeRuntimeOwnerState } from './worktree-runtime-owner'
 
 describe('getResolvedExecutionHostIdForWorktree', () => {
@@ -76,5 +80,64 @@ describe('getResolvedExecutionHostIdForWorktree', () => {
         'folder:same-folder'
       )
     ).toBe('runtime:runtime-1')
+  })
+})
+
+function stateFocusing(
+  repo: { executionHostId: ExecutionHostId; connectionId?: string },
+  worktreeHostId?: ExecutionHostId
+): WorktreeRuntimeOwnerState {
+  return {
+    // The default host must never leak into the owner answer.
+    settings: { activeRuntimeEnvironmentId: 'env-default' },
+    repos: [{ id: 'repo-1', ...repo }],
+    worktreesByRepo: {
+      'repo-1': [{ id: 'repo-1::/w', repoId: 'repo-1', hostId: worktreeHostId }]
+    },
+    activeWorktreeId: 'repo-1::/w'
+  }
+}
+
+describe('getActiveWorkspaceOwnerTarget', () => {
+  it('has no answer when nothing is focused or the focused row has not landed', () => {
+    expect(getActiveWorkspaceOwnerTarget({ activeWorktreeId: null })).toBeNull()
+    expect(
+      getActiveWorkspaceOwnerTarget({
+        ...stateFocusing({ executionHostId: 'local' }),
+        worktreesByRepo: {}
+      })
+    ).toBeNull()
+  })
+
+  it('follows the focused row: a local repo, a server repo, and a worktree host over its repo', () => {
+    expect(getActiveWorkspaceOwnerTarget(stateFocusing({ executionHostId: 'local' }))).toEqual({
+      kind: 'local'
+    })
+    expect(
+      getActiveWorkspaceOwnerTarget(stateFocusing({ executionHostId: 'runtime:env-b' }))
+    ).toEqual({ kind: 'environment', environmentId: 'env-b' })
+    expect(
+      getActiveWorkspaceOwnerTarget(stateFocusing({ executionHostId: 'local' }, 'runtime:env-c'))
+    ).toEqual({ kind: 'environment', environmentId: 'env-c' })
+  })
+
+  it('has no answer for a direct SSH owner, which has no RPC transport', () => {
+    expect(
+      getActiveWorkspaceOwnerTarget(
+        stateFocusing({ executionHostId: 'ssh:box', connectionId: 'box' })
+      )
+    ).toBeNull()
+  })
+
+  it('skips owner resolution once the catalog has hydrated with no paired server', () => {
+    const state = {
+      ...stateFocusing({ executionHostId: 'runtime:env-b' }),
+      runtimeEnvironments: [],
+      runtimeEnvironmentCatalogHydrated: true
+    }
+    expect(getActiveWorkspaceOwnerTarget(state)).toBeNull()
+    expect(
+      getActiveWorkspaceOwnerTarget({ ...state, runtimeEnvironmentCatalogHydrated: false })
+    ).toEqual({ kind: 'environment', environmentId: 'env-b' })
   })
 })

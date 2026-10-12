@@ -36,8 +36,7 @@ const mocks = vi.hoisted(() => {
 })
 vi.mock('./ssh-target-registry', () => ({
   getSshConnectionManager: () => ({}),
-  getSshTargetRegistryStore: () => mocks.state.targetStore,
-  hasRegisteredDirectSshAuthority: () => false
+  getSshTargetRegistryStore: () => mocks.state.targetStore
 }))
 vi.mock('./orcad-runtime-deployment', () => ({ createManagedOrcadEnvironment: mocks.deploy }))
 vi.mock('./orcad-managed-tunnel', () => ({ ensureOrcadManagedTunnel: mocks.ensureTunnel }))
@@ -120,7 +119,6 @@ async function convertedThenChangedOnOlderBuild(): Promise<void> {
       name: 'Managed',
       censusHost: async () => ({ verdict: 'exited', count: 0 }),
       destinationFor: () => destination,
-      releaseDirectSession: async () => {},
       now
     })
   ).resolves.toMatchObject({ outcome: 'converted' })
@@ -140,7 +138,6 @@ function deltaMove(at: () => Date = now) {
     environment: listEnvironments(userDataPath)[0]!,
     destination,
     censusHost: async () => ({ verdict: 'exited', count: 0 }),
-    releaseDirectSession: async () => {},
     ensureTunnel: async () => {},
     runTargetLifecycle,
     now: at
@@ -492,7 +489,6 @@ async function convertKeepingSource(): Promise<void> {
       name: 'Managed',
       censusHost: async () => ({ verdict: 'exited', count: 0 }),
       destinationFor: () => destination,
-      releaseDirectSession: async () => {},
       now
     })
   ).resolves.toMatchObject({ outcome: 'converted' })

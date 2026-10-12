@@ -24,10 +24,6 @@ vi.mock('./registered-worktree-roots-cache', () =>
 vi.mock('../worktree-root-preparation', () =>
   moduleMocks.worktreeRootPreparationModuleMock(reposMocks)
 )
-vi.mock('../providers/ssh-git-dispatch', () => moduleMocks.sshGitDispatchModuleMock(reposMocks))
-vi.mock('../providers/ssh-filesystem-dispatch', () =>
-  moduleMocks.sshFilesystemDispatchModuleMock(reposMocks)
-)
 
 import { registerRepoHandlers } from './repos'
 import { clearGitCapabilityStateForTests } from '../git/git-capability-state'
@@ -35,7 +31,7 @@ import { resetSshProviderAuthorities } from '../ssh/ssh-provider-authority'
 import { getGitRepoRoot, isGitRepo } from '../git/repo'
 import { createRepoHandlerHarness, resetProjectGroupMocks } from './repos-remote-test-harness'
 
-const { handleMock, mockStore, mockFilesystemProvider } = reposMocks
+const { handleMock, mockStore } = reposMocks
 
 beforeEach(() => {
   clearGitCapabilityStateForTests()
@@ -60,7 +56,6 @@ describe('projectGroups IPC validation', () => {
         connectionId: 'conn-1'
       })
     ).rejects.toThrow('ssh_connection_unavailable')
-    expect(mockFilesystemProvider.readDir).not.toHaveBeenCalled()
     expect(isGitRepo).not.toHaveBeenCalled()
   })
 

@@ -6,7 +6,7 @@ export const SERVE_COMMAND_SPECS: CommandSpec[] = [
     path: ['serve'],
     summary: 'Start an Orca runtime server without opening a desktop window',
     usage:
-      'orca serve [--port <port>] [--pairing-address <host>] [--mobile-pairing] [--no-pairing] [--grant-desktop-control] [--project-root <path>] [--recipe-json] [--force] [--json]',
+      'orca serve [--port <port>] [--pairing-address <host>] [--mobile-pairing] [--no-pairing] [--grant-desktop-control] [--project-root <path>] [--recipe-json] [--supervise] [--force] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'port',
@@ -16,6 +16,7 @@ export const SERVE_COMMAND_SPECS: CommandSpec[] = [
       'grant-desktop-control',
       'project-root',
       'recipe-json',
+      'supervise',
       'force'
     ],
     notes: [
@@ -26,7 +27,8 @@ export const SERVE_COMMAND_SPECS: CommandSpec[] = [
       "A paired client cannot drive this machine's desktop (orca computer) unless the offer was created with --grant-desktop-control.",
       'When the web client bundle is available, the server also prints a browser URL with the pairing data embedded.',
       'Exits with code 3, without starting anything, when another Orca already serves this profile or cannot be shown to have stopped.',
-      'On macOS, after Orca serve aborts at startup (it could not register with Launch Services), later runs from the same environment refuse for 30 minutes with exit code 78. Use --force to try anyway.'
+      'On macOS, after Orca serve aborts at startup (it could not register with Launch Services), later runs from the same environment refuse for 30 minutes with exit code 78. Use --force to try anyway.',
+      '--supervise is for service managers (launchd, systemd). Orca serve then restarts the server itself with growing delays instead of exiting when it stops, waits while an update replaces the app, and waits while another Orca serves this profile. After 6 failures in 15 minutes it gives up and exits with code 0 so the manager stops too, and later supervised runs refuse until a new build is installed or --force is passed. Not available on Windows yet.'
     ],
     examples: [
       'orca serve',

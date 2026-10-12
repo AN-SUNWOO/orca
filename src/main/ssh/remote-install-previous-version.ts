@@ -5,7 +5,7 @@
  * The relay keeps no activation record, so "previous" is the most recently completed install
  * of the same model other than the current one, by `.install-complete` mtime.
  */
-import type { SshConnection } from './ssh-connection'
+import type { RemoteInstallTransport } from './remote-install-transport'
 import { shellEscape } from './ssh-connection-utils'
 import { execCommand } from './ssh-relay-deploy-helpers'
 import { isUnconfirmedSshCommandTermination } from './ssh-relay-exec-command'
@@ -77,7 +77,7 @@ export function parseCompletedInstallsNewestFirst(
 export type PreviousInstallResult = { state: 'ok'; dirName: string | null } | { state: 'unknown' }
 
 export async function findPreviousRemoteInstall(
-  conn: SshConnection,
+  conn: RemoteInstallTransport,
   host: RemoteHostPlatform,
   baseDir: string,
   model: RemoteInstallModel,

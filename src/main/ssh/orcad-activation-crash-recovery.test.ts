@@ -48,7 +48,7 @@ import { wakeStoppedManagedOrcad } from './orcad-managed-wake'
 import { planManagedOrcadAutoUpdate } from './orcad-managed-auto-update'
 import { parseOrcadActivationRecord } from './orcad-activation-record'
 import { getRemoteHostPlatform } from './ssh-remote-platform'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import {
   BUILD_HASH,
   FakeOrcadHost,
@@ -60,7 +60,7 @@ import {
 let host = new FakeOrcadHost()
 
 const slot = {
-  conn: {} as SshConnection,
+  conn: Object.create(null),
   host: getRemoteHostPlatform('linux-x64'),
   remoteHome: '/home/u',
   nodePath: '/usr/bin/node',
@@ -403,7 +403,7 @@ describe('a wake over an update its client abandoned', () => {
   const wakeSlot = {
     ...slot,
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: execCommand is mocked; the wake reads only the target id.
-    conn: { getTarget: () => ({ id: 'ssh-1' }) } as unknown as SshConnection
+    conn: { getTarget: () => ({ id: 'ssh-1' }) } as unknown as OrcadHostTransport
   }
 
   async function abandonedAfterCandidateLaunch(

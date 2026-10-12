@@ -54,9 +54,11 @@ export async function resolveRuntimeGitHubWorktreeBase(
       gitExec
     })
   const fetchRemoteTrackingRef = (remote: string, branch: string): Promise<void> =>
-    fetchPrHeadTrackingRef(repo, null, remote, branch, { localGitExecOptions })
+    fetchPrHeadTrackingRef(repo, remote, branch, { localGitExecOptions })
   const fetchPullRequestHeadRef = (remote: string, prNumber: number): Promise<string> =>
-    fetchGitHubPullRequestHeadRef(repo, null, remote, prNumber, { localGitExecOptions })
+    fetchGitHubPullRequestHeadRef(repo, remote, prNumber, {
+      localGitExecOptions
+    })
   return resolveGitHubPrStartPoint({
     repoPath: repo.path,
     prNumber: args.prNumber,

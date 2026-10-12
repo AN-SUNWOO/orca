@@ -14,6 +14,7 @@ import type { GetSelectedCodexHomePath, PrepareClaudeAuth } from './host-env/typ
 import { installPtyInspectIpcHandlers } from './ipc/inspect'
 import { installPtyCodexSharedServerIpcHandler } from './ipc/codex-shared-server'
 import { installPtyClaudeOldTerminalIpcHandler } from './ipc/claude-old-terminal'
+import { installPtyNewerDaemonHoldIpcHandlers } from './ipc/newer-daemon-hold'
 import {
   installPtyKillIpcHandler,
   stopReplacedPanePty,
@@ -129,6 +130,8 @@ export function registerPtyHandlers(
   ipcMain.removeHandler('pty:disableCodexSharedServerAutoStart')
   ipcMain.removeHandler('pty:stopCodexSharedServer')
   ipcMain.removeHandler('pty:openedBeforeClaudeAccounts')
+  ipcMain.removeHandler('pty:readNewerDaemonHeldScreen')
+  ipcMain.removeHandler('pty:reopenNewerDaemonTerminals')
   ipcMain.removeHandler('pty:getCwd')
   ipcMain.removeHandler('pty:getSize')
   ipcMain.removeHandler('pty:getAuthoritativeBufferSnapshotCapabilities')
@@ -291,5 +294,6 @@ export function registerPtyHandlers(
   installPtyInspectIpcHandlers({ getLocalPtyProviderStartupPromise })
   installPtyCodexSharedServerIpcHandler({ getLocalPtyProviderStartupPromise })
   installPtyClaudeOldTerminalIpcHandler({ getLocalPtyProviderStartupPromise })
+  installPtyNewerDaemonHoldIpcHandlers()
   installPtyKillIpcHandler(killDeps)
 }

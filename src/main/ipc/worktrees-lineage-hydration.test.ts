@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { listWorktreesMock, getSshGitProviderMock } from './worktrees-test-module-mocks'
+import { listWorktreesMock } from './worktrees-test-module-mocks'
 import { handlers, setupWorktreeHandlers, store } from './worktrees-test-harness'
 import { makeWorktreeMeta } from './worktrees-test-fixtures'
 
@@ -28,18 +28,11 @@ vi.mock('../github/client', async () =>
 vi.mock('../source-control/hosted-review', async () =>
   (await import('./worktrees-test-module-mocks')).hostedReviewModuleMock()
 )
-vi.mock('../providers/ssh-git-dispatch', async () =>
-  (await import('./worktrees-test-module-mocks')).sshGitDispatchModuleMock()
-)
 vi.mock('../providers/ssh-filesystem-dispatch', async () =>
   (await import('./worktrees-test-module-mocks')).sshFilesystemDispatchModuleMock()
 )
 vi.mock('./worktree-symlinks', async () =>
   (await import('./worktrees-test-module-mocks')).worktreeSymlinksModuleMock()
-)
-vi.mock('./ssh', async () => (await import('./worktrees-test-module-mocks')).sshModuleMock())
-vi.mock('../ssh/ssh-target-registry', async () =>
-  (await import('./worktrees-test-module-mocks')).sshTargetRegistryModuleMock()
 )
 vi.mock('../hooks', async () => (await import('./worktrees-test-module-mocks')).hooksModuleMock())
 vi.mock('../setup-runner-script-text', async (importOriginal) =>
@@ -264,20 +257,12 @@ describe('registerWorktreeHandlers', () => {
       addedAt: 0,
       connectionId: 'conn-1'
     }
-    const provider = {
-      listWorktrees: vi.fn().mockResolvedValue([
-        {
-          path: '/remote/live-child',
-          head: 'def456',
-          branch: 'refs/heads/live-child',
-          isBare: false,
-          isMainWorktree: false
-        }
-      ])
-    }
     store.getRepos.mockReturnValue([repo])
+    // Why: this process serves no SSH git, so the SSH repo lists its stored rows.
+    store.getAllWorktreeMeta.mockReturnValue({
+      'repo-ssh::/remote/live-child': {}
+    })
     store.getRepo.mockReturnValue(repo)
-    getSshGitProviderMock.mockReturnValue(provider)
     store.getAllWorktreeLineage.mockReturnValue({
       'repo-ssh::/remote/live-child': {
         parentWorktreeId: 'repo-ssh::/remote/missing-parent',

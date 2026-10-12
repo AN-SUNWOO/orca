@@ -25,6 +25,7 @@ import type { TerminalPanePlacement } from '../../shared/terminal-pane-placement
 import type { PtyManagementApi } from './pty-management-api'
 import type { TerminalProcessInspection } from '../../shared/terminal-process-inspection'
 import type { CodexSharedServerStatus } from '../../shared/codex-shared-server-command'
+import type { NewerDaemonHeldScreen, NewerDaemonReopenResult } from '../../shared/newer-daemon-hold'
 
 export type PtyApi = {
   spawn: (opts: {
@@ -154,6 +155,10 @@ export type PtyApi = {
     id: string,
     target: { runtime: 'host' } | { runtime: 'wsl'; wslDistro: string }
   ) => Promise<boolean>
+  /** A held local session's last saved screen, read without spawning. */
+  readNewerDaemonHeldScreen: (sessionId: string) => Promise<NewerDaemonHeldScreen | null>
+  /** Stops the newer daemons; reopened only once each is confirmed exited. */
+  reopenNewerDaemonTerminals: () => Promise<NewerDaemonReopenResult>
   getCwd: (id: string) => Promise<string>
   getSize: (id: string) => Promise<{ cols: number; rows: number } | null>
   listSessions: (scope?: PtySessionListScope) => Promise<PtyListedSession[]>

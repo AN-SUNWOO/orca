@@ -7,7 +7,6 @@ import {
   PAIRING_CODE_MAX_CHARACTERS,
   PAIRING_INPUT_MAX_CHARACTERS
 } from './mobile-pairing-protocol-limits'
-import { buildVerifiedPairingLink, extractVerifiedPairingLinkCode } from './verified-pairing-link'
 
 export { PAIRING_OFFER_VERSION, PairingOfferSchema }
 export type { PairingOffer }
@@ -33,24 +32,12 @@ export function decodePairingOffer(url: string): PairingOffer {
   }
   const code = extractPairingCodeFromUrl(url)
   if (!code) {
-    throw new Error(
-      'Invalid pairing URL: must be an orca://pair or verified https pairing link with a code'
-    )
+    throw new Error('Invalid pairing URL: must start with orca://pair and include a pairing code')
   }
   return decodePairingBase64(code)
 }
 
-/** The form handed to a phone: the custom scheme can be claimed by any app, this link cannot. */
-export function toVerifiedPairingLink(pairingUrl: string): string | null {
-  const code = extractPairingCodeFromUrl(pairingUrl)
-  return code ? buildVerifiedPairingLink(code) : null
-}
-
 function extractPairingCodeFromUrl(url: string): string | null {
-  const verifiedCode = extractVerifiedPairingLinkCode(url)
-  if (verifiedCode) {
-    return verifiedCode
-  }
   let parsed: URL
   try {
     parsed = new URL(url)
@@ -72,7 +59,7 @@ function extractPairingCodeFromUrl(url: string): string | null {
   return parsed.hash ? parsed.hash.slice(1) || null : null
 }
 
-// Why: accept an `orca://pair?...` URL, a verified https link, or the bare base64
+// Why: accept either an `orca://pair?...` URL or the bare base64
 // string so the mobile paste-pair flow can take whichever the user
 // actually copied from desktop.
 export function parsePairingCode(input: string): PairingOffer | null {
@@ -84,7 +71,7 @@ export function parsePairingCode(input: string): PairingOffer | null {
     return null
   }
   try {
-    if (/^(?:orca|https):\/\//i.test(trimmed)) {
+    if (trimmed.toLowerCase().startsWith('orca://')) {
       return decodePairingOffer(trimmed)
     }
     return decodePairingBase64(trimmed)

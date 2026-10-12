@@ -21,8 +21,7 @@ const mocks = vi.hoisted(() => ({
   ensure: vi.fn(),
   verify: vi.fn(),
   flush: vi.fn(),
-  preflight: vi.fn(),
-  hasDirectAuthority: vi.fn()
+  preflight: vi.fn()
 }))
 vi.mock('./orcad-managed-runtime-context', () => ({
   requireManagedOrcadInfrastructure: mocks.infrastructure
@@ -34,9 +33,6 @@ vi.mock('./orcad-managed-tunnel', () => ({
 }))
 vi.mock('./runtime-ssh-access-verification', () => ({
   verifyRuntimeEnvironmentSshTunnel: mocks.verify
-}))
-vi.mock('./ssh-target-registry', () => ({
-  hasRegisteredDirectSshAuthority: mocks.hasDirectAuthority
 }))
 import {
   fingerprintRuntimeSshTarget,
@@ -362,15 +358,6 @@ describe('independent runtime SSH access coordinator', () => {
     target.generation = undefined
     await expect(linkRuntimeSshAccess(userDataPath, request())).rejects.toThrow('generation')
     expect(mocks.connect).not.toHaveBeenCalled()
-  })
-
-  it('refuses a connected direct provider even when it has no catalog or leases', async () => {
-    mocks.hasDirectAuthority.mockReturnValue(true)
-    await expect(linkRuntimeSshAccess(userDataPath, request())).rejects.toThrow(
-      'Disconnect direct SSH authority'
-    )
-    expect(mocks.connect).not.toHaveBeenCalled()
-    expect(current().pendingSshAccessOperation).toBeUndefined()
   })
 
   it('treats a lost successful unlink response as an idempotent no-op', async () => {

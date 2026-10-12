@@ -4605,7 +4605,6 @@
           "statusUpdateAvailable": "Mise à jour disponible",
           "statusCantUpdate": "Ignoré",
           "cantUpdateReason": "Orca a exclu ce skill de la commande de mise à jour.",
-          "skippedReasonUnrecognized": "La copie ici ne correspond pas à la version officielle — elle a peut-être été modifiée, ou il s'agit d'un autre skill portant le même nom. Orca l'a exclue de la mise à jour pour ne pas l'écraser. Supprimez-la si vous voulez qu'Orca mette à jour ce skill.",
           "skippedReasonReadOnly": "Cette copie se trouve dans un emplacement en lecture seule, donc Orca l'a exclue de la mise à jour. Modifiez ses permissions pour permettre à Orca de la mettre à jour.",
           "skippedReasonInaccessible": "Orca n'a pas pu lire cette copie, il a donc exclu le skill de la mise à jour.",
           "skippedReasonInRepo": "C'est un skill de projet, pas un skill global — Orca ne met à jour que vos skills globaux, il a donc exclu celui-ci de la mise à jour.",
@@ -4613,7 +4612,6 @@
           "skippedReasonExternalLink": "Cette copie est un raccourci pointant hors des dossiers de skills d'Orca, donc Orca l'a exclue de la mise à jour.",
           "skippedReasonBrokenLink": "Cette copie est un raccourci vers quelque chose qui n'existe plus, donc Orca l'a exclue — vous pouvez la supprimer sans risque.",
           "chipCurrent": "Actuel",
-          "chipUnrecognized": "Non reconnu",
           "chipInaccessible": "Inaccessible",
           "chipDuplicate": "Doublon",
           "chipExternalLink": "Lien externe",
@@ -4622,7 +4620,6 @@
           "chipInRepo": "Dans un dépôt",
           "chipPluginCache": "Cache de plugins",
           "tipCurrent": "Cette copie correspond à la version officielle actuelle.",
-          "tipUnrecognized": "Cette copie ne correspond à aucune version officielle — elle a peut-être été modifiée, ou il s'agit d'un autre skill portant le même nom.",
           "tipInaccessible": "Orca n'a pas pu lire cette copie (erreur de permissions ou de fichier).",
           "tipDuplicate": "Une copie séparée de ce skill, installée à part de la principale.",
           "tipExternalLink": "Un raccourci pointant hors des dossiers de skills d'Orca.",
@@ -4630,11 +4627,7 @@
           "tipReadOnly": "Cette copie se trouve dans un emplacement en lecture seule.",
           "tipInRepo": "Cette copie vit dans un projet, pas dans vos skills globaux.",
           "tipPluginCache": "Cette copie est gérée par un plugin.",
-          "skippedReasonDuplicate": "Il s'agit d'une copie séparée : la mise à jour ne l'atteindra pas — la commande ne rafraîchit que la copie principale. Supprimez cette copie puis réinstallez le skill pour que cet emplacement suive le principal.",
-          "skippedReasonNewer": "Cette copie est plus récente que celle fournie avec cette build d'Orca ; Orca l'a donc laissée telle quelle plutôt que de la rétrograder. La mise à jour d'Orca remettra les deux en phase.",
-          "skippedReasonStaleRecord": "Le programme de mise à jour des skills n'a aucun enregistrement exploitable pour cette copie ; il signale donc le skill comme déjà à jour sans rien modifier. Réinstallez-le pour remettre l'enregistrement en cohérence : {{value0}}",
-          "chipNewer": "Plus récent",
-          "tipNewer": "Cette copie est plus récente que celle fournie avec cette build d'Orca."
+          "skippedReasonDuplicate": "Il s'agit d'une copie séparée : la mise à jour ne l'atteindra pas — la commande ne rafraîchit que la copie principale. Supprimez cette copie puis réinstallez le skill pour que cet emplacement suive le principal."
         },
         "SkillFreshnessUpdateDialog": {
           "title": "Mettre à jour les skills",
@@ -4675,14 +4668,20 @@
           "scanOutsideRoot": "Orca a ignoré ce chemin de plugin car il pointe hors du cache de plugins.",
           "scanIoErrorWithCode": "Orca n'a pas pu lire ce chemin de plugin ({{value0}}).",
           "scanIoError": "Orca n'a pas pu lire ce chemin de plugin.",
-          "scanIssueLimit": "Orca a trouvé trop de dossiers de plugins ignorés pour pouvoir les lister un par un."
+          "scanIssueLimit": "Orca a trouvé trop de dossiers de plugins ignorés pour pouvoir les lister un par un.",
+          "unselectedForeignOne": "1 skill non installé par Orca n’est pas sélectionné.",
+          "unselectedForeignMany": "{{value0}} skills non installés par Orca ne sont pas sélectionnés."
         },
         "SkillUpdateResultRows": {
           "stillOutdated": "Toujours pas à jour après l'exécution de la mise à jour."
         },
         "SkillUpdateRow": {
           "oneLocation": "1 emplacement",
-          "manyLocations": "{{value0}} emplacements"
+          "manyLocations": "{{value0}} emplacements",
+          "notFromOrca": "Hors Orca",
+          "notFromOrcaSourceTip": "Installé depuis {{value0}}. Le sélectionner le remplace par la version d’Orca.",
+          "notFromOrcaNoRecordTip": "Aucune trace d’installation par Orca pour cette copie. La sélectionner la remplace par la version d’Orca.",
+          "includeSkill": "Inclure {{value0}}"
         },
         "SkillFreshnessStatusPill": {
           "updateAvailable": "Mise à jour disponible",

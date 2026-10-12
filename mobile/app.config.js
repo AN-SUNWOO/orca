@@ -11,36 +11,11 @@
 const APS_ENVIRONMENT =
   process.env.ORCA_IOS_APS_ENVIRONMENT === 'production' ? 'production' : 'development'
 
-// Verified pairing links. Mirrors src/shared/verified-pairing-link.ts and config/verified-links/;
-// src/shared/verified-pairing-link-files.test.ts fails if they drift.
-const VERIFIED_PAIRING_LINK_HOST = 'www.onorca.dev'
-const VERIFIED_PAIRING_LINK_PATH = '/pair'
-// Why opt-in: an App Store archive with this entitlement fails to sign until the App ID has the
-// Associated Domains capability (config/verified-links/README.md).
-const IOS_ASSOCIATED_DOMAINS = process.env.ORCA_IOS_ASSOCIATED_DOMAINS === '1'
-
 module.exports = ({ config }) => ({
   ...config,
   ios: {
     ...config.ios,
-    ...(IOS_ASSOCIATED_DOMAINS
-      ? { associatedDomains: [`applinks:${VERIFIED_PAIRING_LINK_HOST}`] }
-      : {}),
     entitlements: { ...config.ios?.entitlements, 'aps-environment': APS_ENVIRONMENT }
-  },
-  android: {
-    ...config.android,
-    intentFilters: [
-      ...(config.android?.intentFilters ?? []),
-      {
-        action: 'VIEW',
-        autoVerify: true,
-        data: [
-          { scheme: 'https', host: VERIFIED_PAIRING_LINK_HOST, path: VERIFIED_PAIRING_LINK_PATH }
-        ],
-        category: ['BROWSABLE', 'DEFAULT']
-      }
-    ]
   },
   plugins: (config.plugins ?? []).map((plugin) =>
     plugin === 'expo-notifications'

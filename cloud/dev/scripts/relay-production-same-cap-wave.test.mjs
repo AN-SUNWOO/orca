@@ -85,11 +85,11 @@ test('requires one canary or a bounded reviewed batch', () => {
   }
   assert.throws(() => validateSameCapWave({
     mode: 'canary-apply',
-    cellIds: 'production-gce-c35',
+    cellIds: 'production-gce-c36',
     targetDigest,
     rollbackDigest,
     drainPaceWindowMs: '300000',
-    confirmation: `ROLL_RELAY_SAME_CAP ${targetDigest} production-gce-c35`
+    confirmation: `ROLL_RELAY_SAME_CAP ${targetDigest} production-gce-c36`
   }), /cells/)
 })
 
@@ -136,8 +136,11 @@ test('the wave workflow chains exactly ten serial cell jobs', () => {
   assert.doesNotMatch(dispatch, /\n  cell_11:/)
 })
 
-test('lists only C17 and C18 as migration-only now that C34 is promoted, and C30-C34 as general', () => {
-  assert.deepEqual(SAME_CAP_MIGRATION_ONLY_CELLS, ['production-gce-c17', 'production-gce-c18'])
+test('lists the C35 spare as migration-only beside C17 and C18, and C30-C34 as general', () => {
+  assert.deepEqual(
+    SAME_CAP_MIGRATION_ONLY_CELLS,
+    ['production-gce-c17', 'production-gce-c18', 'production-gce-c35']
+  )
   for (const cellId of [
     'production-gce-c30', 'production-gce-c31', 'production-gce-c32', 'production-gce-c33',
     'production-gce-c34'

@@ -55,8 +55,6 @@ export type OrcadDeltaMoveArgs = {
   destination: OrcadMigrationDestinationCatalog
   /** The census of the host's relay endpoints that must prove exit. */
   censusHost?: CensusHostRelayTerminals | null
-  /** Releases the relay session after the terminal check, as a conversion does. */
-  releaseDirectSession: (sshTargetId: string) => Promise<void>
   ensureTunnel: () => Promise<void>
   /** Serializes the journal write through the commit with every other change to this host. */
   runTargetLifecycle: <T>(targetId: string, operation: () => Promise<T>) => Promise<T>
@@ -83,7 +81,6 @@ export async function runOrcadDeltaMove(args: OrcadDeltaMoveArgs): Promise<Orcad
     return refuse('orcad_migration_terminals', terminals.reason)
   }
   retireProvenExitedLeases(store, target.id, terminals)
-  await args.releaseDirectSession(target.id)
   return args.runTargetLifecycle(target.id, async () => {
     // Why re-checked: another move of this host may have journaled or finished while this waited.
     const changedAt = store.getSshTarget(target.id)?.orcadFence?.sourceChangedAt

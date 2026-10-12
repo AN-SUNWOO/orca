@@ -16,7 +16,7 @@ import { execCommand } from './ssh-relay-deploy-helpers'
 import { acquireInstallLock, RemoteInstallLockBusyError } from './ssh-relay-install-lock'
 import { wakeStoppedManagedOrcad } from './orcad-managed-wake'
 import { getRemoteHostPlatform } from './ssh-remote-platform'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import { FakeOrcadHost, OLD } from './orcad-activation-host-test-harness'
 import {
   ORCAD_E2E_IDLE_TIMEOUT_ENV,
@@ -27,7 +27,7 @@ let host = new FakeOrcadHost()
 
 const slot = {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: execCommand is mocked; the wake reads only the target id.
-  conn: { getTarget: () => ({ id: 'ssh-1' }) } as unknown as SshConnection,
+  conn: { getTarget: () => ({ id: 'ssh-1' }) } as unknown as OrcadHostTransport,
   host: getRemoteHostPlatform('linux-x64'),
   remoteHome: '/home/u',
   nodePath: '/usr/bin/node',
@@ -264,7 +264,7 @@ describe('wakeStoppedManagedOrcad', () => {
       await wakeStoppedManagedOrcad({
         ...slot,
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: as above, a different target.
-        conn: { getTarget: () => ({ id: 'ssh-2' }) } as unknown as SshConnection
+        conn: { getTarget: () => ({ id: 'ssh-2' }) } as unknown as OrcadHostTransport
       })
     ).toEqual({ outcome: 'fenced' })
     expect(host.fence).toBe(true)

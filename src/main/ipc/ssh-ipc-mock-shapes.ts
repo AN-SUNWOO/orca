@@ -61,9 +61,6 @@ export type SshIpcMockState = {
   mockSshStore: SshStoreMock
   mockConnectionManager: SshConnectionManagerMock
   mockMux: SshChannelMultiplexerMock
-  mockFsProvider: Record<string, unknown>
-  mockGitProvider: Record<string, unknown>
-  mockRegisterSshGitProvider: Mock
   mockPortForwardManager: SshPortForwardManagerMock
   mockPortScannerCallbacks: Map<string, unknown>
   mockListConfigHosts: Mock
@@ -82,11 +79,7 @@ export type SshIpcMockModules = {
   sshConnectionStore: SshIpcMockModule
   sshConnectionManager: SshIpcMockModule
   sshChannelMultiplexer: SshIpcMockModule
-  sshFilesystemProvider: SshIpcMockModule
   pty: SshIpcMockModule
-  sshFilesystemDispatch: SshIpcMockModule
-  sshGitProvider: SshIpcMockModule
-  sshGitDispatch: SshIpcMockModule
   sshPortForward: SshIpcMockModule
   sshPortScanner: SshIpcMockModule
 }

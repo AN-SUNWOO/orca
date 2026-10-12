@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { writeSecureJsonFileWithinLimit } from './bounded-secure-json-file'
 import { readNodeFileSyncWithinLimit } from './node-bounded-file-reader'
 import { RuntimeEnvironmentReconciliationRecordSchema } from './runtime-environment-reconciliation-record'
+import { readEnvironmentStoreRecords } from './runtime-environment-store-records'
 import {
   KnownRuntimeEnvironmentSchema,
   OrcadDeploymentLinkSchema,
@@ -52,13 +53,26 @@ const SidecarSchema = z.object({
   entries: z.record(z.string().min(1), SidecarEntrySchema)
 })
 
+// Entries stay opaque so one bad or newer-format entry cannot hide every server.
+const SidecarEnvelopeSchema = z.object({
+  version: z.literal(1),
+  entries: z.record(z.string(), z.unknown())
+})
+
 export type RuntimeEnvironmentSidecarEntry = z.infer<typeof SidecarEntrySchema>
 export type RuntimeEnvironmentSidecarSshAccess = z.infer<typeof SidecarSshAccessSchema>
-type RuntimeEnvironmentSidecar = z.infer<typeof SidecarSchema>
+type RuntimeEnvironmentSidecar = z.infer<typeof SidecarSchema> & {
+  /** Entries this build cannot read, kept verbatim; their environments must not be used. */
+  unreadable: Record<string, unknown>
+}
 
 export class RuntimeEnvironmentSidecarInvalidError extends Error {
-  constructor(path: string) {
-    super(`Could not read Orca environment links at ${path}; the file is invalid.`)
+  constructor(path: string, environmentId?: string) {
+    super(
+      environmentId === undefined
+        ? `Could not read Orca environment links at ${path}; the file is invalid.`
+        : `Could not read the Orca environment link for ${environmentId} at ${path}; it may need a newer version of Orca.`
+    )
     this.name = 'RuntimeEnvironmentSidecarInvalidError'
   }
 }
@@ -79,16 +93,30 @@ export function runtimeEnvironmentSidecarBinding(environment: PersistedRuntimeEn
 export function readRuntimeEnvironmentSidecar(userDataPath: string): RuntimeEnvironmentSidecar {
   const path = getRuntimeEnvironmentSidecarPath(userDataPath)
   if (!existsSync(path)) {
-    return { version: 1, entries: {} }
+    return { version: 1, entries: {}, unreadable: {} }
   }
+  let raw: Record<string, unknown>
   try {
     hardenExistingSecureFile(path)
-    return SidecarSchema.parse(
+    raw = SidecarEnvelopeSchema.parse(
       JSON.parse(readNodeFileSyncWithinLimit(path, MAX_SIDECAR_FILE_BYTES).buffer.toString('utf8'))
-    )
+    ).entries
   } catch {
     throw new RuntimeEnvironmentSidecarInvalidError(path)
   }
+  const entries: RuntimeEnvironmentSidecar['entries'] = {}
+  const unreadable: RuntimeEnvironmentSidecar['unreadable'] = {}
+  for (const [id, value] of Object.entries(raw)) {
+    const entry = SidecarEntrySchema.safeParse(value)
+    // defineProperty: a JSON "__proto__" key must stay data, not replace the prototype.
+    Object.defineProperty(id.length > 0 && entry.success ? entries : unreadable, id, {
+      value: entry.success ? entry.data : value,
+      enumerable: true,
+      writable: true,
+      configurable: true
+    })
+  }
+  return { version: 1, entries, unreadable }
 }
 
 function isCurrentEntry(
@@ -165,11 +193,25 @@ export function writeRuntimeEnvironmentSidecarEntry(
   pendingEnvironment?: PersistedRuntimeEnvironment
 ): void {
   const current = readRuntimeEnvironmentSidecar(userDataPath)
+  // Never replace what we cannot read: it may hold this server's SSH pin or deployment link.
+  if (Object.hasOwn(current.unreadable, environment.id)) {
+    throw new RuntimeEnvironmentSidecarInvalidError(
+      getRuntimeEnvironmentSidecarPath(userDataPath),
+      environment.id
+    )
+  }
   const live = new Map(environments.map((candidate) => [candidate.id, candidate]))
+  // Servers whose main record this build cannot read still own their entries.
+  const foreignOwners = new Set(
+    readEnvironmentStoreRecords(userDataPath).unreadable.map((record) => record.id)
+  )
   const entries: Record<string, RuntimeEnvironmentSidecarEntry> = {}
   for (const [id, existing] of Object.entries(current.entries)) {
     const owner = live.get(id)
-    if (id !== environment.id && owner && isCurrentEntry(owner, existing)) {
+    if (
+      id !== environment.id &&
+      ((owner && isCurrentEntry(owner, existing)) || (!owner && foreignOwners.has(id)))
+    ) {
       entries[id] = existing
     }
   }
@@ -195,17 +237,28 @@ export function writeRuntimeEnvironmentSidecarEntry(
   }
   writeSecureJsonFileWithinLimit(
     getRuntimeEnvironmentSidecarPath(userDataPath),
-    SidecarSchema.parse({ version: 1, entries }),
+    {
+      version: 1,
+      // Unreadable entries are never pruned: this build cannot tell whether they are stale.
+      entries: { ...SidecarSchema.parse({ version: 1, entries }).entries, ...current.unreadable }
+    },
     MAX_SIDECAR_FILE_BYTES,
     { durable: true }
   )
 }
 
-/** The current sidecar entry for an environment, or none when absent or stale. */
+/** The current sidecar entry for an environment, or none when absent or stale. Throws when unreadable. */
 export function readCurrentRuntimeEnvironmentSidecarEntry(
   userDataPath: string,
   environment: PersistedRuntimeEnvironment
 ): RuntimeEnvironmentSidecarEntry | undefined {
-  const entry = readRuntimeEnvironmentSidecar(userDataPath).entries[environment.id]
+  const sidecar = readRuntimeEnvironmentSidecar(userDataPath)
+  if (Object.hasOwn(sidecar.unreadable, environment.id)) {
+    throw new RuntimeEnvironmentSidecarInvalidError(
+      getRuntimeEnvironmentSidecarPath(userDataPath),
+      environment.id
+    )
+  }
+  const entry = sidecar.entries[environment.id]
   return entry && isCurrentEntry(environment, entry) ? entry : undefined
 }

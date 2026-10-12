@@ -125,7 +125,6 @@ async function finalizePackagedOrcadTemplate(resourcesDir, options) {
     if (isOrcadTemplateRequired(env)) {
       throw new Error(`Packaged app is missing the orcad deployment template: ${templateDir}`)
     }
-    // SSH relays then keep the legacy host-Node path (ssh-relay-pinned-node.ts).
     console.log('[packaged-orcad-template] skipped: this build ships no orcad template')
     return
   }

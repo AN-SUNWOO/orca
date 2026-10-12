@@ -14,7 +14,6 @@ import { readRepoWorktreeAdminFingerprint } from './repo-worktree-admin-fingerpr
 import type { RuntimeWorktreeScanResult } from './repo-worktree-resolution-scan'
 import { scanLocalRepoWorktreesForResolution } from './repo-worktree-resolution-scan'
 import { dropRepeatedWorktreeRows } from './repeated-worktree-rows'
-import { getSshGitProvider } from '../providers/ssh-git-dispatch'
 import type { GitWorktreeInfo } from '../../shared/worktree/types'
 import { listStoredWorktreeRowsForRepo } from './repo-worktree-row-resolution'
 import type { ResolvedWorktree } from './runtime-worktree-path-identity'
@@ -161,14 +160,10 @@ export class OrcaRuntimeWithRefreshRepoWorktreeScan extends OrcaRuntimeWithListK
         getLocalProjectWorktreeGitOptionsForRuntime(repo, projectRuntime)
       )
     }
-    const provider = getSshGitProvider(sshConnectionId)
-    if (!provider) {
-      return { ok: false, worktrees: this.listStoredWorktreesForResolution(repo) }
-    }
-    try {
-      return { ok: true, worktrees: await provider.listWorktrees(repo.path) }
-    } catch {
-      return { ok: false, worktrees: this.listStoredWorktreesForResolution(repo) }
+    // Why: this process serves no SSH git, so an SSH repo answers from its stored rows.
+    return {
+      ok: false,
+      worktrees: this.listStoredWorktreesForResolution(repo)
     }
   }
 

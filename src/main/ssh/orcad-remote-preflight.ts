@@ -18,7 +18,7 @@ import { orcadNodeSlotRuntimeCommand, selectOrcadSlotEntryCommand } from './orca
 import { execCommand } from './ssh-relay-deploy-helpers'
 import { shellEscape } from './ssh-connection-utils'
 import { isWindowsRemoteHost, joinRemotePath, type RemoteHostPlatform } from './ssh-remote-platform'
-import type { SshConnection } from './ssh-connection'
+import type { OrcadHostTransport } from './orcad-host-transport'
 
 export function orcadProfilePreflightCommand(
   host: RemoteHostPlatform,
@@ -40,7 +40,7 @@ export function orcadProfilePreflightCommand(
 
 /** Failure leaves the incumbent and its data untouched, including an unconfirmed SSH exit. */
 export async function preflightInstalledOrcad(options: {
-  conn: SshConnection
+  conn: OrcadHostTransport
   host: RemoteHostPlatform
   remoteInstallDir: string
   fullVersion: string
@@ -64,7 +64,7 @@ export async function preflightInstalledOrcad(options: {
  */
 async function windowsOrcadProfilePreflightCommand(
   options: {
-    conn: SshConnection
+    conn: OrcadHostTransport
     host: RemoteHostPlatform
     remoteInstallDir: string
     signal?: AbortSignal

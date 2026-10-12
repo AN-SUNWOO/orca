@@ -35,7 +35,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  skills list               List version-matched skill guides bundled with this Orca CLI',
   '  skills get                Print a version-matched skill guide as Markdown',
   '  skills install            Install bundled Orca skills globally via the community skills CLI',
-  '  skills update             Update already-installed Orca skills via the community skills CLI',
+  '  skills update             Update Orca skills to the version this Orca build ships',
   '',
   'Hosts:',
   '  host list                 List targetable machines and how to name each one',

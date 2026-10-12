@@ -68,7 +68,7 @@ import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-labe
  *  `unshown`: it cannot (the prompt is only in the agent's terminal). */
 export type NativeChatAwaitingInput = 'shown' | 'unshown'
 
-type NativeChatNavigationRequest =
+type NavigationRequest =
   | { kind: 'diff'; target: NativeChatDiffReveal }
   | { kind: 'rail'; messageId: string; requestId: number }
 
@@ -125,9 +125,7 @@ export function NativeChatMessageList({
   stopping?: boolean
   runtimeContext?: RuntimeFileOperationArgs | null
 }): React.JSX.Element {
-  const [navigationRequest, setNavigationRequest] = useState<NativeChatNavigationRequest | null>(
-    null
-  )
+  const [navigationRequest, setNavigationRequest] = useState<NavigationRequest | null>(null)
   const navigationSequence = useRef(0)
   const revealedDiff = navigationRequest?.kind === 'diff' ? navigationRequest.target : null
   const railJump = navigationRequest?.kind === 'rail' ? navigationRequest : null

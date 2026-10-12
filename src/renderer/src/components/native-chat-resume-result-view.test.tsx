@@ -11,7 +11,7 @@ import {
   type ResumeStatusStream
 } from './native-chat-resume-modal.test-support'
 import { lastToastShow } from './native-chat-resume-toast.test-support'
-import { dontAskAgain } from './native-chat-resume-on-restart-modal.test-support'
+import { chatBox, dontAskAgain } from './native-chat-resume-on-restart-modal.test-support'
 import { useAppStore } from '../store'
 
 const rpc: Mock<RestartRpc> = vi.hoisted(() => vi.fn<RestartRpc>())
@@ -90,6 +90,30 @@ it('does not restore a hidden picker preference when closing a run', async () =>
     afterInFlightClose,
     useAppStore.getState().settings?.nativeChatResumeWorkOnRestart
   ]).toEqual([false, false])
+})
+
+it('starts a remaining-offer picker without the preference consumed by the previous resume', async () => {
+  fakeHost()
+  await mountSurfaces()
+  await act(async () => chatBox('b').click())
+  await act(async () => dontAskAgain().click())
+  await act(async () => button('Resume 1 chat').click())
+  expect(useAppStore.getState().settings?.nativeChatResumeWorkOnRestart).toBe(true)
+
+  await act(async () => button('1 chat to resume').click())
+  expect(dialog()?.textContent).toContain('Resumed 1 of 1 chat')
+  await act(async () => button('Close').click())
+  await act(async () =>
+    useAppStore.getState().updateSettings({ nativeChatResumeWorkOnRestart: false })
+  )
+
+  await act(async () => button('1 chat to resume').click())
+  const pickerCheckbox = dontAskAgain().getAttribute('data-state')
+  await act(async () => button('Close').click())
+  expect([pickerCheckbox, useAppStore.getState().settings?.nativeChatResumeWorkOnRestart]).toEqual([
+    'unchecked',
+    false
+  ])
 })
 
 it('reopens a collapsed result group with tree keys', async () => {

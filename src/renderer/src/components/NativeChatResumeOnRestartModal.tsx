@@ -162,9 +162,10 @@ export function NativeChatResumeOnRestartModal(): React.JSX.Element | null {
     setOverrides((current) => new Map(current).set(sessionId, checked))
   }, [])
 
-  /** Only the picker owns this choice; run actions must not replay a hidden checkbox. */
+  /** Consume the picker's choice once; run actions must not replay a hidden checkbox. */
   const persistPreference = useCallback(async (): Promise<void> => {
     if (dontAskAgain && run === null) {
+      setDontAskAgain(false)
       await updateSettings({ nativeChatResumeWorkOnRestart: true }).catch(() => undefined)
     }
   }, [dontAskAgain, run, updateSettings])

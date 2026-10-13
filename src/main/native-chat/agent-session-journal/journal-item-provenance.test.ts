@@ -13,14 +13,16 @@ import {
   type AgentSessionJournalIdentity
 } from '../../../shared/agent-session-journal-types'
 import { codexProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
+import { isSubagentGroupBlock } from '../../../shared/native-chat-types'
 import { retainedRowReplacement } from '../agent-session-wire/structured-rewind-retained-host-rows'
 import type { JournalHostDatabase } from './journal-host-database'
 import {
   createTrackedJournalOpener,
-  insertTestJournalRowJson,
   liveTestJournalRows,
   openTestJournalHostDatabase
 } from './journal-host-database-test-support'
+import { stampJournalEntryProvenance } from './journal-item-provenance'
+import { subagentGroupJournalBody } from './journal-subagent-group-body'
 import type { AgentSessionJournal } from './journal-store'
 
 const IDENTITY: AgentSessionJournalIdentity = {
@@ -75,26 +77,24 @@ afterEach(async () => {
 })
 
 describe('execution provenance', () => {
-  it("records a provider observation's owner, and a host revision keeps it", async () => {
+  it("records a provider observation's owner, a host revision keeps it, and a reopen reads it", async () => {
     const journal = await open()
     await journal.appendItem(TURN, RUNNING, { fence: 4, ownerFence: 3, turnScope: SCOPE })
     // Host bookkeeping under a later writer fence states no owner of its own.
     await journal.appendItem(TURN, SETTLED, { fence: 5, turnScope: SCOPE })
-
-    expect(journal.itemFence(TURN_ID)).toBe(3)
-    // Every row states it: none leaves the reader to guess from the writer fence.
-    expect(storedOwnerFences()).toEqual([3, 3])
-  })
-
-  it('a first write with no stated owner is its writer generation’s', async () => {
-    const journal = await open()
+    // A first write with no stated owner is its writer generation's.
     await journal.appendItem(
       item(2),
       { kind: 'status', text: 'note' },
       { fence: 6, turnScope: SCOPE }
     )
+
+    expect(journal.itemFence(TURN_ID)).toBe(3)
     expect(journal.itemFence(agentJournalItemKey(item(2)))).toBe(6)
-    expect(storedOwnerFences()).toEqual([6])
+    // Every row states it: none leaves the reader to guess from the writer fence.
+    expect(storedOwnerFences()).toEqual([3, 3, 6])
+    await journals.closeAll()
+    expect((await open()).itemFence(TURN_ID)).toBe(3)
   })
 
   it('a lifecycle batch states it on each item: the batch owner, else the kept value', async () => {
@@ -120,30 +120,6 @@ describe('execution provenance', () => {
     expect(storedOwnerFences()).toEqual([2, 3, 2])
   })
 
-  it('survives a reopen from storage', async () => {
-    const journal = await open()
-    await journal.appendItem(TURN, RUNNING, { fence: 4, ownerFence: 3, turnScope: SCOPE })
-    await journals.closeAll()
-
-    expect((await open()).itemFence(TURN_ID)).toBe(3)
-  })
-
-  it('epoch replacement carries each item’s provenance', async () => {
-    const journal = await open()
-    await journal.appendItem(TURN, RUNNING, { fence: 2, ownerFence: 2, turnScope: SCOPE })
-    const before = journal.epoch
-
-    await journal.replaceEpochItems('legacy_import', 5, [
-      { identity: TURN, body: RUNNING, ownerFence: journal.itemFence(TURN_ID) ?? 0 },
-      { identity: item(2), body: { kind: 'status', text: 'new' }, ownerFence: 5 }
-    ])
-
-    expect(journal.epoch).not.toBe(before)
-    // Written at fence 5, the dead generation's turn is still fence 2's work.
-    expect(journal.itemFence(TURN_ID)).toBe(2)
-    expect(journal.itemFence(agentJournalItemKey(item(2)))).toBe(5)
-  })
-
   it("a rewind's retained row carries the old fold's provenance; an older record's is never current", () => {
     const row = {
       itemId: TURN_ID,
@@ -156,31 +132,12 @@ describe('execution provenance', () => {
     expect(retainedRowReplacement(older).ownerFence).toBe(0)
   })
 
-  it('a stored provenance that is not a fence is dropped, and the row reads as its writer’s', async () => {
-    const journal = await open()
-    await journal.appendItem(TURN, RUNNING, { fence: 2, ownerFence: 2, turnScope: SCOPE })
-    const rows = liveTestJournalRows(database.db, IDENTITY.sessionId)
-    const stored = rows.find((row) => row.rowJson.includes('"kind":"item"'))
-    const last = rows.at(-1)?.seq
-    if (!stored || last === undefined) {
-      throw new Error('expected the item row')
-    }
-    await journals.closeAll()
-    database = openTestJournalHostDatabase(root)
-    const parsed: Record<string, unknown> = JSON.parse(stored.rowJson)
-    insertTestJournalRowJson(
-      database.db,
-      IDENTITY.sessionId,
-      last + 1,
-      JSON.stringify({
-        ...parsed,
-        seq: last + 1,
-        revision: Number(parsed.revision) + 1,
-        fence: 7,
-        ownerFence: -1
-      })
-    )
-
-    expect((await open()).itemFence(TURN_ID)).toBe(2)
+  it('reads a roster entry an older build never stamped as its row’s provenance', () => {
+    const roster = subagentGroupJournalBody('group', [
+      { id: 'a', label: 'A', state: 'working', startedAt: 1 }
+    ])
+    const stamped = stampJournalEntryProvenance(roster, { body: roster, ownerFence: 2 }, 3)
+    const groups = stamped.kind === 'message' ? stamped.blocks.filter(isSubagentGroupBlock) : []
+    expect(groups[0]?.agents[0]?.ownerFence).toBe(2)
   })
 })

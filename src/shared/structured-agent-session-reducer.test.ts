@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentJournalRenderItem, AgentJournalSubmission } from './agent-session-journal-types'
 import type { AgentSessionHistoryPage, AgentSessionLatestTurn } from './agent-session-wire'
-import {
-  isActionableStructuredAgentSessionPrompt,
-  runningStructuredAgentSessionTurnId
-} from './structured-agent-session-live-turn'
+import { runningStructuredAgentSessionTurnId } from './structured-agent-session-live-turn'
 import {
   EMPTY_STRUCTURED_AGENT_SESSION,
   reduceStructuredAgentSession
@@ -598,12 +595,12 @@ describe('structured agent session reducer', () => {
     })
   })
 
-  describe("the host's actionable prompts", () => {
-    const prompt = (itemId: string, sequence: number): AgentJournalRenderItem => ({
-      itemId,
+  it("keeps the host's working answer and prompts across a quiet frame, takes a row-less restatement, and drops them for rows that name none", () => {
+    const pending: AgentJournalRenderItem = {
+      itemId: 'prompt',
       revision: 1,
-      sequence,
-      observedAt: sequence,
+      sequence: 1,
+      observedAt: 1,
       body: {
         kind: 'approval',
         title: 'Run command?',
@@ -611,60 +608,45 @@ describe('structured agent session reducer', () => {
         options: [{ id: 'yes', label: 'Allow' }],
         resolution: { state: 'pending', selectedOptionId: null, resolvedBy: null, resolvedAt: null }
       }
-    })
-    const PROMPTS = [prompt('live-prompt', 1), prompt('dead-prompt', 2)]
-    const opened = (page: AgentSessionHistoryPage) =>
-      reduceStructuredAgentSession(EMPTY_STRUCTURED_AGENT_SESSION, {
-        type: 'event',
-        event: { type: 'snapshot', sessionId: 'session-a', fence: 1, page }
-      })
-    const batch = (
-      state: ReturnType<typeof opened>,
+    }
+    const frame = (
       items: AgentJournalRenderItem[],
-      actionablePromptIds?: string[]
-    ) =>
-      reduceStructuredAgentSession(state, {
-        type: 'event',
-        event: {
-          type: 'batch',
-          sessionId: 'session-a',
-          batch: {
-            cursor: { epoch: 'epoch-a', sequence: state.cursor!.sequence + items.length },
-            items,
-            removedItemIds: [],
-            submissions: []
-          },
-          ...(actionablePromptIds !== undefined ? { actionablePromptIds } : {})
-        }
-      })
-    const actionable = (state: ReturnType<typeof opened>) =>
-      state.items
-        .filter((entry) =>
-          isActionableStructuredAgentSessionPrompt(entry.itemId, state.actionablePromptIds)
-        )
-        .map((entry) => entry.itemId)
-
-    it('reads them from the snapshot, keeps them across a frame without rows, and takes the next', () => {
-      const state = opened({ ...hydrationPage(PROMPTS), actionablePromptIds: ['live-prompt'] })
-      expect(actionable(state)).toEqual(['live-prompt'])
-      const quiet = batch(state, [])
-      expect(quiet.actionablePromptIds).toEqual(['live-prompt'])
-      // The generation ended with no row written: the host's frame names none.
-      const ended = batch(quiet, [], [])
-      expect(actionable(ended)).toEqual([])
+      host: { working?: boolean; actionablePromptIds?: string[] } = {}
+    ) => ({
+      type: 'event' as const,
+      event: {
+        type: 'batch' as const,
+        sessionId: 'session-a',
+        batch: {
+          cursor: { epoch: 'epoch-a', sequence: 1 },
+          items,
+          removedItemIds: [],
+          submissions: []
+        },
+        ...host
+      }
     })
-
-    it('an older host names none: its page reduces, and every pending prompt stays answerable', () => {
-      // As an older host serialized it: no such field at all.
-      const older: AgentSessionHistoryPage = JSON.parse(JSON.stringify(hydrationPage(PROMPTS)))
-      const state = opened(older)
-      expect(state.actionablePromptIds).toBeUndefined()
-      expect(actionable(state)).toEqual(['live-prompt', 'dead-prompt'])
-      // Rows from a downgraded host restate nothing: back to every pending prompt.
-      const named = opened({ ...hydrationPage(PROMPTS), actionablePromptIds: ['live-prompt'] })
-      const downgraded = batch(named, [prompt('another', 3)])
-      expect(downgraded.actionablePromptIds).toBeUndefined()
+    const opened = reduceStructuredAgentSession(EMPTY_STRUCTURED_AGENT_SESSION, {
+      type: 'event',
+      event: {
+        type: 'snapshot',
+        sessionId: 'session-a',
+        fence: 1,
+        page: { ...hydrationPage([pending]), working: true, actionablePromptIds: ['prompt'] }
+      }
     })
+    const quiet = reduceStructuredAgentSession(opened, frame([]))
+    expect(quiet).toMatchObject({ working: true, actionablePromptIds: ['prompt'] })
+    // The generation ended with no row written: the host restates both.
+    const ended = reduceStructuredAgentSession(
+      quiet,
+      frame([], { working: false, actionablePromptIds: [] })
+    )
+    expect(ended).toMatchObject({ working: false, actionablePromptIds: [] })
+    // Rows from a downgraded host name neither: back to deriving from rows.
+    const downgraded = reduceStructuredAgentSession(ended, frame([{ ...pending, revision: 2 }]))
+    expect(downgraded.working).toBeUndefined()
+    expect(downgraded.actionablePromptIds).toBeUndefined()
   })
 
   it('records the host clock from frames that carry it and keeps it otherwise', () => {

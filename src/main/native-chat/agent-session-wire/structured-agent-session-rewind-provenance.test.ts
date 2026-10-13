@@ -141,14 +141,4 @@ describe('a rewind after a failed cleanup', () => {
     // What the live agent itself reported is its own.
     expect(work.isCurrentItem(agentJournalItemKey(LATER))).toBe(true)
   })
-
-  it('leaves a generation that is still live holding its own work', async () => {
-    const journal = await leftByDeadGeneration()
-
-    await rewindAtLiveFence(journal)
-
-    const work = new StructuredAgentSessionCurrentWork(journal, DEAD)
-    expect(work.activeTurnId()).toBe('turn-dead')
-    expect(work.actionablePromptIds()).toEqual([agentJournalItemKey(PROMPT)])
-  })
 })

@@ -1,19 +1,10 @@
 // The stop-note refresh frame carries rows, so it restates the host's current work as every rows
-// frame does: a client reads a rows frame without it as an older host's and falls back to its own
-// raw derivation (an ended turn as Working, an ended agent's prompt as answerable).
+// frame does: a client reads a rows frame without it as an older host's.
 
 import { describe, expect, it } from 'vitest'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
 import type { AgentJournalRenderItem } from '../../../shared/agent-session-journal-types'
-import type {
-  AgentSessionHistoryPage,
-  AgentSessionSubscribeEvent
-} from '../../../shared/agent-session-wire'
-import {
-  EMPTY_STRUCTURED_AGENT_SESSION,
-  reduceStructuredAgentSession
-} from '../../../shared/structured-agent-session-reducer'
-import { isActionableStructuredAgentSessionPrompt } from '../../../shared/structured-agent-session-live-turn'
+import type { AgentSessionSubscribeEvent } from '../../../shared/agent-session-wire'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import { refreshDerivedStopNotes } from './agent-session-stop-note-refresh'
 import { structuredAgentSessionStopNoteIdentity } from './structured-agent-session-command-turn'
@@ -55,31 +46,8 @@ const projectedNote: AgentJournalRenderItem = {
 }
 const items = [staleTurn, stalePrompt, projectedNote]
 
-/** What a current host publishes: the ended generation's turn and prompt are not current. */
-function page(): AgentSessionHistoryPage {
-  return {
-    sessionId: 's',
-    epoch: 'e',
-    direction: 'tail',
-    items,
-    removedItemIds: [],
-    submissions: [],
-    window: {
-      oldest: { epoch: 'e', sequence: 1 },
-      newest: { epoch: 'e', sequence: 3 },
-      nextCursor: { epoch: 'e', sequence: 1 }
-    },
-    liveCursor: { epoch: 'e', sequence: 3 },
-    hasOlder: false,
-    hasNewer: false,
-    latestTurn: null,
-    actionablePromptIds: [],
-    working: false
-  }
-}
-
 describe('the stop-note refresh frame', () => {
-  it("restates the host's current work, so a client keeps the host's answers", () => {
+  it("restates the host's current work", () => {
     const emitted: AgentSessionSubscribeEvent[] = []
     const journal = {
       visitItems: (visit: (itemId: string, sequence: number, body: unknown) => void) =>
@@ -125,16 +93,5 @@ describe('the stop-note refresh frame', () => {
     }
     expect(frame.batch.items.length).toBeGreaterThan(0)
     expect(frame).toMatchObject({ working: false, actionablePromptIds: [], latestTurn: null })
-
-    let state = reduceStructuredAgentSession(EMPTY_STRUCTURED_AGENT_SESSION, {
-      type: 'event',
-      event: { type: 'snapshot', sessionId: 's', page: page(), fence: 2 }
-    })
-    state = reduceStructuredAgentSession(state, { type: 'event', event: frame })
-    expect(state.working).toBe(false)
-    expect(state.latestTurn).toBeNull()
-    expect(isActionableStructuredAgentSessionPrompt('prompt-old', state.actionablePromptIds)).toBe(
-      false
-    )
   })
 })

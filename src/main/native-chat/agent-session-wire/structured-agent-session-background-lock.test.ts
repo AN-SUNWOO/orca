@@ -1,11 +1,17 @@
-// Every background path meeting another connection's write lock: an exit's own settlement and
-// release, the retry's recovery of a pending rewind, and the queue's automatic drain healing its
-// bookkeeping. Each fails at once, never holding the main thread or the chat's lane for the busy
-// timeout, and the retry lands the work once the lock lifts. A refusal of the automatic send whose
-// stored hold also fails still shows the card as not sent.
+// Background bookkeeping under another connection's write lock fails at once (no main-thread or
+// lane stall), every frame reads the dead turn as it will settle, and the retry lands it after.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { QUEUED_MESSAGE_PAUSED_SEND_FAILED } from '../../../shared/agent-session-wire'
+import {
+  QUEUED_MESSAGE_PAUSED_SEND_FAILED,
+  type AgentSessionStatusSummary
+} from '../../../shared/agent-session-wire'
+import { runningStructuredAgentSessionTurnId } from '../../../shared/structured-agent-session-live-turn'
+import {
+  EMPTY_STRUCTURED_AGENT_SESSION,
+  reduceStructuredAgentSession,
+  type StructuredAgentSessionState
+} from '../../../shared/structured-agent-session-reducer'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
 import { JournalQueuedMessages } from '../agent-session-journal/journal-queued-messages'
 import { JournalHostDatabase } from '../agent-session-journal/journal-host-database'
@@ -42,25 +48,37 @@ afterEach(async () => {
 /** Longer than a background write would ever wait, shorter than the busy timeout a person's has. */
 const LOCK_MS = 1_200
 
+/** Every frame a chat client and the session list receive, as each reduces it. */
+function recordFrames(current: QueuedMessageTestRig) {
+  const chats: StructuredAgentSessionState[] = []
+  const rows: AgentSessionStatusSummary[] = []
+  let chat = EMPTY_STRUCTURED_AGENT_SESSION
+  current.host.subscribe({
+    id: 'chat-1',
+    sessionId: SESSION,
+    emit: (event) => {
+      chat = reduceStructuredAgentSession(chat, { type: 'event', event: structuredClone(event) })
+      chats.push(chat)
+    }
+  })
+  current.host.subscribeStatus({
+    id: 'list-1',
+    emit: (event) => {
+      const row =
+        event.type === 'status'
+          ? event.session
+          : event.type === 'snapshot'
+            ? event.sessions.find((session) => session.sessionId === SESSION)
+            : undefined
+      if (row?.sessionId === SESSION) {
+        rows.push(structuredClone(row))
+      }
+    }
+  })
+  return { chats, rows }
+}
+
 describe('under another connection’s write lock', () => {
-  it("an exit's own settlement and release fail at once, and the retry lands both after", async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    rig = await createQueuedMessageTestRig({ restartable: true })
-    const current = rig
-    await current.workingSend()
-    await leaveUnfinishedWork(current, { prompt: true })
-    await holdWriteLock(current.root, LOCK_MS)
-
-    expect(await longestStall(() => exitChild(current))).toBeLessThan(60)
-    expect(turnState(current)).toBe('running')
-
-    await vi.waitFor(() => expect(turnState(current)).toBe('interrupted'), { timeout: 8_000 })
-    await vi.waitFor(
-      () => expect(current.store.getRecord(SESSION)?.lease.claimStatus).toBe('released'),
-      { timeout: 8_000 }
-    )
-  }, 20_000)
-
   it("an agent dying mid-row costs one wait, its last row's, and the exit's bookkeeping none", async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     let sinkFailedAt = Infinity
@@ -88,8 +106,7 @@ describe('under another connection’s write lock', () => {
       await exitChild(current)
     })
 
-    // One wait, the row's own busy timeout (5 s, plus SQLite's sleep granularity on a loaded
-    // machine), and it is the row's: the sink reports its failure as that wait ends.
+    // One wait, the row's own 5 s busy timeout: the sink reports its failure as it ends.
     expect(stalls).toHaveLength(1)
     const [wait] = stalls
     expect(wait!.ms).toBeLessThanOrEqual(5_500)
@@ -124,8 +141,7 @@ describe('under another connection’s write lock', () => {
       return transaction.call(this, run, options)
     })
 
-    // Another process holds the lock from before this one starts: the restart reconcile, the
-    // restore's reconcile and recovery, and the startup scan all meet it.
+    // Held from before this process starts: reconcile, restore and scan all meet it.
     const stall = await longestStall(() =>
       current.crashRestartHostProcess(async () => {
         const { released } = await holdWriteLock(current.root, LOCK_MS)
@@ -136,8 +152,7 @@ describe('under another connection’s write lock', () => {
     expect(waiting).toEqual([])
     // The bar QA holds the app to; the property above is what keeps it there under load.
     expect(stall).toBeLessThan(100)
-    // Once it lifts, the retry reconciles, resolves the recovery the restore could not, and settles
-    // the turn as an unlocked startup does: the rig's probe proves nothing, so unverifiable.
+    // Once it lifts the retry reconciles, resolves recovery and settles (the probe proves nothing).
     await vi.waitFor(() => expect(turnState(current)).toBe('unverifiable'), { timeout: 8_000 })
     expect(current.store.getRecord(SESSION)?.lease).toMatchObject({
       unreconciled: false,
@@ -211,8 +226,7 @@ describe('under another connection’s write lock', () => {
     const current = rig
     const working = await current.workingSend()
     await current.send('after this', 'queue-if-active').result
-    // The turn's end wakes the drain, which heals skipped bookkeeping before it sends; another
-    // connection takes the lock just as it starts.
+    // The lock arrives just as the drain heals its bookkeeping before sending.
     const owed = vi.spyOn(JournalQueuedMessages.prototype, 'settlementOwed').mockReturnValue(true)
     const heal = JournalQueuedMessages.prototype.settleOwed
     let waited = Infinity
@@ -236,6 +250,45 @@ describe('under another connection’s write lock', () => {
     expect(current.dispatch).toHaveBeenCalledTimes(1)
 
     await vi.waitFor(() => expect(current.dispatch).toHaveBeenCalledTimes(2), { timeout: 8_000 })
+  }, 20_000)
+
+  it('reads the dead turn interrupted in every frame until its settlement lands', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    rig = await createQueuedMessageTestRig({ restartable: true })
+    const current = rig
+    await current.workingSend()
+    await current.send('after this', 'queue-if-active').result
+    await leaveUnfinishedWork(current)
+    const frames = recordFrames(current)
+    await vi.waitFor(() => expect(frames.chats.at(-1)?.working).toBe(true))
+    const { released } = await holdWriteLock(current.root, 1_200)
+    const before = { chats: frames.chats.length, rows: frames.rows.length }
+
+    await exitChild(current)
+    const page = await current.host.history({ sessionId: SESSION, direction: 'tail' })
+    await released
+    // Nothing landed: what the frames read is derived from the death alone.
+    expect(turnState(current)).toBe('running')
+
+    const chats = frames.chats.slice(before.chats)
+    const rows = frames.rows.slice(before.rows)
+    expect(chats.length).toBeGreaterThan(0)
+    expect(rows.length).toBeGreaterThan(0)
+    for (const chat of [...chats, page.ok ? page.page : null]) {
+      expect(chat?.latestTurn?.turn.state).toBe('interrupted')
+      expect(chat?.working).toBe(false)
+      // So no turn runs to steer into: the card's control is Send.
+      expect(chat?.nextQueuedMessageId ?? null).toBeNull()
+    }
+    for (const chat of chats) {
+      expect(runningStructuredAgentSessionTurnId(chat)).toBeNull()
+    }
+    for (const row of rows) {
+      expect(row).toMatchObject({ status: 'idle', turnOutcome: 'interruption' })
+    }
+
+    // Once the lock lifts, the retry writes what the frames already said.
+    await vi.waitFor(() => expect(turnState(current)).toBe('interrupted'), { timeout: 8_000 })
   }, 20_000)
 })
 

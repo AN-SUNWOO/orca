@@ -17,8 +17,9 @@ export type StructuredAgentSessionReconciliationLoad =
   | { kind: 'loaded'; session: StructuredAgentSessionHostSession }
   /** Opened by a reader meanwhile, or quitting: nothing read. */
   | { kind: 'skipped' }
-  /** Nothing owed: no journal (nothing was ever written), or one damaged or written by a newer
-   *  Orca, which no retry reads (reported once here). */
+  /** Nothing owed: no journal (nothing was ever written), a named epoch holding no row (nothing
+   *  durable to settle), or one damaged or written by a newer Orca, which no retry reads (reported
+   *  once here). */
   | { kind: 'nothing' }
 
 /** Replays a closed chat's journal, for a caller in a background slot. Throws only a failure that
@@ -35,6 +36,13 @@ export async function loadStructuredAgentSessionForReconciliation(
     return { kind: 'skipped' }
   }
   try {
+    // Opening an epoch that holds no row writes a fresh one, with a person's lock wait, outside the
+    // chat's lane: there is nothing to settle, so it is not opened.
+    const { db } = deps.journalDatabase
+    const epoch = readJournalSessionEpoch(db, sessionId)
+    if (epoch !== null && readJournalRowsAfter(db, sessionId, epoch, 0, 1).length === 0) {
+      return { kind: 'nothing' }
+    }
     const opened = await restoreStructuredAgentSessionRead(deps, sessionId)
     if (!opened) {
       return { kind: 'nothing' }

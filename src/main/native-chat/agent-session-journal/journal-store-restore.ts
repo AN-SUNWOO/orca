@@ -1,6 +1,6 @@
-// Bringing a store's in-memory state up from disk. It writes only a chat's first epoch when it has
-// no journal yet: what a gone writer left live is settled by the ownership event that ended it,
-// never by this open.
+// Bringing a store's in-memory state up from disk. It writes only a fresh first epoch, for a chat
+// with no journal yet or whose saved epoch holds no row: what a gone writer left live is settled by
+// the ownership event that ended it, never by this open.
 
 import type { JournalEpochController } from './journal-epoch-controller'
 import { replayJournal } from './journal-open'

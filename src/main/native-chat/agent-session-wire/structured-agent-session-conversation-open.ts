@@ -1,10 +1,11 @@
 // The one way a conversation's journal becomes open on this host: for a send, for a reader, and
 // for an attach that finds none open.
 //
-// It only reads, except a chat with no journal yet, whose first epoch it writes. A damaged journal
-// fails the open, which refuses it as unloadable. What an earlier generation or host process left
-// running or queued is settled by the ownership event that ended it — its exit, the next
-// acquisition, or startup (`structured-agent-session-leftover-settlement.ts`,
+// It only reads, except for a chat with no journal yet or whose saved epoch holds no row, for which
+// it writes a fresh first epoch. A damaged journal fails the open, which refuses it as unloadable.
+// What an earlier generation or host process left running or queued is settled by the ownership
+// event that ended it — its exit, the next acquisition, or startup
+// (`structured-agent-session-leftover-settlement.ts`,
 // `structured-agent-session-startup-settlement.ts`) — never here. Nothing here starts a provider
 // child.
 

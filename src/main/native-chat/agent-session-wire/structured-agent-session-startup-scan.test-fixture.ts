@@ -13,22 +13,10 @@ import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-
 import { StructuredAgentSessionHost } from './structured-agent-session-host'
 import type { StructuredAgentSessionHostDeps } from './structured-agent-session-host-types'
 import { HOST_TEST_LOCATION as LOCATION } from './structured-agent-session-host-test-data'
-import {
-  createStructuredAgentSessionLogger,
-  type StructuredAgentSessionLogger
-} from './structured-agent-session-logger'
-import type { StructuredAgentSessionStatusSink } from './structured-agent-session-status-ownership'
+import { createStructuredAgentSessionLogger } from './structured-agent-session-logger'
 import { retryOwes } from './structured-agent-session-retry.test-fixture'
 
-export const SCAN_NOW = 1_800_000_000_000
-export const SCAN_CHATS = [
-  'chat-aaaaaaa1',
-  'chat-aaaaaaa2',
-  'chat-aaaaaaa3',
-  'chat-aaaaaaa4',
-  'chat-aaaaaaa5'
-]
-export const SCAN_LATE = 'chat-aaaaaaa6'
+const SCAN_NOW = 1_800_000_000_000
 /** Released long ago with nothing proving its owner gone: no restart moves its fence. */
 export const SCAN_RELEASED = 'chat-released1'
 
@@ -83,13 +71,12 @@ export function scanRecord(
   }
 }
 
-/** The chat's journal as the crashed process left it: a running turn at fence 13, and, when
- *  asked, a send it accepted and never handed over (at `queuedFence`, the released lease's 14 by
- *  default), or one it handed to the generation at `handedOverAt` that never answered it. */
+/** The chat's journal as the crashed process left it: a running turn at fence 13, and, when asked,
+ *  a send it accepted at the released lease's fence 14 and never handed over. */
 export async function seedScanJournal(
   root: string,
   sessionId: string,
-  options: { queued?: true; queuedFence?: number; handedOverAt?: number } = {}
+  options: { queued?: true } = {}
 ): Promise<void> {
   const journal = await openAgentSessionJournal({
     identity: {
@@ -112,29 +99,10 @@ export async function seedScanJournal(
       clientMessageId: `${sessionId}-queued`,
       payloadFingerprint: '0'.repeat(64),
       body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'after this' }] },
-      fence: options.queuedFence ?? 14,
+      fence: 14,
       handoverRecorded: true,
       origin: 'client',
       source: { kind: 'user' }
-    })
-  }
-  const fence = options.handedOverAt
-  if (fence !== undefined) {
-    const clientMessageId = `${sessionId}-handed`
-    await journal.appendSubmission({
-      clientMessageId,
-      payloadFingerprint: '1'.repeat(64),
-      body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'handed over' }] },
-      fence,
-      handoverRecorded: true,
-      origin: 'client',
-      source: { kind: 'user' }
-    })
-    await journal.resolveDispatch({
-      clientMessageId,
-      state: 'pending',
-      fence,
-      turnScope: AGENT_JOURNAL_THREAD_SCOPE
     })
   }
   await journal.close()
@@ -143,14 +111,11 @@ export async function seedScanJournal(
 export function openScanHost(
   root: string,
   store: AgentSessionRecordStore,
-  options: {
-    logger?: StructuredAgentSessionLogger
-    statusSink?: StructuredAgentSessionStatusSink
-  } & Partial<Pick<StructuredAgentSessionHostDeps, 'probeOwner' | 'stopOwnerProcess'>> = {}
+  options: Partial<Pick<StructuredAgentSessionHostDeps, 'probeOwner' | 'stopOwnerProcess'>> = {}
 ): StructuredAgentSessionHost {
   return new StructuredAgentSessionHost({
     agents: NO_STRUCTURED_AGENTS,
-    logger: options.logger ?? createStructuredAgentSessionLogger(),
+    logger: createStructuredAgentSessionLogger(),
     store,
     adapter: {
       acquire: vi.fn(),
@@ -162,7 +127,6 @@ export function openScanHost(
     },
     journalDatabase: openTestJournalHostDatabase(root),
     claimKeyId: 'key-1',
-    ...(options.statusSink ? { statusSink: options.statusSink } : {}),
     ...(options.stopOwnerProcess ? { stopOwnerProcess: options.stopOwnerProcess } : {}),
     probeOwner: options.probeOwner ?? (async () => ({ outcome: 'pid-absent' })),
     now: () => SCAN_NOW

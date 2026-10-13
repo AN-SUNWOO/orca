@@ -1,10 +1,13 @@
-// Startup's scan of every chat on record: in the background, never ahead of a person's own action
-// on a chat, with no stored mark saying which chats are owed anything.
+// Startup's background heal and each retry round: readers write nothing, a person never waits on a
+// round, and a hidden chat's surviving agent is never signalled.
 
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { AGENT_SESSION_JOURNAL_SCHEMA_VERSION } from '../../../shared/agent-session-journal-types'
+import type { AgentSessionOwnerProbe } from '../../../shared/agent-session-lease-adjudication'
+import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import {
   openTestAgentSessionRecordStore,
@@ -12,15 +15,21 @@ import {
 } from '../../runtime/agent-session-record-store-test-harness'
 import {
   closeTestJournalHostDatabases,
-  openTestJournalHostDatabase
+  liveTestJournalRows,
+  openTestJournalHostDatabase,
+  updateTestJournalRowJson
 } from '../agent-session-journal/journal-host-database-test-support'
+import {
+  publishJournalSessionEpoch,
+  readJournalSessionEpoch
+} from '../agent-session-journal/journal-row-table'
 import { AgentSessionJournal } from '../agent-session-journal/journal-store'
-import { JournalQueuedMessages } from '../agent-session-journal/journal-queued-messages'
 import type { StructuredAgentSessionHost } from './structured-agent-session-host'
+import { HOST_TEST_LOCATION as LOCATION } from './structured-agent-session-host-test-data'
+import * as reconciliationLoad from './structured-agent-session-reconciliation-load'
+import * as reconciliationPass from './structured-agent-session-reconciliation-pass'
 import {
   openScanHost,
-  SCAN_CHATS as CHATS,
-  SCAN_LATE as LATE,
   SCAN_RELEASED as RELEASED,
   scanIdle as idle,
   scanRecord as record,
@@ -29,49 +38,12 @@ import {
 } from './structured-agent-session-startup-scan.test-fixture'
 import { retryOwes } from './structured-agent-session-retry.test-fixture'
 
+const CHAT = 'chat-aaaaaaa1'
+const OTHER = 'chat-aaaaaaa2'
+
 let root: string
 let store: AgentSessionRecordStore
 let host: StructuredAgentSessionHost | undefined
-
-function openHost(): StructuredAgentSessionHost {
-  host = openScanHost(root, store)
-  return host
-}
-
-/** The chats each pass ran on, in order: every pass repairs the cards an earlier handle left. */
-function watchPasses(): string[] {
-  const passes: string[] = []
-  const repair = JournalQueuedMessages.prototype.repairAndPrune
-  vi.spyOn(JournalQueuedMessages.prototype, 'repairAndPrune').mockImplementation(function (
-    this: JournalQueuedMessages
-  ) {
-    passes.push(this.sessionId)
-    return repair.call(this)
-  })
-  return passes
-}
-
-/** Holds the first four journal opens (every background slot); `opened` lists each chat whose
- *  open began, in order. */
-function gateFirstOpens(): { opened: string[]; releaseOne: () => void; release: () => void } {
-  const held: (() => void)[] = []
-  const opened: string[] = []
-  const open = AgentSessionJournal.prototype.open
-  vi.spyOn(AgentSessionJournal.prototype, 'open').mockImplementation(async function (
-    this: AgentSessionJournal
-  ) {
-    opened.push(this.queuedMessages.sessionId)
-    if (opened.length <= 4) {
-      await new Promise<void>((resolve) => held.push(resolve))
-    }
-    return open.call(this)
-  })
-  return {
-    opened,
-    releaseOne: () => held.shift()?.(),
-    release: () => held.splice(0).forEach((resolve) => resolve())
-  }
-}
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'orca-startup-scan-'))
@@ -85,126 +57,290 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-describe('the startup scan', () => {
-  it('never puts a chat late in the scan behind its own share, and settles it without publishing it', async () => {
-    const all = [...CHATS, LATE]
-    await seedTestAgentSessionRecordStore(root, { records: all.map((id) => record(id, false)) })
-    for (const sessionId of all) {
-      await seedScanJournal(root, sessionId)
-    }
-    store = await openTestAgentSessionRecordStore(root)
-    const { opened, release } = gateFirstOpens()
-    const current = openHost()
-    const indexed: string[] = []
-    const { sessions, serialize } = current.collaboratorsForTests()
-    const set = sessions.set.bind(sessions)
-    vi.spyOn(sessions, 'set').mockImplementation((sessionId, session) => {
-      indexed.push(sessionId)
-      return set(sessionId, session)
-    })
-    const shares = watchPasses()
+const busy = () =>
+  Object.assign(new Error('database is locked'), { errcode: 5, code: 'SQLITE_BUSY' })
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-    await current.reconcileRestartLeases()
-    await vi.waitFor(() => expect(opened).toHaveLength(4))
-
-    // The person's own actions on the late chat run now, ahead of its share.
-    const order: string[] = []
-    await serialize(LATE, async () => {
-      order.push('lane')
-    })
-    expect(await turnState(current, LATE)).toBe('running')
-    order.push('read')
-    expect(shares).not.toContain(LATE)
-
-    release()
-    await current.startupSettled()
-    await idle(current, all)
-    expect(order).toEqual(['lane', 'read'])
-    expect(new Set(shares)).toEqual(new Set(all))
-    // Only the chat a reader opened is a conversation; the scan's own reads published nothing.
-    expect(indexed).toEqual([LATE])
-    for (const sessionId of all) {
-      expect(await turnState(current, sessionId)).toBe('interrupted')
-    }
+/** Records and journals for `ids`; `alive` names chats whose agent outlived the earlier process. */
+async function seed(ids: readonly string[], alive: readonly string[] = []) {
+  await seedTestAgentSessionRecordStore(root, {
+    records: ids.map((id) => record(id, !alive.includes(id)))
   })
+  for (const id of ids) {
+    await seedScanJournal(root, id)
+  }
+  store = await openTestAgentSessionRecordStore(root)
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+}
 
-  it('takes a chat a reader opens ahead of the rest of the scan', async () => {
-    const all = [...CHATS, LATE]
-    // Released: the restart reconcile ends nothing, so each chat's first attempt is its share.
-    await seedTestAgentSessionRecordStore(root, { records: all.map((id) => record(id, true)) })
-    for (const sessionId of all) {
-      await seedScanJournal(root, sessionId)
-    }
-    store = await openTestAgentSessionRecordStore(root)
-    const { opened, releaseOne, release } = gateFirstOpens()
-    const current = openHost()
-    const passes = watchPasses()
+/** Every pass on `contended` chats meets a lock while `held()`; the rest run as they are. */
+function lockPasses(held: () => boolean, contended: (sessionId: string) => boolean) {
+  const pass = reconciliationPass.runStructuredAgentSessionReconciliationPass
+  return vi
+    .spyOn(reconciliationPass, 'runStructuredAgentSessionReconciliationPass')
+    .mockImplementation(async (...args) =>
+      held() && contended(args[1])
+        ? { failed: [busy()], wrote: false, recovering: false }
+        : pass(...args)
+    )
+}
 
-    await current.reconcileRestartLeases()
-    await vi.waitFor(() => expect(opened).toHaveLength(4))
-    expect(opened).not.toContain(LATE)
-    // The person opens the late chat while two chats still wait for a slot, it among them.
-    expect(await turnState(current, LATE)).toBe('running')
-
-    // One slot comes free: the late chat takes it ahead of the chat queued before it.
-    releaseOne()
-    await vi.waitFor(() => expect(passes).toContain(LATE))
-    release()
-    await current.startupSettled()
-    await idle(current, all)
-    expect(passes.indexOf(LATE)).toBeLessThan(passes.indexOf(CHATS[4]!))
-    expect(await turnState(current, LATE)).toBe('interrupted')
+function surviving() {
+  let alive = true
+  const probeOwner = vi.fn(async (): Promise<AgentSessionOwnerProbe> =>
+    alive ? { outcome: 'identity-matched', matchedOn: ['spawn-token'] } : { outcome: 'pid-absent' }
+  )
+  const stopOwnerProcess = vi.fn(() => {
+    alive = false
   })
+  return { probeOwner, stopOwnerProcess }
+}
 
-  it('finds what an earlier process left with no fence move and no stored mark, and keeps its send as a card', async () => {
-    await seedTestAgentSessionRecordStore(root, { records: [record(RELEASED, true)] })
-    await seedScanJournal(root, RELEASED, { queued: true })
-    store = await openTestAgentSessionRecordStore(root)
-    const current = openHost()
-    const ended = vi.fn()
-    store.onGenerationEnded(ended)
-
-    await current.reconcileRestartLeases()
-    await current.startupSettled()
-    await idle(current, [RELEASED])
-
-    // Already released: the restart moved nothing and ended no generation.
-    expect(ended).not.toHaveBeenCalled()
-    expect(store.getRecord(RELEASED)?.lease.runtimeFence).toBe(14)
-    // Nothing proved its owner gone, but the runtime that held it was replaced, which ends it.
-    expect(await turnState(current, RELEASED)).toBe('interrupted')
-    const { journal } = current.collaboratorsForTests().sessions.get(RELEASED)!
-    expect(journal.submission(`${RELEASED}-queued`)).toMatchObject({ dispatchState: 'rejected' })
-    expect(journal.queuedMessages.list()).toEqual([
-      expect.objectContaining({ body: expect.objectContaining({ role: 'user' }) })
-    ])
-  })
-
-  it('retries a conversion that failed instead of marking it done', async () => {
-    await seedTestAgentSessionRecordStore(root, { records: [record(RELEASED, true)] })
-    await seedScanJournal(root, RELEASED, { queued: true })
-    store = await openTestAgentSessionRecordStore(root)
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    const database = openTestJournalHostDatabase(root)
-    database.db.exec(`
-      CREATE TEMP TRIGGER reject_conversion BEFORE INSERT ON journal_rows
-      WHEN json_extract(NEW.row_json, '$.kind') = 'dispatch'
-        AND json_extract(NEW.row_json, '$.state') = 'rejected'
-      BEGIN SELECT RAISE(ABORT, 'temporary storage failure'); END;
-    `)
-    const current = openHost()
-
-    await current.reconcileRestartLeases()
-    await current.startupSettled()
-    const { reconciliation } = current.collaboratorsForTests()
-    expect(retryOwes(reconciliation, RELEASED)).toBe(true)
-
-    database.db.exec('DROP TRIGGER reject_conversion')
-    await idle(current, [RELEASED])
-
-    expect(await turnState(current, RELEASED)).toBe('interrupted')
-    const { journal } = current.collaboratorsForTests().sessions.get(RELEASED)!
-    expect(journal.submission(`${RELEASED}-queued`)).toMatchObject({ dispatchState: 'rejected' })
-    expect(journal.queuedMessages.list()).toHaveLength(1)
-  })
+const latch = (lease: Partial<AgentSessionRecord['lease']>) => (record: AgentSessionRecord) => ({
+  ...record,
+  lease: { ...record.lease, handoffStage: 'recovering' as const, ...lease }
 })
+
+it('finds what an earlier process left with no fence move and no stored mark, and keeps its send as a card', async () => {
+  await seedTestAgentSessionRecordStore(root, { records: [record(RELEASED, true)] })
+  await seedScanJournal(root, RELEASED, { queued: true })
+  store = await openTestAgentSessionRecordStore(root)
+  host = openScanHost(root, store)
+  const current = host
+  const ended = vi.fn()
+  store.onGenerationEnded(ended)
+
+  await current.reconcileRestartLeases()
+  await current.startupSettled()
+  await idle(current, [RELEASED])
+
+  // Already released: the restart moved nothing and ended no generation.
+  expect(ended).not.toHaveBeenCalled()
+  expect(store.getRecord(RELEASED)?.lease.runtimeFence).toBe(14)
+  // Nothing proved its owner gone, but the runtime that held it was replaced, which ends it.
+  expect(await turnState(current, RELEASED)).toBe('interrupted')
+  const { journal } = current.collaboratorsForTests().sessions.get(RELEASED)!
+  expect(journal.submission(`${RELEASED}-queued`)).toMatchObject({ dispatchState: 'rejected' })
+  expect(journal.queuedMessages.list()).toEqual([
+    expect.objectContaining({ body: expect.objectContaining({ role: 'user' }) })
+  ])
+})
+
+it('opens and writes nothing for a chat whose saved epoch holds no row, and owes it nothing', async () => {
+  // An older build's repair crashed after naming the epoch: nothing durable is there to settle.
+  await seedTestAgentSessionRecordStore(root, { records: [record(RELEASED, true)] })
+  const database = openTestJournalHostDatabase(root)
+  const identity = { sessionId: RELEASED, workspaceId: LOCATION.workspaceId }
+  publishJournalSessionEpoch(database.db, identity, 'empty-epoch')
+  store = await openTestAgentSessionRecordStore(root)
+  const open = vi.spyOn(AgentSessionJournal.prototype, 'open')
+  host = openScanHost(root, store)
+  const current = host
+
+  await current.reconcileRestartLeases()
+  await current.startupSettled()
+
+  expect(retryOwes(current.collaboratorsForTests().reconciliation, RELEASED)).toBe(false)
+  // No retry comes back to it: a fresh epoch held only by a read was a busy loop once.
+  await new Promise((resolve) => setTimeout(resolve, 1_200))
+  expect(open).not.toHaveBeenCalled()
+  expect(readJournalSessionEpoch(database.db, RELEASED)).toBe('empty-epoch')
+})
+
+it.each([
+  ['damaged', '}{'],
+  ['saved by a newer Orca', null]
+] as const)('reads a %s journal once and owes it nothing', async (_why, json) => {
+  await seed([CHAT])
+  const { db } = openTestJournalHostDatabase(root)
+  const epochRow = liveTestJournalRows(db, CHAT).find((row) => row.seq === 1)!
+  const newer = { ...JSON.parse(epochRow.rowJson), v: AGENT_SESSION_JOURNAL_SCHEMA_VERSION + 1 }
+  updateTestJournalRowJson(db, CHAT, 1, json ?? JSON.stringify(newer))
+  const open = vi.spyOn(AgentSessionJournal.prototype, 'open')
+  host = openScanHost(root, store)
+
+  await host.reconcileRestartLeases()
+  await host.startupSettled()
+
+  expect(retryOwes(host.collaboratorsForTests().reconciliation, CHAT)).toBe(false)
+  await pause(1_200)
+  expect(open).toHaveBeenCalledTimes(1)
+})
+
+it("never holds the round for a chat's busy lane: a person's long operation delays no other chat", async () => {
+  const chats = ['chat-aaaaaaa1', 'chat-aaaaaaa2', 'chat-aaaaaaa3']
+  await seed(chats)
+  const started = performance.now()
+  const visits: Record<string, number> = {}
+  const pass = reconciliationPass.runStructuredAgentSessionReconciliationPass
+  vi.spyOn(reconciliationPass, 'runStructuredAgentSessionReconciliationPass').mockImplementation(
+    async (...args) => {
+      visits[args[1]] ??= performance.now() - started
+      return pass(...args)
+    }
+  )
+  host = openScanHost(root, store)
+  // A person's operation holds the first chat's lane for 3 s (a Stop waiting out its deadline).
+  const [busy, ...others] = chats
+  const person = host
+    .collaboratorsForTests()
+    .serialize(busy!, () => new Promise((resolve) => setTimeout(resolve, 3_000)))
+  await host.reconcileRestartLeases()
+  await vi.waitFor(() => expect(Object.keys(visits)).toHaveLength(2), { timeout: 10_000 })
+
+  expect(Math.max(...others.map((id) => visits[id] ?? Infinity))).toBeLessThan(1_500)
+  expect(visits[busy!]).toBeUndefined()
+  // The busy chat is visited once its lane frees.
+  await person
+  await vi.waitFor(() => expect(visits[busy!]).toBeGreaterThan(2_900), { timeout: 10_000 })
+}, 20_000)
+
+it('replays each of 20 closed chats once while a lock refuses round after round', async () => {
+  const chats = Array.from({ length: 20 }, (_, i) => `chat-r${String(i).padStart(6, '0')}`)
+  await seed(chats)
+  let held = true
+  const passes = lockPasses(
+    () => held,
+    () => true
+  )
+  const loads = vi.spyOn(reconciliationLoad, 'loadStructuredAgentSessionForReconciliation')
+  host = openScanHost(root, store)
+  await host.reconcileRestartLeases()
+
+  // Rounds at 0 s, 1 s, 3 s and 5 s, each stopped by the lock.
+  await pause(5_500)
+  expect(passes.mock.calls.length).toBeGreaterThanOrEqual(3)
+  held = false
+  await idle(host, chats)
+
+  expect(loads.mock.calls.length).toBeLessThanOrEqual(20)
+}, 30_000)
+
+it("never signals a restored chat's agent for a latch that came after the restore", async () => {
+  await seed([CHAT, OTHER])
+  const { probeOwner, stopOwnerProcess } = surviving()
+  host = openScanHost(root, store, { probeOwner, stopOwnerProcess })
+  await host.reconcileRestartLeases()
+  await host.restoreReadableSessions([CHAT])
+  await idle(host, [CHAT, OTHER])
+  const probes = probeOwner.mock.calls.length
+
+  // Mid-session its lease latches, its owner alive; another chat's rounds run.
+  const { ownerProcess, reservedSpawnToken } = record(CHAT, false).lease
+  await store.transitionHandoff(
+    CHAT,
+    latch({ ownerProcess, reservedSpawnToken, claimStatus: 'reserved' })
+  )
+  let held = true
+  lockPasses(
+    () => held,
+    (sessionId) => sessionId === OTHER
+  )
+  host.collaboratorsForTests().reconciliation.signal(OTHER)
+  await pause(3_500)
+  held = false
+  await idle(host, [OTHER])
+
+  expect(stopOwnerProcess).not.toHaveBeenCalled()
+  expect(probeOwner).toHaveBeenCalledTimes(probes)
+  expect(store.getRecord(CHAT)?.lease.handoffStage).toBe('recovering')
+}, 30_000)
+
+it('on a read-only store, attempts no store-wide step and still visits the other chats', async () => {
+  await seed([CHAT, OTHER], [CHAT])
+  // A newer Orca wrote the database: a latched lease here stays latched.
+  Object.defineProperty(openTestJournalHostDatabase(root), 'readOnly', { value: true })
+  const { probeOwner, stopOwnerProcess } = surviving()
+  host = openScanHost(root, store, { probeOwner, stopOwnerProcess })
+  await host.reconcileRestartLeases()
+  await host.restoreReadableSessions([CHAT])
+  expect(store.getRecord(CHAT)?.lease.handoffStage).toBe('recovering')
+  const reconcile = vi.spyOn(store, 'reconcileOnRestart')
+  const probes = probeOwner.mock.calls.length
+  const stops = stopOwnerProcess.mock.calls.length
+
+  host.collaboratorsForTests().reconciliation.signal(OTHER)
+  await idle(host, [CHAT, OTHER])
+  await pause(3_500)
+
+  expect(reconcile).not.toHaveBeenCalled()
+  expect(probeOwner).toHaveBeenCalledTimes(probes)
+  expect(stopOwnerProcess).toHaveBeenCalledTimes(stops)
+}, 30_000)
+
+it.each([
+  ['a conflicted claim', { claimStatus: 'conflicted' as const }],
+  [
+    'an owner on another host',
+    {
+      ownerProcess: { hostId: 'other', pid: 12_000, processStartTimeMs: 0, spawnToken: 'spawn' }
+    }
+  ]
+])(
+  'never re-probes %s round after round',
+  async (_name, lease) => {
+    await seed([CHAT, OTHER], [CHAT])
+    const { probeOwner, stopOwnerProcess } = surviving()
+    host = openScanHost(root, store, { probeOwner, stopOwnerProcess })
+    await host.reconcileRestartLeases()
+    expect(store.getRecord(CHAT)?.lease.handoffStage).toBe('recovering')
+    await store.transitionHandoff(CHAT, latch(lease))
+    await host.restoreReadableSessions([CHAT])
+    await idle(host, [CHAT])
+    const probes = probeOwner.mock.calls.length
+
+    // Another chat's rounds, refused by a lock at 0 s, 1 s and 3 s.
+    let held = true
+    lockPasses(
+      () => held,
+      (sessionId) => sessionId === OTHER
+    )
+    host.collaboratorsForTests().reconciliation.signal(OTHER)
+    await pause(3_500)
+    held = false
+    await idle(host, [OTHER])
+
+    expect(probeOwner).toHaveBeenCalledTimes(probes)
+    expect(stopOwnerProcess).not.toHaveBeenCalled()
+    expect(store.getRecord(CHAT)?.lease.handoffStage).toBe('recovering')
+  },
+  30_000
+)
+
+/** A chat whose agent outlived the earlier process, and whose first `locked` reconciles meet a
+ *  lock: its lease reconciles to `recovering`, and only stopping the agent decides it. */
+async function survivingAgent(locked: number) {
+  await seed([CHAT], [CHAT])
+  const reconcile = vi.spyOn(store, 'reconcileOnRestart')
+  for (let index = 0; index < locked; index += 1) {
+    reconcile.mockRejectedValueOnce(busy())
+  }
+  let alive = true
+  const stopOwnerProcess = vi.fn(() => {
+    alive = false
+  })
+  const probeOwner = async (): Promise<AgentSessionOwnerProbe> =>
+    alive ? { outcome: 'identity-matched', matchedOn: ['spawn-token'] } : { outcome: 'pid-absent' }
+  host = openScanHost(root, store, { probeOwner, stopOwnerProcess })
+  return { current: host, stopOwnerProcess }
+}
+
+it("never stops a hidden chat's agent that readers only read, after reconciles a lock refused", async () => {
+  const { current, stopOwnerProcess } = await survivingAgent(2)
+  await current.reconcileRestartLeases()
+  expect(store.getRecord(CHAT)?.lease.unreconciled).toBe(true)
+
+  // Every reader that opens a chat no tab shows.
+  await current.history({ sessionId: CHAT, direction: 'tail' }, 'own-agent') // worker-show
+  await current.journalSnapshot(CHAT) // a mailbox pointer
+  await current.journalSnapshot(CHAT) // the conversation outline
+  await current.journalSnapshot(CHAT) // a naming read
+  await vi.waitFor(() => expect(store.getRecord(CHAT)?.lease.unreconciled).toBe(false), {
+    timeout: 8_000
+  })
+  // Rounds enough for anything that would decide it.
+  await new Promise((resolve) => setTimeout(resolve, 3_000))
+
+  expect(stopOwnerProcess).not.toHaveBeenCalled()
+  expect(store.getRecord(CHAT)?.lease.handoffStage).toBe('recovering')
+}, 20_000)

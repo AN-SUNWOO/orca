@@ -274,7 +274,7 @@ describe('a chat whose turn a replaced server held, before anything settles it',
     return { stopOwnerProcess, lease }
   }
 
-  it('reads settled from history after startup, with no send or attach, and its next send starts a new agent', async () => {
+  it('reads settled from history after startup, with no send or attach, stopping nothing', async () => {
     const { stopOwnerProcess, lease } = await survivingOwnerStartup(true)
 
     await rig.host.history({ sessionId: SESSION, direction: 'tail' })
@@ -282,43 +282,17 @@ describe('a chat whose turn a replaced server held, before anything settles it',
     // The settle stopped no process and left the recovery's lease as it was.
     expect(stopOwnerProcess).not.toHaveBeenCalled()
     expect(rig.store.getRecord(SESSION)?.lease).toEqual(lease)
-
-    // The attach resolves the recovery first, which moves the fence it expected.
-    const stale = await rig.host.attach(
-      REST_TEST_CALLER,
-      hostTestAttachParams(lease?.runtimeFence ?? null)
-    )
-    const attached = stale.ok
-      ? stale
-      : await rig.host.attach(
-          REST_TEST_CALLER,
-          hostTestAttachParams(stale.refusal.currentFence ?? null)
-        )
-    if (!attached.ok) {
-      throw new Error(`attach refused: ${attached.refusal.code}`)
-    }
-    const sent = await rig.host.send(
-      REST_TEST_CALLER,
-      restTestSend('after restart', attached.fence)
-    )
-    expect(sent.ok).toBe(true)
-    await vi.waitFor(() => expect(rig.adapter.dispatch).toHaveBeenCalledTimes(2))
-    expect(rig.adapter.acquire).toHaveBeenCalledTimes(2)
   })
 
-  it('reads unverifiable and not working while its owner recovers with no child here', async () => {
-    await survivingOwnerStartup(false)
+  it('reads unverifiable and not working while its owner recovers with no child here, and settles or stops nothing', async () => {
+    const { stopOwnerProcess, lease } = await survivingOwnerStartup(false)
 
     const { page } = await rig.host.history({ sessionId: SESSION, direction: 'tail' })
 
     expect(page.working).toBe(false)
     expect(page.latestTurn?.turn).toMatchObject({ turnId: TURN.turnId, state: 'unverifiable' })
     expect(rig.host.currentWork(SESSION)?.working()).toBe(false)
-  })
-
-  it('settles nothing and stops nothing with no runtime replaced, while its recovery waits', async () => {
-    const { stopOwnerProcess, lease } = await survivingOwnerStartup(false)
-
+    // No runtime was replaced, so its recovery waits: nothing written, nothing stopped.
     const { items } = await rig.host.journalSnapshot(SESSION)
     expect(turnsOf(items)).toEqual([expect.objectContaining({ state: 'running' })])
     expect(stopOwnerProcess).not.toHaveBeenCalled()

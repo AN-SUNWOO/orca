@@ -293,14 +293,3 @@ export async function startUpHost(
   await host.startupSettled()
   await retryIdle(host.collaboratorsForTests().reconciliation, SESSION)
 }
-
-/** Startup as the runtime runs it: the restart reconcile, then the scan of every chat it begins,
- *  until the host's retry owes it nothing. */
-export async function startUp(
-  current: QueuedMessageTestRig,
-  host: Pick<StructuredAgentSessionHost, 'reconcileRestartLeases' | 'startupSettled'> = current.host
-): Promise<void> {
-  await host.reconcileRestartLeases()
-  await host.startupSettled()
-  await reconciled(current)
-}

@@ -1,7 +1,5 @@
-// After a restart, an owner no adjudication has concluded about (unreconciled: its probe failed;
-// recovering: proven alive, same runtime) on a chat no tab shows. Every host reader reads its
-// leftover turn as the chat shows it: unverifiable, not working. The earlier process's card waits
-// under the restart's pause; a person's own send goes to a start, which decides the owner.
+// After a restart, an owner nobody adjudicated (unreconciled or recovering) on a hidden chat: its
+// turn reads not working, the earlier card waits, and a person's send goes to a start.
 
 import { afterEach, expect, it, vi } from 'vitest'
 import {
@@ -34,8 +32,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
-/** The chat reopened in a new process with its owner undecided; `earlier` is a card the earlier
- *  process queued while it worked. Answers the owner-stop spy and the probe's call count. */
+/** The chat reopened in a new process with its owner undecided, and an earlier card if asked. */
 async function reopened(
   mode: (typeof MODES)[number],
   options: { leftoverTurn: boolean; earlier?: 'message' | 'compact' }
@@ -98,7 +95,7 @@ async function page(current: QueuedMessageTestRig) {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 3_000))
 
 it.each(MODES)(
-  "holds the earlier process's card under the restart's pause while the owner is %s: nothing sent or stopped",
+  "holds the earlier process's card under the restart's pause while the owner is %s: nothing sent or stopped, and @idle reads the chat as it shows",
   async (mode) => {
     const { current, stopOwnerProcess, earlierCard } = await reopened(mode, {
       leftoverTurn: true,
@@ -115,6 +112,13 @@ it.each(MODES)(
     )
     const held = await page(current)
     expect(held.working).toBe(false)
+    // An orchestration @idle check reads the leftover turn as the chat shows it.
+    setStructuredAgentSessionHost(current.host)
+    const record = current.store.getRecord(SESSION)
+    expect((await readStructuredSessionGateFacts(SESSION))?.turnRunning).toBe(false)
+    expect(
+      record && (await structuredWorkerAgentStatus({ sessionId: SESSION, record, lineage: [] }))
+    ).toBe('idle')
     expect(held.nextQueuedMessageId ?? null).toBeNull()
     expect(held.queuedMessages?.map((card) => [card.messageId, card.state])).toEqual([
       [earlierCard, 'waiting']
@@ -176,27 +180,6 @@ it.each(MODES)(
       ok: true,
       value: { submission: { queuedMessageId: earlierCard } }
     })
-  },
-  30_000
-)
-
-it.each(MODES)(
-  "reads the %s owner's leftover turn for @idle as the chat shows it",
-  async (mode) => {
-    const { current } = await reopened(mode, { leftoverTurn: true })
-    setStructuredAgentSessionHost(current.host)
-    const record = current.store.getRecord(SESSION)
-    if (!record) {
-      throw new Error('expected the record')
-    }
-    const { working } = await page(current)
-
-    const facts = await readStructuredSessionGateFacts(SESSION)
-    const status = await structuredWorkerAgentStatus({ sessionId: SESSION, record, lineage: [] })
-
-    expect(working).toBe(false)
-    expect(facts?.turnRunning).toBe(working)
-    expect(status).toBe('idle')
   },
   30_000
 )

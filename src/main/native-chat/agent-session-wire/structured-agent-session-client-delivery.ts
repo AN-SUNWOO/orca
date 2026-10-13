@@ -7,7 +7,8 @@ import type { SubscriberFieldHooks } from './agent-session-subscriber-frame-fiel
 import { AgentSessionSubscribers } from './structured-agent-session-subscribers'
 import {
   structuredQueueSendGate,
-  tryReadQueuePublication
+  tryReadQueuePublication,
+  type QueuedDrainHolds
 } from './structured-agent-session-queued-publication'
 import type {
   StructuredAgentSessionHostDeps,
@@ -38,9 +39,10 @@ export class StructuredAgentSessionClientDelivery {
     now: () => number,
     private readonly deps: () => StructuredAgentSessionHostDeps,
     /** The queued-card drain: every publish wakes it (`activity`: a journal write, which renews the
-     *  idle clock; a generation's end is not one). */
+     *  idle clock; a generation's end is not one), and a card it holds back is never named next. */
     private readonly queue: {
       onJournalActivity: (sessionId: string, activity?: boolean) => void
+      drain: QueuedDrainHolds
     },
     onAgentStarted: (sessionId: string) => void,
     /** A session's child records changed; the chat strip republishes from them. */
@@ -70,7 +72,11 @@ export class StructuredAgentSessionClientDelivery {
       readQueuePublication: (sessionId) =>
         tryReadQueuePublication(
           sessions.get(sessionId)?.journal,
-          structuredQueueSendGate({ store: this.deps().store, sessions }, sessionId)
+          structuredQueueSendGate(
+            { store: this.deps().store, sessions },
+            sessionId,
+            this.queue.drain
+          )
         ),
       readBackgroundTasks,
       onJournalPublished: (sessionId, journal) => this.publishJournal(sessionId, journal),

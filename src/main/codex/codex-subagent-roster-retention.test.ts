@@ -14,10 +14,7 @@ import { CodexSubagentRoster } from './codex-subagent-roster'
 import { MAX_CODEX_SUBAGENT_GROUPS } from './codex-structured-journal-limits'
 import { structuredAgentSessionCurrentWork } from '../native-chat/agent-session-wire/structured-agent-session-current-work'
 import { planStaleStructuredAgentSessionState } from '../native-chat/agent-session-wire/structured-agent-session-stale-state-settlement'
-import {
-  agentSessionLeaseFixture,
-  agentSessionRecordFixture
-} from '../../shared/agent-session-record.test-fixture'
+import { scanRecord } from '../native-chat/agent-session-wire/structured-agent-session-startup-scan.test-fixture'
 
 const THREAD = 'parent'
 const ORIGINAL = 'original'
@@ -339,9 +336,7 @@ describe('a retained running child of a generation that ended', () => {
     const itemId = original?.row.itemId ?? ''
 
     // Generation 1 wrote it; the lease now names generation 13, which is live.
-    const record = agentSessionRecordFixture(
-      agentSessionLeaseFixture({ sessionId: 'session-codex-roster-retention', runtimeFence: 13 })
-    )
+    const record = scanRecord('session-codex-roster-retention', false)
     const work = structuredAgentSessionCurrentWork(s.journal, { record })
     expect(work.isCurrentItem(itemId)).toBe(false)
     expect(work.working()).toBe(false)

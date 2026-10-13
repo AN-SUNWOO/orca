@@ -117,18 +117,14 @@ export function createJournalStoreCollaborators(host: JournalStoreHost): Journal
   const lifecycleBatchAppender = new JournalLifecycleBatchAppender({
     state: host.state,
     cursor: host.cursor,
-    enqueueRows: (plan) => rowWriter.enqueueRows(plan)
+    enqueueRows: (plan, options) => rowWriter.enqueueRows(plan, undefined, options)
   })
   return {
     epochController,
     queuedMessages,
     stopMarks: new JournalStopMarks({ state: host.state }),
-    // Behind the stored fact: settles drafts whose consumed submission the loaded journal shows
-    // refused (a downgrade wrote no hook), then prunes. Bookkeeping, never failing the open.
-    restore: () =>
-      restoreJournalStore(host, { epochController }).then(() =>
-        queuedMessages.repairAndPruneAtOpen()
-      ),
+    // The drafts' repair and prune are startup's (`repairAndPrune`), never this open's.
+    restore: () => restoreJournalStore(host, { epochController }),
     rowWriter,
     submissionWriter: new JournalSubmissionWriter({
       state: host.state,

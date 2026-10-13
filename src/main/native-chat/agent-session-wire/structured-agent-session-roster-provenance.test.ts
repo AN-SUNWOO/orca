@@ -1,6 +1,8 @@
 // A roster row and a background-task row are revised in place across generations, so each entry
 // carries the generation that last observed it. Settling an ended generation settles only the
-// entries it observed; a later live generation's children stay as they are.
+// entries it observed; a later live generation's children stay as they are. And a proof the
+// retry holds for an ended generation revises what an earlier settle of it could
+// only call unverifiable.
 
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -11,6 +13,7 @@ import {
   type AgentJournalItemBody
 } from '../../../shared/agent-session-journal-types'
 import { claudeProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
+import { readAgentJournalTurn } from '../../../shared/agent-session-turn-record'
 import {
   agentSessionLeaseFixture,
   agentSessionRecordFixture
@@ -34,6 +37,7 @@ import type { AgentSessionJournal } from '../agent-session-journal/journal-store
 import { createDeferredStructuredAgentSessionEventSink } from './structured-agent-session-event-sink'
 import { settleStructuredAgentSessionLeftovers } from './structured-agent-session-leftover-settlement'
 import { testEventSinkLogging } from './structured-agent-session-logger-test-support'
+import { backgroundSettlementWrites } from './structured-agent-session-background-writes'
 
 const SESSION = 'orca-session'
 const GROUP = 'claude-session:turn-a'
@@ -197,7 +201,8 @@ describe('settling an ended generation’s roster', () => {
       await settleStructuredAgentSessionLeftovers({
         store: { getRecord: (sessionId) => (sessionId === SESSION ? live : null) },
         sessionId: SESSION,
-        journal
+        journal,
+        writes: backgroundSettlementWrites(journal)
       })
     ).toMatchObject({ ok: true })
 
@@ -214,8 +219,62 @@ describe('settling an ended generation’s roster', () => {
       await settleStructuredAgentSessionLeftovers({
         store: { getRecord: () => live },
         sessionId: SESSION,
-        journal
+        journal,
+        writes: backgroundSettlementWrites(journal)
       })
     ).toEqual({ ok: true, planned: 0 })
+  })
+})
+
+describe('a held proof', () => {
+  it('upgrades a turn an unproven settle left unverifiable to interrupted, once the lease forgot it', async () => {
+    const journal = await openJournal()
+    const deferred = createDeferredStructuredAgentSessionEventSink(testEventSinkLogging())
+    deferred.bind({ journal, fence: ENDED, publish: () => {} })
+    deferred.sink.appendItem(
+      { provider: 'claude', sessionId: 'claude-session', uuid: 'turn' },
+      { kind: 'turn', turnId: 'turn-1', state: 'running', startedAt: 1_000 },
+      { turnScope: AGENT_JOURNAL_THREAD_SCOPE }
+    )
+    await expect(deferred.drained()).resolves.toEqual({ ok: true })
+    deferred.close()
+    const turn = () =>
+      journal
+        .snapshot()
+        .items.map((item) => readAgentJournalTurn(item.body))
+        .find(Boolean)
+    // Released with nothing proving the owner gone: less specific, never wrong.
+    const released = agentSessionRecordFixture(
+      agentSessionLeaseFixture({
+        sessionId: SESSION,
+        runtimeFence: ENDED + 1,
+        claimStatus: 'released',
+        ownerProcess: null,
+        reservedSpawnToken: null
+      })
+    )
+    await settleStructuredAgentSessionLeftovers({
+      store: { getRecord: () => released },
+      sessionId: SESSION,
+      journal,
+      writes: backgroundSettlementWrites(journal)
+    })
+    expect(turn()).toMatchObject({ state: 'unverifiable' })
+
+    // A later probe proved that owner gone; a reservation since cleared the lease's copy, and the
+    // retry holds the proof it was handed.
+    const live = agentSessionRecordFixture(
+      agentSessionLeaseFixture({ sessionId: SESSION, runtimeFence: LIVE })
+    )
+    expect(
+      await settleStructuredAgentSessionLeftovers({
+        store: { getRecord: () => live },
+        sessionId: SESSION,
+        journal,
+        writes: backgroundSettlementWrites(journal),
+        proof: { kind: 'pid-absent', detail: 'owner gone', observedAt: 2_000, ownerFence: ENDED }
+      })
+    ).toMatchObject({ ok: true })
+    expect(turn()).toMatchObject({ state: 'interrupted' })
   })
 })

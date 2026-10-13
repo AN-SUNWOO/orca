@@ -8,7 +8,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
 import type { AgentSessionExecutionLocation } from '../../../shared/agent-session-record'
 import type { AgentSessionStatusSummary } from '../../../shared/agent-session-wire'
-import { agentSessionRecordFixture } from '../../../shared/agent-session-record.test-fixture'
 import {
   isActionableStructuredAgentSessionPrompt,
   runningStructuredAgentSessionTurnId
@@ -37,7 +36,9 @@ import {
   sendText,
   turnState
 } from './structured-agent-session-leftover-settlement.test-fixture'
+import { retryIdle } from './structured-agent-session-retry.test-fixture'
 import { structuredAgentSessionCurrentWork } from './structured-agent-session-current-work'
+import { scanRecord } from './structured-agent-session-startup-scan.test-fixture'
 
 let rig: QueuedMessageTestRig | undefined
 
@@ -224,6 +225,60 @@ describe('a waiting card when the generation ahead of it ends', () => {
       kind: 'submission',
       queuedMessageId: card?.messageId
     })
+    await vi.waitFor(() => expect(current.dispatch).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('an observed exit whose release write failed', () => {
+  it('reads as not Working, and a send is delivered', async () => {
+    rig = await createQueuedMessageTestRig({ restartable: true })
+    const current = rig
+    await current.workingSend()
+    await leaveUnfinishedWork(current, { prompt: true })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const transition = current.store.transitionHandoff.bind(current.store)
+    let refused = 0
+    vi.spyOn(current.store, 'transitionHandoff').mockImplementation((sessionId, change) =>
+      transition(sessionId, (record) => {
+        const next = change(record)
+        // The exit's own release, and the retry's first repair of it.
+        if (refused < 2 && next.lease.claimStatus === 'released') {
+          refused += 1
+          throw new Error('disk full')
+        }
+        return next
+      })
+    )
+    const child = current.host.collaboratorsForTests().sessions.get(SESSION)?.child
+    if (!child?.generation) {
+      throw new Error('expected the live child')
+    }
+
+    await current.host.handleAdapterEvent({
+      type: 'ended',
+      sessionId: SESSION,
+      cause: 'unexpected-exit',
+      reason: 'observed exit',
+      fence: child.fence,
+      acquisitionGeneration: child.generation
+    })
+    await current.host.collaboratorsForTests().serialize(SESSION, async () => {})
+    await retryIdle(current.host.collaboratorsForTests().reconciliation, SESSION)
+
+    expect(refused).toBe(2)
+    // The release never landed: the lease still names the gone child.
+    expect(current.store.getRecord(SESSION)?.lease).toMatchObject({
+      claimStatus: 'live',
+      runtimeFence: child.fence
+    })
+    const work = currentWork(current)
+    expect(work.liveFence).toBeNull()
+    expect(work.working()).toBe(false)
+    expect(work.actionablePromptIds()).toEqual([])
+    expect(current.host.readStatusSummary(SESSION)?.status).not.toBe('working')
+
+    expect((await sendText(current, 'go on').result).ok).toBe(true)
+    await vi.waitFor(() => expect(current.dispatch).toHaveBeenCalledTimes(2))
   })
 })
 
@@ -258,13 +313,13 @@ describe('an owner whose adjudication concludes with no row written', () => {
       submissions: () => [],
       wroteBeforeOpen: () => false
     }
-    const record = agentSessionRecordFixture()
+    const record = scanRecord(SESSION, false)
     const unverifiable = structuredAgentSessionCurrentWork(journal, {
       record: { lease: { ...record.lease, unreconciled: true } },
       child: null
     })
     const released = structuredAgentSessionCurrentWork(journal, {
-      record: { lease: { ...record.lease, claimStatus: 'released' } },
+      record: scanRecord(SESSION, true),
       child: null
     })
 

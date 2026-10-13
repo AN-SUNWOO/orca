@@ -22,8 +22,6 @@ import {
   pinnedAgentSessionLaunchEnv
 } from './structured-agent-session-launch-env'
 import { refuseAgentSessionMutation } from './structured-agent-session-mutation-admission'
-import { settleStaleStructuredAgentSessionState } from './structured-agent-session-dead-generation-settlement'
-import { structuredAgentSessionFailureWordsContext } from './structured-agent-session-send-preparation'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 import type { StructuredAgentSessionProviderChild } from './structured-agent-session-host-types'
 import {
@@ -148,10 +146,7 @@ async function runAttachUnderAbort(
   const probe = await withAgentSessionCreatePhase('probe_owner', recordPhase, () =>
     context.runtimeState.probeOwner(sessionId)
   )
-  // Read before the reserve clears it: how the previous generation ended decides how whatever it
-  // left running is settled.
   const priorRecord = context.deps.store.getRecord(sessionId)
-  const priorDeathEvidence = priorRecord?.lease.deathEvidence ?? null
   const launchDirectory =
     !priorRecord && isFloatingWorkspaceId(params.location.workspaceId)
       ? (options.hostLaunchDirectory ??
@@ -207,9 +202,7 @@ async function runAttachUnderAbort(
       optionRevision: () => context.runtimeState.optionRevisions.current(sessionId),
       ...(options.onAcquisitionFailed ? { onAcquisitionFailed: options.onAcquisitionFailed } : {}),
       openConversation: async (record) => {
-        const conversation = await context.openConversation(record.sessionId, {
-          acquisition: true
-        })
+        const conversation = await context.openConversation(record.sessionId)
         if (!conversation) {
           throw new Error('agent_session_identity_required')
         }
@@ -226,18 +219,6 @@ async function runAttachUnderAbort(
         const eventSink = acquiredOwner
           ? attemptSink
           : (context.runtimeState.currentEventSink(sessionId) ?? attemptSink)
-        if (acquiredOwner) {
-          // Before the drain: the buffered events are the new child's, never a stale row's.
-          await settleStaleStructuredAgentSessionState({
-            journal: attached.journal,
-            sessionId,
-            fence,
-            acquisitionGeneration,
-            deathEvidence: priorDeathEvidence,
-            replaced: context.deps.store.replacedRuntime(sessionId),
-            failureTextContext: structuredAgentSessionFailureWordsContext(priorRecord)
-          })
-        }
         await bindAndDrain(eventSink, attached.journal, fence, (activity) =>
           context.subscribers.publish(sessionId, attached.journal, activity)
         )

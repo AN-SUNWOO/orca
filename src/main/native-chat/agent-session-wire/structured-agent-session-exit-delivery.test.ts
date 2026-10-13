@@ -26,6 +26,7 @@ import {
 } from './structured-agent-session-queued-message-rig.test-fixture'
 import { HOST_TEST_SESSION as SESSION } from './structured-agent-session-host-test-data'
 import { isResumableStructuredAgentSessionRecord } from './structured-agent-session-resume-eligibility'
+import { retryOwes } from './structured-agent-session-retry.test-fixture'
 
 let rig: QueuedMessageTestRig | undefined
 
@@ -58,15 +59,19 @@ function refuseReleases(current: QueuedMessageTestRig): () => number {
   vi.spyOn(console, 'warn').mockImplementation(() => undefined)
   const transition = current.store.transitionHandoff.bind(current.store)
   let refused = 0
-  vi.spyOn(current.store, 'transitionHandoff').mockImplementation((sessionId, change) =>
-    transition(sessionId, (record) => {
-      const next = change(record)
-      if (next.lease.claimStatus === 'released') {
-        refused += 1
-        throw new Error('disk full')
-      }
-      return next
-    })
+  vi.spyOn(current.store, 'transitionHandoff').mockImplementation((sessionId, change, options) =>
+    transition(
+      sessionId,
+      (record) => {
+        const next = change(record)
+        if (next.lease.claimStatus === 'released') {
+          refused += 1
+          throw new Error('disk full')
+        }
+        return next
+      },
+      options
+    )
   )
   return () => refused
 }
@@ -127,8 +132,12 @@ describe('an exit that settles and releases cleanly', () => {
     await current.host.collaboratorsForTests().serialize(SESSION, async () => {})
     await eventually(async () => expect(await current.handoff(draftId)).toBeDefined())
 
-    // Inside one turn of the chat's lane, no backoff.
+    // Inside one turn of the chat's lane, no backoff; the retry's visit once the lane frees finds
+    // nothing left.
     expect(Date.now() - started).toBeLessThan(250)
+    await eventually(() =>
+      expect(retryOwes(current.host.collaboratorsForTests().reconciliation, SESSION)).toBe(false)
+    )
   })
 })
 
@@ -157,6 +166,7 @@ describe('each exit', () => {
     const before = events.length
 
     await exitChild(current)
+    await current.host.collaboratorsForTests().reconciliation.attempted(SESSION)
 
     // Every frame changes what a client reads: none repeats a view it already has.
     let state = EMPTY_STRUCTURED_AGENT_SESSION

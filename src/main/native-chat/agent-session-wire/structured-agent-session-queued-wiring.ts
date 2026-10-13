@@ -40,6 +40,8 @@ export function wireStructuredAgentSessionQueuedMessages(
     currentWork: (sessionId) =>
       hostStructuredAgentSessionCurrentWork({ store: context().deps.store, sessions }, sessionId),
     wakeDelivery: (sessionId) => context().wakeDelivery(sessionId),
+    retry: () => context().retry,
+    publish: (sessionId, journal) => context().publish(sessionId, journal),
     // Read lazily, like the rest of this wiring: the host's deps are not assigned yet.
     logger: deferredStructuredAgentSessionLogger(() => context().deps.logger)
   })
@@ -85,11 +87,18 @@ export function wireStructuredAgentSessionQueuedMessages(
     queuedMessageSend: (
       caller: StructuredAgentSessionCaller,
       params: Parameters<typeof sendQueuedStructuredAgentMessage>[2]
-    ) => sendQueuedStructuredAgentMessage(context(), caller, params),
+    ) => {
+      // A person's Send now moves the card on: a send the drain was retrying starts fresh.
+      drain.cardMoved(params.envelope.sessionId)
+      return sendQueuedStructuredAgentMessage(context(), caller, params)
+    },
     queuedMessageDelete: (
       caller: StructuredAgentSessionCaller,
       params: Parameters<typeof deleteQueuedStructuredAgentMessage>[2]
-    ) => deleteQueuedStructuredAgentMessage(context(), caller, params),
+    ) => {
+      drain.cardMoved(params.envelope.sessionId)
+      return deleteQueuedStructuredAgentMessage(context(), caller, params)
+    },
     queuedMessagesResume: (
       caller: StructuredAgentSessionCaller,
       params: Parameters<typeof resumeStructuredAgentQueue>[2]

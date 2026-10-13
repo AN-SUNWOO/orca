@@ -65,6 +65,7 @@ function makeUnifiedTab(args: {
   worktreeId: string
   contentType: Tab['contentType']
   agentSessionAgent?: Tab['agentSessionAgent']
+  sleptAt?: number
 }): Tab {
   return {
     id: args.id,
@@ -77,7 +78,8 @@ function makeUnifiedTab(args: {
     color: null,
     sortOrder: 0,
     createdAt: 0,
-    ...(args.agentSessionAgent ? { agentSessionAgent: args.agentSessionAgent } : {})
+    ...(args.agentSessionAgent ? { agentSessionAgent: args.agentSessionAgent } : {}),
+    ...(args.sleptAt !== undefined ? { sleptAt: args.sleptAt } : {})
   }
 }
 
@@ -156,6 +158,32 @@ describe('useIsSleepingWorktree', () => {
       }
     }
 
+    expect(renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} />)).toBe('<span>false</span>')
+  })
+
+  it('reads a slept chat as asleep until its agent runs again', () => {
+    const worktreeId = 'repo1::/path/wt1'
+    const paneKey = makePaneKey('chat-1', LEAF_ID)
+    const chat = makeUnifiedTab({
+      id: 'chat-1',
+      worktreeId,
+      contentType: 'agent-session',
+      agentSessionAgent: 'claude',
+      sleptAt: 1_500
+    })
+    const doneRow = makeAgentStatusEntry({ paneKey, state: 'done', worktreeId })
+    mockState = {
+      ...mockState,
+      unifiedTabsByWorktree: { [worktreeId]: [chat] },
+      agentStatusByPaneKey: { [paneKey]: doneRow }
+    }
+    expect(renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} />)).toBe('<span>true</span>')
+
+    // A send from another client starts the agent; its turn ends but the process lives on.
+    mockState = {
+      ...mockState,
+      agentStatusByPaneKey: { [paneKey]: { ...doneRow, structuredHostOwned: true } }
+    }
     expect(renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} />)).toBe('<span>false</span>')
   })
 

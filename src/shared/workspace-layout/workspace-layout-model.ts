@@ -34,6 +34,7 @@ type LayoutTabFields = {
   viewMode?: 'terminal' | 'chat'
   isPreview?: boolean
   agentSessionAgent?: AgentType
+  sleptAt?: number
 }
 
 /** Creation fields only a terminal tab carries. */

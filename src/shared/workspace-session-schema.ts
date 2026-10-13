@@ -160,6 +160,7 @@ const tabSchema = z.object({
   createdAt: z.number(),
   // Why: corrupt optional recency must not discard the whole persisted tab.
   lastFocusedAt: z.number().finite().nonnegative().optional().catch(undefined),
+  sleptAt: z.number().finite().nonnegative().optional().catch(undefined),
   isPreview: z.boolean().optional(),
   isPinned: z.boolean().optional(),
   // Why: persist the per-tab native-chat view mode so 'chat' survives reload /

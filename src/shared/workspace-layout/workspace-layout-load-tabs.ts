@@ -30,7 +30,8 @@ function contentFields(entry: Tab) {
       'isPinned',
       'viewMode',
       'isPreview',
-      'agentSessionAgent'
+      'agentSessionAgent',
+      'sleptAt'
     ]),
     ...(entry.generatedLabel !== undefined ? { generatedTitle: entry.generatedLabel } : {})
   }

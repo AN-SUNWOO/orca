@@ -18,6 +18,7 @@ import {
 import { findKnownWorktreeById } from '../listing/detected-worktree-meta'
 import { resolveActivatedWorktreeSurface } from './active-worktree-surface'
 import { clearWorktreeSleepIntent } from '@/lib/worktree-sleep-intent'
+import { withWorkspaceChatsSleptAt } from '../../tabs/tabs-chat-sleep-actions'
 import {
   pendingActivationTerminalPrepCancels,
   shouldDeferActivationTerminalPrep
@@ -116,6 +117,12 @@ export function createSetActiveWorktree(
         allDead && worktreeId != null
           ? markWorktreeTabsForActivationSpawn(s, worktreeId, { isWakeable, bumpGeneration: true })
           : {}
+      // Why: any activation wakes the workspace's chats, as it does its terminals.
+      const nextUnifiedTabs = withWorkspaceChatsSleptAt(
+        s.unifiedTabsByWorktree,
+        worktreeId,
+        undefined
+      )
 
       const nextActiveTabTypeByWorktree =
         s.activeTabTypeByWorktree[worktreeId] === activeTabType
@@ -134,6 +141,7 @@ export function createSetActiveWorktree(
         nextActiveTabTypeByWorktree !== s.activeTabTypeByWorktree ||
         nextEverActivated !== s.everActivatedWorktreeIds ||
         nextActiveRepoId !== s.activeRepoId ||
+        nextUnifiedTabs !== s.unifiedTabsByWorktree ||
         allDead ||
         reconciliationChanged ||
         stateTransition !== undefined
@@ -159,7 +167,10 @@ export function createSetActiveWorktree(
         rightSidebarExplorerView: restoredRightSidebarExplorerView,
         activeTabId,
         everActivatedWorktreeIds: nextEverActivated,
-        ...tabsByWorktreeUpdate
+        ...tabsByWorktreeUpdate,
+        ...(nextUnifiedTabs !== s.unifiedTabsByWorktree
+          ? { unifiedTabsByWorktree: nextUnifiedTabs }
+          : {})
       }
     })
 

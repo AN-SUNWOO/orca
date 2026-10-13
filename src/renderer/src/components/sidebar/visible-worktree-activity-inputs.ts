@@ -40,12 +40,12 @@ export const EMPTY_STRUCTURED_CHAT_WORKTREE_IDS: ReadonlySet<string> = new Set()
 const structuredChatWorktreeIds = new WeakMap<Record<string, Tab[]>, ReadonlySet<string>>()
 
 /**
- * Worktree ids holding a structured chat tab.
+ * Worktree ids holding a structured chat that Sleep has not put to rest.
  *
- * Why existence rather than a live provider child: that child is held only while the chat's pane is
- * visible and is evicted after it sits idle unheld, so keying on it would flip a workspace to sleeping
- * after any worktree switch and report a process recycle the user never sees. The chat itself — its
- * transcript, and its ability to take the next send — outlives the child.
+ * Why the chat rather than its provider child: the child starts only on a send and the host's idle
+ * sweep stops it, so keying on it would put every quiet chat workspace to sleep after a restart or a
+ * pause. Only Sleep does that; activating the workspace clears the mark, and a child running anyway
+ * keeps it awake through the live-agent term.
  */
 export function getWorktreeIdsWithStructuredChat(
   unifiedTabsByWorktree: Record<string, Tab[]> | null | undefined
@@ -60,7 +60,9 @@ export function getWorktreeIdsWithStructuredChat(
     return cached
   }
   const worktreeIds = new Set(
-    getStructuredAgentSessionTabs(unifiedTabsByWorktree).map((tab) => tab.worktreeId)
+    getStructuredAgentSessionTabs(unifiedTabsByWorktree)
+      .filter((tab) => tab.sleptAt === undefined)
+      .map((tab) => tab.worktreeId)
   )
   structuredChatWorktreeIds.set(unifiedTabsByWorktree, worktreeIds)
   return worktreeIds

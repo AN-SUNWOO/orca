@@ -6,6 +6,7 @@ import { createTabsFocusActions } from './tabs-focus-actions'
 import { createTabsCloseActions } from './tabs-close-actions'
 import { createTabsBulkCloseActions } from './tabs-bulk-close-actions'
 import { createTabsLabelActions } from './tabs-label-actions'
+import { createTabsChatSleepActions } from './tabs-chat-sleep-actions'
 import { createTabsGroupActions } from './tabs-group-actions'
 import { createTabsMoveActions } from './tabs-move-actions'
 import { createTabsDropActions } from './tabs-drop-actions'
@@ -23,6 +24,7 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
   ...createTabsCloseActions(set, get),
   ...createTabsBulkCloseActions(set, get),
   ...createTabsLabelActions(set, get),
+  ...createTabsChatSleepActions(set),
   ...createTabsGroupActions(set, get),
   ...createTabsMoveActions(set, get),
   ...createTabsDropActions(set, get),

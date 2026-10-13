@@ -8,6 +8,8 @@ import {
   SESSION
 } from '../native-chat/agent-session-timeline/provider-timeline-assembler-test-support'
 import {
+  GROK,
+  GROK_CONFIG_OPTIONS,
   openAcpAdapterRig,
   PROVIDER_SESSION,
   replyChunk,
@@ -16,6 +18,20 @@ import {
 
 afterEach(async () => {
   await closeProviderTimelineRigs()
+})
+
+it('rejects a missing or mismatched permission mode and closes its child once', async () => {
+  const permissionModeConfig = { configId: 'model', ask: 'grok-4.6', full: 'grok-4.7' }
+  for (const configOptions of [[], GROK_CONFIG_OPTIONS]) {
+    const rig = await openAcpAdapterRig({
+      spec: { ...GROK, permissionModeConfig },
+      script: (agent) =>
+        agent.on('session/set_config_option', (frame) => agent.reply(frame, { configOptions }))
+    })
+    await expect(rig.acquire()).rejects.toThrow('Permission mode could not be confirmed')
+    expect(rig.child().closes).toBe(1)
+    expect(rig.child().exited).toBe(true)
+  }
 })
 
 const question = (toolCallId: string) => ({

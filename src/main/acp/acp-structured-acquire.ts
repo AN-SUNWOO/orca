@@ -263,11 +263,12 @@ export async function acquireAcpStructuredSession(input: {
     const mode = spec.permissionModeConfig
     if (mode) {
       // Unlike a saved pick, a refusal fails the start: the session would run another posture.
-      const set = await connection.setConfigOption(
-        mode.configId,
-        launch.fullAccess ? mode.full : mode.ask
-      )
-      options.adoptConfigOptions(set.configOptions)
+      const requested = launch.fullAccess ? mode.full : mode.ask
+      const { configOptions } = await connection.setConfigOption(mode.configId, requested)
+      if (configOptions.find((option) => option.id === mode.configId)?.currentValue !== requested) {
+        throw new Error('Permission mode could not be confirmed')
+      }
+      options.adoptConfigOptions(configOptions)
     }
     const process = await identity.read(pid)
     const link: AgentSessionProviderHandleLink = {

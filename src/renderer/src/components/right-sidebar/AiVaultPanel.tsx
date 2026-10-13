@@ -1,15 +1,16 @@
-import { useCallback, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref
+} from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
-import {
-  useActiveRepo,
-  useActiveWorktree,
-  useActiveWorktreeId,
-  useAllWorktrees,
-  useProjectHostSetupProjection,
-  useRepos
-} from '@/store/selectors'
+import { useAllWorktrees, useProjectHostSetupProjection, useRepos } from '@/store/selectors'
 import { useAiVaultPanelSessions } from './ai-vault-session-filters'
 import {
   deriveAiVaultScopeSessionPaths,
@@ -37,7 +38,6 @@ import { AiVaultSessionVirtualList } from './AiVaultSessionVirtualList'
 import { useAiVaultSessionRefresh } from './ai-vault-session-refresh'
 import { useAiVaultPanelHostScope } from './ai-vault-host-scope'
 import { useAiVaultPanelScope } from './use-ai-vault-panel-scope'
-import { useAiVaultSearchFocusRequest } from './use-ai-vault-search-focus-request'
 import { usePersistedAiVaultViewOptions } from './use-persisted-ai-vault-view-options'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
 import { AiVaultScanIssueBanners } from './AiVaultScanIssueBanners'
@@ -46,10 +46,42 @@ import { useAiVaultPanelSearch } from './use-ai-vault-search'
 import { aiVaultSearchScopeIdentity } from './ai-vault-search-scope-identity'
 import { AiVaultPanelSearch } from './AiVaultPanelSearch'
 import { useAiVaultPanelSessionResume } from './use-ai-vault-panel-session-resume'
-export default function AiVaultPanel(): React.JSX.Element {
-  const activeWorktreeId = useActiveWorktreeId()
-  const activeWorktree = useActiveWorktree()
-  const activeRepo = useActiveRepo()
+import type { AiVaultScope } from '../../../../shared/ai-vault-types'
+import type { AiVaultPanelWorkspace } from './ai-vault-panel-workspace'
+import { useAiVaultPanelWorkspace } from './use-ai-vault-panel-workspace'
+import type { AiVaultSessionListKeyboard } from './use-ai-vault-session-keyboard-navigation'
+
+export type AiVaultPanelHandle = {
+  /** Focuses the search box, first switching scope when one is given. */
+  focusSearch: (scope?: AiVaultScope) => void
+  /** Clears a non-empty search; false when there was nothing to clear. */
+  clearSearch: () => boolean
+}
+
+export type AiVaultPanelProps = {
+  ref?: Ref<AiVaultPanelHandle>
+  /** Absent means the active workspace. */
+  workspace?: AiVaultPanelWorkspace
+  /** Read once, at mount. */
+  initialQuery?: string
+  headerAction?: ReactNode
+  /** Fires when a switch to an open session or a hand-off succeeds, which may leave the visible tab
+   *  as it was; its presence also turns on arrow/Enter row keys. */
+  onSessionOpened?: () => void
+}
+
+export default function AiVaultPanel({
+  ref,
+  workspace,
+  initialQuery = '',
+  headerAction,
+  onSessionOpened
+}: AiVaultPanelProps): React.JSX.Element {
+  const {
+    workspaceId: activeWorktreeId,
+    worktree: activeWorktree,
+    repo: activeRepo
+  } = useAiVaultPanelWorkspace(workspace)
   const repos = useRepos()
   const allWorktrees = useAllWorktrees()
   const projectHostSetupProjection = useProjectHostSetupProjection()
@@ -66,7 +98,10 @@ export default function AiVaultPanel(): React.JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const agentCmdOverrides = settings?.agentCmdOverrides
   const paneActions = useAiVaultOriginalPaneActions()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
+  const [focusSearchRequestId, setFocusSearchRequestId] = useState(0)
+  const listKeyboardRef = useRef<AiVaultSessionListKeyboard>(null)
+  const keyboardRows = onSessionOpened !== undefined
   // Why: scope depends on current workspace/project availability, so only stable view options persist.
   const {
     agents,
@@ -198,9 +233,21 @@ export default function AiVaultPanel(): React.JSX.Element {
     )
   }, [])
 
-  // Settings asks for "everything, ready to type".
-  const focusSearchRequestId = useAiVaultSearchFocusRequest(
-    useCallback(() => handleScopeChange('all'), [handleScopeChange])
+  useImperativeHandle(
+    ref,
+    () => ({
+      focusSearch: (nextScope) => {
+        if (nextScope) {
+          handleScopeChange(nextScope)
+        }
+        setFocusSearchRequestId((id) => id + 1)
+      },
+      clearSearch: () => {
+        setQuery('')
+        return query !== ''
+      }
+    }),
+    [handleScopeChange, query]
   )
 
   const toggleGroup = useCallback((key: string) => {
@@ -218,7 +265,20 @@ export default function AiVaultPanel(): React.JSX.Element {
   const requestDelete = useAiVaultSessionDeleteAction({ refresh, onDeleted: search.onDeleted })
 
   return (
-    <div className="@container/ai-vault flex h-full min-h-0 flex-col bg-sidebar">
+    <div
+      className="@container/ai-vault flex h-full min-h-0 flex-col bg-sidebar outline-none"
+      // Why: a clicked row cannot take focus, so it lands here and the row keys keep working.
+      tabIndex={keyboardRows ? -1 : undefined}
+      onKeyDown={
+        keyboardRows
+          ? (event) => {
+              if (event.target === event.currentTarget) {
+                listKeyboardRef.current?.handleKeyDown(event)
+              }
+            }
+          : undefined
+      }
+    >
       <AiVaultPanelHeader
         query={query}
         searching={searching}
@@ -235,6 +295,10 @@ export default function AiVaultPanel(): React.JSX.Element {
         sessionLimit={sessionLimit}
         adjustmentCount={viewAdjustmentCount}
         focusSearchRequestId={focusSearchRequestId}
+        headerAction={headerAction}
+        onSearchKeyDown={
+          keyboardRows ? (event) => listKeyboardRef.current?.handleKeyDown(event) : undefined
+        }
         onQueryChange={setQuery}
         onScopeChange={handleScopeChange}
         onExecutionHostScopeChange={onExecutionHostScopeChange}
@@ -292,7 +356,15 @@ export default function AiVaultPanel(): React.JSX.Element {
             getSessionLiveState={paneActions.getSessionLiveState}
             getWorktreeInfo={getSessionWorktreeInfo}
             onToggleGroup={toggleGroup}
-            onJumpToOriginalPane={paneActions.jumpToOriginalPane}
+            keyboardRef={keyboardRows ? listKeyboardRef : undefined}
+            query={query}
+            onJumpToOriginalPane={(session) =>
+              void paneActions.jumpToOriginalPane(session).then((opened) => {
+                if (opened) {
+                  onSessionOpened?.()
+                }
+              })
+            }
             onJumpToWorktree={paneActions.jumpToWorktree}
             onResume={launchActions.handleResume}
             getSessionResumeInChat={getSessionResumeInChat}
@@ -335,6 +407,7 @@ export default function AiVaultPanel(): React.JSX.Element {
           open
           request={launchActions.continuationRequest}
           onOpenChange={launchActions.handleContinuationDialogOpenChange}
+          onStarted={onSessionOpened}
         />
       )}
     </div>

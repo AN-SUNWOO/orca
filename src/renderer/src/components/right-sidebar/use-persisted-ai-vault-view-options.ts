@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import {
   AI_VAULT_AGENTS,
   type AiVaultAgent,
@@ -17,6 +17,42 @@ import type { AiVaultSessionLimit } from './ai-vault-session-limit'
 
 type AiVaultViewOptionsUpdate = (current: AiVaultViewOptions) => AiVaultViewOptions
 
+// Why one copy: the sidebar and the /resume dialog can both be mounted, and each writing its own
+// copy would undo the other's change. It is read again once no panel is mounted.
+let mountedOptions: AiVaultViewOptions | null = null
+const listeners = new Set<() => void>()
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+    if (listeners.size === 0) {
+      mountedOptions = null
+    }
+  }
+}
+
+function getOptions(): AiVaultViewOptions {
+  mountedOptions ??= readAiVaultViewOptions()
+  return mountedOptions
+}
+
+function updateOptions(update: AiVaultViewOptionsUpdate): void {
+  const current = getOptions()
+  const candidate = update(current)
+  if (candidate === current) {
+    return
+  }
+  // Why: setters map valid state to valid state, so persist the candidate directly.
+  // Re-normalizing here would re-allocate disabledAgents on every sort/group change and
+  // needlessly recompute the session filter; writeAiVaultViewOptions still normalizes what it stores.
+  mountedOptions = candidate
+  writeAiVaultViewOptions(candidate)
+  for (const listener of listeners) {
+    listener()
+  }
+}
+
 export function usePersistedAiVaultViewOptions(): {
   agents: AiVaultAgent[]
   sort: AiVaultSort
@@ -33,41 +69,26 @@ export function usePersistedAiVaultViewOptions(): {
   setAllAgentsEnabled: (enabled: boolean) => void
   resetViewOptions: () => void
 } {
-  const [options, setOptions] = useState<AiVaultViewOptions>(() => readAiVaultViewOptions())
-  // Why: menu actions may batch before a render, so every persistence write must build on
-  // the immediately preceding action instead of the last rendered options.
-  const optionsRef = useRef(options)
-
-  const updateOptions = useCallback((update: AiVaultViewOptionsUpdate) => {
-    const current = optionsRef.current
-    const candidate = update(current)
-    if (candidate === current) {
-      return
-    }
-    // Why: setters map valid state to valid state, so persist the candidate directly.
-    // Re-normalizing here would re-allocate disabledAgents on every sort/group change and
-    // needlessly recompute the session filter; writeAiVaultViewOptions still normalizes what it stores.
-    optionsRef.current = candidate
-    setOptions(candidate)
-    writeAiVaultViewOptions(candidate)
-  }, [])
+  // Why: menu actions may batch before a render, so every write builds on the module copy,
+  // which the preceding action already updated, instead of the last rendered options.
+  const options = useSyncExternalStore(subscribe, getOptions)
 
   const setSort = useCallback(
     (sort: AiVaultSort) =>
       updateOptions((current) => (current.sort === sort ? current : { ...current, sort })),
-    [updateOptions]
+    []
   )
   const setSearchSort = useCallback(
     (searchSort: AiVaultSearchSort) =>
       updateOptions((current) =>
         current.searchSort === searchSort ? current : { ...current, searchSort }
       ),
-    [updateOptions]
+    []
   )
   const setGroup = useCallback(
     (group: AiVaultGroup) =>
       updateOptions((current) => (current.group === group ? current : { ...current, group })),
-    [updateOptions]
+    []
   )
   const setHideEmptySessions = useCallback(
     (hideEmptySessions: boolean) =>
@@ -76,49 +97,43 @@ export function usePersistedAiVaultViewOptions(): {
           ? current
           : { ...current, hideEmptySessions }
       ),
-    [updateOptions]
+    []
   )
   const setSessionLimit = useCallback(
     (sessionLimit: AiVaultSessionLimit) =>
       updateOptions((current) =>
         current.sessionLimit === sessionLimit ? current : { ...current, sessionLimit }
       ),
-    [updateOptions]
+    []
   )
-  const setAgentEnabled = useCallback(
-    (agent: AiVaultAgent, enabled: boolean) => {
-      updateOptions((current) => {
-        const isDisabled = current.disabledAgents.includes(agent)
-        if (enabled === !isDisabled) {
-          return current
-        }
-        // Why: allow zero enabled agents so Clear + re-check one agent is a two-step filter.
-        const disabledAgents = enabled
-          ? current.disabledAgents.filter((entry) => entry !== agent)
-          : [...current.disabledAgents, agent]
-        return { ...current, disabledAgents }
-      })
-    },
-    [updateOptions]
-  )
-  const setAllAgentsEnabled = useCallback(
-    (enabled: boolean) => {
-      updateOptions((current) => {
-        const disabledAgents = enabled ? [] : [...AI_VAULT_AGENTS]
-        if (
-          disabledAgents.length === current.disabledAgents.length &&
-          disabledAgents.every((agent) => current.disabledAgents.includes(agent))
-        ) {
-          return current
-        }
-        return { ...current, disabledAgents }
-      })
-    },
-    [updateOptions]
-  )
+  const setAgentEnabled = useCallback((agent: AiVaultAgent, enabled: boolean) => {
+    updateOptions((current) => {
+      const isDisabled = current.disabledAgents.includes(agent)
+      if (enabled === !isDisabled) {
+        return current
+      }
+      // Why: allow zero enabled agents so Clear + re-check one agent is a two-step filter.
+      const disabledAgents = enabled
+        ? current.disabledAgents.filter((entry) => entry !== agent)
+        : [...current.disabledAgents, agent]
+      return { ...current, disabledAgents }
+    })
+  }, [])
+  const setAllAgentsEnabled = useCallback((enabled: boolean) => {
+    updateOptions((current) => {
+      const disabledAgents = enabled ? [] : [...AI_VAULT_AGENTS]
+      if (
+        disabledAgents.length === current.disabledAgents.length &&
+        disabledAgents.every((agent) => current.disabledAgents.includes(agent))
+      ) {
+        return current
+      }
+      return { ...current, disabledAgents }
+    })
+  }, [])
   const resetViewOptions = useCallback(
     () => updateOptions(() => createDefaultAiVaultViewOptions()),
-    [updateOptions]
+    []
   )
 
   const agents = useMemo(

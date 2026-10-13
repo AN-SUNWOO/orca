@@ -43,6 +43,9 @@ const AddProjectFromFolderDialog = lazy(
   () => import('../components/sidebar/AddProjectFromFolderDialog')
 )
 const ProjectAddedDialog = lazy(() => import('../components/sidebar/ProjectAddedDialog'))
+const AiVaultSessionHistoryDialog = lazy(
+  () => import('../components/right-sidebar/AiVaultSessionHistoryDialog')
+)
 const DeleteWorktreeDialog = lazy(() => import('../components/sidebar/DeleteWorktreeDialog'))
 const PreservedBranchBatchReviewModal = lazy(
   () => import('../components/sidebar/PreservedBranchBatchReviewModal')
@@ -218,6 +221,12 @@ export function AppRootSurfaces(props: {
         {activeModal === 'project-added' ? (
           <ModalBoundary boundaryId="modal.project-added" resetKey>
             <ProjectAddedDialog />
+          </ModalBoundary>
+        ) : null}
+        {/* Root-hosted: inside a chat, its React events would reach the chat's capture handlers. */}
+        {activeModal === 'agent-session-history' ? (
+          <ModalBoundary boundaryId="modal.agent-session-history" resetKey>
+            <AiVaultSessionHistoryDialog />
           </ModalBoundary>
         ) : null}
       </Suspense>

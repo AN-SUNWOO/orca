@@ -296,16 +296,15 @@ const NATIVE_CACHE_FILES = new Set([
   'config/scripts/zip-extractor-command.mjs',
   'src/shared/zip-extractor-command.ts',
   'config/scripts/shared-electron-dist-cache.mjs',
-  'config/scripts/space-sharing-copy.mjs',
-  'native/windows-registry/src/addon.cc',
-  'native/windows-registry/binding.gyp',
-  'native/windows-registry/package.json',
-  'native/windows-registry/index.js'
+  'config/scripts/space-sharing-copy.mjs'
 ])
 
 const NATIVE_CACHE_PREFIXES = [
   'config/patches/node-pty@',
-  'config/patches/@vscode__windows-process-tree'
+  'config/patches/@vscode__windows-process-tree',
+  // The vendored addons' sources: build/ and bin/ beside them are ignored, so nothing else lands here.
+  'native/windows-registry/',
+  'native/windows-security/'
 ]
 
 const SHARED_PACKAGE_PREFIXES = [
@@ -386,6 +385,7 @@ const WINDOWS_PACKAGE_TESTS = [
   'config/scripts/verify-packaged-windows-agent-hook.test.mjs',
   'config/scripts/script-module-dependencies.test.mjs',
   'src/main/windows-registry-addon.test.ts',
+  'src/shared/windows-security-addon.win32.test.ts',
   'src/main/providers/windows-conpty-wide-char-duplication.node-pty.test.ts',
   'src/main/providers/pty-repaint-wide-char-buffer.node-pty.test.ts',
   'src/shared/__tests__/process-host/windows-command-line.win32.test.ts',
@@ -585,7 +585,7 @@ function jobDetector(job) {
       return (files) =>
         files.some(
           (file) =>
-            file !== 'src/main/codex/codex-app-server-client.test.ts' &&
+            !/^src\/main\/codex\/codex-app-server-(client|session)\.test\.ts(?!.)/s.test(file) &&
             matchesPrefix(file, CODEX_INDEX_HEAL_CONTRACT_PREFIXES)
         )
     case 'xterm_patch_sync':

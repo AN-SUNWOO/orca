@@ -48,7 +48,7 @@
     "build:orcad": "pnpm run build:packages && node config/scripts/build-orcad-node.mjs",
     "build:orcad-template": "pnpm run build:packages && node config/scripts/build-orcad-template.mjs",
     "build:orcad-prebuilds": "pnpm run build:packages && node config/scripts/build-orcad-prebuilds.mjs",
-    "smoke:orcad-terminal": "node config/scripts/ensure-native-runtime.mjs --runtime=node && pnpm run build:cli && pnpm run build:orcad && node config/scripts/runtime-serve-terminal-smoke.mjs --target orcad",
+    "smoke:orcad-terminal": "node config/scripts/ensure-native-runtime.mjs --runtime=node && pnpm run build:orcad && node config/scripts/runtime-serve-terminal-smoke.mjs --target orcad",
     "smoke:serve-terminal": "node config/scripts/runtime-serve-terminal-smoke.mjs",
     "check:feature-wall-assets": "node config/scripts/check-feature-wall-assets.mjs",
     "generate:rpc-params-catalog": "node config/scripts/generate-rpc-params-catalog.mjs",
@@ -335,6 +335,7 @@
   },
   "optionalDependencies": {
     "@orca/windows-registry": "workspace:*",
+    "@orca/windows-security": "workspace:*",
     "@vscode/windows-process-tree": "0.8.0",
     "sherpa-onnx-darwin-arm64": "1.12.37",
     "sherpa-onnx-darwin-x64": "1.12.37",

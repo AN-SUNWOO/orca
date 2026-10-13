@@ -18,7 +18,7 @@ import {
   resolveAutomationWorkspaceProvenance
 } from '../../../automations/workspace-provenance'
 import type { AgentLaunchWorkspaceFactory } from '../../../agent-launch/agent-launch-surface-factories'
-import { combineLaunchWarnings } from '../../../agent-launch/agent-launch-executor'
+import { combineLaunchWarnings } from '../../../agent-launch/agent-launch-warnings'
 import type { RpcContext } from '../core'
 import { resolveRpcWorkspaceCreatorProvenance } from '../workspace-creator-context'
 import { buildManagedWorktreeCreateArgs } from './worktree-create-args'
@@ -48,7 +48,8 @@ export function agentLaunchWorkspaceFactory(
       cwd,
       launchSource,
       paneKey,
-      options
+      options,
+      accountEnv
     }) => {
       const startupLaunchPreferences = toAgentLaunchPreferences(options)
       let promptRodeLaunchCommand = false
@@ -96,6 +97,7 @@ export function agentLaunchWorkspaceFactory(
           ...(launchSource ? { startupLaunchSource: launchSource } : {}),
           ...(paneKey ? { startupPaneKey: paneKey } : {}),
           ...(startupLaunchPreferences ? { startupLaunchPreferences } : {}),
+          ...(accountEnv ? { startupAccountEnv: { ...accountEnv } } : {}),
           // The launch owns the agent whichever surface it settles on, so the workspace records
           // it even when no startup terminal was created for it.
           createdWithAgent: agent,

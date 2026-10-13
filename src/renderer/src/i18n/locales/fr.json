@@ -750,13 +750,6 @@
             }
           }
         },
-        "worktree": {
-          "background": {
-            "terminals": {
-              "setupTitle": "Configuration"
-            }
-          }
-        },
         "work": {
           "item": {
             "direct": {
@@ -2489,8 +2482,8 @@
         "34c8fbb46e": "Remote SSH",
         "63c2be1914": "SSH déconnecté",
         "95be6587d3": "Créer le worktree « {{value0}} »",
-        "worktreesHeader": "Worktrees",
-        "recentWorktreesHeader": "Worktrees récents",
+        "worktreesHeader": "Espaces de travail",
+        "recentWorktreesHeader": "Espaces de travail récents",
         "settingsBadge": "Paramètres",
         "actionBadge": "Action",
         "paletteHostBadge": "Hôte : {{value0}}",
@@ -2500,8 +2493,8 @@
         "repoGroupBadge": "Groupe de dépôts",
         "pluginCommandFailed": "Impossible d'exécuter la commande du plugin.",
         "recentChatsTerminalsHeader": "Chats et terminaux récents",
-        "27f10cca63": "Rechercher chats, terminaux, worktrees, paramètres et actions...",
-        "2770f02910": "Rechercher chats, terminaux, worktrees, paramètres et actions",
+        "27f10cca63": "Rechercher chats, terminaux, espaces de travail, paramètres et actions...",
+        "2770f02910": "Rechercher chats, terminaux, espaces de travail, paramètres et actions",
         "lastActiveTime": "Dernière activité il y a {{value0}}"
       },
       "github": {
@@ -3117,7 +3110,8 @@
           }
         },
         "dialog": {
-          "f26c4baeda": "Fermer"
+          "f26c4baeda": "Fermer",
+          "minimize": "Réduire"
         },
         "repo": {
           "multi": {
@@ -6942,14 +6936,6 @@
           "1626524572": "Nautilus",
           "0de9fda203": "Abandonner",
           "c71770c455": "{basePrompt}",
-          "f19a56498d": "; votre paramètre de préfixe de branche s'applique toujours.",
-          "800edb1e54": "fix-login-flow",
-          "5d569f5199": ". Orca ne génère que le dernier segment, comme",
-          "570817d126": "et",
-          "56580dcf60": ". Vous pouvez aussi référencer",
-          "9c9b54e4ea": "l'invite intégrée de nom de branche d'Orca",
-          "69bf4830c2": "pour inclure",
-          "9241b59bf5": "Utiliser",
           "a869d0edd8": "Modèle de commande de nom de branche",
           "e784ea62dc": "Avancé",
           "d9b65054ef": ") en un nom court résumant la tâche. Seules les branches qu'Orca a lui-même nommées sont renommées, et jamais après avoir été poussées.",
@@ -6960,8 +6946,7 @@
           "cfd82406dd": "Enregistrement...",
           "40e7be7850": "Enregistré",
           "7c7e34a66d": "Modifications non enregistrées",
-          "a4fa380b67": "{assistantMessage}",
-          "2ee2779c05": "{firstPrompt}"
+          "commandTemplateDescription": "Utilisez <basePrompt>{basePrompt}</basePrompt> pour inclure <promptLink>l'invite intégrée de nom de branche d'Orca</promptLink>. Vous pouvez aussi référencer <firstPrompt>{firstPrompt}</firstPrompt> et <assistantMessage>{assistantMessage}</assistantMessage>. Orca ne génère que le dernier segment, comme <example>fix-login-flow</example> ; votre paramètre de préfixe de branche s'applique toujours."
         },
         "AutoRenameBranchPromptEditor": {
           "63121132c0": "Abandonner",
@@ -7548,13 +7533,6 @@
           "aa204f185f": "Limites de débit REST, Search et GraphQL actuelles de la CLI GitHub.",
           "612a440e57": "Quota d'API GitHub",
           "2cde9044a8": "graphql",
-          "36e3de3619": "de comparer avec un historique périmé. Orca ignore la mise à jour si cette branche contient des modifications non commitées ou des commits uniquement locaux.",
-          "d072a12995": "git diff main...HEAD",
-          "db3a127eb1": ". Cela permet de garder des commandes comme",
-          "3ae3de8898": "master",
-          "5bf885be48": "ou",
-          "ffba483bae": "main",
-          "976afc6b3e": "Quand vous créez un espace de travail, Orca actualise la base distante et fait avancer en toute sécurité votre branche locale correspondante (fast-forward), telle que",
           "1ec5c91e1d": "Choisissez si les noms de branches utilisent votre nom d'utilisateur Git, un préfixe personnalisé ou aucun préfixe.",
           "330f584b50": "Préfixe de branche",
           "1ffaadf0a0": "Préfixe ajouté aux noms de branches à la création des worktrees.",
@@ -7575,7 +7553,8 @@
           "compareAgainstUpstreamTitle": "Base de comparaison par défaut",
           "compareAgainstUpstreamDescription": "Choisissez la base que le contrôle de code source utilise par défaut pour comparer les changements commités. L'amont de la branche suit automatiquement la branche courante et revient à la branche par défaut du dépôt en l'absence d'amont. Vous pouvez toujours changer la base de comparaison d'un worktree depuis son panneau Git. Les cibles de pull request et de rebase ne changent pas.",
           "compareBaseRepositoryDefault": "Valeur par défaut du dépôt",
-          "compareBaseBranchUpstream": "Amont de la branche"
+          "compareBaseBranchUpstream": "Amont de la branche",
+          "refreshLocalBaseDescription": "Quand vous créez un espace de travail, Orca actualise la base distante et fait avancer en toute sécurité votre branche locale correspondante (fast-forward), telle que <mainBranch>main</mainBranch> ou <masterBranch>master</masterBranch>. Cela évite que des commandes comme <diffCommand>git diff main...HEAD</diffCommand> comparent avec un historique périmé. Orca ignore la mise à jour si cette branche contient des modifications non commitées ou des commits uniquement locaux."
         },
         "InputPane": {
           "db15068196": "Activé par défaut sur Linux et macOS. Linux utilise le presse-papiers de sélection du système ; les autres plateformes utilisent un tampon privé.",
@@ -8008,18 +7987,13 @@
         },
         "RepositoryHooksSection": {
           "af49e2a19e": "Le fichier est présent, mais Orca n'a pas trouvé de définitions valides de `scripts` ou d'`issueCommand`.",
-          "3397879bee": "et des commandes locales existent, choisissez celles qui s'exécutent.",
           "39da2ae12f": "orca.yaml",
-          "ac9038d2cc": "Lorsque les deux",
           "32fec28f5b": "Source des commandes",
           "bbbd6e0bc4": "Source des commandes et orca.yaml",
           "c9bc1bfd8f": "Avancé",
           "610d90fdbd": "Détails sur la source des commandes et orca.yaml.",
-          "52aef29e69": "Laissez vide pour utiliser la valeur par défaut du dépôt définie dans",
           "4084720f47": "Terminer {{artifact_url}}",
           "13394103bd": "Commande d'issue GitHub personnalisée",
-          "70ad20f883": "pour l'URL de l'issue ou de la pull request liée.",
-          "b997331366": "Remplacement facultatif. Utilisez",
           "2cc27dc12b": "Remplacement facultatif par utilisateur pour la commande d'issue liée.",
           "b91a0f297d": "Scripts locaux et partagés exécutés avant l'archivage d'un worktree.",
           "9a100323ff": "Script d'archivage",
@@ -8078,8 +8052,6 @@
           "e03d9a8f38": "Demander à chaque fois",
           "8dbe6bedf5": "invalide",
           "0e0dd5b9a5": "chargé",
-          "9b12f15b1e": "lorsqu'il en existe un.",
-          "c85c2c88a2": "{{artifact_url}}",
           "fac13f8c1e": "faisant foi",
           "0518758f38": "les deux",
           "d2b3016c20": "partagé",
@@ -8092,7 +8064,11 @@
           "81057d5f71": "Enregistrement...",
           "da37d6f10e": "Copier",
           "3149964b66": "Copied",
-          "waitForSetupBeforeAgent": "Attendre la fin du setup avant de démarrer l'agent"
+          "waitForSetupBeforeAgent": "Attendre la fin du setup avant de démarrer l'agent",
+          "issueCommandDescription": "Remplacement facultatif. Utilisez <artifactUrl>{{artifact_url}}</artifactUrl> pour l'URL de l'issue ou de la pull request liée.",
+          "issueCommandSharedDefault": "Laissez vide pour utiliser la valeur par défaut du dépôt définie dans <yaml>orca.yaml</yaml>.",
+          "issueCommandOptionalDefault": "Laissez vide pour utiliser la valeur par défaut du dépôt définie dans <yaml>orca.yaml</yaml>, s'il en existe une.",
+          "commandSourceDescription": "Lorsque <yaml>orca.yaml</yaml> et des commandes locales existent tous les deux, choisissez celles qui s'exécutent."
         },
         "RepositoryIconPicker": {
           "2b7d27b93c": "Utiliser la couleur de dépôt {{value0}}",
@@ -8622,7 +8598,6 @@
           "a7d28dff81": "Ajoutez un hôte distant pour vous y connecter depuis Orca.",
           "94c5284560": "Cibles",
           "f495689b82": "Échec de l'importation",
-          "f8050f6307": "Synchronisation terminée : {{value0}} serveur{{value1}}",
           "68c13b4589": "Échec du test",
           "81d08bcddf": "Connexion réussie",
           "a43de1d3ee": "Échec de la déconnexion",
@@ -8635,7 +8610,9 @@
           "4db9afce1c": "Le port doit être compris entre 1 et 65535",
           "0e5aa04161": "Un hôte ou un alias de config SSH est requis",
           "f1fc50dad2": "Échec du chargement des cibles SSH",
-          "0cda732f43": "Échec du test de connexion"
+          "0cda732f43": "Échec du test de connexion",
+          "syncedServerSingular": "Synchronisation terminée : {{count}} serveur",
+          "syncedServerPlural": "Synchronisation terminée : {{count}} serveurs"
         },
         "SshPassphraseDialog": {
           "d5a234456f": "Annuler",
@@ -9029,13 +9006,8 @@
           "1ba81c0ff0": "recommandé",
           "cfde55c7b0": "Échec du téléchargement du modèle.",
           "43fd4f454b": "Modèle vocal",
-          "7cf715f891": "est maintenu.",
-          "295d84b849": "une fois pour démarrer, à nouveau pour arrêter. Maintien : dictez tant que",
-          "ff9a680010": "Bascule : appuyez",
           "ba4a900d1d": "Mode de dictée",
           "0121960365": "Activer la dictée vocale",
-          "366e1b4f36": "pour dicter du texte dans n'importe quel volet actif.",
-          "4465596675": "Appuyez",
           "62d2a84d31": "Échec de l'effacement de la clé API OpenAI",
           "37aba8bb63": "Clé API OpenAI effacée",
           "8572bbb537": "Échec de l'enregistrement de la clé API OpenAI",
@@ -9054,7 +9026,9 @@
           "f9a9cf6928": "L'autorisation d'accès au micro est requise avant d'activer la dictée vocale.",
           "1eac933202": "Panneau Confidentialité et sécurité de macOS ouvert. Réactivez la dictée après avoir accordé l'accès.",
           "cd9fe37556": "Autorisation d'accès au micro accordée",
-          "openAiKeyName": "Votre clé de transcription OpenAI"
+          "openAiKeyName": "Votre clé de transcription OpenAI",
+          "dictationShortcutDescription": "Appuyez sur {{shortcut}} pour dicter du texte dans n'importe quel volet actif.",
+          "dictationModesDescription": "Bascule : appuyez une fois sur {{shortcut}} pour démarrer, puis à nouveau pour arrêter. Maintien : dictez tant que {{shortcut}} est maintenu."
         },
         "WorktreeSymlinksSection": {
           "1c1e35b219": "Supprimer {{value0}}",
@@ -11069,21 +11043,23 @@
                 "60996beda6": "Ajouter un site Jira",
                 "7ca5ffffdb": "Parcourez, créez et démarrez du travail depuis les tickets Jira Cloud.",
                 "a1093a06c7": "Vérification de l'accès Jira avant d'afficher les actions de configuration.",
-                "9fa04a032e": "{{value0}} site{{value1}} connecté",
                 "cef18762a2": "Ajoutez l'accès avec une clé d'API personnelle depuis vos paramètres Linear. Les clés à accès complet peuvent voir toutes les équipes accessibles au propriétaire de la clé.",
                 "6224fe9d34": "Chaque espace de travail Linear connecté possède une clé stockée par le runtime actif. Les clés à accès complet peuvent couvrir toutes les équipes auxquelles le propriétaire de la clé a accès ; les clés restreintes peuvent être remplacées à tout moment.",
                 "1a12e33fe5": "Ajouter l'accès Linear",
                 "622c224082": "Ajouter un accès à l'espace de travail",
                 "eae4a9f16b": "Ajoutez un accès Linear pour parcourir et lier des issues.",
                 "fe9231215b": "Vérification de l'accès Linear avant d'afficher les actions de configuration.",
-                "e1f5e6424c": "Connecté{{value1}} : {{value0}} espace de travail",
                 "disconnect_all": "Déconnecter",
                 "account_scope_prefix": "Portée des comptes",
                 "2d60ec7921": "Connectez un site Jira Cloud avec un jeton d'API, ou un Jira auto-hébergé avec un jeton d'accès personnel ou un nom d'utilisateur et mot de passe. Les identifiants sont envoyés au runtime distant sélectionné et y sont stockés avec le chiffrement pris en charge par le runtime.",
                 "977e360b71": "Connectez un site Jira Cloud avec un jeton d'API, ou un Jira auto-hébergé avec un jeton d'accès personnel ou un nom d'utilisateur et mot de passe. Les identifiants sont stockés localement et chiffrés lorsque le stockage du runtime local le prend en charge.",
                 "statusConnected": "Connecté",
                 "statusNotConnected": "Non connecté",
-                "linearTokenName": "Votre jeton API linéaire"
+                "linearTokenName": "Votre jeton API linéaire",
+                "connectedSiteSingular": "{{count}} site connecté",
+                "connectedSitePlural": "{{count}} sites connectés",
+                "connectedWorkspaceSingular": "{{count}} espace de travail connecté",
+                "connectedWorkspacePlural": "{{count}} espaces de travail connectés"
               }
             }
           }
@@ -15512,8 +15488,16 @@
           "7b458e0b7f": "Choisissez un modèle Markdown.",
           "1829437fce": "Nouveau Markdown"
         },
+        "DiagramViewerModal": {
+          "title": "Diagramme",
+          "zoomOut": "Zoom arrière",
+          "zoomIn": "Zoom avant",
+          "fit": "Ajuster à l'écran",
+          "close": "Fermer"
+        },
         "MermaidBlock": {
-          "dcc132e691": "Erreur de diagramme :"
+          "dcc132e691": "Erreur de diagramme :",
+          "expand": "Agrandir le diagramme"
         },
         "MonacoEditor": {
           "68cb83f4a7": "Ajouter une note sur le texte sélectionné",
@@ -17638,7 +17622,8 @@
         "notConfirmedMany": "Impossible de confirmer que {{value0}} chats ont repris",
         "notConfirmedOtherOne": "Impossible de confirmer qu'1 autre chat a repris",
         "notConfirmedOtherMany": "Impossible de confirmer que {{value0}} autres chats ont repris",
-        "show": "Afficher",
+        "viewChats": "Voir les chats",
+        "review": "Vérifier",
         "activityUnnamed": "sans nom",
         "activityApproval": "En attente de votre approbation : {{value0}}",
         "activityQuestion": "En attente de votre réponse : {{value0}}",
@@ -19055,9 +19040,6 @@
     "nativeChatUpgrade": {
       "eyebrow": "Nouveau",
       "title": "Le chat natif évolue",
-      "chatModeNote": "Les nouveaux onglets d'agent s'ouvrent toujours dans le terminal, comme avant.",
-      "chatModeLabel": "Activer le mode chat",
-      "chatModeHint": "Les nouveaux onglets d'agent s'ouvrent en chat.",
       "intro": "Les nouveaux chats des agents compatibles utilisent la vue améliorée. Pour alterner entre chat et CLI, ouvrez {{panel}} (barre latérale droite) :",
       "resumeInNativeChat": "{{action}} ouvre une conversation CLI compatible dans le chat natif.",
       "resumeInCli": "{{action}} copie un chat Claude/Codex dans une CLI neuve ; l'original reste intact.",
@@ -19367,6 +19349,10 @@
     "removePath": "Remove {{name}}"
   },
   "accounts": {
+    "wslAccountNotApplied": {
+      "title": "Sélection de compte non appliquée dans {{distro}}",
+      "description": "Les agents y utilisent les comptes Claude et Codex par défaut de la distribution jusqu'à la mise à jour d'Orca dans WSL."
+    },
     "managedData": {
       "description": "Ajoutez des comptes en exécutant cette commande dans un terminal sur l’hôte Orca. La sélection s’applique aux nouveaux lancements sur cet hôte ; les connexions SSH directes et WSL sous Windows utilisent leurs propres identifiants.",
       "copied": "Copié",

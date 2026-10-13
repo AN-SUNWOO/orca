@@ -33,6 +33,7 @@ import { registerRuntimeEnvironmentBrowserClientHostHandler } from './runtime-en
 import { advanceRuntimeEnvironmentCapabilityIncarnation } from './runtime-environment-capability-evidence'
 import { retireMobileDesktopRelayEnvironment } from './runtime-environment-mobile-relay-hosts'
 import { watchRuntimeEnvironmentPreference } from './runtime-environment-preference'
+import { isGatedOffWslHost } from '../wsl/wsl-host-gate'
 
 const remoteRuntimeSubscriptions = new Map<string, RetainedRemoteRuntimeSubscription>()
 const getUserDataPath = (): string => app.getPath('userData')
@@ -95,7 +96,9 @@ function reactivateRuntimeEnvironmentStatus(environmentId: string): void {
   const userDataPath = getUserDataPath()
   if (
     isRuntimeEnvironmentManuallyDisconnected(environmentId) ||
-    !listEnvironments(userDataPath).some((environment) => environment.id === environmentId)
+    !listEnvironments(userDataPath).some(
+      (environment) => environment.id === environmentId && !isGatedOffWslHost(environment)
+    )
   ) {
     return
   }
@@ -133,7 +136,10 @@ export function registerRuntimeEnvironmentHandlers(store: Store): void {
   registerRuntimeEnvironmentRecoveryHandler()
   registerRuntimeEnvironmentPassiveHandlers(getUserDataPath)
   for (const environment of listEnvironments(getUserDataPath())) {
-    if (!isRuntimeEnvironmentManuallyDisconnected(environment.id)) {
+    if (
+      !isRuntimeEnvironmentManuallyDisconnected(environment.id) &&
+      !isGatedOffWslHost(environment)
+    ) {
       getRuntimeEnvironmentStatusOwner(getUserDataPath(), environment.id).activate()
     }
   }

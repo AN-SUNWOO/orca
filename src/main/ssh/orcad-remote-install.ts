@@ -3,6 +3,7 @@ import { orcadNodePtyNativeArtifacts, orcadRipgrepArtifact } from '../../shared/
 import { orcadAgentBrowserNativeName } from '../../shared/orcad-agent-browser-name'
 import type { NodeRuntimeTarget } from '../../shared/node-runtime-pin'
 import { ensureRemoteOrcadNodeRuntime } from './orcad-remote-node-runtime'
+import { recordedRemoteNodeRuntimeProbeCommand } from './orcad-remote-node-runtime-recorded-probe'
 import { execCommand, isUnconfirmedSshCommandTermination } from './ssh-relay-exec-command'
 import { shellEscape } from './ssh-connection-utils'
 import type { OrcadHostTransport } from './orcad-host-transport'
@@ -29,6 +30,8 @@ export async function installOrcadBundle(
     target: NodeRuntimeTarget
     /** The locally verified pinned Node archive, fetched only when the host lacks the runtime. */
     nodeRuntimeArchive: () => Promise<string>
+    /** WSL only: skip re-hashing a runtime whose stat signature is unchanged since it hashed to the pin. */
+    recordedNodeRuntimeProbe?: boolean
     signal?: AbortSignal
   },
   fullVersion: string,
@@ -41,7 +44,10 @@ export async function installOrcadBundle(
     slotDir: remoteDir,
     target: options.target,
     archivePath: options.nodeRuntimeArchive,
-    signal: options.signal
+    signal: options.signal,
+    ...(options.recordedNodeRuntimeProbe
+      ? { posixProbeCommand: recordedRemoteNodeRuntimeProbeCommand }
+      : {})
   })
   if (
     await isRemoteInstallComplete(options.conn, ORCAD_INSTALL_MODEL, remoteDir, options.host, {

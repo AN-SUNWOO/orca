@@ -34,6 +34,8 @@ export type DaemonHandle = {
   shutdown(): Promise<void>
   /** Marks this run as ended on purpose when the process exits without a teardown. */
   recordOrderlyExit(): void
+  /** Marks this run as stopped from outside before the teardown, which may not finish. */
+  recordStopRequested(): void
 }
 
 export async function startDaemon(opts: DaemonStartOptions): Promise<DaemonHandle> {
@@ -81,6 +83,7 @@ export async function startDaemon(opts: DaemonStartOptions): Promise<DaemonHandl
 
   return {
     shutdown: () => server.shutdown(),
-    recordOrderlyExit: () => server.recordOrderlyExit()
+    recordOrderlyExit: () => server.automaticWork.recordOrderlyExit(),
+    recordStopRequested: () => server.automaticWork.recordStopRequested()
   }
 }

@@ -7,7 +7,7 @@
 import { createHash } from 'node:crypto'
 import { constants, readFileSync, statSync } from 'node:fs'
 import { cp, mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { isProcessAlive } from '../../shared/serve-bundle-coordination'
 
 /** Set on the re-run supervisor: the app root its own `__dirname` no longer points at. */
@@ -133,6 +133,20 @@ async function removeUnusedSnapshots(
 }
 
 /**
+ * An AppImage's files are its own mount (or extracted copy) for the whole run, so no update can
+ * swap them. Re-exec from node mode would also close the runtime's keepalive pipe, which unmounts
+ * the AppImage under the exec and leaves the new image unable to load its libraries.
+ */
+function runsFromAppImage(appRoot: string, env: NodeJS.ProcessEnv): boolean {
+  const appDir = env.APPDIR
+  if (!appDir || !isAbsolute(appDir)) {
+    return false
+  }
+  const inside = relative(resolve(appDir), resolve(appRoot))
+  return inside !== '' && !inside.startsWith('..') && !isAbsolute(inside)
+}
+
+/**
  * Resolves only when the supervisor keeps running from where it is; a successful re-run replaces
  * this process (same pid, so the service manager keeps tracking it) and never returns.
  */
@@ -147,7 +161,8 @@ export async function relocateServeSupervisor(
   if (
     deps.env.ELECTRON_RUN_AS_NODE !== '1' ||
     (typeof override === 'string' && override.trim().length > 0) ||
-    basename(deps.appRoot) !== PACKAGED_APP_ROOT_NAME
+    basename(deps.appRoot) !== PACKAGED_APP_ROOT_NAME ||
+    runsFromAppImage(deps.appRoot, deps.env)
   ) {
     return 'in-place'
   }

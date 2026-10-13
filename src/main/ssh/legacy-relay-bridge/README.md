@@ -16,7 +16,8 @@ nobody is prompted.
   deploys, starts, stops or deletes a relay.
 - Leased panes the relay lists reattach in their old tabs through
   `renderer/.../legacy-relay-bridge-transport.ts`.
-- A dropped connection is `unverifiable` and reattaches later. A pane retires (lease `terminated`)
+- A dropped connection, or a disconnect that hangs the bridge up, is `unverifiable` and reattaches
+  later; removing the target is what empties its panes. A pane retires (lease `terminated`)
   only when its relay reports the exit, or every relay for the target answered without it.
 
 **Touches** `ipc/ssh.ts`, `ipc/ssh-connect-flow.ts`, `ipc/ssh-host-server-on-connect-wiring.ts`,

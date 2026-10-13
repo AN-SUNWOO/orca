@@ -10,7 +10,10 @@ import {
 import { connectionManager, persistedStore, portForwardManager } from './ssh-ipc-context'
 import { runTargetLifecycle } from './ssh-target-lifecycle-queue'
 import { errorMessage } from '../../shared/error-message'
-import { stopLegacyRelayBridge } from '../ssh/legacy-relay-bridge/legacy-relay-bridge-registry'
+import {
+  forgetLegacyRelayTarget,
+  stopLegacyRelayBridge
+} from '../ssh/legacy-relay-bridge/legacy-relay-bridge-registry'
 
 export async function disconnectRegisteredSshTarget(targetId: string): Promise<void> {
   invalidateConnectAttempt(targetId)
@@ -33,6 +36,7 @@ export async function removeRegisteredSshTarget(targetId: string): Promise<void>
       console.warn(`[ssh] Failed to disconnect removed target ${targetId}: ${errorMessage(err)}`)
     }
     persistedStore?.removeSshRemotePtyLeases(targetId)
+    forgetLegacyRelayTarget(targetId)
     store.removeTarget(targetId)
     // Why: removal is the storage boundary — the target's browser cookie jars
     // must not outlive the record that scoped them.

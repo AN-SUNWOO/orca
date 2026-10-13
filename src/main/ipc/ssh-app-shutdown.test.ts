@@ -13,13 +13,18 @@ vi.mock('../ssh/ssh-connection-manager', () => mocks.sshConnectionManager)
 vi.mock('../ssh/ssh-channel-multiplexer', () => mocks.sshChannelMultiplexer)
 vi.mock('../ssh/ssh-port-forward', () => mocks.sshPortForward)
 vi.mock('../ssh/ssh-port-scanner', () => mocks.sshPortScanner)
+const { shutdownTunnelsMock } = vi.hoisted(() => ({ shutdownTunnelsMock: vi.fn() }))
+vi.mock('../ssh/orcad-managed-tunnel', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  shutdownOrcadManagedTunnels: shutdownTunnelsMock
+}))
 
 import { beginSshShutdown } from './ssh-shutdown-drain'
 import type { SshTarget } from '../../shared/ssh-types'
 import { quitTeardownStartGate } from '../quit-teardown-start-gate'
 import { createSshIpcHarness } from './ssh-ipc-test-harness'
 
-const { mockSshStore, mockConnectionManager } = mocks
+const { mockSshStore, mockConnectionManager, mockPortForwardManager } = mocks
 
 describe('SSH IPC handlers', () => {
   const harness = createSshIpcHarness(mocks)
@@ -40,6 +45,32 @@ describe('SSH IPC handlers', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('stops every port forward and managed tunnel process before quit finishes', async () => {
+    mockConnectionManager.disconnectAll.mockResolvedValue(undefined)
+    let finishForwards!: () => void
+    mockPortForwardManager.closeAll.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishForwards = resolve
+      })
+    )
+    shutdownTunnelsMock.mockResolvedValue(undefined)
+    quitTeardownStartGate.tryStart({ preventDefault() {} })
+
+    let finished = false
+    const shutdown = beginSshShutdown().then(() => {
+      finished = true
+    })
+    for (let tick = 0; tick < 5; tick++) {
+      await Promise.resolve()
+    }
+    expect(finished).toBe(false)
+    expect(shutdownTunnelsMock).toHaveBeenCalled()
+    finishForwards()
+    await shutdown
+
+    expect(mockPortForwardManager.closeAll).toHaveBeenCalled()
   })
 
   it('joins an in-flight test-connection probe before the final shutdown disconnect', async () => {

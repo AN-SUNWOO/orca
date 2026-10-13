@@ -101,6 +101,26 @@ describe('registerPtyHandlers', () => {
       }
     )
 
+    it.each(['pi', 'omp', 'prime-agent'] as const)(
+      'prepares delayed %s hooks for the requested harness',
+      (agent) => {
+        piBuildPtyEnvMock.mockClear()
+        buildPtyHostEnv(
+          'delayed-agent',
+          {},
+          {
+            isPackaged: true,
+            userDataPath: '/tmp/orca-user-data',
+            selectedCodexHomePath: null,
+            agentStatusHooksEnabled: true,
+            launchCommand: `sleep 30 && ${agent}`
+          }
+        )
+        expect(piBuildPtyEnvMock.mock.calls.map(([, , kind]) => kind)).toEqual([agent])
+        expect(piBuildPtyEnvMock.mock.calls[0]?.[3]).toMatchObject({ materializeDefaultHome: true })
+      }
+    )
+
     it('does not install managed Pi extensions when Pi is disabled', () => {
       piBuildPtyEnvMock.mockClear()
 

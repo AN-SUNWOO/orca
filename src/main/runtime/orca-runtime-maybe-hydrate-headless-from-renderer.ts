@@ -2,6 +2,7 @@
 import { splitFreebuffScreenUpdates } from '../../shared/freebuff-screen-status'
 import { OrcaRuntimeWithSerializeMainTerminalBuffer } from './orca-runtime-serialize-main-terminal-buffer'
 import { observeFreebuffTerminalStatus } from './freebuff-terminal-status'
+import { observeCodexCapacityTerminalStatus } from './codex-capacity-terminal-status'
 import { MOBILE_SUBSCRIBE_SCROLLBACK_ROWS } from './scrollback-limits'
 import { detectAgentStatusFromTitle, normalizeTerminalTitle } from '../../shared/agent-detection'
 import { shouldModelAnswerHiddenPtyQueries } from './terminal-model-query-authority'
@@ -173,6 +174,7 @@ export class OrcaRuntimeWithMaybeHydrateHeadlessFromRenderer extends OrcaRuntime
     forwardQueryReplies = false
   ): void {
     const state = this.getOrCreateHeadlessTerminal(ptyId)
+    const outputObservedAt = Date.now()
     const completion = state.writeChain.then(async () => {
       // Why: the ingestion-time ownership decision is closed over this
       // chain link; async scheduling cannot retroactively change it.
@@ -183,12 +185,21 @@ export class OrcaRuntimeWithMaybeHydrateHeadlessFromRenderer extends OrcaRuntime
         await state.emulator.write(chunk, { forwardQueryReplies })
         const pty = this.ptysById.get(ptyId)
         if (pty && !pty.connectionId && this.headlessTerminals.get(ptyId) === state) {
-          const payload = observeFreebuffTerminalStatus(
-            state.emulator,
-            chunk,
-            this.terminalSpawnCommandsByPtyId.get(ptyId),
-            pty.launchAgent
-          )
+          const command = this.terminalSpawnCommandsByPtyId.get(ptyId)
+          const payload =
+            observeCodexCapacityTerminalStatus(
+              state.emulator,
+              chunk,
+              command,
+              pty.launchAgent,
+              () => {
+                const paneKey =
+                  this.getLeavesForPty(ptyId).map((leaf) => this.makeRuntimePaneKey(leaf))[0] ??
+                  pty.paneKey
+                return paneKey ? this.getAgentStatusSnapshotForPaneFn?.(paneKey)[0] : undefined
+              },
+              outputObservedAt
+            ) ?? observeFreebuffTerminalStatus(state.emulator, chunk, command, pty.launchAgent)
           if (payload) {
             pty.lastExplicitAgentStatus = {
               state: payload.state,

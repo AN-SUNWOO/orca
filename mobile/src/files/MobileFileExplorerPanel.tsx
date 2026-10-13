@@ -34,6 +34,7 @@ import { fileDirectoryRead, legacyFileListRead } from './mobile-file-explorer-op
 import { fileExplorerStyles as styles } from './mobile-file-explorer-styles'
 import { MobileFileExplorerRow } from './mobile-file-explorer-row'
 import { navigateToMobileFilePreview } from './mobile-file-preview-navigation'
+import { MobileLoadErrorState } from '../components/MobileLoadErrorState'
 
 export function MobileFileExplorerPanel(props: {
   hostId: string
@@ -337,14 +338,7 @@ export function MobileFileExplorerPanel(props: {
       <ActivityIndicator size="small" color={colors.textSecondary} />
     </View>
   ) : error ? (
-    <View style={styles.state}>
-      <Text style={styles.errorText}>{error}</Text>
-      {rootRetry ? (
-        <Pressable style={styles.retryButton} onPress={rootRetry}>
-          <Text style={styles.retryText}>Retry</Text>
-        </Pressable>
-      ) : null}
-    </View>
+    <MobileLoadErrorState message={error} onRetry={rootRetry} />
   ) : rows.length === 0 ? (
     <View style={styles.state}>
       <Text style={styles.emptyText}>No files found</Text>

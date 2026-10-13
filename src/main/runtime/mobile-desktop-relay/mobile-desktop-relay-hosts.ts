@@ -1,3 +1,4 @@
+import type { ManagedOrcadDeploymentSummary } from '../../../shared/managed-orcad-execution-host'
 import type { PairingOffer } from '../../../shared/pairing'
 import type { RuntimeEnvironmentSource } from '../../../shared/runtime-environments'
 import type { RuntimeEnvironmentStatus } from '../../../shared/runtime-host-status'
@@ -18,7 +19,7 @@ export type MobileDesktopRelayHostListing = {
   id: string
   name: string
   source?: RuntimeEnvironmentSource
-  orcadDeployment?: { sshTargetId: string } | null
+  orcadDeployment?: ManagedOrcadDeploymentSummary | null
   pairingRevision: number
   runtimeId: string | null
 }

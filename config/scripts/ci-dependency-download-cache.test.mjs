@@ -26,6 +26,7 @@ describe('CI dependency download caches', () => {
     const mobile = workflow('mobile').jobs.verify.steps.find((step) =>
       step.uses?.includes('install-node-dependencies')
     )
+    expect(mobile.with['cache-pnpm-store']).toBe('false')
     expect(mobile.with['cache-dependency-path'].trim().split('\n')).toEqual([
       'pnpm-lock.yaml',
       'mobile/pnpm-lock.yaml'

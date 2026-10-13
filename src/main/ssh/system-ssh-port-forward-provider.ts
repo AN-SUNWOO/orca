@@ -52,7 +52,7 @@ export class SystemSshPortForwardProvider implements SshPortForwardProvider {
       forward.process.stderr?.off('data', onStderr)
       options.onUnexpectedClose?.(entry, {
         kind: 'unexpected-exit',
-        detail: systemSshForwardError(code, stderr).message
+        detail: systemSshForwardError(code, stderr, forward.localPort).message
       })
     })
 

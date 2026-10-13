@@ -19,6 +19,7 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   Pressable: 'Pressable',
   ActivityIndicator: 'ActivityIndicator',
+  StyleSheet: { create: <T,>(styles: T) => styles, hairlineWidth: 1 },
   Platform: { OS: 'ios' },
   Keyboard: { dismiss: vi.fn() }
 }))

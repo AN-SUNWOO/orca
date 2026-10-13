@@ -4,7 +4,7 @@ import type {
   DocPreviewFileFailure,
   DocPreviewFileFailureReason
 } from '../../../../../shared/doc-preview-scheme'
-import type { BrowserPageConversionOrigin } from '../../../../../shared/browser-workspace-types'
+import type { HtmlDocPreviewProps } from './html-doc-preview-props'
 import {
   advanceAcrossBrowserPageConversion,
   returnAcrossBrowserPageConversion
@@ -26,11 +26,7 @@ import {
   useDocPreviewDirectoryAccess
 } from './doc-preview-directory-access'
 import { buildDocPreviewDocumentIdentity } from './doc-preview-document-identity'
-import {
-  docPreviewAssetNotice,
-  docPreviewDownloadBlockedNotice,
-  docPreviewFailureDetail
-} from './doc-preview-failure-messages'
+import { docPreviewFailureDetail, docPreviewNotices } from './doc-preview-failure-messages'
 import { DocPreviewToolbar } from './doc-preview-toolbar'
 import { buildDocPreviewShareControl } from './doc-preview-artifact-share'
 import { useDocPreviewWebviewHistory } from './doc-preview-webview-history'
@@ -52,21 +48,7 @@ export function HtmlDocPreview({
   externalSshTargetId = null,
   convertedFrom = null,
   convertedTo = null
-}: {
-  previewId: string
-  filePath: string
-  relativePath: string
-  worktreeId: string
-  /** Whether this preview is the surface the reader is in, and so may hold the keyboard. */
-  holdsGuestFocus?: boolean
-  isActive?: boolean
-  runtimeEnvironmentId?: string | null
-  externalSshTargetId?: string | null
-  /** Set when the address bar converted this page; Back returns across it once guest history runs out. */
-  convertedFrom?: BrowserPageConversionOrigin | null
-  /** Set when Back returned across a conversion to this page; Forward re-crosses it. */
-  convertedTo?: BrowserPageConversionOrigin | null
-}): React.JSX.Element {
+}: HtmlDocPreviewProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const webviewRef = useRef<Electron.WebviewTag | null>(null)
   const reloadRef = useRef<(() => void) | null>(null)
@@ -324,13 +306,7 @@ export function HtmlDocPreview({
     reloadRef.current?.()
   }, [failureReason, handleHardReload, state])
 
-  // Nothing rendered on an unavailable preview, so a notice strip would be a footnote on a blank page.
-  const notices = isUnavailable
-    ? []
-    : [
-        downloadBlocked ? docPreviewDownloadBlockedNotice() : null,
-        docPreviewAssetNotice(assetFailures)
-      ].filter((notice): notice is string => notice !== null)
+  const notices = docPreviewNotices(isUnavailable, downloadBlocked, assetFailures)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-editor-surface">

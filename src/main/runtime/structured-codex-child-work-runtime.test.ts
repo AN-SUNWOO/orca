@@ -93,7 +93,9 @@ describe('structured Codex child work through the production runtime', () => {
       statusSink: {
         publish: () => {},
         forget: () => {},
-        publishChildWork: (...args) => childWork.push(args)
+        publishChildWork: (...args) => {
+          childWork.push(args)
+        }
       }
     })
     const attachParams = hostTestAttachParams(null, { providerHandle: undefined })

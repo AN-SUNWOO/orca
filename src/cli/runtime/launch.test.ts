@@ -23,7 +23,7 @@ vi.mock('child_process', () => ({
   spawnSync: spawnSyncMock
 }))
 
-import { launchOrcaApp, serveOrcaApp } from './launch'
+import { getExecutableAppArgs, launchOrcaApp, serveOrcaApp, stripElectronRunAsNode } from './launch'
 
 class FakeChildProcess extends EventEmitter {
   stdout = new EventEmitter()
@@ -519,6 +519,16 @@ describe('serveOrcaApp', () => {
         cwd: resolve(__dirname, '../../..')
       })
     )
+  })
+
+  it("re-applies a direct launch's --no-sandbox to the Electron it starts, not to terminals", () => {
+    process.env.ORCA_ELECTRON_NO_SANDBOX = '1'
+    try {
+      expect(getExecutableAppArgs('/opt/Orca/orca-ide')).toEqual(['--no-sandbox'])
+      expect(stripElectronRunAsNode(process.env)).not.toHaveProperty('ORCA_ELECTRON_NO_SANDBOX')
+    } finally {
+      delete process.env.ORCA_ELECTRON_NO_SANDBOX
+    }
   })
 
   it.each([

@@ -73,7 +73,7 @@ export function sshCommandExitError(
 }
 
 export async function execCommand(
-  conn: Pick<RemoteInstallTransport, 'exec' | 'usesSystemSshTransport'>,
+  conn: Pick<RemoteInstallTransport, 'exec' | 'execWithClosedStdin' | 'usesSystemSshTransport'>,
   command: string,
   options?: ExecCommandOptions
 ): Promise<string> {
@@ -91,7 +91,11 @@ export async function execCommand(
   const readPayload = (stdout: string): string => fence?.readStdout(stdout) ?? stdout
   let channel: RemoteCommandChannel
   try {
-    channel = await conn.exec(fence?.command ?? command, execOptions)
+    // Why only without `stdin`: nothing below writes or ends the channel's stdin otherwise.
+    channel =
+      !stdin && conn.execWithClosedStdin
+        ? await conn.execWithClosedStdin(fence?.command ?? command, execOptions)
+        : await conn.exec(fence?.command ?? command, execOptions)
   } catch (error) {
     // Preserve identity/classifier fields while removing install-owner tokens.
     redactRelayInstallMarkerError(error)

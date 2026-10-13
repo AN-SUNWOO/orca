@@ -40,7 +40,6 @@ export type Worktree = {
   isLastLineageChild?: boolean
   liveTerminalCount: number
   hasAttachedPty: boolean
-  preview: string
   unread: boolean
   lastOutputAt?: number
   isPinned: boolean

@@ -17,6 +17,11 @@ export type RemoteCommandChannel = Duplex & {
 /** What remote install, lock, GC and host-probe code uses from a host connection. */
 export type RemoteInstallTransport = {
   exec(command: string, options?: SshExecOptions): Promise<RemoteCommandChannel>
+  /**
+   * Optional: `exec` for a command whose stdin the caller never writes, which may run with stdin
+   * at EOF. Lets a transport whose every exec is a process start reuse one (WSL); SSH has none.
+   */
+  execWithClosedStdin?(command: string, options?: SshExecOptions): Promise<RemoteCommandChannel>
   usesSystemSshTransport(): boolean
   /** Changes whenever the underlying transport is replaced; scopes per-transport verdicts. */
   getConnectGeneration(): number

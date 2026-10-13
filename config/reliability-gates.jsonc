@@ -11,6 +11,124 @@
   },
   "gates": [
     {
+      "id": "agent-session.delayed-terminal-launch",
+      "title": "Delayed terminal launches retain their harness preparation and recover process discovery",
+      "maturity": "experimental",
+      "protection": "partial",
+      "owner": "terminal-runtime",
+      "layer": "host-renderer",
+      "surfaces": [
+        "terminal startup commands",
+        "typed agent commands",
+        "hidden terminal startup",
+        "agent hooks and managed accounts"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "providers": [
+        "local",
+        "daemon",
+        "ssh",
+        "remote-runtime",
+        "wsl"
+      ],
+      "coveredPlatforms": [
+        "macos"
+      ],
+      "coveredProviders": [
+        "local",
+        "daemon"
+      ],
+      "coverageNotes": "Shared preparation is exercised with real local plugin files and account environment plus mocked host spawn contracts. Captured real Claude startup title drives renderer recovery. Physical Linux, Windows, SSH and WSL delayed launches remain unproved.",
+      "motivatingLinks": [
+        "docs/bug-reproductions/delayed-agent-launch.md"
+      ],
+      "invariant": "A literal sleep followed by && must not cause the later harness to lose hook/account preparation or hidden renderer query delivery. Preparation and typed-command hints are not live process evidence. Fresh agent startup output may request one bounded host confirmation after the initial command read window has expired.",
+      "oracle": "All 45 configured harnesses keep hidden startup query eligibility. Delayed OpenCode 2 installs v2 hooks rather than v1, disabled harnesses do not fall back, selected managed accounts survive, and Pi/OMP/Prime preparation targets the requested harness. A captured Claude startup title at 30 seconds yields process-confirmed routing, never title-authorized routing. A title storm causes at most three additional reads; close and untrackable providers cause none.",
+      "commands": [
+        "ORCA_BACKGROUND_LAUNCH=1 pnpm test src/shared/agent-command-line-intent.test.ts src/shared/pi-agent-kind.test.ts src/shared/opencode-launch-command.test.ts src/main/ipc/pty/host-env/opencode-hook-installation.test.ts src/main/ipc/pty-spawn-env-terminal-basics.test.ts src/main/managed-data-accounts/launch-environment.test.ts src/renderer/src/components/terminal-pane/terminal-startup-command-classifier.test.ts src/renderer/src/components/terminal-pane/pane-delayed-agent-startup.test.ts src/renderer/src/components/terminal-pane/pty-connection-foreground-agent-routing.test.ts src/renderer/src/components/terminal-pane/pty-connection-hidden-codex-queries.test.ts --maxWorkers=2"
+      ],
+      "testFiles": [
+        "src/shared/agent-command-line-intent.test.ts",
+        "src/shared/pi-agent-kind.test.ts",
+        "src/shared/opencode-launch-command.test.ts",
+        "src/main/ipc/pty/host-env/opencode-hook-installation.test.ts",
+        "src/main/ipc/pty-spawn-env-terminal-basics.test.ts",
+        "src/main/managed-data-accounts/launch-environment.test.ts",
+        "src/renderer/src/components/terminal-pane/terminal-startup-command-classifier.test.ts",
+        "src/renderer/src/components/terminal-pane/pane-delayed-agent-startup.test.ts",
+        "src/renderer/src/components/terminal-pane/pty-connection-foreground-agent-routing.test.ts",
+        "src/renderer/src/components/terminal-pane/pty-connection-hidden-codex-queries.test.ts"
+      ],
+      "assertionRefs": [
+        {
+          "file": "src/main/ipc/pty/host-env/opencode-hook-installation.test.ts",
+          "assertions": [
+            "explicit %s with disabled"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/terminal-startup-command-classifier.test.ts",
+          "assertions": [
+            "keeps hidden %s startup queries live after sleep"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pane-delayed-agent-startup.test.ts",
+          "assertions": [
+            "bounds a startup title storm to one extra read ladder and never adopts the title as identity",
+            "cancels delayed startup discovery on close"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection-foreground-agent-routing.test.ts",
+          "assertions": [
+            "confirms a delayed Claude from fresh startup output after the first read window expires"
+          ]
+        }
+      ],
+      "evidenceRuns": [
+        {
+          "date": "2026-10-13",
+          "runner": "local",
+          "platform": "macos",
+          "command": "ORCA_BACKGROUND_LAUNCH=1 pnpm test src/shared/agent-command-line-intent.test.ts src/shared/pi-agent-kind.test.ts src/shared/opencode-launch-command.test.ts src/main/ipc/pty/host-env/opencode-hook-installation.test.ts src/main/ipc/pty-spawn-env-terminal-basics.test.ts src/main/managed-data-accounts/launch-environment.test.ts src/renderer/src/components/terminal-pane/terminal-startup-command-classifier.test.ts src/renderer/src/components/terminal-pane/pane-delayed-agent-startup.test.ts src/renderer/src/components/terminal-pane/pty-connection-foreground-agent-routing.test.ts src/renderer/src/components/terminal-pane/pty-connection-hidden-codex-queries.test.ts --maxWorkers=2",
+          "result": "passed",
+          "durationSeconds": 1.86,
+          "summary": "214 assertions pass across nine files, including all 45 harness classifications, actual hook files, delayed account preparation, late process routing, hidden query delivery and bounded recovery."
+        }
+      ],
+      "runtimeBudget": {
+        "p95Seconds": 30,
+        "scope": "Focused deterministic gate; no CI soak established."
+      },
+      "performanceBudget": {
+        "required": true,
+        "evidence": "Prefix scanning is capped at 4096 characters; ordinary output has no additional work. Startup title recovery uses one existing three-read ladder per command and joins active reads. Deterministic counts cover storms, close and untrackable providers."
+      },
+      "flakeHistory": {
+        "status": "not-started",
+        "evidence": "Focused macOS runs passed; no cross-platform soak."
+      },
+      "redGreenEvidence": {
+        "status": "complete",
+        "evidence": "Before the fix, delayed preparation produced 52 failing assertions and the captured late Claude startup title left process routing unset. The corresponding tests passed after the change."
+      },
+      "promotionCriteria": [
+        "Collect repeated independent runs and physical provider/platform evidence before promotion."
+      ],
+      "knownGaps": [
+        "Real Claude hooks completed normally in the original macOS reproduction; no blanket hook outage was reproduced.",
+        "Literal numeric sleep prefixes only; arbitrary shell scripts, variables, separators, background jobs and pipelines remain unmodeled.",
+        "Physical Linux, Windows, SSH, WSL and remote-runtime delayed launches and all-harness live CLI runs were not performed.",
+        "A late agent emitting neither an identifiable startup title nor hook evidence still needs a later visibility/input observation."
+      ],
+      "demotionRule": "Keep experimental until soak evidence; investigate failures without widening polling windows, trusting titles or weakening hook/account assertions."
+    },
+    {
       "id": "native-chat.transcript-consumed-boundary",
       "title": "Transcript replacement remains visible when it races message publication",
       "maturity": "experimental",

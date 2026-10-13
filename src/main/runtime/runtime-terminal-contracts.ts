@@ -65,6 +65,9 @@ export type TerminalCreateOptions = {
    * the runtime still builds, so overriding them does not take the launch away from it.
    */
   agentArgs?: string | null
+  /** Account routing env merged over `startupAgent`'s plan env; an input to that plan, like
+   *  `agentArgs`, so not part of `callerSuppliedLaunch`. */
+  accountEnv?: Record<string, string>
   launchPreferences?: AgentLaunchPreferences
   terminalKittyKeyboardProtocol?: boolean
   terminalColorQueryReplies?: TerminalOscColorQueryReplyColors
@@ -78,7 +81,6 @@ export type TerminalCreateOptions = {
   launchSource?: string
   title?: string
   focus?: boolean
-  rendererBacked?: boolean
   activate?: boolean
   presentation?: RuntimeTerminalPresentation
   surfaceOwner?: false

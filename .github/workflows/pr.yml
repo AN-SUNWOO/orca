@@ -206,7 +206,7 @@ jobs:
       - name: Set up Bun for preflight checks
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version-file: config/.bun-version
 
       - name: Check process-host imports
         if: '!cancelled()'
@@ -355,7 +355,7 @@ jobs:
 
       - name: Enforce layout-writer ratchets
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:layout-writer-ratchets
+        run: bun config/scripts/check-layout-writer-ratchets.mjs
 
       - name: Check compatibility-folder imports
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -1173,6 +1173,27 @@ jobs:
           rpm_marker="$(rpm2cpio "$rpm" | cpio --quiet --extract --to-stdout ./opt/Orca/resources/package-type)"
           [[ "$deb_marker" == deb ]] || { echo "Expected deb marker, got: $deb_marker"; exit 1; }
           [[ "$rpm_marker" == rpm ]] || { echo "Expected rpm marker, got: $rpm_marker"; exit 1; }
+          # Only the AppImage carries the pinned Node (config/scripts/appimage-node-runtime.cjs).
+          if dpkg-deb --fsys-tarfile "$deb" | tar -t | grep '/resources/node-runtime' >/dev/null; then
+            echo "The deb must not carry the AppImage's Node"; exit 1
+          fi
+          if rpm2cpio "$rpm" | cpio --quiet -t | grep '/resources/node-runtime' >/dev/null; then
+            echo "The rpm must not carry the AppImage's Node"; exit 1
+          fi
+          appimage_root="$(mktemp -d)"
+          (cd "$appimage_root" && "$GITHUB_WORKSPACE/dist/orca-linux.AppImage" --appimage-extract 'resources/node-runtime/bin/node' >/dev/null)
+          test -x "$appimage_root/squashfs-root/resources/node-runtime/bin/node"
+          "$appimage_root/squashfs-root/resources/node-runtime/bin/node" --version
+          rm -rf "$appimage_root"
+          ls -l dist/orca-linux.AppImage "$deb" "$rpm"
+
+      # Kept briefly so a reviewer can run this exact AppImage on a real Linux desktop.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: orca-linux-appimage-${{ github.event.pull_request.head.sha }}
+          path: dist/orca-linux.AppImage
+          retention-days: 3
+          compression-level: 0
 
       - wait: shutdown-fixture-cache
 
@@ -1297,6 +1318,7 @@ jobs:
           config/scripts/verify-packaged-windows-agent-hook.test.mjs
           config/scripts/script-module-dependencies.test.mjs
           src/main/windows-registry-addon.test.ts
+          src/shared/windows-security-addon.win32.test.ts
           config/scripts/windows-process-tree-gyp-path.test.mjs
           config/scripts/windows-process-tree-gyp-rebuild.test.mjs
           config/scripts/package-electron-runtime-contract.test.mjs

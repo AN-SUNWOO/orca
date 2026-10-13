@@ -13,6 +13,7 @@ import {
   resolveLegacyAppImageNamespacePath
 } from './appimage-extracted-root'
 import { pruneAppImageExtractedRoots } from './appimage-extraction-pruning'
+import { resolveGenerationStableLauncherPath } from './appimage-generation-stable-launcher'
 import { withAppImageRegistrationLock } from './appimage-registration-lock'
 import { getBundledLauncherPath } from './bundled-cli-launcher-path'
 import { quoteShell } from './cli-install-path-format'
@@ -119,6 +120,10 @@ async function resolveStableLauncherPath(
       },
       { deadlineAt: options.appImageDeadlineAt }
     )
+  }
+  const stableLauncher = resolveGenerationStableLauncherPath(options.resourcesPath)
+  if (stableLauncher) {
+    return stableLauncher
   }
   const launcher = getBundledLauncherPath('linux', options.resourcesPath)
   // Why: getBundledLauncherPath only joins the path; guard existence so we never

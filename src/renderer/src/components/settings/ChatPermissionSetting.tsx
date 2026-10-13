@@ -1,7 +1,7 @@
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { AGENT_CHAT_PERMISSION_MODES } from '../../../../shared/agent-chat-permission-mode'
 import { NativeChatPermissionModePicker } from '../native-chat/NativeChatPermissionModePicker'
-import { SettingsSubsectionHeader } from './SettingsFormControls'
+import { SettingsRow } from './SettingsFormControls'
 import { SearchableSetting } from './SearchableSetting'
 import { getChatPermissionSearchEntry } from './chat-permission-search'
 
@@ -27,10 +27,10 @@ export function ChatPermissionSetting({
       forceVisible={forceVisible}
       className="max-w-none"
     >
-      <SettingsSubsectionHeader
-        title={entry.title}
+      <SettingsRow
+        label={entry.title}
         description={entry.description}
-        action={
+        control={
           <NativeChatPermissionModePicker
             current={current}
             modes={AGENT_CHAT_PERMISSION_MODES}

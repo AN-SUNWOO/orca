@@ -137,7 +137,11 @@ export function normalizeLoadedGlobalSettings(
     // Why: the next settings save stores the seed; until then a reload derives the same one.
     nativeChatPermissionMode: loadedChatPermissionSetting(
       parsed.settings?.nativeChatPermissionMode,
-      migratedAgentYoloDefaults
+      {
+        ...migratedAgentYoloDefaults,
+        terminalWindowsShell: parsed.settings?.terminalWindowsShell
+      },
+      process.platform
     ),
     defaultTaskSource: taskProviderSettings.defaultTaskSource,
     visibleTaskProviders: taskProviderSettings.visibleTaskProviders,

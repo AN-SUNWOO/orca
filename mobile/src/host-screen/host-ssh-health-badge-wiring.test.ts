@@ -30,7 +30,6 @@ function row(worktreeId: string, repoId: string): Worktree {
     path: `/home/me/${worktreeId}`,
     liveTerminalCount: 0,
     hasAttachedPty: false,
-    preview: '',
     unread: false,
     isPinned: false,
     linkedPR: null

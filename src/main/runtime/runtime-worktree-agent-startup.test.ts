@@ -280,6 +280,24 @@ describe('buildWorktreeStartupForAgent extra agent args', () => {
       extraAgentArgs: '--effort high'
     })
   })
+
+  it("merges a launch's account env over the startup plan's env", () => {
+    const build = vi.fn(() => ({
+      agent: 'codex' as const,
+      startup: { command: 'codex', env: { CODEX_HOME: '/stale', KEEP: '1' } }
+    }))
+    const resolved = resolveWorktreeCreateAgentStartup(
+      {
+        repoSelector: 'repo-1',
+        name: 'Review',
+        startupAgent: 'codex',
+        startupAccountEnv: { CODEX_HOME: '/home/u/.codex-b' }
+      },
+      build
+    )
+
+    expect(resolved?.startup.env).toEqual({ CODEX_HOME: '/home/u/.codex-b', KEEP: '1' })
+  })
 })
 
 describe('resolveWorktreeStartupDraftAgent', () => {

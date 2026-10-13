@@ -10,6 +10,7 @@ import {
   buildWorktreeIdByTabId,
   worktreeIdForPaneKey
 } from './workspace-session-host-records'
+import { keepUnsavedDrafts } from './workspace-session-draft-retention'
 
 /**
  * Fold rows a host partition holds alone back into the session the readers assemble.
@@ -262,7 +263,7 @@ function entryWorkspaceResolver(
 }
 
 /** The base without any rows for these workspaces, routed by the same indexes the split uses. */
-function withoutWorkspaces(
+export function withoutWorkspaces(
   base: WorkspaceSessionState,
   workspaceIds: ReadonlySet<string>
 ): WorkspaceSessionState {
@@ -285,26 +286,20 @@ function withoutWorkspaces(
   return next as WorkspaceSessionState
 }
 
-/** Unsaved drafts the base held that the adopted rows lack: no other channel holds one. */
-function keepUnsavedDrafts(next: WorkspaceSessionState, base: WorkspaceSessionState): void {
-  for (const [key, baseFiles] of Object.entries(base.openFilesByWorktree ?? {})) {
-    const files = next.openFilesByWorktree?.[key] ?? []
-    const drafts = new Map(
-      baseFiles.filter((file) => file.dirtyDraftContent !== undefined).map((f) => [f.filePath, f])
-    )
-    if (files === baseFiles || drafts.size === 0) {
-      continue
+/** Owned, uncontested and holding tabs: the host's copy is the live one. No tabs is not a close. */
+export function workspacesTheHostSupersedes(
+  host: WorkspaceSessionState,
+  ownedSessionKeys: ReadonlySet<string> | undefined,
+  contested: ReadonlySet<string>
+): Set<string> {
+  const superseded = new Set<string>()
+  for (const [key, tabs] of Object.entries(host.tabsByWorktree ?? {})) {
+    const id = normalizeWorkspaceSessionKeyToWorkspaceId(key)
+    if (!hostHasNothingFor(tabs) && !contested.has(id) && ownedSessionKeys?.has(id)) {
+      superseded.add(id)
     }
-    // A host entry with its own draft wins; a clean one yields to the base's draft for that path.
-    const held = new Set(files.map((file) => file.filePath))
-    const merged = [
-      ...files.map(
-        (file) => (file.dirtyDraftContent === undefined && drafts.get(file.filePath)) || file
-      ),
-      ...[...drafts.values()].filter((file) => !held.has(file.filePath))
-    ]
-    next.openFilesByWorktree = { ...next.openFilesByWorktree, [key]: merged }
   }
+  return superseded
 }
 
 export type StrandedPartitionAdoptionOptions = {
@@ -341,14 +336,7 @@ export function adoptStrandedHostPartitionSession(
   for (const key of options.contestedSessionKeys ?? []) {
     contested.add(normalizeWorkspaceSessionKeyToWorkspaceId(key))
   }
-  // Owned, uncontested and holding tabs: the host's copy is the live one. No tabs is not a close.
-  const superseded = new Set<string>()
-  for (const [key, tabs] of Object.entries(host.tabsByWorktree ?? {})) {
-    const id = normalizeWorkspaceSessionKeyToWorkspaceId(key)
-    if (!hostHasNothingFor(tabs) && !contested.has(id) && options.ownedSessionKeys?.has(id)) {
-      superseded.add(id)
-    }
-  }
+  const superseded = workspacesTheHostSupersedes(host, options.ownedSessionKeys, contested)
   const base = superseded.size > 0 ? withoutWorkspaces(originalBase, superseded) : originalBase
   const adoptable = adoptableWorkspaceIds(base, host)
   for (const key of options.foreignSessionKeys ?? []) {

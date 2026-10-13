@@ -1,6 +1,7 @@
 import { net, session } from 'electron'
 import type { ProviderRateLimits, RateLimitWindow } from '../../shared/rate-limit-types'
 import { ensureElectronProxyFromEnvironment } from '../network/proxy-settings'
+import { abortSignalWithTimeout } from '../lib/abort-signal-with-timeout'
 import { createOAuthUsageError } from './claude-oauth-usage-error'
 import { mapClaudeUsageWindow, type ClaudeUsageWindowInput } from './claude-usage-window'
 import { abortedClaudeRateLimitResult } from './claude-usage-result'
@@ -71,9 +72,7 @@ export async function fetchClaudeOAuthUsage(
     return abortedClaudeRateLimitResult()
   }
 
-  const requestSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(API_TIMEOUT_MS)])
-    : AbortSignal.timeout(API_TIMEOUT_MS)
+  const requestSignal = abortSignalWithTimeout(signal, API_TIMEOUT_MS)
 
   try {
     const response = await net.fetch(OAUTH_USAGE_URL, {

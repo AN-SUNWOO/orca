@@ -16,7 +16,7 @@ import { isWindowsRemoteHost } from '../ssh-remote-platform'
 import { LegacyRelayClient } from './legacy-relay-client'
 import { listLegacyRelayEndpoints, type LegacyRelayEndpoint } from './legacy-relay-endpoints'
 import { LegacyRelayTargetBridge } from './legacy-relay-target-bridge'
-import { isBridgeableLease } from './legacy-relay-bridge-leases'
+import { bridgeableLeasesByRelayId, isBridgeableLease } from './legacy-relay-bridge-leases'
 
 /** How long a connect waits for the first look at its relays before publishing the host. */
 const START_BUDGET_MS = 20_000
@@ -37,12 +37,18 @@ export type LegacyRelayBridgeHost = {
 
 let host: LegacyRelayBridgeHost | null = null
 const bridges = new Map<string, LegacyRelayTargetBridge>()
+/**
+ * Panes a hung-up bridge served, held `unverifiable` until the target's next bridge lists its own
+ * or the leases go: a hang-up is loss of contact, not exit (docs/reference/ssh-execution-boundary.md).
+ */
+const heldPanes = new Map<string, LegacyRelayBridgedPane[]>()
 
 export function installLegacyRelayBridge(next: LegacyRelayBridgeHost | null): void {
   for (const bridge of bridges.values()) {
     bridge.dispose()
   }
   bridges.clear()
+  heldPanes.clear()
   host = next
 }
 
@@ -97,7 +103,13 @@ function bridgeFor(targetId: string): LegacyRelayTargetBridge | null {
           )
       }),
     endpointExited: (endpoint) => posixEndpointExited(connection(), endpoint),
-    onPanesChanged: () => installed.onPanesChanged(legacyRelayBridgedPanes()),
+    onPanesChanged: () => {
+      // A running bridge's own listing answers for its target; a disposed one's does not.
+      if (bridges.get(targetId) === bridge) {
+        heldPanes.delete(targetId)
+      }
+      installed.onPanesChanged(legacyRelayBridgedPanes())
+    },
     onData: installed.onData,
     onExit: installed.onExit,
     onTerminalExited: () => installed.report(targetId, 'terminal_exited', 0)
@@ -129,6 +141,8 @@ async function posixEndpointExited(
  */
 export async function startLegacyRelayBridge(targetId: string): Promise<void> {
   if (!hasBridgeableLeases(targetId)) {
+    // Leases retired while hung up publish nothing themselves; this connect is the next answer.
+    releaseHeldPanes(targetId)
     return
   }
   const bridge = bridgeFor(targetId)
@@ -154,13 +168,38 @@ export async function startLegacyRelayBridge(targetId: string): Promise<void> {
 export function stopLegacyRelayBridge(targetId: string): void {
   const bridge = bridges.get(targetId)
   if (bridge) {
+    const held = bridge.snapshot().map((pane) => ({ ...pane, state: 'unverifiable' as const }))
+    if (held.length > 0) {
+      heldPanes.set(targetId, held)
+    }
     bridges.delete(targetId)
+    // Disposing publishes the list, now with the held panes instead of the bridge's.
     bridge.dispose()
   }
 }
 
+/** The target and its leases are gone, so nothing it served is held any longer. */
+export function forgetLegacyRelayTarget(targetId: string): void {
+  stopLegacyRelayBridge(targetId)
+  releaseHeldPanes(targetId)
+}
+
+function releaseHeldPanes(targetId: string): void {
+  if (heldPanes.delete(targetId)) {
+    host?.onPanesChanged(legacyRelayBridgedPanes())
+  }
+}
+
 export function legacyRelayBridgedPanes(): LegacyRelayBridgedPane[] {
-  return [...bridges.values()].flatMap((bridge) => bridge.snapshot())
+  return [
+    ...[...bridges.values()].flatMap((bridge) => bridge.snapshot()),
+    ...[...heldPanes].flatMap(([targetId, panes]) => stillLeased(targetId, panes))
+  ]
+}
+
+function stillLeased(targetId: string, panes: LegacyRelayBridgedPane[]): LegacyRelayBridgedPane[] {
+  const leased = bridgeableLeasesByRelayId(host?.leases(targetId) ?? [])
+  return panes.filter((pane) => leased.has(parseAppSshPtyId(pane.ptyId)?.relayPtyId ?? ''))
 }
 
 export async function attachLegacyRelayPane(ptyId: string): Promise<LegacyRelayBridgeAttachResult> {

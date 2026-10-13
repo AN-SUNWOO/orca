@@ -108,16 +108,32 @@ describe('fetchCursorRateLimits', () => {
     expect(limits.error).toBe('Unable to read the Cursor CLI auth file')
   })
 
-  it('treats a rejected session as expired sign-in and records Retry-After on 429', async () => {
-    netFetchMock.mockResolvedValueOnce(jsonResponse({}, 401))
-    expect(
-      (await fetchCursorRateLimits({ authReadResult: session() })).usageMetadata?.failureKind
-    ).toBe('stale-token')
+  it('treats a rejected session as expired sign-in and records a capped Retry-After on 429', async () => {
+    vi.useFakeTimers({ now: Date.parse('2026-10-13T12:00:00Z') })
+    try {
+      netFetchMock.mockResolvedValueOnce(jsonResponse({}, 401))
+      expect(
+        (await fetchCursorRateLimits({ authReadResult: session() })).usageMetadata?.failureKind
+      ).toBe('stale-token')
 
-    netFetchMock.mockResolvedValueOnce(jsonResponse({}, 429, { 'retry-after': '60' }))
-    const limited = await fetchCursorRateLimits({ authReadResult: session() })
-    expect(limited.usageMetadata?.failureKind).toBe('rate-limited')
-    expect(limited.usageMetadata?.retryAtMs).toBeGreaterThan(Date.now())
+      netFetchMock.mockResolvedValueOnce(jsonResponse({}, 429, { 'retry-after': '60' }))
+      const limited = await fetchCursorRateLimits({ authReadResult: session() })
+      expect(limited.usageMetadata?.failureKind).toBe('rate-limited')
+      expect(limited.usageMetadata?.retryAtMs).toBe(Date.now() + 60_000)
+
+      netFetchMock.mockResolvedValueOnce(jsonResponse({}, 429, { 'retry-after': '99999999' }))
+      const capped = await fetchCursorRateLimits({ authReadResult: session() })
+      expect(capped.usageMetadata?.retryAtMs).toBe(Date.now() + 24 * 60 * 60 * 1000)
+
+      const retryAt = Date.now() + 5 * 60_000
+      netFetchMock.mockResolvedValueOnce(
+        jsonResponse({}, 429, { 'retry-after': new Date(retryAt).toUTCString() })
+      )
+      const dated = await fetchCursorRateLimits({ authReadResult: session() })
+      expect(dated.usageMetadata?.retryAtMs).toBe(retryAt)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it.each([403, 302, 304])('reports HTTP %i without claiming the login expired', async (status) => {

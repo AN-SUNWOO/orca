@@ -20,6 +20,7 @@ import { sendRemoteRuntimeRequestWithStatusPreflight } from '../../shared/remote
 import type { RuntimeRpcResponse } from '../../shared/runtime-rpc-envelope'
 import { AUTOMATION_EXTRA_AGENT_ARGS_RUNTIME_CAPABILITY } from '../../shared/protocol-version'
 import { hasExtraAgentArgs } from '../../shared/automation-extra-agent-args'
+import { requiredOrcadMigrationSourceCapability } from '../../shared/orcad-migration-source-kind'
 
 type OrcadCatalogMigrationOperation = 'abort' | 'commit' | 'stage' | 'state'
 
@@ -32,6 +33,9 @@ export const ORCAD_MIGRATION_DESTINATION_UNSUPPORTED = 'orcad_migration_destinat
 /** An older destination would strip automations' extra agent arguments, so the move is refused. */
 export const ORCAD_MIGRATION_DESTINATION_EXTRA_AGENT_ARGS_UNSUPPORTED =
   'orcad_migration_destination_extra_agent_args_unsupported:Update Orca on this host to use extra arguments.'
+/** The destination does not parse this manifest's source kind; nothing was sent, so nothing staged. */
+export const ORCAD_MIGRATION_DESTINATION_SOURCE_KIND_UNSUPPORTED =
+  'orcad_migration_destination_source_kind_unsupported:Update Orca on this host to move this project to it.'
 
 type CatalogRequestOptions = {
   signal?: AbortSignal
@@ -135,7 +139,9 @@ async function request(
     METHOD_BY_OPERATION[operation],
     { manifest },
     options,
-    carriesExtraAgentArgs
+    carriesExtraAgentArgs,
+    // Every operation: an older destination would parse a non-SSH source as malformed or as SSH.
+    requiredOrcadMigrationSourceCapability(manifest.source)
   )
   if (!response.ok) {
     throw new Error(`orcad_migration_${operation}_failed:${response.error.message}`)
@@ -148,7 +154,8 @@ async function sendSupportedMigrationRequest(
   method: string,
   params: unknown,
   options: CatalogRequestOptions,
-  requiresExtraAgentArgs = false
+  requiresExtraAgentArgs = false,
+  requiredSourceCapability: string | null = null
 ): Promise<RuntimeRpcResponse<unknown>> {
   const response = await sendRemoteRuntimeRequestWithStatusPreflight<unknown>(
     pairedRuntimeConnectionFromOffer(pairing),
@@ -173,6 +180,12 @@ async function sendSupportedMigrationRequest(
         !status.result.capabilities?.includes(AUTOMATION_EXTRA_AGENT_ARGS_RUNTIME_CAPABILITY)
       ) {
         throw new Error(ORCAD_MIGRATION_DESTINATION_EXTRA_AGENT_ARGS_UNSUPPORTED)
+      }
+      if (
+        requiredSourceCapability !== null &&
+        !status.result.capabilities?.includes(requiredSourceCapability)
+      ) {
+        throw new Error(ORCAD_MIGRATION_DESTINATION_SOURCE_KIND_UNSUPPORTED)
       }
     },
     undefined,

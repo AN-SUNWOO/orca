@@ -108,14 +108,14 @@ describe('publishing a launch tab before its agent exists', () => {
     store.getState().setTabAgentLaunchPane(TAB_ID, {
       leafId: LEAF_ID,
       operationId: 'op-1',
-      outcome: { kind: 'unconfirmed' }
+      outcome: { kind: 'not-started', code: 'boom' }
     })
 
     publishAgentLaunchTab(request({ requestId: 'request-2', operationId: 'op-1' }))
     expect(launchPane()).toEqual({
       leafId: LEAF_ID,
       operationId: 'op-1',
-      outcome: { kind: 'unconfirmed' }
+      outcome: { kind: 'not-started', code: 'boom' }
     })
 
     publishAgentLaunchTab(request({ requestId: 'request-3', operationId: 'op-2' }))
@@ -147,11 +147,11 @@ describe('publishing a launch tab before its agent exists', () => {
     const generation = () =>
       store.getState().tabsByWorktree[WT]?.find((tab) => tab.id === TAB_ID)?.generation ?? 0
     publishAgentLaunchTab(request({ operationId: 'op-1' }))
-    // Its spawn was refused ("couldn't confirm"): the pane is idle until it remounts.
+    // Its spawn was refused: the pane is idle until it remounts.
     store.getState().setTabAgentLaunchPane(TAB_ID, {
       leafId: LEAF_ID,
       operationId: 'op-1',
-      outcome: { kind: 'unconfirmed' }
+      outcome: { kind: 'not-started', code: 'boom' }
     })
     const before = generation()
 

@@ -1,5 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto'
-import { createReadStream, existsSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { chmod, copyFile, mkdir, readFile, rename, rm, utimes, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { z } from 'zod'
@@ -10,7 +10,6 @@ import {
   ORCAD_SERVER_TARGET_FILENAME,
   ORCAD_TEMPLATE_MANIFEST_FILENAME,
   ORCAD_TEMPLATE_TARGETS_DIR,
-  ORCAD_VERSION,
   ORCAD_VERSION_FILENAME,
   orcadArtifactFilenames,
   orcadTemplateCommonFilenames,
@@ -18,11 +17,18 @@ import {
 } from '../../shared/orcad-artifacts'
 import { pinnedNodeRuntimeAsset, type NodeRuntimeTarget } from '../../shared/node-runtime-pin'
 import { findOrcadCachePath } from '../node-runtime/orcad-cache-path'
+import type { PinnedRuntimeMaterializeOptions } from '../node-runtime/pinned-runtime-materializer'
+import { readOrcadArtifactVerificationRecord } from './orcad-artifact-verification-record'
 import {
-  fileSha256,
-  verifyFileSha256,
-  type PinnedRuntimeMaterializeOptions
-} from '../node-runtime/pinned-runtime-materializer'
+  isCompleteArtifact,
+  rememberVerification,
+  sameHashes,
+  signSlot,
+  slotMatchesRecord,
+  verifiedArtifactIdentity,
+  type ArtifactSource,
+  type ExpectedSha256
+} from './orcad-artifact-source-verification'
 import { OrcadArtifactsUnavailableError, OrcadHostUnsupportedError } from './orcad-host-unavailable'
 
 const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/u)
@@ -47,6 +53,8 @@ const TemplateManifestSchema = z.object({
 type MaterializeOptions = PinnedRuntimeMaterializeOptions & {
   templateDir?: string
   cacheRoot?: string
+  /** WSL wake path only: reuse digests recorded by stat signature instead of re-hashing. */
+  trustVerificationRecord?: boolean
 }
 
 const materializations = new Map<string, Promise<string>>()
@@ -66,15 +74,20 @@ export async function materializeOrcadArtifact(
   const templateDir = options.templateDir ?? resolveOrcadTemplateDir()
   const cacheRoot =
     options.cacheRoot ?? join(getAppEnvironment().getPath('userData'), 'orcad-artifacts')
-  const key = `${templateDir}\0${cacheRoot}\0${target}`
+  const trustVerificationRecord = options.trustVerificationRecord === true
+  // Why the trust bit is keyed: an SSH or local caller must never join a record-trusting fill.
+  const key = `${templateDir}\0${cacheRoot}\0${target}\0${trustVerificationRecord}`
   const existing = materializations.get(key)
   if (existing) {
     return waitForPromiseWithSignal(existing, options.signal)
   }
   // Cancellation detaches one caller; the bounded cache fill still serves other deployments.
-  const pending = assembleOrcadArtifact({ templateDir, cacheRoot, target }).finally(() =>
-    materializations.delete(key)
-  )
+  const pending = assembleOrcadArtifact({
+    templateDir,
+    cacheRoot,
+    target,
+    trustVerificationRecord
+  }).finally(() => materializations.delete(key))
   materializations.set(key, pending)
   return waitForPromiseWithSignal(pending, options.signal)
 }
@@ -84,15 +97,32 @@ export async function assembleOrcadArtifact(args: {
   cacheRoot: string
   target: NodeRuntimeTarget
   manifest?: z.infer<typeof TemplateManifestSchema>
+  /** Test seam for deciding when a file's stat signature is old enough to trust. */
+  now?: () => number
+  /** Off (SSH, local serve): every launch hashes, and no record is read or written. */
+  trustVerificationRecord?: boolean
 }): Promise<string> {
+  const trust = args.trustVerificationRecord === true
   const manifest = args.manifest ?? (await readTemplateManifest(args.templateDir))
-  await verifyTemplate(args.templateDir, args.target, manifest)
   const sources = artifactSources(args.templateDir, args.target, manifest)
-  const { fullVersion, sourceHashes } = await computeArtifactIdentity(sources)
+  const expected = expectedTemplateSha256(args.target, manifest)
   const targetRoot = join(args.cacheRoot, args.target)
+  const nowMs = (args.now ?? Date.now)()
+  const record = trust ? await readOrcadArtifactVerificationRecord(targetRoot) : null
+  const identity = await verifiedArtifactIdentity(sources, expected, record, nowMs, trust)
+  await verifyTemplateMarkers(args.templateDir, args.target)
+  const { fullVersion, sourceHashes } = identity
+  const recordedSlot =
+    record && record.contentDigest === identity.contentDigest && sameHashes(record, sourceHashes)
+      ? record.slot
+      : null
+  let slotFromRecord = false
   const cached = await findOrcadCachePath(
     (attempt) => join(targetRoot, `${fullVersion}${attempt ? `.repair-${attempt}` : ''}`),
-    (path) => isCompleteArtifact(path, fullVersion, sources, sourceHashes)
+    async (path) => {
+      slotFromRecord = await slotMatchesRecord(path, fullVersion, sources, recordedSlot, nowMs)
+      return slotFromRecord || isCompleteArtifact(path, fullVersion, sources, sourceHashes)
+    }
   )
   const targetDir = cached.path
   materializedVersions.add(fullVersion)
@@ -100,6 +130,10 @@ export async function assembleOrcadArtifact(args: {
     // Retention evicts by recency, so a reused slot counts as recently used.
     const now = new Date()
     await utimes(targetDir, now, now).catch(() => undefined)
+    if (trust) {
+      const slot = slotFromRecord ? recordedSlot : await signSlot(targetDir, sources, nowMs)
+      await rememberVerification(targetRoot, record, identity, slot)
+    }
     return targetDir
   }
   await mkdir(targetRoot, { recursive: true })
@@ -126,6 +160,10 @@ export async function assembleOrcadArtifact(args: {
         })
       }
     }
+    if (trust) {
+      // Fresh copies are not settled yet, so the next launch hashes this slot once more.
+      await rememberVerification(targetRoot, record, identity, null)
+    }
     return targetDir
   } finally {
     await rm(stagingDir, { recursive: true, force: true })
@@ -140,7 +178,7 @@ function artifactSources(
   templateDir: string,
   target: NodeRuntimeTarget,
   manifest: z.infer<typeof TemplateManifestSchema>
-): { filename: string; path: string; executable?: boolean }[] {
+): ArtifactSource[] {
   const targetDir = join(templateDir, ORCAD_TEMPLATE_TARGETS_DIR, target)
   const targetManifest = manifest.targets[target]
   if (!targetManifest) {
@@ -165,44 +203,41 @@ function artifactSources(
   ]
 }
 
-async function computeArtifactIdentity(
-  sources: { filename: string; path: string }[]
-): Promise<{ fullVersion: string; sourceHashes: Map<string, string> }> {
-  const hash = createHash('sha256')
-  const sourceHashes = new Map<string, string>()
-  for (const source of sources) {
-    const sourceHash = createHash('sha256')
-    for await (const chunk of createReadStream(source.path)) {
-      hash.update(chunk)
-      sourceHash.update(chunk)
-    }
-    sourceHashes.set(source.filename, sourceHash.digest('hex'))
+/** The manifest digest each slot source must hash to. */
+function expectedTemplateSha256(
+  target: NodeRuntimeTarget,
+  manifest: z.infer<typeof TemplateManifestSchema>
+): Map<string, ExpectedSha256> {
+  const targetManifest = manifest.targets[target]
+  if (!targetManifest) {
+    throw new OrcadHostUnsupportedError(`Packaged orcad template does not support ${target}`)
   }
-  return {
-    fullVersion: `${ORCAD_VERSION}+${hash.digest('hex').slice(0, 12)}`,
-    sourceHashes
-  }
-}
-
-async function isCompleteArtifact(
-  dir: string,
-  fullVersion: string,
-  sources: { filename: string }[],
-  sourceHashes: Map<string, string>
-): Promise<boolean> {
-  try {
-    if ((await readFile(join(dir, ORCAD_VERSION_FILENAME), 'utf8')).trim() !== fullVersion) {
-      return false
+  const expected = new Map<string, ExpectedSha256>()
+  for (const filename of orcadTemplateCommonFilenames()) {
+    const sha256 = manifest.commonSha256[filename]
+    if (!sha256) {
+      throw new Error(`Packaged orcad template manifest omits ${filename}`)
     }
-    for (const source of sources) {
-      if ((await fileSha256(join(dir, source.filename))) !== sourceHashes.get(source.filename)) {
-        return false
-      }
-    }
-    return true
-  } catch {
-    return false
+    expected.set(filename, { sha256, label: `orcad template ${filename}` })
   }
+  for (const filename of orcadTemplateTargetFilenames(target)) {
+    const sha256 = targetManifest.files[filename]
+    if (!sha256) {
+      throw new Error(`Packaged orcad template manifest omits ${target} ${filename}`)
+    }
+    expected.set(filename, { sha256, label: `${target} ${filename}` })
+  }
+  if (targetManifest.browserName && targetManifest.browserSha256) {
+    // A browser named like a required file would replace that file's manifest digest.
+    if (expected.has(targetManifest.browserName)) {
+      throw new Error(`Packaged orcad template ${target} browser name collides with a slot file`)
+    }
+    expected.set(targetManifest.browserName, {
+      sha256: targetManifest.browserSha256,
+      label: `${target} browser`
+    })
+  }
+  return expected
 }
 
 async function readTemplateManifest(
@@ -213,30 +248,12 @@ async function readTemplateManifest(
   )
 }
 
-async function verifyTemplate(
+/** Content checks a manifest digest cannot express; both files are a few bytes. */
+async function verifyTemplateMarkers(
   templateDir: string,
-  target: NodeRuntimeTarget,
-  manifest: z.infer<typeof TemplateManifestSchema>
+  target: NodeRuntimeTarget
 ): Promise<void> {
-  const targetManifest = manifest.targets[target]
-  if (!targetManifest) {
-    throw new OrcadHostUnsupportedError(`Packaged orcad template does not support ${target}`)
-  }
-  for (const filename of orcadTemplateCommonFilenames()) {
-    const expected = manifest.commonSha256[filename]
-    if (!expected) {
-      throw new Error(`Packaged orcad template manifest omits ${filename}`)
-    }
-    await verifyFileSha256(join(templateDir, filename), expected, `orcad template ${filename}`)
-  }
   const targetDir = join(templateDir, ORCAD_TEMPLATE_TARGETS_DIR, target)
-  for (const filename of orcadTemplateTargetFilenames(target)) {
-    const expected = targetManifest.files[filename]
-    if (!expected) {
-      throw new Error(`Packaged orcad template manifest omits ${target} ${filename}`)
-    }
-    await verifyFileSha256(join(targetDir, filename), expected, `${target} ${filename}`)
-  }
   if ((await readFile(join(targetDir, ORCAD_SERVER_TARGET_FILENAME), 'utf8')).trim() !== target) {
     throw new Error(`Packaged orcad template target identity does not match ${target}`)
   }
@@ -247,13 +264,6 @@ async function verifyTemplate(
   )
   if (runtimeReference.trim() !== pinnedNodeRuntimeAsset(target).executableSha256) {
     throw new Error(`Packaged orcad template ${target} does not reference the pinned Node`)
-  }
-  if (targetManifest.browserName && targetManifest.browserSha256) {
-    await verifyFileSha256(
-      join(targetDir, targetManifest.browserName),
-      targetManifest.browserSha256,
-      `${target} browser`
-    )
   }
 }
 

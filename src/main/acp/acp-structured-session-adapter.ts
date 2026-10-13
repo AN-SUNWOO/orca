@@ -235,7 +235,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
 
   stopBackgroundTasks: NonNullable<StructuredAgentSessionAdapter['stopBackgroundTasks']> = (
     input
-  ) => stopAcpChildren(this.live(input.sessionId), input.fence, input.taskIds, () => this.now())
+  ) => stopAcpChildren(this.live(input.sessionId), input.fence, input.taskIds, input.acknowledge)
 
   backgroundTaskStops: NonNullable<StructuredAgentSessionAdapter['backgroundTaskStops']> = (
     sessionId

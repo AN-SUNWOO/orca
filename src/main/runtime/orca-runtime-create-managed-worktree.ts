@@ -216,13 +216,13 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
         pasteDraft: (handle, draft) => this.pasteStartupDraftWhenReady(handle, draft),
         sendFollowup: (handle, followup) => this.sendStartupFollowupWhenReady(handle, followup),
         provision: (options) => this.provisionManagedWorktreeTerminals(options, worktree),
-        activate: (repoId, worktreeId, activationSetup, startup, activationDefaultTabs) =>
+        activate: (repoId, worktreeId, startup, failedSetup, failedDefaultTabs) =>
           this.notifyActivateWorktree(
             repoId,
             worktreeId,
-            activationSetup,
+            failedSetup,
             startup,
-            activationDefaultTabs,
+            failedDefaultTabs,
             args.navigation
           )
       }

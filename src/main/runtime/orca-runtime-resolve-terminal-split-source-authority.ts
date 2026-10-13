@@ -22,13 +22,21 @@ export class OrcaRuntimeWithResolveTerminalSplitSourceAuthority extends OrcaRunt
     tabId: string,
     leafId: string,
     ptyId: string
-  ): {
-    persisted: boolean
-    rendererMounted: boolean
-    persistedWorktreeId: string | null
-    persistedIncarnationId: string | null
-    liveIncarnationId: string | null
-  } | null {
+  ):
+    | {
+        persisted: true
+        rendererRunsOtherPty: boolean
+        persistedWorktreeId: string | null
+        persistedIncarnationId: string | null
+        liveIncarnationId: string | null
+      }
+    | {
+        persisted: false
+        persistedWorktreeId: null
+        persistedIncarnationId: null
+        liveIncarnationId: string | null
+      }
+    | null {
     const session = this.getWorkspaceSessionForWorktree(worktreeId)
     const sessionWorktreeId = session ? resolveTerminalSessionWorktreeId(session, worktreeId) : null
     const persistedTab = sessionWorktreeId
@@ -62,10 +70,12 @@ export class OrcaRuntimeWithResolveTerminalSplitSourceAuthority extends OrcaRunt
       runtimeWorktreeIdsEqual(rendererLeaf.worktreeId, worktreeId) &&
       (rendererLeaf.ptyId === ptyId || (persisted && rendererLeaf.ptyId === null))
     )
+    // Only a contradiction is trusted: the window's graph lags, so an unlisted pane proves nothing.
+    const rendererRunsOtherPty = Boolean(rendererLeaf?.ptyId && rendererLeaf.ptyId !== ptyId)
     if (persisted && persistedLayout) {
       return {
         persisted: true,
-        rendererMounted,
+        rendererRunsOtherPty,
         persistedWorktreeId: sessionWorktreeId,
         persistedIncarnationId,
         liveIncarnationId
@@ -88,7 +98,6 @@ export class OrcaRuntimeWithResolveTerminalSplitSourceAuthority extends OrcaRunt
     }
     return {
       persisted: false,
-      rendererMounted,
       persistedWorktreeId: null,
       persistedIncarnationId: null,
       liveIncarnationId

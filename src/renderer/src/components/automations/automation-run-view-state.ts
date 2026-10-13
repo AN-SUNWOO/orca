@@ -88,7 +88,8 @@ export function getAutomationRunViewState({
     }
   }
 
-  if (run.workspaceId && workspaceExists) {
+  // Why: a run that never dispatched left no agent to resume; opening seeds an empty shell (STA-10103).
+  if (run.workspaceId && workspaceExists && run.dispatchedAt !== null) {
     return {
       availability: 'workspace',
       actionLabel: 'Resume workspace',

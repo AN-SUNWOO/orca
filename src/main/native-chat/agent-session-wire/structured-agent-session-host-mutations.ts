@@ -106,11 +106,25 @@ export function cancelStructuredAgentSessionTurn(
   }
 ): Promise<AgentSessionMutationResult<AgentSessionCancelResult>> {
   if (params.scope) {
+    const { sessionId } = params.envelope
     return mutateStructuredAgentSession(
       context,
       caller,
       params.envelope,
-      cancelPlan({ ...params, childWork: () => context.readChildWork(params.envelope.sessionId) }),
+      cancelPlan({
+        ...params,
+        childWork: () => context.readChildWork(sessionId),
+        acknowledgeStops: (evidence) => context.publishChildWork(sessionId, evidence),
+        // Untargeted, with work no record lists: the idle sweep's stop ends it with the agent.
+        ...(params.taskId === undefined
+          ? {
+              unlisted: {
+                present: () => context.childWorkIncomplete(sessionId),
+                stop: () => context.stopAgent(sessionId, { cause: 'evict', resting: true })
+              }
+            }
+          : {})
+      }),
       openForProviderWrite(context, params.envelope)
     )
   }

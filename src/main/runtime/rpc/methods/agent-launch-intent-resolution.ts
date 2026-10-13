@@ -54,7 +54,8 @@ async function agentLaunchIntent(
     ...(params.cwd ? { cwd: params.cwd } : {}),
     ...(params.launchSource ? { launchSource: params.launchSource } : {}),
     ...(paneKey ? { paneKey } : {}),
-    ...(params.sessionId ? { sessionId: params.sessionId } : {})
+    ...(params.sessionId ? { sessionId: params.sessionId } : {}),
+    ...(params.accountEnv ? { accountEnv: params.accountEnv } : {})
   }
 }
 

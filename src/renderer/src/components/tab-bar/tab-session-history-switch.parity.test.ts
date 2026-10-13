@@ -9,14 +9,8 @@ import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { getDefaultSettings } from '../../../../shared/constants'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
 import { STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
-import { resolveAiVaultHistorySessionResumeState } from '../right-sidebar/ai-vault-session-resume'
-import { resolveAiVaultHistoryRowResume } from '../right-sidebar/ai-vault-session-resume-in-chat-workspace'
-import { resolveAiVaultSessionSurfaceSwitchTargets } from '../right-sidebar/ai-vault-session-surface-switch'
-import {
-  aiVaultSessionOwnerWorkspaces,
-  useAiVaultSessionWorktreeMap,
-  withAiVaultCurrentWorktreeStatus
-} from '../right-sidebar/ai-vault-session-worktree'
+import { resolveAiVaultSessionRowChatActions } from '../right-sidebar/ai-vault-session-chat-action'
+import { useAiVaultPanelSessionResume } from '../right-sidebar/use-ai-vault-panel-session-resume'
 import {
   resolveTabSessionSwitch,
   type TabSessionHistorySubject
@@ -83,30 +77,24 @@ function makeState(): AppState {
 
 /** What AiVaultPanel + AiVaultVirtualRow compute for this row while WORKTREE_ID is active. */
 function panelTargets(state: AppState, session: AiVaultSession) {
-  const worktrees = aiVaultSessionOwnerWorkspaces(
-    getIndexedAllWorktrees(state.worktreesByRepo),
-    state.folderWorkspaces
+  const { result } = renderHook(() =>
+    useAiVaultPanelSessionResume({
+      sessions: [session],
+      repos: state.repos,
+      allWorktrees: getIndexedAllWorktrees(state.worktreesByRepo),
+      workspaceId: WORKTREE_ID,
+      resumeTargetState: state,
+      settings: state.settings
+    })
   )
-  const { result: worktreeMap } = renderHook(() =>
-    useAiVaultSessionWorktreeMap({ sessions: [session], repos: state.repos, worktrees })
-  )
-  const worktreeInfo = withAiVaultCurrentWorktreeStatus(
-    worktreeMap.current.get(session.id) ?? null,
-    WORKTREE_ID
-  )
-  const rowArgs = {
+  return resolveAiVaultSessionRowChatActions({
     session,
-    worktreeInfo,
-    activeWorktreeId: WORKTREE_ID,
-    worktrees,
-    repos: state.repos,
-    targetState: state
-  }
-  return resolveAiVaultSessionSurfaceSwitchTargets(
-    session,
-    resolveAiVaultHistorySessionResumeState(rowArgs),
-    resolveAiVaultHistoryRowResume({ ...rowArgs, settings: state.settings }).resumeInChat
-  )
+    originalPaneTarget: null,
+    structuredSessionOpen: false,
+    resumeState: result.current.getSessionResumeState(session),
+    resumeInChat: result.current.getSessionResumeInChat(session),
+    searchHit: undefined
+  })
 }
 
 const request = { scopePaths: [], executionHostScope: 'local', sessionLimit: 250 } as const

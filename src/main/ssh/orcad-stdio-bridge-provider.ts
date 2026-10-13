@@ -24,20 +24,22 @@ import type {
   StartedPortForward
 } from './ssh-port-forward-provider'
 
-type OrcadStdioBridgeDependencies = {
+export type OrcadStdioBridgeDependencies = {
   resolveBridge: (conn: OrcadHostTransport, port: number) => Promise<OrcadStdioBridge>
   checkBridge: (conn: OrcadHostTransport, bridge: OrcadStdioBridge) => Promise<unknown>
   openChannel: (conn: OrcadHostTransport, bridge: OrcadStdioBridge) => Promise<RemoteCommandChannel>
 }
 
-const defaultDependencies: OrcadStdioBridgeDependencies = {
+export const ORCAD_STDIO_BRIDGE_DEPENDENCIES: OrcadStdioBridgeDependencies = {
   resolveBridge: resolveOrcadStdioBridge,
   checkBridge: checkOrcadStdioBridge,
   openChannel: openOrcadStdioBridgeChannel
 }
 
 export class OrcadStdioBridgePortForwardProvider implements SshPortForwardProvider {
-  constructor(private readonly dependencies: OrcadStdioBridgeDependencies = defaultDependencies) {}
+  constructor(
+    private readonly dependencies: OrcadStdioBridgeDependencies = ORCAD_STDIO_BRIDGE_DEPENDENCIES
+  ) {}
 
   // Why not system SSH: each bridge socket would be its own `ssh` process (a fresh login, and
   // perhaps a key prompt, when multiplexing is off), and its refusal can't be probed up front.
@@ -50,7 +52,8 @@ export class OrcadStdioBridgePortForwardProvider implements SshPortForwardProvid
   }
 }
 
-async function startOrcadStdioBridge(
+/** Transport-agnostic: any orcad host whose exec can run the bridge (SSH, a WSL distro). */
+export async function startOrcadStdioBridge(
   host: OrcadHostTransport,
   options: PortForwardStartOptions,
   deps: OrcadStdioBridgeDependencies

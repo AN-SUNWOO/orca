@@ -36,6 +36,10 @@ import type {
 } from '../../shared/agent-launch-intent'
 import { withoutReservedAgentCreateFields } from '../../shared/agent-launch-intent'
 import {
+  combineLaunchWarnings,
+  ignoredStructuredLaunchInputsWarning
+} from './agent-launch-warnings'
+import {
   argvLaunchPrompt,
   deliverTerminalLaunchPrompt,
   HANDED_TO_TERMINAL,
@@ -307,24 +311,10 @@ async function createSurface(
         ...(session.tabId ? { tabId: session.tabId } : {})
       },
       structured: session,
-      ...ignoredStructuredAgentArgsWarning(intent)
+      ...ignoredStructuredLaunchInputsWarning(intent)
     }
   }
   return createTerminalSurface(execution, workspace)
-}
-
-/**
- * Structured chat uses saved Arguments, so a per-call override still needs a truthful warning.
- */
-function ignoredStructuredAgentArgsWarning(
-  intent: AgentLaunchIntent
-): { warning: string } | undefined {
-  return intent.agentArgs === undefined
-    ? undefined
-    : {
-        warning:
-          'Started a structured chat session using saved agent Arguments; the per-launch argument override was ignored.'
-      }
 }
 
 /** What every route that builds a terminal agent passes on, so the startup terminal of a new
@@ -336,7 +326,8 @@ function terminalLaunchInputs(intent: AgentLaunchIntent) {
     ...(intent.agentArgs !== undefined ? { agentArgs: intent.agentArgs } : {}),
     ...(intent.cwd ? { cwd: intent.cwd } : {}),
     ...(intent.launchSource ? { launchSource: intent.launchSource } : {}),
-    ...(intent.paneKey ? { paneKey: intent.paneKey } : {})
+    ...(intent.paneKey ? { paneKey: intent.paneKey } : {}),
+    ...(intent.accountEnv ? { accountEnv: intent.accountEnv } : {})
   }
 }
 
@@ -366,22 +357,6 @@ async function createTerminalSurface(
     ...(terminal.warning ? { warning: terminal.warning } : {}),
     ...(startupPrompt && terminal.promptRodeLaunchCommand ? { promptRodeLaunchCommand: true } : {})
   }
-}
-
-/**
- * Two warnings, both true, neither droppable.
- *
- * Mirrors how the create combines its own failures — `appendFailure` in
- * runtime-local-worktree-terminal-startup.ts — which append rather than replace.
- */
-export function combineLaunchWarnings(
-  create: string | undefined,
-  surface: string | undefined
-): string | undefined {
-  if (!create || !surface) {
-    return create ?? surface
-  }
-  return `${create} Also ${surface[0].toLowerCase()}${surface.slice(1)}`
 }
 
 function existingWorktreeId(target: AgentLaunchTarget): string {

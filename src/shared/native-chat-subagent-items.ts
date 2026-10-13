@@ -52,8 +52,18 @@ export function namedSubagents(block: NativeChatBlock): readonly NativeChatSubag
   return isSubagentBlock(block) ? [subagentEntryOf(block)] : []
 }
 
+/** The siblings a block folds with, and the folded row's groupId: a helper's own helpers keep
+ *  open state apart from the turn's. */
+export function subagentFoldKey(block: NativeChatSubagentBlock): string {
+  return block.parentId === undefined
+    ? block.groupId
+    : JSON.stringify([block.groupId, block.parentId])
+}
+
 /** The subagent a row is, when it is one: its block, beside nothing but its twin sentence. */
-function subagentItemBlock(message: NativeChatMessage): NativeChatSubagentBlock | null {
+export function subagentItemBlock(
+  message: Pick<NativeChatMessage, 'blocks'>
+): NativeChatSubagentBlock | null {
   let found: NativeChatSubagentBlock | null = null
   for (const block of message.blocks) {
     if (isSubagentBlock(block) && found === null) {
@@ -85,9 +95,7 @@ export function foldSubagentItems(
       continue
     }
     any = true
-    // Also the folded row's groupId: a helper's own helpers keep open state apart from the turn's.
-    const key =
-      block.parentId === undefined ? block.groupId : JSON.stringify([block.groupId, block.parentId])
+    const key = subagentFoldKey(block)
     const siblings = groups.get(key)
     if (siblings) {
       siblings.push(message)

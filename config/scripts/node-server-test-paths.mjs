@@ -1,7 +1,7 @@
 /** Mirrors ORCA_REQUIRED_TEST_INPUTS_ENV in src/main/orcad/orcad-node-slot-fixture.ts. */
 export const REQUIRED_TEST_INPUTS_ENV = 'ORCA_REQUIRED_TEST_INPUTS'
 
-// Need Bun 1.4.2 and the last Bun orcad slot beside the built Node slot (design D7).
+// Need the pinned Bun and the last Bun orcad slot beside the built Node slot (design D7).
 export const CROSS_RUNTIME_TEST_PATHS = [
   'src/main/orcad/orcad-cross-runtime-daemon-adoption.integration.test.ts',
   'src/main/persistence/profile-state/profile-state-cross-runtime.integration.test.ts'

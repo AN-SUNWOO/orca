@@ -134,8 +134,10 @@ function renderItemsNow(structuredSessionId?: string): void {
         <DropdownMenuTrigger>Open</DropdownMenuTrigger>
         <DropdownMenuContent>
           <TabSessionSurfaceSwitchMenuItems
-            tab={{ id: 'tab-1', worktreeId: 'wt-1', launchAgent: 'claude' }}
-            structuredSessionId={structuredSessionId}
+            tab={{ id: 'tab-1', worktreeId: 'wt-1' }}
+            nativeChat={
+              structuredSessionId ? { sessionId: structuredSessionId, agent: 'claude' } : undefined
+            }
             leadingSeparator
           />
         </DropdownMenuContent>

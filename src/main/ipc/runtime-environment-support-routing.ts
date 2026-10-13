@@ -14,7 +14,7 @@ import {
   subscribeRemoteRuntimeRequest,
   type RemoteRuntimeSubscription
 } from '../../shared/remote-runtime-client'
-import { withRemoteRuntimeTailscaleHint } from '../../shared/remote-runtime-tailscale-hint'
+import { withRuntimeUnreachableHint } from './runtime-environment-unreachable-hint'
 import {
   isRuntimeEnvironmentCapabilityOutcomeCurrent,
   type RuntimeEnvironmentCapabilityOutcome
@@ -266,7 +266,7 @@ function subscriptionCallbacks(
       args.callbacks.onEvent({
         type: 'error' as const,
         code: error.code,
-        message: withRemoteRuntimeTailscaleHint(error.message, connection.endpoint)
+        message: withRuntimeUnreachableHint(args.environment, error.message, connection.endpoint)
       }),
     onClose: () => {
       args.callbacks.onEvent({ type: 'close' as const })

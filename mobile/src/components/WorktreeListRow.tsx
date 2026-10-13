@@ -9,12 +9,12 @@ import {
   Server
 } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { parseExecutionHostId, type ExecutionHostId } from '../../../src/shared/execution-host'
-import type { AgentWorkingMode } from '../../../src/shared/agent-status-types'
-import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
+import { parseExecutionHostId } from '../../../src/shared/execution-host'
 import type { MobileRenderableRepoIcon } from '../host-screen/host-screen-reply-schema'
 import { triggerMediumImpact } from '../platform/haptics'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import type { Worktree } from '../worktree/workspace-list-types'
+import { areStructurallyEqual } from '../worktree/structural-equality'
 import { AgentSpinner } from './AgentSpinner'
 import { MobileRepoIcon } from './MobileRepoIcon'
 import { WorktreeAgentList } from './WorktreeAgentList'
@@ -26,43 +26,10 @@ function displayBranch(branch: string): string {
   return branch.replace(/^refs\/heads\//, '')
 }
 
-// Minimal row shape needed for rendering — a structural subset of the screen's
-// Worktree so this component stays decoupled from the screen's local type.
-export type WorktreeListRowItem = {
-  workspaceKind?: 'git' | 'folder-workspace'
-  worktreeId: string
-  hostId?: ExecutionHostId
-  /** Present only when the list spans hosts; names the host this row runs on. */
-  hostContextLabel?: string
-  /** Resolved host for the display label; present when legacy rows omit hostId. */
-  hostContextHostId?: ExecutionHostId
-  /** The host's health word, e.g. "Disconnected"; absent while the host is healthy. */
-  hostContextHealthLabel?: string
-  repo: string
-  branch: string
-  displayName: string
-  path?: string
-  liveTerminalCount: number
-  preview: string
-  unread: boolean
-  isActive?: boolean
-  linkedPR: { number: number; state: string } | null
-  linkedIssue?: number | null
-  linkedLinearIssue?: string | null
-  linkedGitLabMR?: number | null
-  linkedGitLabIssue?: number | null
-  comment?: string
-  lineageDepth?: number
-  lineageChildCount?: number
-  lineageCollapsed?: boolean
-  agents?: RuntimeWorktreeAgentRow[]
-  workingMode?: AgentWorkingMode
-}
-
 type WorktreeRollupStatus = 'working' | 'active' | 'permission' | 'done' | 'inactive'
 
-type Props<T extends WorktreeListRowItem> = {
-  item: T
+type Props = {
+  item: Worktree
   isReadOnly: boolean
   now: number
   repoColor: string
@@ -71,12 +38,12 @@ type Props<T extends WorktreeListRowItem> = {
   // omits its own repo icon+name to avoid the redundant "📁 orca" on every row.
   hideRepo?: boolean
   status: WorktreeRollupStatus
-  onPress: (item: T) => void
-  onLongPress?: (item: T) => void
-  onToggleLineage?: (item: T) => void
+  onPress: (item: Worktree) => void
+  onLongPress?: (item: Worktree) => void
+  onToggleLineage?: (item: Worktree) => void
 }
 
-function WorktreeListRowComponent<T extends WorktreeListRowItem>({
+function WorktreeListRowComponent({
   item,
   isReadOnly,
   now,
@@ -87,7 +54,7 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
   onPress,
   onLongPress,
   onToggleLineage
-}: Props<T>) {
+}: Props) {
   const isFolderWorkspace = item.workspaceKind === 'folder-workspace'
   const folderMeta = item.comment?.trim() || item.path || 'Folder'
   const metaText = isFolderWorkspace ? folderMeta : displayBranch(item.branch)
@@ -239,7 +206,7 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
   )
 }
 
-export const WorktreeListRow = memo(WorktreeListRowComponent) as typeof WorktreeListRowComponent
+export const WorktreeListRow = memo(WorktreeListRowComponent, areStructurallyEqual)
 
 const styles = StyleSheet.create({
   worktreeRow: {

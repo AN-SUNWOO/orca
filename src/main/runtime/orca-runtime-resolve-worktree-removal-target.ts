@@ -12,6 +12,7 @@ import { runtimeWorktreeIdsEqual } from './runtime-worktree-path-identity'
 import { hasWorktreeRemovalRepoOwnerOnOtherHost } from '../worktree-removal-repo-owner'
 import { advertisedUrlWatcher } from '../ports/advertised-url-watcher'
 import { deleteWorktreeHistoryDir } from '../terminal-history-deletion'
+import { forgetFailedAgentLaunches } from '../agent-launch/agent-launch-pane-attachment'
 import { closeClientHostedBrowserPagesForWorktree } from './worktree-browser-client-page-close'
 import type {
   ForceDeleteWorktreeBranchResult,
@@ -174,6 +175,7 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
       this.cancelScheduledMobileSessionTabsChanged(worktreeId)
       this.notifyMobileSessionTabsRemoved(worktreeId)
       advertisedUrlWatcher.forgetWorktree(worktreeId)
+      forgetFailedAgentLaunches(worktreeId, null)
       deleteWorktreeHistoryDir(worktreeId)
       this.closeHeadlessBrowserPagesForWorktree(worktreeId)
       closeClientHostedBrowserPagesForWorktree(this, worktreeId)

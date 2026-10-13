@@ -14,7 +14,7 @@ import {
   confirmPtyProcessCeiling,
   describePtyProcessCeiling,
   parsePtyProcessCeilingState
-} from './pty-process-ceiling-state'
+} from '../../shared/pty-process-ceiling-state'
 import { parseDaemonPidFile } from './daemon-pid-file-parse'
 
 const on = { [PTY_PROCESS_CEILING_ENV]: '2048' }

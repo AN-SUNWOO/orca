@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { expect, it } from 'vitest'
 import { parse } from 'yaml'
@@ -29,7 +29,7 @@ it('shares one setup and overlaps the compiler only after type-aware checks fini
   expect(compiler.background).toBe(true)
   expect(compiler.run).toContain('pnpm run typecheck:ci')
   const bunSetup = steps.find((step) => step.name === 'Set up Bun for preflight checks')
-  expect(bunSetup.with['bun-version']).toBe('1.4.3')
+  expect(bunSetup.with['bun-version-file']).toBe('config/.bun-version')
   expect(bunSetup.if).toBeUndefined()
   expect(plan.background).toBe(true)
   expect(plan.run.trim().split('\n')).toEqual([
@@ -48,6 +48,22 @@ it('shares one setup and overlaps the compiler only after type-aware checks fini
   expect(compilerJoin).toBeGreaterThan(
     steps.findIndex((step) => step.wait?.includes('localization-extraction'))
   )
+})
+
+it('uses the shared Bun pin for every current-toolchain workflow', () => {
+  expect(readFileSync('config/.bun-version', 'utf8').trim()).toBe('1.4.3')
+  for (const file of readdirSync('.github/workflows').filter((name) => /\.ya?ml$/.test(name))) {
+    const current = parse(readFileSync(`.github/workflows/${file}`, 'utf8'))
+    for (const job of Object.values(current.jobs)) {
+      for (const step of job.steps ?? []) {
+        if (!String(step.uses).startsWith('oven-sh/setup-bun@')) {
+          continue
+        }
+        expect(step.with['bun-version-file'], file).toBe('config/.bun-version')
+        expect(step.with['bun-version'], file).toBeUndefined()
+      }
+    }
+  }
 })
 
 it('keeps the Bun anti-slop scan aligned with the local audit', () => {

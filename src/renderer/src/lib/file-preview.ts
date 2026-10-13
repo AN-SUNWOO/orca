@@ -9,6 +9,7 @@ import { getConnectionIdForFile } from '@/lib/connection-context'
 import { getConnectionIdForFileFromState } from '@/lib/connection-owner-resolution'
 import { activateBrowserWorkspaceTab } from '@/lib/browser-workspace-tab-activation'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
+import { selectWorkspaceSurface } from '@/lib/workspace-surface-reveal'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { AppState } from '@/store/types'
@@ -269,7 +270,7 @@ export function convertBrowserPageToWorkspaceDoc(
     // Why the worktree switches first: activation is deliberately scoped to the active worktree,
     // so without the switch a cross-worktree reuse would happen entirely out of sight.
     if (state.activeWorktreeId !== docLocation.worktreeId) {
-      state.setActiveWorktree(docLocation.worktreeId)
+      selectWorkspaceSurface(state, docLocation.worktreeId)
     }
     if (
       !activateBrowserWorkspaceTab({
@@ -291,7 +292,7 @@ export function convertBrowserPageToWorkspaceDoc(
     // The reader follows the document to its worktree; opening it out of sight is indistinguishable
     // from nothing having happened.
     if (state.activeWorktreeId !== docLocation.worktreeId) {
-      state.setActiveWorktree(docLocation.worktreeId)
+      selectWorkspaceSurface(state, docLocation.worktreeId)
     }
     const plan = openFileInBrowserTab({
       filePath: docLocation.filePath,

@@ -7,6 +7,7 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { AGENT_SESSION_QUEUED_MESSAGES_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
 import { setLocalRuntimeCapabilitiesForTests } from '@/runtime/local-runtime-capabilities'
 import { ChatBehaviorSetting } from './ChatBehaviorSetting'
+import { TooltipProvider } from '../ui/tooltip'
 
 afterEach(() => {
   cleanup()
@@ -18,11 +19,13 @@ const SHELL_ENV_TOGGLE = '[aria-label="Toggle using your shell environment"]'
 const NAME_INPUT = '#settings-native-chat-shell-environment-name'
 
 function renderSetting(overrides: Partial<GlobalSettings>, updateSettings = vi.fn()) {
+  // The wrapper also covers rerender: the permission picker's tooltip needs the app's provider.
   return render(
     <ChatBehaviorSetting
       settings={{ ...getDefaultSettings('/tmp'), ...overrides }}
       updateSettings={updateSettings}
-    />
+    />,
+    { wrapper: TooltipProvider }
   )
 }
 
@@ -219,5 +222,19 @@ describe('ChatBehaviorSetting resume after restart', () => {
     const { getByRole } = renderSetting({ nativeChatResumeWorkOnRestart: false }, updateSettings)
     fireEvent.click(getByRole('switch', { name: 'Toggle automatic resume after a restart' }))
     expect(updateSettings).toHaveBeenCalledWith({ nativeChatResumeWorkOnRestart: true })
+  })
+})
+
+describe('ChatBehaviorSetting permissions', () => {
+  it('shows the new-chat permission picker as the first Behavior row', () => {
+    const { container } = renderSetting({ nativeChatPermissionMode: 'full-access' })
+    const rows = container.querySelectorAll('.divide-y > *')
+    expect(rows[0]?.id).toBe('chat-permissions')
+    expect(container.querySelector('button[aria-label="Permissions Full access"]')).not.toBeNull()
+  })
+
+  it('leaves the row out when the host has no value', () => {
+    const { container } = renderSetting({ nativeChatPermissionMode: undefined })
+    expect(container.querySelector('#chat-permissions')).toBeNull()
   })
 })

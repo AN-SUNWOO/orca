@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { PtyProcessCeilingState } from './pty-process-ceiling-state'
+import type { PtyProcessCeilingState } from '../../shared/pty-process-ceiling-state'
 import {
   constants,
   copyFileSync,

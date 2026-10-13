@@ -200,6 +200,8 @@ describe('createManagedOrcadEnvironment', () => {
       census: { liveSessions: 0, startedSinceActivation: 0, daemonProtocolVersion: null },
       nodePath: ''
     })
+    // SSH hosts keep re-hashing the runtime on every deploy.
+    expect(mocks.deploy.mock.calls[0]?.[0]).not.toHaveProperty('recordedNodeRuntimeProbe')
   })
 
   describe('admitting a host another desktop stopped, under the fence', () => {

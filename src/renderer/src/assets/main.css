@@ -481,7 +481,8 @@
 
 [data-sonner-toaster] {
   font-family: var(--font-sans);
-  z-index: var(--toaster-z-index, 40) !important;
+  /* Why: above the floating workspace (z-45 panel, z-46 launcher), which parks in the toasts' corner. */
+  z-index: var(--toaster-z-index, 47) !important;
 }
 
 /* Keep errors above standard modal backdrops at the existing popover tier.

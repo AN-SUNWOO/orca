@@ -17,6 +17,7 @@ import {
 } from './sync-runtime-graph/sync-key'
 import { buildMobileSessionTabSnapshots } from './sync-runtime-graph/mobile-session-snapshots'
 import { resetRuntimeMobileSyncProjectionCachesForTests } from './sync-runtime-graph/sync-projections'
+import { measureTerminalGroupGridSizes } from './sync-runtime-graph/terminal-group-grid-sizes'
 
 export type { RuntimeMobileSessionSyncKey } from './sync-runtime-graph/types'
 export {
@@ -67,6 +68,25 @@ export function scheduleRuntimeGraphSync(): void {
     graphState.syncScheduled = false
     void runRuntimeGraphSync()
   }, RUNTIME_GRAPH_SYNC_COALESCE_MS)
+}
+
+/** Republishes the graph only when the grid a new tab would get in some group changed. */
+export function scheduleRuntimeGraphSyncIfGroupGridSizesChanged(): void {
+  const state = graphState.getStoreState?.()
+  if (!state) {
+    return
+  }
+  const sizes = measureTerminalGroupGridSizes(state.settings?.terminalFontSize ?? 14)
+  if (JSON.stringify(sizes ?? null) !== graphState.publishedTerminalGroupGridSizesKey) {
+    scheduleRuntimeGraphSync()
+  }
+}
+
+/** A tab group body resized (window, divider, sidebar): its group's grid may have changed. */
+export function observeTabGroupBodyGridSize(body: HTMLElement): () => void {
+  const observer = new ResizeObserver(scheduleRuntimeGraphSyncIfGroupGridSizesChanged)
+  observer.observe(body)
+  return () => observer.disconnect()
 }
 
 async function runRuntimeGraphSync(): Promise<void> {

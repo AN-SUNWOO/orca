@@ -595,8 +595,7 @@ it('runs the Bun and Node cross-runtime tests on Linux against pinned inputs', (
   const steps = workflow.jobs.persistence.steps
   const setupBun = steps.find((step) => String(step.uses).startsWith('oven-sh/setup-bun@'))
   expect(setupBun.uses).toMatch(/^oven-sh\/setup-bun@[0-9a-f]{40}$/)
-  // Mirrors LAST_BUN_ORCAD_VERSION in src/main/orcad/orcad-node-slot-fixture.ts.
-  expect(setupBun.with['bun-version']).toBe('1.4.2')
+  expect(setupBun.with['bun-version-file']).toBe('config/.bun-version')
   const build = steps.find((step) => String(step.run).includes('build-orcad-bun.mjs'))
   expect(build.env.BUN_ORCAD_COMMIT).toMatch(/^[0-9a-f]{40}$/)
   expect(setupBun.if).toBe("runner.os == 'Linux'")

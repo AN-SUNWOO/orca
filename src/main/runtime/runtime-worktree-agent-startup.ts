@@ -224,10 +224,16 @@ export function resolveWorktreeCreateAgentStartup(
   if (args.startup || !args.startupAgent) {
     return null
   }
-  return build(args.startupAgent, args.startupPrompt, args.startupLaunchPreferences, {
+  const built = build(args.startupAgent, args.startupPrompt, args.startupLaunchPreferences, {
     ...(args.startupAgentArgs !== undefined ? { agentArgs: args.startupAgentArgs } : {}),
     ...(args.startupExtraAgentArgs ? { extraAgentArgs: args.startupExtraAgentArgs } : {}),
     ...(args.startupLaunchSource ? { launchSource: args.startupLaunchSource } : {}),
     ...(args.onStartupPromptCarry ? { onPromptCarry: args.onStartupPromptCarry } : {})
   })
+  return args.startupAccountEnv
+    ? {
+        ...built,
+        startup: { ...built.startup, env: { ...built.startup.env, ...args.startupAccountEnv } }
+      }
+    : built
 }

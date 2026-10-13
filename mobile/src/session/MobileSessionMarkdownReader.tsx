@@ -7,6 +7,7 @@ import { markdownReaderStatusText } from './mobile-markdown-reader-status'
 import { colors, spacing } from '../theme/mobile-theme'
 import { styles } from './mobile-session-styles'
 import type { MarkdownDocState } from './mobile-session-route-types'
+import { MobileLoadErrorState } from '../components/MobileLoadErrorState'
 
 export function MarkdownReader({
   documentId,
@@ -38,15 +39,7 @@ export function MarkdownReader({
     )
   }
   if (doc.status === 'error') {
-    return (
-      <View style={styles.markdownState}>
-        <Text style={styles.markdownError}>{doc.message}</Text>
-        <Pressable style={styles.markdownRefreshButton} onPress={onRefresh}>
-          <RefreshCw size={14} color={colors.textPrimary} />
-          <Text style={styles.markdownRefreshText}>Retry</Text>
-        </Pressable>
-      </View>
-    )
+    return <MobileLoadErrorState message={doc.message} onRetry={onRefresh} />
   }
 
   const statusText = markdownReaderStatusText(doc)

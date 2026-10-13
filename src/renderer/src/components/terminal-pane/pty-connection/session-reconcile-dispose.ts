@@ -1,9 +1,5 @@
 import { useAppStore } from '@/store'
-import {
-  shouldReconcileDeadSession,
-  shouldReconcileMissingSession,
-  type HasPty
-} from '../terminal-dead-session-reconcile'
+import { shouldReconcileMissingSession, type HasPty } from '../terminal-dead-session-reconcile'
 import { cancelPendingSafeFitContinuations } from '@/lib/pane-manager/pane-tree-ops'
 import { PANE_PTY_RESIZE_HOLD_FLUSH_EVENT } from '@/lib/pane-manager/pane-pty-resize-hold'
 import { discardTerminalOutput } from '@/lib/pane-manager/pane-terminal-output-scheduler'
@@ -18,31 +14,6 @@ import type { ConnectPanePtySession } from './connect-pane-pty-session'
 import { noteArmsHibernatedPaneWake } from './pty-exit-hibernate'
 
 export function installSessionReconcileDispose(session: ConnectPanePtySession): PanePtyBinding {
-  session.reconcileIfSessionDead = (
-    liveSessionIds: Set<string>,
-    snapshotRequestedAt?: number
-  ): void => {
-    if (session.disposed) {
-      return
-    }
-    const currentPtyId = session.transport.getPtyId()
-    if (
-      !currentPtyId ||
-      // Why: this exit was already handled — onExit guards it too, but skipping here avoids a redundant shouldReconcile evaluation.
-      session.handledExitPtyId === currentPtyId ||
-      !shouldReconcileDeadSession({
-        ptyId: currentPtyId,
-        connectionId: session.transport.getConnectionId?.(),
-        liveSessionIds,
-        ptyBoundAt: session.activePanePtyBindingBoundAt,
-        snapshotRequestedAt
-      })
-    ) {
-      return
-    }
-    session.onExit(currentPtyId)
-  }
-
   session.reconcileIfSessionMissing = (
     hasPty: HasPty,
     livenessRequestedAt = performance.now()
@@ -169,7 +140,6 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
     markShortcutTerminalInputSent() {
       session.markInteractiveRedrawInput()
     },
-    reconcileIfSessionDead: session.reconcileIfSessionDead,
     reconcileIfSessionMissing: session.reconcileIfSessionMissing,
     isUntouchedFreshSpawnPty: (ptyId) =>
       session.spawnedFreshPtyId === ptyId && !Number.isFinite(session.lastTerminalInputAt),

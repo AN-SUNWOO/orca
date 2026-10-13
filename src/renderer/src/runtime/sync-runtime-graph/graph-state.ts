@@ -54,7 +54,9 @@ export const graphState = {
   cachedOpenFileIndexesSource: null as AppState['openFiles'] | null,
   cachedOpenFileIndexes: null as OpenFileIndexes | null,
   cachedEditorDraftHashes: null as EditorDraftHashCache | null,
-  mobileSessionSnapshotVersion: 0
+  mobileSessionSnapshotVersion: 0,
+  /** Last group grid sizes main accepted, so a refit republishes only when one changed. */
+  publishedTerminalGroupGridSizesKey: ''
 }
 
 /** IDs occurring more than once cannot address the legacy tab-keyed runtime maps safely. */

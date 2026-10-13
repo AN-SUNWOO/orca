@@ -5,8 +5,6 @@ import {
   FLOATING_TERMINAL_WORKTREE_ID,
   OrcaRuntimeService,
   SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV,
-  electronMocks,
-  ipcMain,
   join,
   mkdtemp,
   randomUUID,
@@ -189,68 +187,6 @@ describe('OrcaRuntimeService', () => {
       | undefined
     expect(spawnCall?.command).toBe('codex')
     expect(spawnCall?.env?.ORCA_AGENT_LAUNCH_TOKEN).toBeUndefined()
-  })
-
-  it('sends Settings agent defaults through renderer-backed bare agent terminal creates', async () => {
-    const runtimeStore = {
-      ...store,
-      getSettings: () => ({
-        ...store.getSettings(),
-        disabledTuiAgents: [],
-        agentCmdOverrides: {},
-        agentDefaultArgs: { codex: '--dangerously-bypass-approvals-and-sandbox' },
-        agentDefaultEnv: { codex: { CODEX_PROFILE: 'captured' } }
-      })
-    }
-    const runtime = new OrcaRuntimeService(runtimeStore)
-
-    const webContents = { send: vi.fn() }
-    webContents.send.mockImplementation((_channel: string, payload: { requestId: string }) => {
-      runtime.syncWindowGraph(1, {
-        tabs: [],
-        leaves: [
-          {
-            tabId: 'tab-renderer',
-            worktreeId: TEST_WORKTREE_ID,
-            leafId: 'pane:1',
-            paneRuntimeId: 1,
-            ptyId: 'pty-renderer',
-            paneTitle: null
-          }
-        ]
-      })
-      ipcMain.emit(
-        'terminal:tabCreateReply',
-        { sender: webContents },
-        { requestId: payload.requestId, tabId: 'tab-renderer', title: 'Codex' }
-      )
-    })
-    runtime.attachWindow(1)
-    runtime.syncWindowGraph(1, { tabs: [], leaves: [] })
-    electronMocks.BrowserWindow.fromId.mockReturnValue({
-      isDestroyed: () => false,
-      webContents
-    })
-
-    await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`, {
-      command: 'codex',
-      rendererBacked: true
-    })
-
-    expect(webContents.send).toHaveBeenCalledWith(
-      'terminal:requestTabCreate',
-      expect.objectContaining({
-        worktreeId: TEST_WORKTREE_ID,
-        command: "codex '--dangerously-bypass-approvals-and-sandbox'",
-        env: { CODEX_PROFILE: 'captured' },
-        launchAgent: 'codex',
-        launchConfig: {
-          agentCommand: "codex '--dangerously-bypass-approvals-and-sandbox'",
-          agentArgs: '--dangerously-bypass-approvals-and-sandbox',
-          agentEnv: { CODEX_PROFILE: 'captured' }
-        }
-      })
-    )
   })
 
   it('injects runtime hook receiver env into terminal sessions', async () => {

@@ -1,4 +1,16 @@
-import type { TerminalPaneLayoutNode } from '../terminal-tab-types'
+import { isTerminalLeafId } from '../stable-pane-id'
+import type { TerminalLayoutSnapshot, TerminalPaneLayoutNode } from '../terminal-tab-types'
+
+/** The pane a rootless layout names: its active leaf, else its only bound leaf. */
+export function resolveRootlessTerminalLayoutLeafId(
+  snapshot: Pick<TerminalLayoutSnapshot, 'activeLeafId' | 'ptyIdsByLeafId'>
+): string | null {
+  if (snapshot.activeLeafId && isTerminalLeafId(snapshot.activeLeafId)) {
+    return snapshot.activeLeafId
+  }
+  const boundLeafIds = Object.keys(snapshot.ptyIdsByLeafId ?? {}).filter(isTerminalLeafId)
+  return boundLeafIds.length === 1 ? boundLeafIds[0] : null
+}
 
 export function collectLayoutLeafIdsInOrder(
   node: TerminalPaneLayoutNode | null | undefined

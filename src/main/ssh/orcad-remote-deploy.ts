@@ -66,6 +66,8 @@ export type OrcadDeployOptions = {
    */
   admitRecord?: (record: OrcadActivationRecord, candidateVersion: string) => string | null
   readinessTimeoutMs?: number
+  /** WSL only; SSH hosts always re-hash the runtime (see `installOrcadBundle`). */
+  recordedNodeRuntimeProbe?: boolean
   now?: () => Date
   sleep?: (ms: number) => Promise<void>
   signal?: AbortSignal

@@ -12,9 +12,9 @@ import { accessSync, constants, readFileSync } from 'node:fs'
 import { delimiter, isAbsolute, join } from 'node:path'
 import { runProcessSync } from '@orca/process-host'
 import { isDurableDaemonScopeSupported, userManagerEnv } from './daemon-cgroup-scope'
-import type { PtyProcessCeilingState } from './pty-process-ceiling-state'
+import type { PtyProcessCeilingState } from '../../shared/pty-process-ceiling-state'
 
-export type { PtyProcessCeilingState } from './pty-process-ceiling-state'
+export type { PtyProcessCeilingState } from '../../shared/pty-process-ceiling-state'
 
 export const PTY_PROCESS_CEILING_ENV = 'ORCA_TERMINAL_PROCESS_CEILING'
 /** Below this a shell, its prompt hooks and one build step already collide. */

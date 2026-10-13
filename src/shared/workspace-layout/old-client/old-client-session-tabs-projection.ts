@@ -74,7 +74,7 @@ export function projectSessionTabs(
   facts: SessionTabsFacts,
   generatedTitlesEnabled: boolean
 ): ProjectedSessionTabs {
-  const activeGroupId = view.activeGroupIdByWorktree?.[key] ?? null
+  const activeGroupId = resolveActiveGroupId(workspace, view.activeGroupIdByWorktree?.[key])
   const groupViews = view.groups[key] ?? {}
   const scope: Scope = {
     key,
@@ -129,6 +129,17 @@ export function projectSessionTabs(
     ...(tabGroupLayout ? { tabGroupLayout } : {}),
     tabs
   }
+}
+
+/** As a window restores it: the saved group while the workspace has it, else the first group. */
+function resolveActiveGroupId(
+  workspace: WorkspaceLayout,
+  saved: string | undefined
+): string | null {
+  if (saved && workspace.groups.some((group) => group.id === saved)) {
+    return saved
+  }
+  return groupsInLayoutOrder(workspace)[0]?.id ?? null
 }
 
 function groupsInLayoutOrder(workspace: WorkspaceLayout): WorkspaceLayout['groups'] {

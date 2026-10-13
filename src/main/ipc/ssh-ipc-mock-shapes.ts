@@ -49,6 +49,7 @@ export type SshPortForwardManagerMock = {
   removeForwardAndWait: Mock
   listForwards: Mock
   removeAllForwards: Mock
+  closeAll: Mock
   dispose: Mock
   setCallbacks: Mock
   callbacksRef: MockCallbacksRef

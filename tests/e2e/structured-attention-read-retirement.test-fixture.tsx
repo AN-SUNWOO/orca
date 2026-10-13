@@ -66,6 +66,7 @@ export const SCOPE = {
 export let fixture: {
   directory: string
   controller: RuntimeMobileNotificationController
+  relayControllers: RuntimeMobileNotificationController[]
   events: MobileNotificationEvent[]
   items: AgentJournalRenderItem[]
   sequence: number
@@ -227,6 +228,7 @@ beforeEach(() => {
   fixture = {
     directory,
     controller,
+    relayControllers: [],
     events,
     items,
     sequence,
@@ -346,6 +348,10 @@ afterEach(async () => {
   resetStructuredAgentSessionStatusFeedsForTests()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
-  await fixture.controller.closeDismissals()
+  await Promise.all(
+    [fixture.controller, ...fixture.relayControllers].map((controller) =>
+      controller.closeDismissals()
+    )
+  )
   rmSync(fixture.directory, { recursive: true, force: true })
 })

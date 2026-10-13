@@ -131,7 +131,8 @@ export function agentLaunchSurfaceFactory(
       launchSource,
       paneKey,
       options,
-      viewMode
+      viewMode,
+      accountEnv
     }) => {
       const launchPreferences = toAgentLaunchPreferences(options)
       let promptRodeLaunchCommand = false
@@ -162,6 +163,7 @@ export function agentLaunchSurfaceFactory(
         ...(paneKey ? { ...paneIdentity(paneKey), requireFreshPane: true } : {}),
         ...(launchSource ? { launchSource } : {}),
         ...(viewMode ? { viewMode } : {}),
+        ...(accountEnv ? { accountEnv: { ...accountEnv } } : {}),
         ...(presentation && (!movesHostWindow || !hasEarlyTab || presentation === 'background')
           ? { presentation: movesHostWindow ? presentation : ('background' as const) }
           : {}),

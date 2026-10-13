@@ -81,6 +81,7 @@ jobs:
       # from the Gemfile, which is how the release jobs could land on different
       # fastlane versions in the first place. Fail here instead.
       BUNDLE_FROZEN: 'true'
+      ORCA_MOBILE_TYPECHECK_CACHE_DIR: ${{ github.workspace }}/mobile/.cache/typechecks
 
     defaults:
       run:
@@ -94,6 +95,7 @@ jobs:
 
       - uses: ./.github/actions/install-node-dependencies
         with:
+          cache-pnpm-store: 'false'
           cache-dependency-path: |
             pnpm-lock.yaml
             mobile/pnpm-lock.yaml
@@ -114,6 +116,8 @@ jobs:
       # proves the pinned fastlane the release workflow depends on still
       # resolves — before a release run finds out.
       - name: Setup Ruby and fastlane
+        id: ruby-tools
+        background: true
         if: steps.ruby-scope.outputs.should_run != 'false'
         uses: ruby/setup-ruby@v1
         with:
@@ -124,20 +128,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache mobile typecheck state
+        uses: actions/cache@v5
+        with:
+          path: mobile/.cache/typechecks/*.tsbuildinfo
+          key: mobile-typechecks-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'mobile/pnpm-lock.yaml', 'mobile/tsconfig*.json') }}-${{ github.sha }}
+          restore-keys: mobile-typechecks-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'mobile/pnpm-lock.yaml', 'mobile/tsconfig*.json') }}-
+
       # Call installed tools so pnpm's dependency refresh cannot race between checks.
       - name: Typecheck
         id: production-types
         background: true
-        run: node node_modules/typescript/bin/tsc --noEmit
+        run: node node_modules/typescript/bin/tsc --noEmit --incremental --tsBuildInfoFile "$ORCA_MOBILE_TYPECHECK_CACHE_DIR/production.tsbuildinfo"
 
       # Why a ratchet and not the raw typecheck: mobile/tsconfig.json excludes test files, so until
       # tsconfig.test.json existed nothing checked them, and at introduction 127 of the 632 had
       # drifted. This fails when a test file that checks today stops checking, when a test leaves
       # the program, and on @ts-nocheck; the baseline may only shrink.
       - name: Typecheck tests (ratchet)
+        id: test-types
+        background: true
         run: node scripts/check-tests-typecheck-ratchet.mjs
-
-      - wait: production-types
 
       # This includes the bridged replay of the whole recording corpus, which used to be a second
       # step of its own behind RPC_FOUNDATION_BRIDGE=1. A gate nobody can forget to set is the point:
@@ -167,6 +178,9 @@ jobs:
         env:
           ORCA_BACKGROUND_LAUNCH: '1'
         run: node ../config/scripts/run-mobile-ci-tests.mjs
+
+      # All checks read the completed install; compilers need not hold up test workers.
+      - wait: [production-types, test-types, ruby-tools]
 
       # Reports, never gates: the goldens are content-addressed JSON, so their raw diff is hashes.
       # This decodes which recorded behaviour the pull request moves into the job summary, and runs
@@ -204,6 +218,8 @@ jobs:
 
   main-tests:
     name: Mobile tests on main
+    env:
+      ORCA_MOBILE_TYPECHECK_CACHE_DIR: ${{ github.workspace }}/mobile/.cache/typechecks
     if: github.event_name == 'push'
     # Why ARM: the same pure-Node Vitest run `verify` makes on a pull request.
     runs-on: ubuntu-24.04-arm
@@ -227,6 +243,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache mobile typecheck state
+        uses: actions/cache@v5
+        with:
+          path: mobile/.cache/typechecks/*.tsbuildinfo
+          key: mobile-typechecks-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'mobile/pnpm-lock.yaml', 'mobile/tsconfig*.json') }}-${{ github.sha }}
+          restore-keys: mobile-typechecks-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'mobile/pnpm-lock.yaml', 'mobile/tsconfig*.json') }}-
+
+      - name: Typecheck
+        id: production-types
+        background: true
+        run: node node_modules/typescript/bin/tsc --noEmit --incremental --tsBuildInfoFile "$ORCA_MOBILE_TYPECHECK_CACHE_DIR/production.tsbuildinfo"
+
+      - name: Typecheck tests (ratchet)
+        id: test-types
+        background: true
+        run: node scripts/check-tests-typecheck-ratchet.mjs
+
       # The whole suite, not only the recordings: the mutant and page-bridge suites read the goldens
       # too. A red run here names each golden and the `rpc:record` command; the author of the merge
       # that turned it red re-records in a follow-up.
@@ -239,3 +272,5 @@ jobs:
         env:
           ORCA_BACKGROUND_LAUNCH: '1'
         run: node ../config/scripts/run-mobile-ci-tests.mjs
+
+      - wait: [production-types, test-types]

@@ -12,7 +12,7 @@ import {
   subscribeRemoteRuntimeRequest,
   type RemoteRuntimeSubscription
 } from '../../shared/remote-runtime-client'
-import { withRemoteRuntimeTailscaleHint } from '../../shared/remote-runtime-tailscale-hint'
+import { withRuntimeUnreachableHint } from './runtime-environment-unreachable-hint'
 import { enqueueRuntimeCall } from './runtime-environment-call-queue'
 import {
   sendRemoteRuntimeConnectionRequestAbortable,
@@ -137,7 +137,7 @@ export async function callRuntimeEnvironment(
     )
   } catch (error) {
     if (error instanceof Error && error.name !== 'AbortError') {
-      error.message = withRemoteRuntimeTailscaleHint(error.message, endpoint)
+      error.message = withRuntimeUnreachableHint(environment, error.message, endpoint)
     }
     throw error
   }
@@ -186,7 +186,7 @@ export async function subscribeRuntimeEnvironment(
       callbacks.onEvent({
         type: 'error' as const,
         code: error.code,
-        message: withRemoteRuntimeTailscaleHint(error.message, pairedConnection.endpoint)
+        message: withRuntimeUnreachableHint(environment, error.message, pairedConnection.endpoint)
       }),
     onClose: () => {
       callbacks.onEvent({ type: 'close' as const })
@@ -218,7 +218,11 @@ export async function subscribeRuntimeEnvironment(
     )
   } catch (error) {
     if (error instanceof Error) {
-      error.message = withRemoteRuntimeTailscaleHint(error.message, pairedConnection.endpoint)
+      error.message = withRuntimeUnreachableHint(
+        environment,
+        error.message,
+        pairedConnection.endpoint
+      )
     }
     throw error
   }

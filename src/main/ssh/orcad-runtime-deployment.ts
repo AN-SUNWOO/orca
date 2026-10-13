@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto'
 import { assertRuntimeEnvironmentNotReconciling } from '../../shared/runtime-environment-reconciliation-record'
 import { listEnvironments } from '../../shared/runtime-environment-store'
 import { addManagedOrcadEnvironment } from '../../shared/runtime-environment-managed-orcad-store'
-import { redactRuntimeEnvironment } from '../../shared/runtime-environments'
+import { getOrcadSshDeployment, redactRuntimeEnvironment } from '../../shared/runtime-environments'
 import {
   ORCAD_MANAGED_REMOTE_PORT,
   type OrcadManagedDeployResult
@@ -26,7 +26,6 @@ import { readOrcadActivationRecord } from './orcad-activation-record-store'
 import { resolveOrcadRemoteContext } from './orcad-remote-context'
 import { deployOrcad } from './orcad-remote-deploy'
 import { sshOrcadHostTransport } from './orcad-ssh-host-transport'
-import { refuseOrcadHostDowngrade } from './orcad-host-version-admission'
 import { ORCAD_ACTIVATION_POLICY_REFUSED_CODE } from './orcad-installed-activation'
 import { pruneManagedOrcadVersions } from './orcad-managed-version-gc'
 import { tunneledOrcadPairingCode } from './orcad-tunneled-pairing'
@@ -35,6 +34,7 @@ import type { SshTarget } from '../../shared/ssh-types'
 import { deployedOrcadTunnelChecks } from './orcad-managed-tunnel-identity'
 import {
   isForceableOrcadDeferral,
+  managedOrcadDeployPolicy,
   managedOrcadSlot,
   probeManagedOrcadReadiness,
   requireManagedOrcadInfrastructure
@@ -59,7 +59,7 @@ export async function createManagedOrcadEnvironment(
     const registered = environments.find((entry) => entry.id === environmentId)
     if (registered) {
       assertRuntimeEnvironmentNotReconciling(registered)
-      if (registered.orcadDeployment?.sshTargetId !== args.sshTargetId) {
+      if (getOrcadSshDeployment(registered)?.sshTargetId !== args.sshTargetId) {
         throw new Error('The SSH target is owned by a server that is not deployed on it.')
       }
     }
@@ -82,7 +82,7 @@ export async function createManagedOrcadEnvironment(
     if (targetGeneration === undefined) {
       throw new Error('The managed Orca SSH registration has no durable generation.')
     }
-    if (registered && registered.orcadDeployment?.sshTargetGeneration !== targetGeneration) {
+    if (registered && getOrcadSshDeployment(registered)?.sshTargetGeneration !== targetGeneration) {
       throw new Error('The saved managed Orca server has a stale SSH target generation.')
     }
     let environmentRegistered = false
@@ -123,22 +123,9 @@ export async function createManagedOrcadEnvironment(
         conn: connection,
         localOrcadDir,
         target: context.serverTarget,
-        // Why unknown when a version is active: only the daemon can count its sessions, and
-        // a deploy that guessed zero would restart over live terminals.
-        census: context.activationRecord.active
-          ? { liveSessions: null, startedSinceActivation: null, daemonProtocolVersion: null }
-          : { liveSessions: 0, startedSinceActivation: 0, daemonProtocolVersion: null },
-        censusRecord: context.activationRecord,
+        ...managedOrcadDeployPolicy(context, appVersion, args.force),
         force: args.force,
-        appVersion,
-        // Why: a host another desktop stopped may hold state its newer build migrated, and this
-        // path has no linked record to check first, so only the fenced read can refuse it.
-        // An explicit force runs this version anyway, as `environment update --force` does.
-        admitRecord: (record, candidateVersion) =>
-          !args.force && refuseOrcadHostDowngrade(record, candidateVersion, appVersion)
-            ? `Orca ${record.activeAppVersion} last ran this host's server, newer than this ` +
-              `Orca (${appVersion}). Update Orca to start it.`
-            : null
+        appVersion
       })
       if (deployResult.outcome === 'installed-not-activated') {
         return {

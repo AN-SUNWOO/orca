@@ -9,7 +9,6 @@ import { DEFAULT_APP_ICON_ID } from './app-icon'
 import { DEFAULT_OPEN_IN_APPLICATIONS } from './open-in-applications'
 import { DEFAULT_DISABLED_TUI_AGENTS } from './tui-agent-selection'
 import { DEFAULT_TUI_AGENT_ARGS, DEFAULT_TUI_AGENT_ENV } from './tui-agent-launch-defaults'
-import { loadedChatPermissionSetting } from './agent-chat-permission-mode'
 import { UI_LANGUAGE_SYSTEM } from './ui-language'
 import {
   DEFAULT_LEFT_SIDEBAR_TINT_COLOR,
@@ -140,10 +139,8 @@ export function buildDefaultSettings(args: {
     nativeChatInheritShellEnvironment: true,
     nativeChatShellEnvironmentVariables: [],
     nativeChatSessionOptions: {},
-    nativeChatPermissionMode: loadedChatPermissionSetting(undefined, {
-      agentDefaultArgs: DEFAULT_TUI_AGENT_ARGS,
-      agentDefaultEnv: DEFAULT_TUI_AGENT_ENV
-    }),
+    // The shipped Claude and Codex arguments carry their bypass flags.
+    nativeChatPermissionMode: 'full-access',
     openInApplications: [...DEFAULT_OPEN_IN_APPLICATIONS],
     rightSidebarOpenByDefault: true,
     showGitIgnoredFiles: true,
@@ -258,6 +255,7 @@ export function buildDefaultSettings(args: {
     agentHibernationIdleMs: 30 * 60 * 1000,
     experimentalNewWorktreeCardStyle: false,
     experimentalEphemeralVms: false,
+    experimentalWslHosts: false,
     compactWorktreeCards: false,
     // Why: local desktop stays the default until the user picks a saved runtime environment.
     activeRuntimeEnvironmentId: null,

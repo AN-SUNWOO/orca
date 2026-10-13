@@ -84,7 +84,16 @@ export async function readRemoteOrcadManagedStopTarget(
     context: {
       version,
       runtimeId,
-      instance: { pid: lock.pid, startedAtMs: lock.startedAtMs, nonce: lock.nonce, lockPath }
+      instance: {
+        pid: lock.pid,
+        startedAtMs: lock.startedAtMs,
+        // Older slots drop these; newer ones prove identity without the drifting wall clock.
+        ...(lock.linuxStartTicks && lock.bootId
+          ? { linuxStartTicks: lock.linuxStartTicks, bootId: lock.bootId }
+          : {}),
+        nonce: lock.nonce,
+        lockPath
+      }
     }
   }
 }

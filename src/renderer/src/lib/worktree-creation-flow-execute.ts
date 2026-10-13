@@ -227,7 +227,8 @@ export async function executeWorktreeCreation(
         try {
           ensureWebRuntimeWorktreeTerminalAfterWake(worktree.id, {
             startup: startupOpt,
-            agent: preparedRequest.agent
+            agent: preparedRequest.agent,
+            unknownHostCountIsEmpty: true
           })
         } catch (recoveryError) {
           console.error(
@@ -272,7 +273,9 @@ export async function executeWorktreeCreation(
         ensureWebRuntimeWorktreeTerminalAfterWake(worktree.id, {
           startup: startupOpt,
           agent: preparedRequest.agent,
-          activate: false
+          activate: false,
+          // Why: this client just created the workspace, so it starts empty.
+          unknownHostCountIsEmpty: true
         })
       } catch (error) {
         console.error('worktree create: after-wake terminal seeding failed', worktree.id, error)
@@ -311,7 +314,10 @@ export async function executeWorktreeCreation(
 
   if (!shouldActivateOnCompletion && useAppStore.getState().pendingWorktreeCreations[creationId]) {
     try {
-      showWorktreeCreationReadyToast(worktree)
+      showWorktreeCreationReadyToast(
+        worktree,
+        preparedRequest.workspaceRunContext?.hostId ?? preparedRequest.executionHostId
+      )
     } catch (error) {
       console.error('worktree create: ready toast failed', worktree.id, error)
     }

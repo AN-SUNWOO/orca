@@ -14,6 +14,7 @@ import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
 import { resolveLocalWindowsAgentStartupShell } from '../../shared/windows-terminal-shell'
 import { buildAgentResumeStartupPlan } from '../../shared/tui-agent-startup'
 import { OrchestrationError } from './orchestration/orchestration-error'
+import { withAgentSessionAccountEnv } from './agent-session-account-env'
 import {
   resolveTuiAgentLaunchArgs,
   resolveTuiAgentLaunchEnv
@@ -158,7 +159,7 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
     }
     const terminal = await this.createTerminal(`id:${workspace.id}`, {
       command: startup.launchCommand,
-      env: startup.env,
+      env: withAgentSessionAccountEnv(startup.env, request.accountEnv),
       launchConfig: startup.launchConfig,
       startupCommandDelivery: startup.startupCommandDelivery,
       launchAgent: request.agent,

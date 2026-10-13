@@ -25,7 +25,7 @@ export function subagentJournalBody(block: NativeChatSubagentBlock): AgentJourna
   const bounded: NativeChatSubagentBlock = {
     ...block,
     id: boundSubagentEntryId(block.id),
-    label: boundLabel(block.label),
+    label: boundSubagentLabel(block.label),
     groupId: boundSubagentEntryId(block.groupId),
     ...(block.parentId !== undefined ? { parentId: boundSubagentEntryId(block.parentId) } : {}),
     ...(block.run !== undefined ? { run: boundSubagentEntryId(block.run) } : {})
@@ -48,7 +48,7 @@ export function journaledSubagent(
 
 /** The bound every reader clips a label to. A clip never splits a surrogate pair: a lone one is
  *  malformed in a durable row. */
-function boundLabel(label: string): string {
+export function boundSubagentLabel(label: string): string {
   if (label.length <= MAX_SUBAGENT_FIELD_CHARS) {
     return label
   }

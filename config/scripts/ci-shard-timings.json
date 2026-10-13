@@ -9384,7 +9384,6 @@
       "src/renderer/src/lib/launch-work-item-direct-agent.test.ts": 163,
       "src/renderer/src/lib/launch-work-item-direct-messages.test.ts": 48,
       "src/renderer/src/lib/launch-work-item-direct.test.ts": 1033,
-      "src/renderer/src/lib/launch-worktree-background-terminals.test.ts": 848,
       "src/renderer/src/lib/lazy-chunk-recovery-reload.test.ts": 200,
       "src/renderer/src/lib/lazy-with-retry.never-landed-reload.test.ts": 172,
       "src/renderer/src/lib/lazy-with-retry.test.ts": 232,

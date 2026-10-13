@@ -4,6 +4,7 @@ import type {
   RateLimitWindow,
   UsageRateLimitMetadata
 } from '../../shared/rate-limit-types'
+import { abortSignalWithTimeout } from '../lib/abort-signal-with-timeout'
 import {
   isGrokAccessTokenFresh,
   readGrokAuthSession,
@@ -242,12 +243,9 @@ async function fetchBillingData(
   session: GrokAuthSession,
   signal?: AbortSignal
 ): Promise<GrokBillingFetchOutcome> {
-  const requestSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(API_TIMEOUT_MS)])
-    : AbortSignal.timeout(API_TIMEOUT_MS)
   const res = await net.fetch(url, {
     headers: grokRequestHeaders(session),
-    signal: requestSignal
+    signal: abortSignalWithTimeout(signal, API_TIMEOUT_MS)
   })
   if (res.status === 401 || res.status === 403) {
     return {

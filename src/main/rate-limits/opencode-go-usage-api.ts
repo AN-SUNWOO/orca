@@ -1,5 +1,6 @@
 import { net, session } from 'electron'
 import { ensureElectronProxyFromEnvironment } from '../network/proxy-settings'
+import { abortSignalWithTimeout } from '../lib/abort-signal-with-timeout'
 import {
   parseOpenCodeGoUsageApiPayload,
   type OpenCodeGoUsageWindows
@@ -74,10 +75,6 @@ export async function fetchOpenCodeGoUsageWithApiKey(
     probeUrl: OPENCODE_GO_USAGE_API_URL
   }).catch(() => {})
 
-  const requestSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(API_TIMEOUT_MS)])
-    : AbortSignal.timeout(API_TIMEOUT_MS)
-
   let response: Response
   try {
     response = await net.fetch(OPENCODE_GO_USAGE_API_URL, {
@@ -86,7 +83,7 @@ export async function fetchOpenCodeGoUsageWithApiKey(
         Authorization: `Bearer ${apiKey}`,
         Accept: 'application/json'
       },
-      signal: requestSignal
+      signal: abortSignalWithTimeout(signal, API_TIMEOUT_MS)
     })
   } catch (error) {
     // Why fixed prefix: the thrown message can embed the request, and the

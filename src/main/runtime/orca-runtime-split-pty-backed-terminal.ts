@@ -194,8 +194,9 @@ export class OrcaRuntimeWithSplitPtyBackedTerminal extends OrcaRuntimeWithSplitT
           pty.ptyId
         )
       : null
-    if (sourceAuthority.persisted && committedSourceAuthority?.rendererMounted) {
+    if (committedSourceAuthority?.persisted && !committedSourceAuthority.rendererRunsOtherPty) {
       // Why: renderer adoption is a projection after the durable main commit; rejection cannot undo it.
+      // Not gated on the window's graph: it lags tabs the window already holds (STA-9417).
       void revealSplit().catch(() => undefined)
     }
 

@@ -175,8 +175,8 @@ describe('resolveTabSessionHistorySubject', () => {
   it('finds a native chat tab by the chat it shows', () => {
     expect(
       resolveTabSessionHistorySubject(makeState(), {
-        tab: { id: 'unified-1', worktreeId: WORKTREE_ID, launchAgent: 'codex' },
-        structuredSessionId: 'orca-chat-1'
+        tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
+        nativeChat: { sessionId: 'orca-chat-1', agent: 'codex' }
       })
     ).toEqual({ ...chatSubject })
   })
@@ -184,19 +184,19 @@ describe('resolveTabSessionHistorySubject', () => {
   it('finds a chat of any agent whose CLI can open a copy', () => {
     expect(
       resolveTabSessionHistorySubject(makeState(), {
-        tab: { id: 'unified-1', worktreeId: WORKTREE_ID, launchAgent: 'grok' },
-        structuredSessionId: 'orca-chat-1'
+        tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
+        nativeChat: { sessionId: 'orca-chat-1', agent: 'grok' }
       })
     ).toEqual({ ...chatSubject })
   })
 
   it.each(['opencode', 'omp'] as const)(
     'skips a %s chat, whose CLI cannot open a copy',
-    (launchAgent) => {
+    (agent) => {
       expect(
         resolveTabSessionHistorySubject(makeState(), {
-          tab: { id: 'unified-1', worktreeId: WORKTREE_ID, launchAgent },
-          structuredSessionId: 'orca-chat-1'
+          tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
+          nativeChat: { sessionId: 'orca-chat-1', agent }
         })
       ).toBeNull()
     }
@@ -285,12 +285,8 @@ describe('resolveTabSessionHistorySubject', () => {
     ).toBeNull()
     expect(
       resolveTabSessionHistorySubject(state, {
-        tab: {
-          id: 'unified-1',
-          worktreeId: WORKTREE_ID,
-          launchAgent: 'claude'
-        },
-        structuredSessionId: 'orca-chat-1'
+        tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
+        nativeChat: { sessionId: 'orca-chat-1', agent: 'claude' }
       })
     ).toBeNull()
   })
@@ -301,12 +297,8 @@ describe('resolveTabSessionHistorySubject', () => {
     })
     expect(
       resolveTabSessionHistorySubject(state, {
-        tab: {
-          id: 'unified-1',
-          worktreeId: WORKTREE_ID,
-          launchAgent: 'claude'
-        },
-        structuredSessionId: 'orca-chat-1'
+        tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
+        nativeChat: { sessionId: 'orca-chat-1', agent: 'claude' }
       })
     ).toMatchObject({
       kind: 'chat',

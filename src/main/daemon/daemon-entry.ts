@@ -193,6 +193,9 @@ async function main(): Promise<void> {
       return
     }
     shuttingDown = true
+    // Why before the async teardown: a scope stop kills the AppImage mount alongside us, and a
+    // teardown cut short by SIGBUS must not read as a crash that pauses the next start's restores.
+    daemon?.recordStopRequested()
     deathWatch?.stop()
     daemonLog.log('shutdown', { reason })
     try {

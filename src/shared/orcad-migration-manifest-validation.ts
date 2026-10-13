@@ -144,6 +144,10 @@ function parseSource(value: unknown): OrcadMigrationManifestSource {
   if (!isRecord(value)) {
     throw new Error('orcad_migration_manifest_source_invalid')
   }
+  // Only the relay-era SSH source (no `kind`) is parsed here; other kinds ship with their capability.
+  if (value.kind !== undefined) {
+    throw new Error('orcad_migration_manifest_source_kind_unsupported')
+  }
   const generation = value.sshTargetGeneration
   if (generation !== null && (!Number.isSafeInteger(generation) || Number(generation) < 1)) {
     throw new Error('orcad_migration_manifest_source_generation_invalid')

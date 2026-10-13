@@ -35,11 +35,14 @@ export {
 } from './orcad-migration-staged-catalog-validation'
 import { isRecord } from './orcad-migration-manifest-fields'
 
-export type OrcadMigrationManifestSource = {
+/** The relay-era SSH source: on the wire it never carries `kind` (see orcad-migration-source-kind). */
+export type OrcadMigrationSshManifestSource = {
   sshTargetId: string
   sshTargetGeneration: number | null
   targetLabel: string
 }
+
+export type OrcadMigrationManifestSource = OrcadMigrationSshManifestSource
 
 export type OrcadMigrationCatalogPayload = {
   repositories: Repo[]

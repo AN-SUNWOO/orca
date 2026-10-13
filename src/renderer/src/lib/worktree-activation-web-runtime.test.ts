@@ -16,12 +16,16 @@ import {
   shouldSkipWebRuntimeWakeTerminalRespawn
 } from '@/runtime/web-runtime-wake-terminal-respawn'
 import { stubRuntimeEnvironmentBridge } from '../runtime/runtime-environment-bridge-fixture'
+import { rememberEmptyHostAnswerForTests } from '@/runtime/web-session-tabs-sync/host-terminal-count-fixture'
+import { resetWebSessionTabsSnapshotFreshnessForTests } from '@/runtime/web-session-tabs-sync/tracking-lifecycle'
+import { folderWorkspaceKey } from '../../../shared/workspace-scope'
 
 registerWorktreeActivationReset()
 
 afterEach(() => {
   vi.unstubAllGlobals()
   resetWebRuntimeWakeTerminalRespawnForTests()
+  resetWebSessionTabsSnapshotFreshnessForTests()
 })
 
 describe('activateAndRevealWorktree', () => {
@@ -195,6 +199,7 @@ describe('activateAndRevealFolderWorkspace', () => {
       revealWorktreeInSidebar: vi.fn()
     } as unknown as Partial<AppStoreState>)
 
+    rememberEmptyHostAnswerForTests('web-runtime-1', folderWorkspaceKey('folder-1'))
     activateAndRevealFolderWorkspace('folder-1', {
       ...activation,
       runtimeEnvironmentId: 'web-runtime-1'

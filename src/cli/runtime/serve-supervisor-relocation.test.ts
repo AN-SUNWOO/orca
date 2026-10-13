@@ -89,6 +89,24 @@ describe('relocateServeSupervisor', () => {
     }
   })
 
+  // Why: re-exec from node mode closes the AppImage runtime's keepalive pipe, so the mount is
+  // torn down under the exec and the new image fails to load its libraries (real-host BUG-3).
+  it('stays in place when running from an AppImage, whose files cannot change under it', async () => {
+    const d = deps({
+      env: {
+        ELECTRON_RUN_AS_NODE: '1',
+        APPDIR: resources.replace(/\/Resources$/, ''),
+        APPIMAGE: '/a/Orca.AppImage'
+      }
+    })
+    await expect(relocateServeSupervisor(d)).resolves.toBe('in-place')
+    expect(d.execve).not.toHaveBeenCalled()
+    expect(existsSync(serveSupervisorSnapshotRoot(userData))).toBe(false)
+
+    const elsewhere = deps({ env: { ELECTRON_RUN_AS_NODE: '1', APPDIR: join(root, 'other') } })
+    await expect(relocateServeSupervisor(elsewhere)).resolves.toBe('relocated')
+  })
+
   it('keeps running in place when the copy or the re-exec fails', async () => {
     await writeFile(join(root, 'blocker'), '')
     const blocked = deps({ userDataPath: join(root, 'blocker') })

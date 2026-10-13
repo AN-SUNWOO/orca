@@ -121,7 +121,7 @@ export type StructuredAgentSessionRuntimeDeps = {
   resolveLaunchArgs: (provider: AgentSessionRecord['provider']) => Promise<string[]> | string[]
   /** Required, and asserted at install time — an absent policy must not degrade to a guess. */
   resolveClaudeAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
-  /** Agent Permissions for an ACP agent; Claude and Codex chats run their own permission mode. */
+  /** Agent Permissions for an ACP agent; also fills Claude and Codex chats saved before modes. */
   resolveAgentFullAccess?: (agent: string) => boolean
   /** The user's per-agent environment overlay from settings, laid over every agent's base env. */
   resolveAgentLaunchEnv?: (agent: string) => Record<string, string>
@@ -263,6 +263,18 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
     hostId: deps.hostId,
     logger
   })
+  try {
+    // Without the Arguments source there is nothing to fill from; missing modes run Ask.
+    if (deps.resolveAgentFullAccess) {
+      await recordStore.store.backfillChatPermissionModes(deps.resolveAgentFullAccess)
+    }
+  } catch (error) {
+    // Missing choices safely run Ask; the next host install retries this pass.
+    logger.warn('saving existing chat permission choices failed', {
+      scope: 'permission-mode-backfill',
+      error
+    })
+  }
   return await installOnJournal({ ...deps, logger }, recordStore)
 }
 

@@ -20,7 +20,10 @@ import type { SshConnectionState, SshConnectionStatus } from './ssh-types'
 import type { RuntimeEnvironmentSource } from './runtime-environments'
 import type { GlobalSettings } from './global-settings-types'
 import type { Repo } from './repo-types'
-import { annotateManagedOrcadExecutionHosts } from './managed-orcad-execution-host'
+import {
+  annotateManagedOrcadExecutionHosts,
+  type ManagedOrcadDeploymentSummary
+} from './managed-orcad-execution-host'
 import { getSshConnectionHealth, type ExecutionHostHealth } from './execution-host-health'
 
 export type { ExecutionHostHealth } from './execution-host-health'
@@ -49,7 +52,7 @@ type RuntimeEnvironmentSummary = {
   id: string
   name?: string | null
   source?: RuntimeEnvironmentSource
-  orcadDeployment?: { sshTargetId: string } | null
+  orcadDeployment?: ManagedOrcadDeploymentSummary | null
 }
 
 type RuntimeStatusByEnvironmentId = ReadonlyMap<string, RuntimeEnvironmentStatus>

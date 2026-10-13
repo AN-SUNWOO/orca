@@ -42,6 +42,7 @@ const NonGitFolderDialog = lazy(() => import('../components/sidebar/NonGitFolder
 const AddProjectFromFolderDialog = lazy(
   () => import('../components/sidebar/AddProjectFromFolderDialog')
 )
+const DiagramViewerModal = lazy(() => import('../components/editor/DiagramViewerModal'))
 const ProjectAddedDialog = lazy(() => import('../components/sidebar/ProjectAddedDialog'))
 const AiVaultSessionHistoryDialog = lazy(
   () => import('../components/right-sidebar/AiVaultSessionHistoryDialog')
@@ -227,6 +228,12 @@ export function AppRootSurfaces(props: {
         {activeModal === 'agent-session-history' ? (
           <ModalBoundary boundaryId="modal.agent-session-history" resetKey>
             <AiVaultSessionHistoryDialog />
+          </ModalBoundary>
+        ) : null}
+        {/* Why: chat rows are virtualized, so the viewer must outlive the message that opened it. */}
+        {activeModal === 'diagram-viewer' ? (
+          <ModalBoundary boundaryId="modal.diagram-viewer" resetKey>
+            <DiagramViewerModal />
           </ModalBoundary>
         ) : null}
       </Suspense>

@@ -9,9 +9,9 @@
 // `unverifiable`, never a synthesized exit — see
 // `docs/reference/ssh-execution-boundary.md`.
 //
-// Reconciles JOURNAL ROWS, not roster state. A producer that continues a roster
-// from the journal reads these rows after this revision, so it inherits the
-// verdict rather than the dead host's `working`.
+// Reconciles JOURNAL ROWS, not live records. The host's subagent row writer revises a row it
+// finds by key after this revision, so a later run starts from the verdict, not the dead host's
+// `working`.
 
 import {
   agentJournalItemKey,

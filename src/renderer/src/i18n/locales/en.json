@@ -6289,7 +6289,10 @@
               "host": {
                 "unverified": "The host could not confirm terminal shutdown. The workspace was kept open; check the connection and try again."
               },
-              "retry": "The workspace was kept open. Try again; if the problem continues, check the host connection."
+              "retry": "The workspace was kept open. Try again; if the problem continues, check the host connection.",
+              "chat": {
+                "unsupported": "This workspace's host can't stop its chats yet. The workspace was kept open; update the host and try again."
+              }
             }
           }
         },

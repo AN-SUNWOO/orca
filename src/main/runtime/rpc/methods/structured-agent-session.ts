@@ -141,6 +141,17 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
       return { ok: true as const }
     }
   }),
+  defineMethod({
+    // Sleeping the chat's workspace: the same close, but the tab stays. `close` throws unless the
+    // provider child's exit is proven, so resolving is the proof the workspace may read asleep.
+    name: 'agentSession.sleep',
+    permission: 'workspace',
+    params: OptionsParams,
+    handler: async (params, ctx) => {
+      await requireStructuredCleanupHost(ctx).close(params.sessionId, 'user-close')
+      return { ok: true as const }
+    }
+  }),
   ...STRUCTURED_AGENT_SESSION_PROMPT_RESPONSE_METHODS,
   defineMethod({
     name: 'agentSession.history',

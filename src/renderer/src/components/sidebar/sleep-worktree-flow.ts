@@ -7,6 +7,8 @@ import {
 } from '@/lib/worktree-sleep-intent'
 import { VIRTUALIZED_SCROLL_ANCHOR_RECORD_EVENT } from '@/hooks/useVirtualizedScrollAnchor'
 import { translate } from '@/i18n/i18n'
+import { AGENT_SESSION_SLEEP_UNSUPPORTED } from '@/runtime/structured-agent-session-close'
+import { resolveWorkspaceChatSleeps, sleepWorkspaceChats } from './sleep-workspace-chats'
 
 /**
  * Shared "sleep worktree" flow (close all panels to free memory / CPU)
@@ -112,6 +114,12 @@ function preserveSidebarWorktreePosition(worktreeId: string): () => void {
 
 function describeSleepFailure(error: unknown): string {
   const detail = error instanceof Error ? error.message : String(error)
+  if (detail === AGENT_SESSION_SLEEP_UNSUPPORTED) {
+    return translate(
+      'auto.components.sidebar.sleep.worktree.flow.chat.unsupported',
+      "This workspace's host can't stop its chats yet. The workspace was kept open; update the host and try again."
+    )
+  }
   if (detail.includes('legacy')) {
     return translate(
       'auto.components.sidebar.sleep.worktree.flow.legacy.unverified',
@@ -165,12 +173,16 @@ export async function sleepWorktreesReportingFailures(
   if (worktreeIds.length === 0) {
     return { failedWorktreeIds: [], errors: [] }
   }
+  const state = useAppStore.getState()
   const {
     activeWorktreeId,
     setActiveWorktree,
     shutdownWorktreeBrowsers,
     shutdownWorktreeTerminals
-  } = useAppStore.getState()
+  } = state
+  const chatsByWorktreeId = new Map(
+    worktreeIds.map((worktreeId) => [worktreeId, resolveWorkspaceChatSleeps(state, worktreeId)])
+  )
   const sleptActiveWorktreeId =
     activeWorktreeId && worktreeIds.includes(activeWorktreeId) ? activeWorktreeId : null
   if (sleptActiveWorktreeId) {
@@ -214,6 +226,8 @@ export async function sleepWorktreesReportingFailures(
         // scrollback. See DESIGN_DOC_TERMINAL_HISTORY_FIX_V2.md §3.3.c.
         await withWorktreeSleepTeardown(worktreeId, async () => {
           await shutdownWorktreeTerminals(worktreeId, { keepIdentifiers: true })
+          // Each chat keeps its tab and transcript; its next send starts a new agent.
+          await sleepWorkspaceChats(chatsByWorktreeId.get(worktreeId) ?? [])
           if (typeof window !== 'undefined' && window.api?.ephemeralVm?.suspendWorkspace) {
             await window.api.ephemeralVm.suspendWorkspace({ workspaceId: worktreeId })
           }

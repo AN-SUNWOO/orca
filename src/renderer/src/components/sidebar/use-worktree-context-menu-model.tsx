@@ -20,6 +20,7 @@ import {
   EMPTY_DELETE_STATE_BY_WORKTREE_ID,
   EMPTY_PTY_IDS_BY_TAB_ID,
   EMPTY_TABS_BY_WORKTREE,
+  EMPTY_UNIFIED_TABS_BY_WORKTREE,
   EMPTY_WORKSPACE_LINEAGE_BY_CHILD_KEY,
   EMPTY_WORKTREE_LINEAGE_BY_ID,
   hasWorktreeParentLink,
@@ -121,6 +122,9 @@ export function useWorktreeContextMenuModel({
   const browserTabsByWorktree = useAppStore((s) =>
     selectMenuScopedMap(menuOpen, s.browserTabsByWorktree, EMPTY_BROWSER_TABS_BY_WORKTREE)
   )
+  const unifiedTabsByWorktree = useAppStore((s) =>
+    selectMenuScopedMap(menuOpen, s.unifiedTabsByWorktree, EMPTY_UNIFIED_TABS_BY_WORKTREE)
+  )
   const deleteStateByWorktreeId = useAppStore((s) =>
     selectMenuScopedMap(menuOpen, s.deleteStateByWorktreeId, EMPTY_DELETE_STATE_BY_WORKTREE_ID)
   )
@@ -137,17 +141,24 @@ export function useWorktreeContextMenuModel({
         hasSleepableWorkspaceActivity(item.id, {
           tabsByWorktree,
           ptyIdsByTabId,
-          browserTabsByWorktree
+          browserTabsByWorktree,
+          unifiedTabsByWorktree
         })
       ),
-    [activeContextWorktrees, browserTabsByWorktree, ptyIdsByTabId, tabsByWorktree]
+    [
+      activeContextWorktrees,
+      browserTabsByWorktree,
+      ptyIdsByTabId,
+      tabsByWorktree,
+      unifiedTabsByWorktree
+    ]
   )
   const lineageMenuActions = useWorkspaceLineageMenuActions({
     enabled: !isMultiContext,
     parent: worktree,
     worktrees: allWorktrees,
     lineageById: worktreeLineageById,
-    activity: { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree }
+    activity: { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree, unifiedTabsByWorktree }
   })
   const lineageDescendantCount = lineageMenuActions.descendants.length
   const subtreeSleepableWorktrees = lineageMenuActions.sleepableTargets

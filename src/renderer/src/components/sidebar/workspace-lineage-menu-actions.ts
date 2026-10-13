@@ -2,12 +2,15 @@ import { useMemo } from 'react'
 import { tabHasLivePty } from '@/lib/tab-has-live-pty'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
 import type { Worktree } from '../../../../shared/worktree/types'
+import type { Tab } from '../../../../shared/tab-types'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
+import { getWorktreeIdsWithStructuredChat } from './visible-worktree-activity-inputs'
 
 type WorkspaceActivityMaps = {
   tabsByWorktree: Record<string, { id: string }[]>
   ptyIdsByTabId: Record<string, string[]>
   browserTabsByWorktree: Record<string, { id: string }[]>
+  unifiedTabsByWorktree: Record<string, Tab[]>
 }
 
 export type WorkspaceLineageMenuActions = {
@@ -18,12 +21,18 @@ export type WorkspaceLineageMenuActions = {
 
 export function hasSleepableWorkspaceActivity(
   worktreeId: string,
-  { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree }: WorkspaceActivityMaps
+  {
+    tabsByWorktree,
+    ptyIdsByTabId,
+    browserTabsByWorktree,
+    unifiedTabsByWorktree
+  }: WorkspaceActivityMaps
 ): boolean {
   const tabs = tabsByWorktree[worktreeId] ?? []
   return (
     tabs.some((tab) => tabHasLivePty(ptyIdsByTabId, tab.id)) ||
-    (browserTabsByWorktree[worktreeId] ?? []).length > 0
+    (browserTabsByWorktree[worktreeId] ?? []).length > 0 ||
+    getWorktreeIdsWithStructuredChat(unifiedTabsByWorktree).has(worktreeId)
   )
 }
 
@@ -54,7 +63,7 @@ export function useWorkspaceLineageMenuActions(
   args: Parameters<typeof getWorkspaceLineageMenuActions>[0] & { enabled: boolean }
 ): WorkspaceLineageMenuActions {
   const { enabled, parent, worktrees, lineageById, activity } = args
-  const { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree } = activity
+  const { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree, unifiedTabsByWorktree } = activity
   return useMemo(
     () =>
       enabled
@@ -62,9 +71,23 @@ export function useWorkspaceLineageMenuActions(
             parent,
             worktrees,
             lineageById,
-            activity: { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree }
+            activity: {
+              tabsByWorktree,
+              ptyIdsByTabId,
+              browserTabsByWorktree,
+              unifiedTabsByWorktree
+            }
           })
         : EMPTY_LINEAGE_MENU_ACTIONS,
-    [browserTabsByWorktree, enabled, lineageById, parent, ptyIdsByTabId, tabsByWorktree, worktrees]
+    [
+      browserTabsByWorktree,
+      enabled,
+      lineageById,
+      parent,
+      ptyIdsByTabId,
+      tabsByWorktree,
+      unifiedTabsByWorktree,
+      worktrees
+    ]
   )
 }

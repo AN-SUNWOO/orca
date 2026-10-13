@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
         state.ptyIdsByTabId[tab.id] = []
       }
     }),
+    unifiedTabsByWorktree: {},
     tabsByWorktree: {} as Record<string, { id: string }[]>,
     ptyIdsByTabId: {} as Record<string, string[]>
   }

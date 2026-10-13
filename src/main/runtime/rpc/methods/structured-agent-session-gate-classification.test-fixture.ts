@@ -17,6 +17,11 @@ export const CLEANUP_METHODS = [
     hostCall: 'close'
   },
   {
+    method: 'agentSession.sleep',
+    params: { sessionId: SESSION },
+    hostCall: 'close'
+  },
+  {
     method: 'agentSession.cancel',
     params: { envelope: envelope(), turnId: 'turn-1' },
     hostCall: 'cancel'

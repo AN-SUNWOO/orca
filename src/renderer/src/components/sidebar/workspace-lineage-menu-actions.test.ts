@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { Tab } from '../../../../shared/tab-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import {
@@ -66,7 +67,8 @@ describe('workspace lineage menu actions', () => {
         },
         browserTabsByWorktree: {
           [grandchild.id]: [{ id: 'grandchild-browser' }]
-        }
+        },
+        unifiedTabsByWorktree: {}
       }
     })
 
@@ -91,7 +93,8 @@ describe('workspace lineage menu actions', () => {
       activity: {
         tabsByWorktree: { [child.id]: [{ id: 'child-tab' }] },
         ptyIdsByTabId: { 'child-tab': ['child-pty'] },
-        browserTabsByWorktree: {}
+        browserTabsByWorktree: {},
+        unifiedTabsByWorktree: {}
       }
     })
 
@@ -106,7 +109,8 @@ describe('hasSleepableWorkspaceActivity', () => {
       hasSleepableWorkspaceActivity('wt-1', {
         tabsByWorktree: { 'wt-1': [{ id: 'tab-1' }] },
         ptyIdsByTabId: { 'tab-1': [] },
-        browserTabsByWorktree: {}
+        browserTabsByWorktree: {},
+        unifiedTabsByWorktree: {}
       })
     ).toBe(false)
   })
@@ -116,14 +120,40 @@ describe('hasSleepableWorkspaceActivity', () => {
       hasSleepableWorkspaceActivity('wt-1', {
         tabsByWorktree: { 'wt-1': [{ id: 'tab-1' }] },
         ptyIdsByTabId: { 'tab-1': ['pty-1'] },
-        browserTabsByWorktree: {}
+        browserTabsByWorktree: {},
+        unifiedTabsByWorktree: {}
       })
     ).toBe(true)
     expect(
       hasSleepableWorkspaceActivity('wt-1', {
         tabsByWorktree: {},
         ptyIdsByTabId: {},
-        browserTabsByWorktree: { 'wt-1': [{ id: 'browser-1' }] }
+        browserTabsByWorktree: { 'wt-1': [{ id: 'browser-1' }] },
+        unifiedTabsByWorktree: {}
+      })
+    ).toBe(true)
+  })
+
+  it('offers Sleep for a chat-only workspace', () => {
+    const chat: Tab = {
+      id: 'chat-1',
+      entityId: 'session-1',
+      groupId: 'group-1',
+      worktreeId: 'wt-1',
+      contentType: 'agent-session',
+      agentSessionAgent: 'claude',
+      label: 'Claude',
+      customLabel: null,
+      color: null,
+      sortOrder: 0,
+      createdAt: 0
+    }
+    expect(
+      hasSleepableWorkspaceActivity('wt-1', {
+        tabsByWorktree: {},
+        ptyIdsByTabId: {},
+        browserTabsByWorktree: {},
+        unifiedTabsByWorktree: { 'wt-1': [chat] }
       })
     ).toBe(true)
   })

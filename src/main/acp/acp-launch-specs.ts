@@ -82,6 +82,8 @@ export type AcpLaunchSpec = {
     advertised: readonly string[]
     env: Readonly<Record<string, string>>
   }): string | undefined
+  /** Matches the stderr line where the agent waits for browser sign-in: the chat is signed out. */
+  signInPrompt?(line: string): boolean
   /** The account each chat pins, and how a launch points the agent at it. */
   account: AcpAccountBinding
   /** The `--version` releases a structured chat runs on, asked before a create and again at every

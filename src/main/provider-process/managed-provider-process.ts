@@ -44,6 +44,8 @@ type ManagedProviderProcessOptions = {
   lifetime?: ProviderSupervisorLifetime
   /** Any stdout or stderr chunk: the child is doing something. */
   onOutput?: () => void
+  /** Each complete stderr line; true withholds it from the retained tail. */
+  onStderrLine?: (line: string) => boolean
 }
 
 export type ManagedProviderProcess = {
@@ -101,11 +103,25 @@ export function spawnManagedProviderProcess(
   let lastCloseResult: ProviderProcessCloseResult | null = null
   const exitProof = new RetryableProcessExitProof(options.acceptClose ?? acceptProviderRootExit)
   let stderrTail = ''
+  let stderrLine = ''
+  const retainLine = (line: string): void => {
+    if (line && !options.onStderrLine?.(line)) {
+      stderrTail = `${stderrTail}${line}\n`.slice(-STDERR_TAIL_MAX_CHARS)
+    }
+  }
   // An undrained stderr pipe blocks the child once it fills.
   child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
-    stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_MAX_CHARS)
+    if (options.onStderrLine) {
+      const lines = (stderrLine + chunk).split('\n')
+      // A partial line is never retained before it is classified.
+      stderrLine = (lines.pop() ?? '').slice(-STDERR_TAIL_MAX_CHARS)
+      lines.forEach(retainLine)
+    } else {
+      stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_MAX_CHARS)
+    }
     options.onOutput?.()
   })
+  child.stderr.once('end', () => retainLine(stderrLine))
   if (options.onOutput) {
     observeReaderOutput(child.stdout, options.onOutput)
   }

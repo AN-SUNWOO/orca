@@ -3,8 +3,6 @@
 // them; compaction is the agent's own `/compact` prompt, for an agent whose launch spec offers it.
 
 import { randomUUID } from 'node:crypto'
-import { agentSessionFailureFact } from '../../shared/agent-session-failure'
-import { agentSessionFailureWords } from '../../shared/agent-session-failure-words'
 import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
 import {
@@ -25,6 +23,7 @@ import { acpAgentName, acquireAcpStructuredSession } from './acp-structured-acqu
 import {
   closeAcpSessionJournal,
   endAcpStructuredSession,
+  rejectedAcpDispatch,
   type AcpStructuredSession
 } from './acp-structured-session'
 import {
@@ -157,7 +156,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
     const lost = this.sessions.get(input.sessionId)
     if (lost && lost.journalClosed !== null) {
       // The connection broke and the exit is not yet proven: the message never left Orca.
-      return this.rejected(lost, 'providerExited')
+      return rejectedAcpDispatch(lost)
     }
     const session = this.live(input.sessionId)
     const prompt = await acpDispatchPrompt(input.body, session)
@@ -166,7 +165,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
     }
     if (this.sessions.get(input.sessionId) !== session || session.journalClosed !== null) {
       // The child ended while its attachments were read: nothing left Orca.
-      return this.rejected(session, 'providerExited')
+      return rejectedAcpDispatch(session)
     }
     await input.beforeDispatch?.()
     session.turns.dispatch({
@@ -333,23 +332,10 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
     }
     closeAcpSessionJournal(
       session,
-      `${session.spec.agent} ACP connection closed: ${error.message || error.name}`
+      `${session.spec.agent} ACP connection closed: ${error.message || error.name}`,
+      error
     )
     void this.stop(session.sessionId, false)
-  }
-
-  /** Only for a send refused before its prompt was written. */
-  private rejected(
-    session: AcpStructuredSession,
-    kind: 'providerExited'
-  ): AgentSessionDispatchOutcome {
-    return {
-      state: 'rejected',
-      ...agentSessionFailureWords(agentSessionFailureFact(kind, { neverReachedAgent: true }), {
-        surface: 'rejection',
-        agentName: acpAgentName(session.spec.agent)
-      })
-    }
   }
 
   private live(sessionId: string): AcpStructuredSession {

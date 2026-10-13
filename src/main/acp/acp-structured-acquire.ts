@@ -126,8 +126,9 @@ export async function acquireAcpStructuredSession(input: {
           // is cutting it short: nobody is there to ask.
           return { outcome: { outcome: 'cancelled' } }
         }
-        // A request the dialect claims is a question for the person, which full access never answers.
-        if (launch.fullAccess && !spec.dialect.request?.('session/request_permission', request)) {
+        // Full access never answers a dialect's question, nor an agent that enforces the mode itself.
+        const claimed = spec.dialect.request?.('session/request_permission', request)
+        if (launch.fullAccess && !spec.permissionModeConfig && !claimed) {
           // Full access: Orca answers yes for the person, as the agent's own bypass flag would.
           const allow = request.options.find((option) => option.kind === 'allow_once')
           if (allow) {
@@ -259,6 +260,15 @@ export async function acquireAcpStructuredSession(input: {
     options.adoptSession(started.response, started.kind === 'new' ? 'new' : 'loaded')
     liveLane.apply(liveLane.translator.contextModels(started.response.models, now()))
     const restoreSkipped = await restoreAcpSessionOptions(connection, options, acquire.options)
+    const mode = spec.permissionModeConfig
+    if (mode) {
+      // Unlike a saved pick, a refusal fails the start: the session would run another posture.
+      const set = await connection.setConfigOption(
+        mode.configId,
+        launch.fullAccess ? mode.full : mode.ask
+      )
+      options.adoptConfigOptions(set.configOptions)
+    }
     const process = await identity.read(pid)
     const link: AgentSessionProviderHandleLink = {
       linkId:

@@ -145,9 +145,9 @@ describe('ACP process-owning connection', () => {
     await connection.start(start)
     const turn = connection.prompt([...prompt]).catch((error: unknown) => error)
     child.stderr.write(
-      'warming up\nOpen the following link to authenticate the ACP server: https://acc'
+      `warming up\nOpen the following link to authenticate the ACP server: https://accounts.example/auth?state=${'x'.repeat(8192)}`
     )
-    child.stderr.write('ounts.example/auth?state=s3cret\n')
+    child.stderr.write('s3cret\n')
     const error = await turn
     expect(error).toBeInstanceOf(AcpAuthRequiredError)
     await vi.waitFor(() => expect(onExit).toHaveBeenCalledOnce())

@@ -113,8 +113,8 @@ export function spawnManagedProviderProcess(
   child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
     if (options.onStderrLine) {
       const lines = (stderrLine + chunk).split('\n')
-      // A partial line is never retained before it is classified.
-      stderrLine = (lines.pop() ?? '').slice(-STDERR_TAIL_MAX_CHARS)
+      // Keep the prompt prefix until the complete line can be classified.
+      stderrLine = (lines.pop() ?? '').slice(0, STDERR_TAIL_MAX_CHARS)
       lines.forEach(retainLine)
     } else {
       stderrTail = (stderrTail + chunk).slice(-STDERR_TAIL_MAX_CHARS)

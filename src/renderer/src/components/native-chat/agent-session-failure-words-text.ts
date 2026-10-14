@@ -98,10 +98,11 @@ const PIECES: Record<AgentSessionFailureCopyId, (values: AgentSessionFailureCopy
         'components.native-chat.failureWords.managedAccountEnvOverride',
         COPY.managedAccountEnvOverride
       ),
-    accountSwitchInProgress: () =>
+    accountSwitchInProgress: (values) =>
       translate(
         'components.native-chat.failureWords.accountSwitchInProgress',
-        COPY.accountSwitchInProgress
+        COPY.accountSwitchInProgress,
+        values
       ),
     managedAccountUnsupported: () =>
       translate(

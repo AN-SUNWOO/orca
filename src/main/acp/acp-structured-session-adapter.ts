@@ -64,7 +64,8 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
 
   async acquire(input: StructuredAgentSessionAcquireInput): Promise<AgentSessionAcquisition> {
     const sessionId = input.identity.sessionId
-    const attempt = this.starts.begin(input.signal)
+    const gate = this.deps.spec.launchGate?.enter(input.signal)
+    const attempt = this.starts.begin(gate?.signal ?? input.signal)
     try {
       if (!(await this.stop(sessionId))) {
         throw new AgentSessionAcquisitionExitUnprovenError(
@@ -76,6 +77,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
       return await this.start(input, attempt)
     } finally {
       this.starts.end(attempt)
+      gate?.leave()
     }
   }
 

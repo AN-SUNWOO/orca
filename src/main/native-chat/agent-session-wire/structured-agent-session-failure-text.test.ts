@@ -192,10 +192,7 @@ describe('structuredAgentSessionStartFailure', () => {
       'managedAccountEnvOverride',
       'This Claude launch sets its own Anthropic sign-in variables. Remove them to use a managed Claude account.'
     ],
-    [
-      'accountSwitchInProgress',
-      'A Claude account switch is in progress. Try again after it finishes.'
-    ],
+    ['accountSwitchInProgress', "Claude's account is changing. Try again after it finishes."],
     [
       'managedAccountUnsupported',
       'While a Claude account is added in WSL, Claude chats need a Windows Claude account. Choose or add one in Claude Accounts settings, then send your message again.'

@@ -165,6 +165,13 @@ describe('compact acknowledgement emphasis through WorktreeCardAgents', () => {
     expect(label?.nextElementSibling?.textContent).toContain('Interrupted by user')
   })
 
+  it('never emphasizes a title-derived row, whose every rebuild restamps its state time', () => {
+    // A row known only from its title or process has startedAt 0 and stateStartedAt = rebuild time.
+    acknowledgements = { [PANE_A]: 2000 }
+    const row = { ...agentRow(PANE_A, 'idle', { stateStartedAt: 9000 }), startedAt: 0 }
+    expectEmphasis(renderLabels([row])[0], false)
+  })
+
   it('does not treat same-state output as a new turn, but admits a newer timestamp', () => {
     acknowledgements = { [PANE_A]: 2000 }
     expectEmphasis(renderLabels([agentRow(PANE_A)])[0], false)

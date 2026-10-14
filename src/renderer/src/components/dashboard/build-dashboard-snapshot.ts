@@ -244,8 +244,7 @@ export function buildDashboardSnapshot(
         finishedAt,
         stateChangedAt: row.entry.stateStartedAt || row.startedAt,
         statusUpdatedAt: row.entry.updatedAt,
-        // Same derivation as WorktreeCardAgents' unvisitedByPaneKey, so the
-        // board and the sidebar bold/mute the same agents at the same time.
+        // `isAgentRowUnseen`, the rule the sidebar card bolds by too.
         unseen,
         askSummary: bucket === 'attention' ? (row.entry.interactivePrompt ?? undefined) : undefined,
         conversationName: boundedLabelOrUndefined(

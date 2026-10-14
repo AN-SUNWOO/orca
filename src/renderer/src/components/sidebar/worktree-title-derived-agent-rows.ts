@@ -231,7 +231,7 @@ function buildTitleDerivedAgentRow(args: {
     agentType,
     rowSource: 'live',
     state: rowState,
-    // Load-bearing zero, not a placeholder: `dashboardRowBucketProjection` reads `startedAt === 0`
+    // Load-bearing zero, not a placeholder: `isAgentRowUnseen` reads `startedAt === 0`
     // as "title-derived" and short-circuits `unseen`. That is the ONLY reason the `args.now` stamps
     // on `entry` above (updatedAt / stateStartedAt / observation) cannot move this row's bucket.
     // Dashboard bucket caches key their invalidation on the freshness boundary in

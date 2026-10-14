@@ -22,6 +22,14 @@ export function readAgentAttentionTurnStartedAt(
   )
 }
 
+/** A turn is unread until acknowledged at or after its start; with no turn there is nothing to read. */
+export function isAgentTurnUnacknowledged(
+  acknowledgedAt: number,
+  turnStartedAt: number | null | undefined
+): boolean {
+  return turnStartedAt != null && acknowledgedAt < turnStartedAt
+}
+
 /**
  * Subjects on the viewed surface whose current turn has not been acknowledged yet.
  *
@@ -37,12 +45,15 @@ export function computeAgentAcknowledgementTargets(
   }
   const targets: string[] = []
   const acknowledgedAt = records.acknowledgedTurnStartedAt[subjectKey] ?? 0
-  const liveTurn = records.liveTurns[subjectKey]
-  if (liveTurn && acknowledgedAt < liveTurn.stateStartedAt) {
+  if (isAgentTurnUnacknowledged(acknowledgedAt, records.liveTurns[subjectKey]?.stateStartedAt)) {
     targets.push(subjectKey)
   }
-  const retainedTurn = records.retainedTurns[subjectKey]
-  if (retainedTurn && acknowledgedAt < retainedTurn.entry.stateStartedAt) {
+  if (
+    isAgentTurnUnacknowledged(
+      acknowledgedAt,
+      records.retainedTurns[subjectKey]?.entry.stateStartedAt
+    )
+  ) {
     targets.push(subjectKey)
   }
   return targets

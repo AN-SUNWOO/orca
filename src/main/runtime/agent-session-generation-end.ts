@@ -75,3 +75,17 @@ export function agentSessionGenerationEnds(
   }
   return ends
 }
+
+/** Who hears each generation a committed transaction ended (`AgentSessionRecordStore`). */
+export class AgentSessionGenerationEndListeners {
+  private readonly listeners = new Set<(ended: AgentSessionGenerationEnd) => void>()
+
+  on = (listener: (ended: AgentSessionGenerationEnd) => void): (() => void) => {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  emit(ended: readonly AgentSessionGenerationEnd[]): void {
+    ended.forEach((end) => this.listeners.forEach((listener) => listener(end)))
+  }
+}

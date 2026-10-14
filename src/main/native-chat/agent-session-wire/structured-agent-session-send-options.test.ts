@@ -162,6 +162,9 @@ describe('an opening message created with a model and effort', () => {
     try {
       const { first } = await createWhileStarting(rest)
       const host = await rest.restart()
+      // Keeping an earlier process's unsent send as a card is the startup reconcile's.
+      await host.reconcileRestartLeases()
+      await host.startupSettled()
       expect(await host.history({ sessionId: SESSION, direction: 'tail' })).toMatchObject({
         ok: true
       })

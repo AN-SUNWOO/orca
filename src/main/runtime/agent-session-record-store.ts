@@ -33,6 +33,7 @@ import {
   agentSessionGenerationEnds,
   agentSessionLeasesBefore,
   reservationSupersessionEvidence,
+  AgentSessionGenerationEndListeners,
   type AgentSessionGenerationEnd,
   type AgentSessionGenerationEndOptions
 } from './agent-session-generation-end'
@@ -92,7 +93,7 @@ export const AGENT_SESSION_LEASE_TTL_MS = 30_000,
   AGENT_SESSION_LEASE_RENEW_INTERVAL_MS = 10_000
 
 export class AgentSessionRecordStore {
-  private readonly generationEndListeners = new Set<(ended: AgentSessionGenerationEnd) => void>()
+  private readonly generationEnds = new AgentSessionGenerationEndListeners()
   private readonly firstRecordListeners = new Set<() => void>()
   readonly conversationReceipts: ReturnType<typeof createAgentSessionConversationReceipts>
 
@@ -159,8 +160,9 @@ export class AgentSessionRecordStore {
 
   /** Shows each session that still has a record, in one write: an index written part way would
    *  read as complete at the next launch and drop the rest. */
-  showSessionTabs = (sessionIds: readonly string[], options?: JournalWriteOptions) =>
-    this.transact((draft) => showAgentSessionTabs(draft, sessionIds), options)
+  showSessionTabs(sessionIds: readonly string[], options?: JournalWriteOptions): Promise<void> {
+    return this.transact((draft) => showAgentSessionTabs(draft, sessionIds), options)
+  }
 
   listByScope(location: AgentSessionExecutionLocation): AgentSessionRecord[] {
     const scope = agentSessionScopeKey(location)
@@ -357,10 +359,7 @@ export class AgentSessionRecordStore {
   /** Told once, after commit, of each generation a transaction revoked or superseded, whichever
    *  transition wrote it, since every lease write lands here (`agentSessionGenerationEnds`). Must not
    *  throw. */
-  onGenerationEnded(listener: (ended: AgentSessionGenerationEnd) => void): () => void {
-    this.generationEndListeners.add(listener)
-    return () => this.generationEndListeners.delete(listener)
-  }
+  onGenerationEnded = this.generationEnds.on
 
   /** Told, once committed, when the store records its first chat. Must not throw. */
   onFirstRecord(listener: () => void): () => void {
@@ -384,7 +383,7 @@ export class AgentSessionRecordStore {
       ended = agentSessionGenerationEnds(before, draft.records, options?.supersessionEvidence)
       return applied
     }, options)
-    ended.forEach((end) => this.generationEndListeners.forEach((listener) => listener(end)))
+    this.generationEnds.emit(ended)
     if (!heldBefore && this.holdsRecords()) {
       this.firstRecordListeners.forEach((listener) => listener())
     }

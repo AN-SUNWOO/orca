@@ -89,16 +89,16 @@ export function createStructuredAgentSessionConversationLifetime(host: {
 
   const holdStopClose = async <T>(
     sessionId: string,
-    stop: (held: boolean) => Promise<T>,
+    stop: () => Promise<T>,
     onCloseError?: (error: unknown) => void
   ): Promise<T> => {
     const session = sessions.get(sessionId)
-    const held = session
-      ? await holdClosedStructuredAgentSessionSends(deps(), sessionId, session.journal, {
-          mark: 'always'
-        })
-      : true
-    const result = await stop(held)
+    if (session) {
+      await holdClosedStructuredAgentSessionSends(deps(), sessionId, session.journal, {
+        mark: 'always'
+      })
+    }
+    const result = await stop()
     try {
       await closeConversation(sessionId)
     } catch (error) {
@@ -138,7 +138,7 @@ export function createStructuredAgentSessionConversationLifetime(host: {
       const owned = deps().adapter.hasOwnedAcquisition?.(sessionId) === true
       const stopped = await holdStopClose(
         sessionId,
-        async (held) => {
+        async () => {
           let ownedStopped = false
           try {
             if (child) {
@@ -168,11 +168,10 @@ export function createStructuredAgentSessionConversationLifetime(host: {
             after.lease.claimStatus === 'released' &&
             !!after.lease.deathEvidence
           return (
-            held &&
-            (childStopped ||
-              (owned && ownedStopped) ||
-              (!child && !owned && !!after && structuredSessionNeverStarted(after)) ||
-              durableStopped)
+            childStopped ||
+            (owned && ownedStopped) ||
+            (!child && !owned && !!after && structuredSessionNeverStarted(after)) ||
+            durableStopped
           )
         },
         (error) =>

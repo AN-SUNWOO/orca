@@ -287,10 +287,7 @@ describe('a chat that closes', () => {
       return result
     })
 
-    expect(await host.sleepWorkspace('workspace-1')).toEqual({
-      stoppedSessionIds: [],
-      failures: [{ sessionId: SESSION, reason: 'superseded' }]
-    })
+    expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [] })
     expect(newerSend).not.toBeNull()
     expect(await newerSend).toMatchObject({ ok: true })
   })

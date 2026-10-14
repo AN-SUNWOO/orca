@@ -38,13 +38,16 @@ export async function sleepStructuredAgentSessionWorkspace(
     ...host.tasks.pendingMembers(workspaceId, LOCAL_EXECUTION_HOST_ID)
   ])
   const admitted = [...candidates].map((sessionId) => {
-    let close: ReturnType<WorkspaceSleepHost['lifetime']['closeForWorkspaceSleep']>
     try {
-      close = host.lifetime.closeForWorkspaceSleep(sessionId, workspaceId, LOCAL_EXECUTION_HOST_ID)
+      const close = host.lifetime.closeForWorkspaceSleep(
+        sessionId,
+        workspaceId,
+        LOCAL_EXECUTION_HOST_ID
+      )
+      return { sessionId, close, tail: host.tasks.waitForCurrent(sessionId) }
     } catch (error) {
-      close = Promise.reject(error)
+      return { sessionId, close: Promise.reject(error), tail: Promise.resolve() }
     }
-    return { sessionId, close, tail: host.tasks.waitForCurrent(sessionId) }
   })
   const outcomes = await Promise.all(
     admitted.map(async ({ sessionId, close, tail }) => {
@@ -55,18 +58,17 @@ export async function sleepStructuredAgentSessionWorkspace(
   const stoppedSessionIds: string[] = []
   const failures: NonNullable<AgentSessionWorkspaceSleepResult['failures']> = []
   for (const { sessionId, stop } of outcomes) {
-    if (stop.status === 'rejected' || !stop.value?.stopped) {
-      failures.push({
-        sessionId,
-        reason: stop.status === 'fulfilled' && !stop.value ? 'superseded' : 'stop-unverifiable'
-      })
+    if (stop.status === 'rejected' || (stop.value && !stop.value.stopped)) {
+      failures.push({ sessionId, reason: 'stop-unverifiable' })
+      continue
+    }
+    if (!stop.value) {
       continue
     }
     try {
       const record = host.deps.store.getRecord(sessionId)
       const session = host.sessions.get(sessionId)
       if (!record || !belongs(record.location) || record.lease.runtimeFence !== stop.value.fence) {
-        failures.push({ sessionId, reason: 'superseded' })
         continue
       }
       if (
@@ -77,7 +79,6 @@ export async function sleepStructuredAgentSessionWorkspace(
         session?.journal.pendingSubmissions().length ||
         host.deps.hasOpenDispatch?.(record)
       ) {
-        failures.push({ sessionId, reason: 'superseded' })
         continue
       }
       stoppedSessionIds.push(sessionId)

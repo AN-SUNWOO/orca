@@ -33,11 +33,6 @@ export type StructuredAgentSessionStatusSink = {
 
 /** The store's limits refusing a record: the per-session one, and the store's own. */
 const ROOM_REFUSALS: ReadonlySet<string> = new Set(['ingestion-limit', 'store-rejected'])
-/** Refused children remembered per session; past it only the session's end clears the flag. */
-const MAX_REFUSED_CHILDREN = 512
-
-type RefusedChildren = { handles: Set<string>; overflowed: boolean }
-
 /** Retain the owner address because record removal may precede the final status callback. */
 export class StructuredAgentSessionStatusOwnership {
   private readonly subjects = new Map<string, AgentStatusStructuredSessionSubject>()
@@ -48,7 +43,7 @@ export class StructuredAgentSessionStatusOwnership {
   /** Per session, the children the store refused for room, by handle. Each leaves once a later
    *  report of it is admitted or it reports its own end; the provider session's end, which ends
    *  every child it ran, clears them all. */
-  private readonly refused = new Map<string, RefusedChildren>()
+  private readonly refused = new Map<string, Set<string>>()
 
   constructor(private readonly sink: () => StructuredAgentSessionStatusSink | undefined) {}
 
@@ -124,21 +119,17 @@ export class StructuredAgentSessionStatusOwnership {
     const refusedNow = new Set(
       outcome?.rejected.filter(({ reason }) => ROOM_REFUSALS.has(reason)).map((r) => r.handleId)
     )
-    const refused = this.refused.get(sessionId) ?? { handles: new Set(), overflowed: false }
+    const refused = this.refused.get(sessionId) ?? new Set<string>()
     for (const edge of evidence) {
       if (edge.type === 'live' && (outcome === null || refusedNow.has(edge.child.handle.id))) {
-        if (refused.handles.size < MAX_REFUSED_CHILDREN) {
-          refused.handles.add(edge.child.handle.id)
-        } else {
-          refused.overflowed = true
-        }
+        refused.add(edge.child.handle.id)
       } else if (edge.type === 'live') {
-        refused.handles.delete(edge.child.handle.id)
+        refused.delete(edge.child.handle.id)
       } else if (edge.type === 'ended' || edge.type === 'removed') {
-        refused.handles.delete(edge.handle.id)
+        refused.delete(edge.handle.id)
       }
     }
-    if (refused.handles.size > 0 || refused.overflowed) {
+    if (refused.size > 0) {
       this.refused.set(sessionId, refused)
     } else {
       this.refused.delete(sessionId)

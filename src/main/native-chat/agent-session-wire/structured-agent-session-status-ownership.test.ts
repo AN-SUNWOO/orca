@@ -221,17 +221,13 @@ describe('child work the host had no room to record', () => {
     expect(owner.childWorkIncomplete(summary.sessionId)).toBe(false)
   })
 
-  it('past its bound, holds incomplete until the provider session ends', () => {
+  it('clears after every refused child ends, including beyond the old 512-child bound', () => {
     const owner = storeFull()
     const many = Array.from({ length: 513 }, (_unused, index) => `refused-${index}`)
     owner.publishChildWork(summary.sessionId, many.map(agentLive), 'claude')
-    owner.publishChildWork(summary.sessionId, many.map(ended), 'claude')
+    owner.publishChildWork(summary.sessionId, many.slice(0, -1).map(ended), 'claude')
     expect(owner.childWorkIncomplete(summary.sessionId)).toBe(true)
-    owner.publishChildWork(
-      summary.sessionId,
-      [{ type: 'session-ended', observedAt: 300 }],
-      'claude'
-    )
+    owner.publishChildWork(summary.sessionId, [ended('refused-512')], 'claude')
     expect(owner.childWorkIncomplete(summary.sessionId)).toBe(false)
   })
 })

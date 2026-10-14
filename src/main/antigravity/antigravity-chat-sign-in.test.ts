@@ -28,11 +28,13 @@ const GOOGLE_LINK =
   'https://accounts.google.com/o/oauth2/v2/auth?response_type=code&state=s1&redirect_uri=http%3A%2F%2F127.0.0.1%3A41234%2F'
 const folders: string[] = []
 afterEach(async () => {
+  vi.restoreAllMocks()
   await Promise.all(folders.splice(0).map((path) => rm(path, { recursive: true, force: true })))
 })
 
 /** A sign-in on a scratch data folder whose server prints `link` when asked to authenticate. */
 async function signInAgainst(link: string, configure?: (connection: AcpAgentConnection) => void) {
+  vi.spyOn(ANTIGRAVITY_LAUNCH_SPEC.managedRuntime, 'availableOnHost').mockReturnValue(true)
   const stateDirectory = await mkdtemp(join(tmpdir(), 'orca-agy-sign-in-'))
   folders.push(stateDirectory)
   const agent = new AcpScriptedAgent()

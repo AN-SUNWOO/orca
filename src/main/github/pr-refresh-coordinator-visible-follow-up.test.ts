@@ -59,8 +59,8 @@ describe('pr-refresh-coordinator', () => {
       repoId: 'removed',
       repoPath: '/kept',
       cacheKey: 'kept',
-      executionHostId: 'wsl:Ubuntu',
-      localGitOptions: { wslDistro: 'Ubuntu' }
+      executionHostId: 'ssh:other-host',
+      connectionId: 'other-host'
     })
     getPRForBranchOutcomeMock.mockResolvedValue({
       kind: 'found',

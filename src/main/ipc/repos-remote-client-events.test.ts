@@ -8,8 +8,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as ReposChangedNotificationModule from './repos/repos-changed-notification'
 
-const { handleMock, mockStore } = vi.hoisted(() => ({
+const { handleMock, mockStore, prunePRRefreshMock } = vi.hoisted(() => ({
   handleMock: vi.fn(),
+  prunePRRefreshMock: vi.fn(),
   mockStore: {
     getRepos: vi.fn().mockReturnValue([]),
     getRepo: vi.fn(),
@@ -19,6 +20,8 @@ const { handleMock, mockStore } = vi.hoisted(() => ({
     reorderRepos: vi.fn().mockReturnValue(true)
   }
 }))
+
+vi.mock('../github/pr-refresh-coordinator', () => ({ pruneRepoPRRefresh: prunePRRefreshMock }))
 
 vi.mock('electron', () => ({
   dialog: { showOpenDialog: vi.fn() },
@@ -67,6 +70,7 @@ beforeEach(() => {
   })
   mainWindow.webContents.send.mockReset()
   mockStore.removeProjectForHost.mockReset()
+  prunePRRefreshMock.mockReset()
   mockStore.reorderRepos.mockReset().mockReturnValue(true)
 })
 
@@ -78,6 +82,7 @@ describe('repo IPC mutations notify paired clients', () => {
     await handlers.get('repos:removeForHost')!(null, { repoId: 'repo-1', hostId: 'ssh:host-1' })
 
     expect(mockStore.removeProjectForHost).toHaveBeenCalledWith('repo-1', 'ssh:host-1')
+    expect(prunePRRefreshMock).toHaveBeenCalledWith('repo-1', 'ssh:host-1')
     expect(notify).toHaveBeenCalledTimes(1)
     expect(mainWindow.webContents.send).toHaveBeenCalledWith('repos:changed')
   })

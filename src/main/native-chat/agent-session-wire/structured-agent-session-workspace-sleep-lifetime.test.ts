@@ -22,11 +22,11 @@ it('omits an unverified stop superseded by a newer send while retaining a siblin
   )
   host.deps.adapter.closeSession = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true)
 
-  let failedStopDone = () => undefined
+  let failedStopDone: () => void = () => undefined
   const failedStop = new Promise<void>((resolve) => {
     failedStopDone = resolve
   })
-  let releaseSibling = () => undefined
+  let releaseSibling: () => void = () => undefined
   const slowSibling = new Promise<void>((resolve) => {
     releaseSibling = resolve
   })

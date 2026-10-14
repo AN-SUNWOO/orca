@@ -51,6 +51,25 @@ describe('pr-refresh-coordinator', () => {
     expect(getPRForBranchOutcomeMock).toHaveBeenCalledTimes(1)
   })
 
+  it('drops a removed repo while keeping another repo visible', async () => {
+    const { pruneRepoPRRefresh, reportVisiblePRRefreshCandidates, _getPRRefreshQueueSizeForTests } =
+      await import('./pr-refresh-coordinator')
+    const removed = makeCandidate({ repoId: 'removed', repoPath: '/removed', cacheKey: 'removed' })
+    const kept = makeCandidate({ repoId: 'kept', repoPath: '/kept', cacheKey: 'kept' })
+    getPRForBranchOutcomeMock.mockResolvedValue({
+      kind: 'found',
+      pr: makePR({ checksStatus: 'pending' }),
+      fetchedAt: Date.now()
+    })
+
+    reportVisiblePRRefreshCandidates([removed, kept], 1, 1)
+    pruneRepoPRRefresh('removed', 'local')
+    expect(_getPRRefreshQueueSizeForTests()).toBe(1)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(getPRForBranchOutcomeMock).toHaveBeenCalledTimes(1)
+    expect(getPRForBranchOutcomeMock.mock.calls[0]?.[0]).toBe('/kept')
+  })
+
   it('clears visible retry backoff when a non-visible manual refresh steals the retry', async () => {
     const {
       _getPRRefreshErrorBackoffCountForTests,

@@ -14,6 +14,7 @@ import {
   assertWslMoveReposWritable,
   isWslMoveSourceHost
 } from '../../persistence/moving-wsl-projects/wsl-move-scope-guard'
+import { pruneRepoPRRefresh } from '../../github/pr-refresh-coordinator'
 
 export function registerRepoCatalogHandlers(mainWindow: BrowserWindow, store: Store): void {
   // Why one shared reference: enrichment dedupes coalesced callers by callback identity, so a fresh
@@ -94,6 +95,7 @@ export function registerRepoCatalogHandlers(mainWindow: BrowserWindow, store: St
         assertWslMoveProjectWritable(store, { repoId: args.repoId })
       }
       store.removeProjectForHost(args.repoId, hostId)
+      pruneRepoPRRefresh(args.repoId, hostId)
       invalidateAuthorizedRootsCache()
       notifyReposChanged(mainWindow)
     }

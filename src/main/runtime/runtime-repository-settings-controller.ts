@@ -6,6 +6,7 @@ import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
 import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
 import type { RuntimeStore } from './runtime-store-contract'
 import { assertWslMoveRepoWritable } from '../persistence/moving-wsl-projects/wsl-move-scope-guard'
+import { pruneRepoPRRefresh } from '../github/pr-refresh-coordinator'
 
 type RuntimeRepositorySettingsDependencies = {
   getStore: () => RuntimeStore | null
@@ -116,6 +117,7 @@ export class RuntimeRepositorySettingsController {
     const hostId = getRepoExecutionHostId(repo)
     assertWslMoveRepoWritable(store, repo)
     store.removeProjectForHost(repo.id, hostId)
+    pruneRepoPRRefresh(repo.id, hostId)
     this.deps.forgetTerminalTopology(repo.id)
     this.deps.invalidateResolvedWorktrees()
     this.deps.invalidateWorktreeScan(repo.id)

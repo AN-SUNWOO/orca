@@ -328,6 +328,22 @@ function StructuredAgentSessionOwnedStatusProjection({
   target: RuntimeClientTarget
 }): null {
   const { summary, observation } = useStructuredAgentSessionStatusSummary(tab.entityId, target)
+  const { id: tabId, entityId: sessionId, executionHostId, worktreeId } = tab
+  useEffect(() => {
+    if (observation !== 'live' || summary?.status !== 'working') {
+      return
+    }
+    const store = useAppStore.getState()
+    const current = store.unifiedTabsByWorktree[worktreeId]?.find(
+      (candidate) =>
+        candidate.id === tabId &&
+        candidate.entityId === sessionId &&
+        candidate.executionHostId === executionHostId
+    )
+    if (current?.sleptAt !== undefined) {
+      store.setWorkspaceChatsSleptAt(worktreeId, [{ tabId, sessionId, executionHostId }], undefined)
+    }
+  }, [summary, observation, tabId, sessionId, executionHostId, worktreeId])
   const launchFailed =
     useStructuredAgentSessionLaunchLifecycle(tab.worktreeId, tab.entityId) === 'failed'
   const failedAt = useStructuredAgentSessionLaunchFailedAt(tab.entityId)

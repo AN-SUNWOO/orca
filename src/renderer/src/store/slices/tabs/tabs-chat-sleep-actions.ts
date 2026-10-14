@@ -1,22 +1,25 @@
 import type { Tab } from '../../../../../shared/tab-types'
+import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import { isStructuredTab } from '@/components/native-chat/structured-agent-session-tabs'
 import type { TabsSlice, TabsSliceSet } from './tabs-slice-contract'
 
-/** Marks (a time) or clears (undefined) Sleep on every chat tab of one workspace; the same map when
- *  nothing changes, so a wake that finds no mark writes nothing. */
+type CapturedChat = { tabId: string; sessionId: string; executionHostId?: ExecutionHostId }
+
+/** Sleep only changes chats whose host and session were captured before teardown. */
 export function withWorkspaceChatsSleptAt(
   unifiedTabsByWorktree: Record<string, Tab[]>,
   worktreeId: string,
-  sleptAt: number | undefined
+  sleptAt: number | undefined,
+  matches: (tab: Tab) => boolean
 ): Record<string, Tab[]> {
   const tabs = unifiedTabsByWorktree[worktreeId]
-  if (!tabs?.some((tab) => isStructuredTab(tab) && tab.sleptAt !== sleptAt)) {
+  if (!tabs?.some((tab) => isStructuredTab(tab) && matches(tab) && tab.sleptAt !== sleptAt)) {
     return unifiedTabsByWorktree
   }
   return {
     ...unifiedTabsByWorktree,
     [worktreeId]: tabs.map((tab) => {
-      if (!isStructuredTab(tab) || tab.sleptAt === sleptAt) {
+      if (!isStructuredTab(tab) || !matches(tab) || tab.sleptAt === sleptAt) {
         return tab
       }
       const { sleptAt: _previous, ...awake } = tab
@@ -25,13 +28,35 @@ export function withWorkspaceChatsSleptAt(
   }
 }
 
+export function withSelectedHostChatsAwake(
+  unifiedTabsByWorktree: Record<string, Tab[]>,
+  worktreeId: string,
+  executionHostId: ExecutionHostId | undefined
+): Record<string, Tab[]> {
+  return withWorkspaceChatsSleptAt(
+    unifiedTabsByWorktree,
+    worktreeId,
+    undefined,
+    (tab) => tab.executionHostId === executionHostId
+  )
+}
+
 export function createTabsChatSleepActions(
   set: TabsSliceSet
 ): Pick<TabsSlice, 'setWorkspaceChatsSleptAt'> {
   return {
-    setWorkspaceChatsSleptAt: (worktreeId, sleptAt) => {
+    setWorkspaceChatsSleptAt: (worktreeId, chats, sleptAt) => {
       set((state) => {
-        const next = withWorkspaceChatsSleptAt(state.unifiedTabsByWorktree, worktreeId, sleptAt)
+        const captured = new Map(chats.map((chat: CapturedChat) => [chat.tabId, chat]))
+        const next = withWorkspaceChatsSleptAt(
+          state.unifiedTabsByWorktree,
+          worktreeId,
+          sleptAt,
+          (tab) => {
+            const chat = captured.get(tab.id)
+            return chat?.sessionId === tab.entityId && chat.executionHostId === tab.executionHostId
+          }
+        )
         return next === state.unifiedTabsByWorktree ? state : { unifiedTabsByWorktree: next }
       })
     }

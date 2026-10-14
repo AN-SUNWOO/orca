@@ -4,7 +4,7 @@ import { filterWorkspaceRows } from '../../../shared/workspace-view/workspace-ro
 import { buildDesktopWorkspaceRowFactReader } from '@/components/sidebar/desktop-workspace-row-facts'
 import { sortWorktreesSmart } from '@/components/sidebar/smart-sort'
 import { buildWorktreeChecksReviewIndex } from '@/components/cmd-j/worktree-checks-review-index'
-import { getLiveAgentStatusByWorktreeId } from '@/lib/worktree-activity-state'
+import { getWorktreeIdsWithLiveAgent } from '@/lib/worktree-activity-state'
 import { orderEmptyQueryWorktrees } from '@/lib/order-empty-query-worktrees'
 import {
   getWorktreePaletteSearchScope,
@@ -64,13 +64,16 @@ export function useWorktreeJumpPaletteWorktrees({
   const isLoading = repos.length > 0 && Object.keys(worktreesByRepo).length === 0
   const worktreeIdsWithLiveAgent = useMemo(
     () =>
-      new Set(
-        // The palette recomputes this snapshot when status inputs change; the
-        // clock intentionally reflects the render that performs that snapshot.
+      // The palette recomputes this snapshot when status inputs change; the
+      // clock intentionally reflects the render that performs that snapshot.
+      getWorktreeIdsWithLiveAgent(
+        agentStatusByPaneKey,
+        tabsByWorktree,
         // oxlint-disable-next-line react/purity
-        getLiveAgentStatusByWorktreeId(agentStatusByPaneKey, tabsByWorktree, Date.now()).keys()
+        Date.now(),
+        unifiedTabsByWorktree
       ),
-    [agentStatusByPaneKey, tabsByWorktree]
+    [agentStatusByPaneKey, tabsByWorktree, unifiedTabsByWorktree]
   )
   const pairedDeviceIdsByEnvironment = useMemo(
     () =>

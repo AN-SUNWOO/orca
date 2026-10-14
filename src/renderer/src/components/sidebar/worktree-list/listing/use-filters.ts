@@ -98,13 +98,14 @@ const REVEAL_WORKSPACE: Record<keyof WorkspaceRowFilters, (context: RevealContex
       state.setHideWorkspacesFromOtherDevices(false)
     }
   },
-  hideSleepingWorkspaces: ({ state, worktree }) => {
+  hideSleepingWorkspaces: ({ state, worktree, targetHostId }) => {
     const tabsByWorktree = getVisibleWorktreeTerminalActivityTabs(state.tabsByWorktree)
     const browserTabsByWorktree = getVisibleWorktreeBrowserActivityTabs(state.browserTabsByWorktree)
     const liveAgentWorktrees = getWorktreeIdsWithLiveAgent(
       state.agentStatusByPaneKey,
       tabsByWorktree,
-      getAgentStatusEpochNow(state.agentStatusEpoch)
+      getAgentStatusEpochNow(state.agentStatusEpoch),
+      state.unifiedTabsByWorktree
     )
     if (
       !isSleepingSweepExempt(worktree.isMainWorktree, state.alwaysShowDefaultBranchWorkspace) &&
@@ -114,7 +115,8 @@ const REVEAL_WORKSPACE: Record<keyof WorkspaceRowFilters, (context: RevealContex
         state.ptyIdsByTabId,
         browserTabsByWorktree,
         liveAgentWorktrees,
-        getWorktreeIdsWithStructuredChat(state.unifiedTabsByWorktree)
+        getWorktreeIdsWithStructuredChat(state.unifiedTabsByWorktree),
+        targetHostId
       )
     ) {
       state.setShowSleepingWorkspaces(true)

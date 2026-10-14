@@ -52,6 +52,9 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
   const browserTabsByWorktree = useAppStore((s) =>
     !showSleepingWorkspaces ? s.browserTabsByWorktree : null
   )
+  const unifiedTabsByWorktree = useAppStore((s) =>
+    !showSleepingWorkspaces ? s.unifiedTabsByWorktree : null
+  )
   const worktreeIdsWithStructuredChat = useAppStore((s) =>
     getStructuredChatWorktreeIds(showSleepingWorkspaces, s.unifiedTabsByWorktree)
   )
@@ -69,10 +72,17 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
       ? getWorktreeIdsWithLiveAgent(
           useAppStore.getState().agentStatusByPaneKey,
           tabsByWorktree,
-          agentStatusNow
+          agentStatusNow,
+          unifiedTabsByWorktree
         )
       : EMPTY_WORKTREE_ID_SET
-  }, [agentStatusEpoch, agentStatusNow, showSleepingWorkspaces, tabsByWorktree])
+  }, [
+    agentStatusEpoch,
+    agentStatusNow,
+    showSleepingWorkspaces,
+    tabsByWorktree,
+    unifiedTabsByWorktree
+  ])
 
   return useMemo(() => {
     // Why: the board has its own status ordering, but visibility must match

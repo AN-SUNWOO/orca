@@ -38,7 +38,8 @@ export class AcpLaunchGate {
     try {
       const starts = [...this.starts]
       starts.forEach(([controller]) => controller.abort())
-      await Promise.all([...starts.map(([, left]) => left), stopLive()])
+      await Promise.all(starts.map(([, left]) => left))
+      await stopLive()
       return await work()
     } finally {
       this.operating = false

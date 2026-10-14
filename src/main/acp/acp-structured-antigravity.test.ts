@@ -183,4 +183,25 @@ it('refuses a new start while its sign-in changes, and stops one already startin
   await expect(rig.acquire()).rejects.toMatchObject({ reason: 'accountSwitchInProgress' })
   signIn.resolve()
   await operation
+
+  const lateStart = gate.enter(undefined)
+  let left = false
+  let stopped = false
+  let worked = false
+  const failedOperation = gate.run(
+    async () => {
+      expect(left).toBe(true)
+      stopped = true
+      throw new Error('stop failed')
+    },
+    async () => {
+      worked = true
+    }
+  )
+  expect(lateStart.signal.aborted).toBe(true)
+  expect(stopped).toBe(false)
+  left = true
+  lateStart.leave()
+  await expect(failedOperation).rejects.toThrow('stop failed')
+  expect(worked).toBe(false)
 })

@@ -11,6 +11,7 @@
  * Chromium proves available at startup.
  */
 import process from 'node:process'
+import { join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
 import type { ServeReadiness } from '../server/serve-readiness'
 import { resolveOrcadInstallRoot, resolveUserDataPath } from './orcad-app-paths'
@@ -228,6 +229,12 @@ async function startOrcadRuntime(
   const { restoreOrcadHostAccountLaunchEnv } = await import('./orcad-host-account-launch-env-store')
   restoreOrcadHostAccountLaunchEnv(runtime, runtimeUserDataPath)
 
+  const { initSessionParseCachePersistence } =
+    await import('../ai-vault/session-parse-cache-persistence')
+  initSessionParseCachePersistence({
+    filePath: join(runtimeUserDataPath, 'ai-vault', 'session-parse-cache.json'),
+    appVersion: getAppEnvironment().getVersion()
+  })
   const { installOrcadSessionSearchService } = await import('./orcad-session-search')
   sessionSearch = await installOrcadSessionSearchService({
     userDataPath: runtimeUserDataPath,

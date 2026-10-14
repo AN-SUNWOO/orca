@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path'
 import { readNodeFileWithinLimit } from '../../shared/node-bounded-file-reader'
 import { readStreamedSessionDocument } from './session-document-stream'
 import { SessionParseCacheSaveLane } from './session-parse-cache-save-lane'
+import { createSessionParseCacheOverflow } from './session-parse-cache-overflow'
 import {
   assertSessionParseCacheJsonWithinLimitsCooperatively,
   serializeSessionParseCacheSnapshotPiecesCooperatively,
@@ -17,6 +18,7 @@ import {
 import {
   seedSessionParseCache,
   observeSessionParseCacheChanges,
+  configureSessionParseCacheDisk,
   MAX_CACHE_ENTRIES,
   type PersistedSessionParseCacheEntry
 } from './session-parse-cache-store'
@@ -38,10 +40,13 @@ export type SessionParseCachePersistenceOptions = {
 let options: SessionParseCachePersistenceOptions | null = null
 let loadPromise: Promise<void> | null = null
 let saveLane: SessionParseCacheSaveLane | null = null
+let overflow: ReturnType<typeof createSessionParseCacheOverflow> | null = null
 
 /** Enable persistence. Called only from the composition root; every export is a no-op until then. */
 export function initSessionParseCachePersistence(next: SessionParseCachePersistenceOptions): void {
   options = { ...next }
+  overflow = createSessionParseCacheOverflow(next.filePath, SCHEMA_VERSION, parsePersistedEntry)
+  configureSessionParseCacheDisk(overflow.read, overflow.write, overflow.remove)
   saveLane ??= new SessionParseCacheSaveLane(ensureSessionParseCacheLoaded, (entries) => {
     const current = options
     return current ? persistSnapshot(current, entries) : Promise.resolve(false)
@@ -55,6 +60,8 @@ export function getSessionParseCachePersistenceOptions(): SessionParseCachePersi
 }
 
 export function resetSessionParseCachePersistenceForTests(): void {
+  configureSessionParseCacheDisk(null, null, null)
+  overflow = null
   options = null
   loadPromise = null
   observeSessionParseCacheChanges(null)
@@ -225,7 +232,13 @@ async function persistSnapshot(
       current.appVersion
     )
     if (payload === null) {
+      for (const [path, entry] of entries) {
+        overflow?.write(path, entry)
+      }
       return false
+    }
+    for (const [path, entry] of entries.slice(0, -payload.retainedEntries)) {
+      overflow?.write(path, entry)
     }
     await mkdir(directory, { recursive: true, mode: PRIVATE_DIRECTORY_MODE })
     await writeFile(tempPath, payload.pieces, { mode: PRIVATE_FILE_MODE })

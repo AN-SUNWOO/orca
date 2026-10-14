@@ -40,6 +40,19 @@ export type SessionParseCacheEntry = {
 const cache = new Map<string, SessionParseCacheEntry>()
 let revision = 0
 let onChange: (() => void) | null = null
+let diskLookup: ((path: string) => PersistedSessionParseCacheEntry | undefined) | null = null
+let diskStore: ((path: string, entry: PersistedSessionParseCacheEntry) => void) | null = null
+let diskDelete: ((path: string) => void) | null = null
+
+export function configureSessionParseCacheDisk(
+  lookup: typeof diskLookup,
+  store: typeof diskStore,
+  remove: typeof diskDelete
+): void {
+  diskLookup = lookup
+  diskStore = store
+  diskDelete = remove
+}
 
 export function sessionParseCacheRevision(): number {
   return revision
@@ -62,11 +75,13 @@ export function resetSessionParseCacheForTests(): void {
   cache.clear()
   revision = 0
   onChange = null
+  configureSessionParseCacheDisk(null, null, null)
 }
 
 // Drops one entry after its file is deleted. Cleanliness, not correctness:
 // discovery walks disk first, so a trashed file is never rediscovered anyway.
 export function invalidateSessionParseCacheEntry(path: string): void {
+  diskDelete?.(path)
   if (cache.delete(path)) {
     notifyChange()
   }
@@ -134,11 +149,30 @@ export function seedSessionParseCache(
 }
 
 export function getSessionParseCacheEntry(path: string): SessionParseCacheEntry | undefined {
-  return cache.get(path)
+  const resident = cache.get(path)
+  if (resident) {
+    return resident
+  }
+  const persisted = diskLookup?.(path)
+  return persisted ? { ...persisted, resume: null } : undefined
 }
 
 export function storeSessionParseCacheEntry(path: string, entry: SessionParseCacheEntry): void {
   const previous = cache.get(path)
+  // A disk hit does not displace a resident row during an ordered full pass.
+  if (previous === undefined && diskLookup) {
+    const persisted = diskLookup(path)
+    if (
+      persisted &&
+      persisted.mtimeMs === entry.mtimeMs &&
+      persisted.sizeBytes === entry.sizeBytes &&
+      persisted.platform === entry.platform &&
+      JSON.stringify(persisted.session) === JSON.stringify(entry.session) &&
+      sameSidecar(persisted.sidecar, entry.sidecar)
+    ) {
+      return
+    }
+  }
   const changed =
     previous === undefined ||
     previous.mtimeMs !== entry.mtimeMs ||
@@ -151,11 +185,25 @@ export function storeSessionParseCacheEntry(path: string, entry: SessionParseCac
   if (cache.size > MAX_CACHE_ENTRIES) {
     const oldest = cache.keys().next()
     if (!oldest.done) {
+      const evicted = cache.get(oldest.value)
+      if (evicted) {
+        diskStore?.(oldest.value, persistedEntry(evicted))
+      }
       cache.delete(oldest.value)
     }
   }
   if (changed) {
     notifyChange()
+  }
+}
+
+function persistedEntry(entry: SessionParseCacheEntry): PersistedSessionParseCacheEntry {
+  return {
+    mtimeMs: entry.mtimeMs,
+    sizeBytes: entry.sizeBytes,
+    platform: entry.platform,
+    session: entry.session,
+    ...(entry.sidecar === undefined ? {} : { sidecar: entry.sidecar })
   }
 }
 

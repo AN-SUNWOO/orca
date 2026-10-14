@@ -4,7 +4,6 @@ import { getWorktreeIdsWithLiveAgent, isInactiveWorkspace } from '@/lib/worktree
 import { getWorktreeIdsWithStructuredChat } from './visible-worktree-activity-inputs'
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import type { Tab } from '../../../../shared/tab-types'
-import type { ExecutionHostId } from '../../../../shared/execution-host'
 
 type TabLike = { id: string }
 
@@ -22,7 +21,6 @@ type SleepStateInput = {
 type LiveAgentGeneration = {
   agentStatusByPaneKey: SleepStateInput['agentStatusByPaneKey']
   tabsByWorktree: SleepStateInput['tabsByWorktree']
-  unifiedTabsByWorktree: SleepStateInput['unifiedTabsByWorktree']
   agentStatusNow: number
   worktreeIds: ReadonlySet<string>
 }
@@ -39,7 +37,6 @@ function selectWorktreeIdsWithLiveAgent(state: SleepStateInput): ReadonlySet<str
     liveAgentGeneration &&
     liveAgentGeneration.agentStatusByPaneKey === state.agentStatusByPaneKey &&
     liveAgentGeneration.tabsByWorktree === state.tabsByWorktree &&
-    liveAgentGeneration.unifiedTabsByWorktree === state.unifiedTabsByWorktree &&
     liveAgentGeneration.agentStatusNow === agentStatusNow
   ) {
     return liveAgentGeneration.worktreeIds
@@ -47,13 +44,11 @@ function selectWorktreeIdsWithLiveAgent(state: SleepStateInput): ReadonlySet<str
   const worktreeIds = getWorktreeIdsWithLiveAgent(
     state.agentStatusByPaneKey,
     state.tabsByWorktree,
-    agentStatusNow,
-    state.unifiedTabsByWorktree
+    agentStatusNow
   )
   liveAgentGeneration = {
     agentStatusByPaneKey: state.agentStatusByPaneKey,
     tabsByWorktree: state.tabsByWorktree,
-    unifiedTabsByWorktree: state.unifiedTabsByWorktree,
     agentStatusNow,
     worktreeIds
   }
@@ -72,27 +67,19 @@ function selectWorktreeIdsWithLiveAgent(state: SleepStateInput): ReadonlySet<str
  * predicate, so the moon and the filter cannot disagree about which workspaces
  * are asleep.
  */
-export function selectIsSleepingWorktree(
-  state: SleepStateInput,
-  worktreeId: string,
-  executionHostId?: ExecutionHostId
-): boolean {
+export function selectIsSleepingWorktree(state: SleepStateInput, worktreeId: string): boolean {
   return isInactiveWorkspace(
     worktreeId,
     state.tabsByWorktree,
     state.ptyIdsByTabId,
     state.browserTabsByWorktree,
     selectWorktreeIdsWithLiveAgent(state),
-    getWorktreeIdsWithStructuredChat(state.unifiedTabsByWorktree),
-    executionHostId
+    getWorktreeIdsWithStructuredChat(state.unifiedTabsByWorktree)
   )
 }
 
-export function useIsSleepingWorktree(
-  worktreeId: string,
-  executionHostId?: ExecutionHostId
-): boolean {
-  return useAppStore((state) => selectIsSleepingWorktree(state, worktreeId, executionHostId))
+export function useIsSleepingWorktree(worktreeId: string): boolean {
+  return useAppStore((state) => selectIsSleepingWorktree(state, worktreeId))
 }
 
 export function resetWorktreeSleepStateCacheForTests(): void {

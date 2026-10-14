@@ -71,9 +71,6 @@ export function useVisibleSidebarWorktrees(args: {
   const browserTabsByWorktree = useAppStore((s) =>
     !showSleepingWorkspaces ? getVisibleWorktreeBrowserActivityTabs(s.browserTabsByWorktree) : null
   )
-  const unifiedTabsByWorktree = useAppStore((s) =>
-    !showSleepingWorkspaces ? s.unifiedTabsByWorktree : null
-  )
   const worktreeIdsWithStructuredChat = useAppStore((s) =>
     getStructuredChatWorktreeIds(showSleepingWorkspaces, s.unifiedTabsByWorktree)
   )
@@ -95,8 +92,7 @@ export function useVisibleSidebarWorktrees(args: {
         : getWorktreeIdsWithLiveAgent(
             useAppStore.getState().agentStatusByPaneKey,
             tabsByWorktree,
-            agentStatusNow,
-            unifiedTabsByWorktree
+            agentStatusNow
           ),
       hideDefaultBranchWorkspace,
       hideAutomationGeneratedWorkspaces,
@@ -139,8 +135,7 @@ export function useVisibleSidebarWorktrees(args: {
     worktreeLineageById,
     worktreesByRepo,
     pairedDeviceIdsByEnvironment,
-    worktreeIdsWithStructuredChat,
-    unifiedTabsByWorktree
+    worktreeIdsWithStructuredChat
   ])
   // Why: agentStatusEpoch bumps recompute this memo even when membership and
   // order are unchanged; keeping the previous identity stops the whole

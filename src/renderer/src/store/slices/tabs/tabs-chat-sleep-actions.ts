@@ -1,6 +1,6 @@
 import type { Tab } from '../../../../../shared/tab-types'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
-import { isStructuredTab } from '@/components/native-chat/structured-agent-session-tabs'
+import { isStructuredTab } from '../../../../../shared/structured-agent-session-tab'
 import type { TabsSlice, TabsSliceSet } from './tabs-slice-contract'
 
 type CapturedChat = { tabId: string; sessionId: string; executionHostId?: ExecutionHostId }

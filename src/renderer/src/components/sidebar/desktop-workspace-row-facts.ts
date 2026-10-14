@@ -28,15 +28,14 @@ export type DesktopWorkspaceRowFactInputs = {
 export function buildDesktopWorkspaceRowFactReader(
   inputs: DesktopWorkspaceRowFactInputs
 ): WorkspaceRowFactReader<Worktree> {
-  const hostId = (worktree: Worktree): ExecutionHostId | null => {
-    const repo = inputs.repoMap.get(worktree.repoId)
-    return repo ? getWorktreeExecutionHostId(worktree, repo, inputs.defaultHostId) : null
-  }
   return {
     isArchived: (worktree) => worktree.isArchived,
     isFolderWorkspace: (worktree) => parseWorkspaceKey(worktree.id)?.type === 'folder',
     repoId: (worktree) => worktree.repoId,
-    hostId,
+    hostId: (worktree) => {
+      const repo = inputs.repoMap.get(worktree.repoId)
+      return repo ? getWorktreeExecutionHostId(worktree, repo, inputs.defaultHostId) : null
+    },
     isOtherClient: (worktree) =>
       isWorkspaceOwnedBySomeoneElse(worktree, inputs.pairedDeviceIdsByEnvironment),
     isDefaultBranch: (worktree) =>
@@ -52,8 +51,7 @@ export function buildDesktopWorkspaceRowFactReader(
         inputs.ptyIdsByTabId,
         inputs.browserTabsByWorktree,
         inputs.worktreeIdsWithLiveAgent,
-        inputs.worktreeIdsWithStructuredChat,
-        hostId(worktree) ?? undefined
+        inputs.worktreeIdsWithStructuredChat
       )
   }
 }

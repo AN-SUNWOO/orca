@@ -8,7 +8,6 @@ import { useIsSleepingWorktree } from './use-worktree-sleep-state'
 import { WorktreeCardParentContent } from './worktree-card-parent-content'
 import { buildWorktreeCardPresentation } from './worktree-card-presentation'
 import type { WorktreeCardController } from './use-worktree-card-controller'
-import { getWorktreeExecutionHostId } from '../../../../shared/execution-host'
 
 export function WorktreeCardSurface({ card }: { card: WorktreeCardController }): React.JSX.Element {
   const presentation = buildWorktreeCardPresentation(card)
@@ -42,10 +41,7 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
     setShowRenameErrorDialog
   } = card
   const { titleOnlyCard, cardStyle } = presentation
-  const isSleeping = useIsSleepingWorktree(
-    worktree.id,
-    getWorktreeExecutionHostId(worktree, card.repo)
-  )
+  const isSleeping = useIsSleepingWorktree(worktree.id)
 
   const parentCardContent = <WorktreeCardParentContent card={card} presentation={presentation} />
 

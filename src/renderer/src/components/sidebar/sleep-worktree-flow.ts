@@ -25,6 +25,7 @@ import {
   findIndexedProjectGroupOwner
 } from '@/lib/worktree-runtime-owner-index'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
+import { isStructuredTab } from '../../../../shared/structured-agent-session-tab'
 import type { AppState } from '@/store/types'
 
 export type WorkspaceSleepTarget =
@@ -146,7 +147,9 @@ function resolveSleepTarget(
 export async function runSleepWorktrees(
   targets: readonly WorkspaceSleepTarget[]
 ): Promise<WorkspaceSleepResult[]> {
-  const { errors, results } = await sleepWorktreesReportingFailures(targets)
+  const { errors, results } = await sleepWorktreesReportingFailures(targets, {
+    recordExplicitChatSleep: true
+  })
   if (errors.length > 0) {
     // Why: callers are fire-and-forget; surface actionable teardown failures after restoring retryable UI state.
     toast.error(
@@ -174,7 +177,9 @@ export type WorktreeSleepOutcome = {
 
 /** The sleep without the toast, for callers that report failures themselves. */
 export async function sleepWorktreesReportingFailures(
-  targets: readonly WorkspaceSleepTarget[]
+  targets: readonly WorkspaceSleepTarget[],
+  // Why: only the user's Sleep hides its chats; a project move pauses through this core too.
+  options: { recordExplicitChatSleep?: boolean } = {}
 ): Promise<WorktreeSleepOutcome> {
   if (targets.length === 0) {
     return { failedWorktreeIds: [], errors: [], results: [] }
@@ -197,6 +202,11 @@ export async function sleepWorktreesReportingFailures(
     seen.add(key)
     return [selected]
   })
+  const capturedChats = resolved.map(({ workspaceId, executionHostId }) =>
+    (state.unifiedTabsByWorktree[workspaceId] ?? [])
+      .filter((tab) => isStructuredTab(tab) && tab.executionHostId === executionHostId)
+      .map((tab) => ({ tabId: tab.id, sessionId: tab.entityId, executionHostId }))
+  )
   const marked = resolved.map((target) => ({
     ...target,
     token: markWorktreeSleepIntent(target.workspaceId, target.executionHostId)
@@ -304,12 +314,19 @@ export async function sleepWorktreesReportingFailures(
       return { workspaceId, executionHostId, stoppedSessionIds, completed }
     })
   )
-  const results = attempts.map((result, index) => ({
-    ...result,
-    completed:
+  const results = attempts.map((result, index) => {
+    const completed =
       result.completed &&
       isCurrentWorktreeSleepIntent(result.workspaceId, result.executionHostId, marked[index].token)
-  }))
+    if (completed && options.recordExplicitChatSleep) {
+      const stopped = new Set(result.stoppedSessionIds)
+      const chats = capturedChats[index].filter((chat) => stopped.has(chat.sessionId))
+      if (chats.length > 0) {
+        useAppStore.getState().setWorkspaceChatsSleptAt(result.workspaceId, chats, Date.now())
+      }
+    }
+    return { ...result, completed }
+  })
   for (const result of results.filter((candidate) => !candidate.completed)) {
     failedWorktreeIds.add(result.workspaceId)
   }

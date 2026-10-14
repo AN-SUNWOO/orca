@@ -3,7 +3,6 @@ import type { Tab } from '../../../../shared/tab-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { getStructuredAgentSessionTabs } from '@/components/native-chat/structured-agent-session-tabs'
 import { createWorktreeTabBucketProjection } from '@/lib/worktree-tab-bucket-projection'
-import { composeWorktreeHostIdentity } from '../../../../shared/worktree/host-qualified-identity'
 
 export type TerminalActivityTab = Pick<TerminalTab, 'id'>
 export type BrowserActivityTab = Pick<BrowserWorkspace, 'id'>
@@ -41,7 +40,7 @@ export const EMPTY_STRUCTURED_CHAT_WORKTREE_IDS: ReadonlySet<string> = new Set()
 const structuredChatWorktreeIds = new WeakMap<Record<string, Tab[]>, ReadonlySet<string>>()
 
 /**
- * Host-qualified workspace ids holding a structured chat that Sleep has not put to rest.
+ * Workspace ids holding a structured chat that Sleep has not put to rest.
  *
  * Why the chat rather than its provider child: the child starts only on a send and the host's idle
  * sweep stops it, so keying on it would put every quiet chat workspace to sleep after a restart or a
@@ -63,7 +62,7 @@ export function getWorktreeIdsWithStructuredChat(
   const worktreeIds = new Set(
     getStructuredAgentSessionTabs(unifiedTabsByWorktree)
       .filter((tab) => tab.sleptAt === undefined)
-      .map((tab) => composeWorktreeHostIdentity(tab.executionHostId, tab.worktreeId))
+      .map((tab) => tab.worktreeId)
   )
   structuredChatWorktreeIds.set(unifiedTabsByWorktree, worktreeIds)
   return worktreeIds

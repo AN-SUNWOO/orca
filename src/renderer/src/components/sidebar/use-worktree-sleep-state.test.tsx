@@ -4,7 +4,6 @@ import { resetAgentStatusEpochClockForTests } from '@/lib/agent-status-epoch-clo
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
 import type { Tab } from '../../../../shared/tab-types'
-import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import {
   useIsSleepingWorktree,
@@ -68,7 +67,6 @@ function makeUnifiedTab(args: {
   contentType: Tab['contentType']
   agentSessionAgent?: Tab['agentSessionAgent']
   sleptAt?: number
-  executionHostId?: ExecutionHostId
 }): Tab {
   return {
     id: args.id,
@@ -81,20 +79,13 @@ function makeUnifiedTab(args: {
     color: null,
     sortOrder: 0,
     createdAt: 0,
-    ...(args.executionHostId ? { executionHostId: args.executionHostId } : {}),
     ...(args.agentSessionAgent ? { agentSessionAgent: args.agentSessionAgent } : {}),
     ...(args.sleptAt !== undefined ? { sleptAt: args.sleptAt } : {})
   }
 }
 
-function SleepProbe({
-  worktreeId,
-  executionHostId
-}: {
-  worktreeId: string
-  executionHostId?: ExecutionHostId
-}) {
-  return <span>{String(useIsSleepingWorktree(worktreeId, executionHostId))}</span>
+function SleepProbe({ worktreeId }: { worktreeId: string }) {
+  return <span>{String(useIsSleepingWorktree(worktreeId))}</span>
 }
 
 describe('useIsSleepingWorktree', () => {
@@ -197,60 +188,15 @@ describe('useIsSleepingWorktree', () => {
       }
     }
     expect(renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} />)).toBe('<span>false</span>')
-  })
 
-  it('keeps one host asleep when another host has a chat with the same worktree id', () => {
-    const worktreeId = 'repo1::/path/wt1'
-    mockState.unifiedTabsByWorktree = {
+    const tabs = {
       [worktreeId]: [
-        makeUnifiedTab({
-          id: 'local-chat',
-          worktreeId,
-          contentType: 'agent-session',
-          agentSessionAgent: 'claude',
-          executionHostId: 'local'
-        }),
-        makeUnifiedTab({
-          id: 'remote-chat',
-          worktreeId,
-          contentType: 'agent-session',
-          agentSessionAgent: 'claude',
-          executionHostId: 'ssh:remote',
-          sleptAt: 1_500
-        })
+        { ...chat, executionHostId: 'local' as const },
+        { ...chat, id: 'remote', executionHostId: 'ssh:remote' as const }
       ]
     }
-    expect(
-      renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} executionHostId="local" />)
-    ).toBe('<span>false</span>')
-    expect(
-      renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} executionHostId="ssh:remote" />)
-    ).toBe('<span>true</span>')
-
-    const bothMarked = {
-      [worktreeId]: mockState.unifiedTabsByWorktree[worktreeId].map((tab) => ({
-        ...tab,
-        sleptAt: 1_500
-      }))
-    }
-    const paneKey = makePaneKey('local-chat', LEAF_ID)
-    mockState.unifiedTabsByWorktree = bothMarked
-    mockState.agentStatusByPaneKey = {
-      [paneKey]: {
-        ...makeAgentStatusEntry({ paneKey, state: 'done', worktreeId }),
-        tabId: 'local-chat',
-        structuredHostOwned: true
-      }
-    }
-    expect(
-      renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} executionHostId="local" />)
-    ).toBe('<span>false</span>')
-    expect(
-      renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} executionHostId="ssh:remote" />)
-    ).toBe('<span>true</span>')
-    const awakened = withSelectedHostChatsAwake(bothMarked, worktreeId, 'ssh:remote')
-    expect(awakened[worktreeId].find((tab) => tab.id === 'local-chat')?.sleptAt).toBe(1_500)
-    expect(awakened[worktreeId].find((tab) => tab.id === 'remote-chat')?.sleptAt).toBeUndefined()
+    const awakened = withSelectedHostChatsAwake(tabs, worktreeId, 'ssh:remote')
+    expect(awakened[worktreeId].map((tab) => tab.sleptAt)).toEqual([1_500, undefined])
   })
 
   it('does not treat a non-chat unified tab as activity', () => {

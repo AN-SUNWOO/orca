@@ -29,8 +29,7 @@ export function buildVisibleWorktreeOptionsFromState(
     worktreeIdsWithLiveAgent: getWorktreeIdsWithLiveAgent(
       state.agentStatusByPaneKey,
       state.tabsByWorktree,
-      Date.now(),
-      state.unifiedTabsByWorktree
+      Date.now()
     ),
     worktreeIdsWithStructuredChat: getWorktreeIdsWithStructuredChat(state.unifiedTabsByWorktree),
     hideDefaultBranchWorkspace: state.hideDefaultBranchWorkspace,

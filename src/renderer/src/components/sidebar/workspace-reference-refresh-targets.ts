@@ -15,7 +15,6 @@ import { canReadWorkspaceReferenceReview } from './workspace-reference-review-so
 import { readWorkspaceReferenceDetails } from './workspace-reference-detail-read'
 import { getDetachedWorkspaceReviewRequest } from './workspace-detached-review-request'
 import { selectIsSleepingWorktree } from './use-worktree-sleep-state'
-import { getWorktreeExecutionHostId } from '../../../../shared/execution-host'
 
 export function getWorkspaceReferenceRefreshTargets(
   state: AppState,
@@ -26,7 +25,7 @@ export function getWorkspaceReferenceRefreshTargets(
     state,
     options
   )) {
-    if (selectIsSleepingWorktree(state, worktree.id, getWorktreeExecutionHostId(worktree, repo))) {
+    if (selectIsSleepingWorktree(state, worktree.id)) {
       continue
     }
     const branchKey = getHostedReviewCacheKey(

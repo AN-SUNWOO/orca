@@ -63,17 +63,10 @@ export function useWorktreeJumpPaletteWorktrees({
   const hasQuery = paletteSearchQuery.length > 0
   const isLoading = repos.length > 0 && Object.keys(worktreesByRepo).length === 0
   const worktreeIdsWithLiveAgent = useMemo(
-    () =>
-      // The palette recomputes this snapshot when status inputs change; the
-      // clock intentionally reflects the render that performs that snapshot.
-      getWorktreeIdsWithLiveAgent(
-        agentStatusByPaneKey,
-        tabsByWorktree,
-        // oxlint-disable-next-line react/purity
-        Date.now(),
-        unifiedTabsByWorktree
-      ),
-    [agentStatusByPaneKey, tabsByWorktree, unifiedTabsByWorktree]
+    // The clock reflects the render producing this snapshot.
+    // oxlint-disable-next-line react/purity
+    () => getWorktreeIdsWithLiveAgent(agentStatusByPaneKey, tabsByWorktree, Date.now()),
+    [agentStatusByPaneKey, tabsByWorktree]
   )
   const pairedDeviceIdsByEnvironment = useMemo(
     () =>

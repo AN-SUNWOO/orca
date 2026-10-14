@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vi } from 'vitest'
 import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
+import type { AgentChatPermissionMode } from '../../shared/agent-chat-permission-mode'
 import type { ProviderProcessExit } from '../provider-process/managed-provider-process'
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
 import type { StructuredAgentSessionLifecycleEvent } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
@@ -148,6 +149,7 @@ export type AcpAdapterRig = {
     fence?: number
     onSpawned?: () => Promise<void>
     signal?: AbortSignal
+    permissionMode?: AgentChatPermissionMode
   }): ReturnType<AcpStructuredSessionAdapter['acquire']>
   /** Frames Orca wrote to the agent with this method. */
   sent(method: string): FakeFrame[]
@@ -251,6 +253,7 @@ export async function openAcpAdapterRig(
         spawnToken: 'spawn-1',
         events: rig.eventSink,
         ...(acquireOptions.signal ? { signal: acquireOptions.signal } : {}),
+        ...(acquireOptions.permissionMode ? { permissionMode: acquireOptions.permissionMode } : {}),
         onSpawned: async () => {
           spawned.push('onSpawned')
           await acquireOptions.onSpawned?.()

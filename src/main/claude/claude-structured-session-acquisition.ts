@@ -2,6 +2,7 @@ import type {
   AgentSessionAcquisition,
   StructuredAgentSessionAcquireInput
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import { AgentSessionAcquisitionExitUnprovenError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { openClaudeStreamJsonConnection } from './claude-stream-json-connection'
 import { buildClaudePermissionCallbacks } from './claude-structured-inbound-control'
 import { resolveClaudeReplayTurn } from './claude-replay-turn-resolution'
@@ -307,7 +308,9 @@ export async function acquireClaudeSession({
       translator,
       prompts
     })
-    acquisitions.deleteIfCurrent(sessionId, attempt)
+    if (!(acquisitionError instanceof AgentSessionAcquisitionExitUnprovenError)) {
+      acquisitions.deleteIfCurrent(sessionId, attempt)
+    }
     throw acquisitionError
   } finally {
     attempt.finish()

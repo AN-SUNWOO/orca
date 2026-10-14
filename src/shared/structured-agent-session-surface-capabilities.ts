@@ -25,10 +25,6 @@ export const STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY =
 // adopted the conversation or quietly started a blank one. Negotiate before offering the action.
 export const STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY =
   'agent-session.structured.resume-history.v1' as const
-// Why: `agentSession.sleep` stops a chat's agent but keeps its tab; an older host has only the close
-// that hides the tab, so a client must learn during negotiation that Sleep cannot stop its chats.
-export const STRUCTURED_AGENT_SESSION_SLEEP_RUNTIME_CAPABILITY =
-  'agent-session.structured.sleep.v1' as const
 
 // Why: `agentSession.modelCatalog` takes `savedOnly`, an answer from what the host saved that starts
 // no listing. Its params are strict, so an older host refuses the key; a client preloads every agent
@@ -42,6 +38,5 @@ export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
   PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY,
-  STRUCTURED_AGENT_SESSION_SLEEP_RUNTIME_CAPABILITY,
   AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY
 ] as const

@@ -43,6 +43,16 @@ afterEach(() => {
   clearStructuredHostStub()
 })
 
+it('stops a workspace through its host without a dedicated sleep capability', async () => {
+  const response = await call(
+    'agentSession.sleepWorkspace',
+    { workspaceId: 'workspace-1' },
+    { clientKind: 'runtime', clientCapabilities: [] }
+  )
+  expect(response).toMatchObject({ ok: true, result: { stoppedSessionIds: [SESSION] } })
+  expect(hostCalls.sleepWorkspace).toHaveBeenCalledWith('workspace-1')
+})
+
 describe('agentSession.reveal', () => {
   it.each(['codex', 'claude'] as const)('republishes a persisted %s chat tab', async (agent) => {
     hostCalls.revealSession.mockResolvedValueOnce({

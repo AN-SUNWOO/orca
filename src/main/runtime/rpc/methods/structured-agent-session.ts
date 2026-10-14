@@ -54,10 +54,14 @@ import {
   OptionsParams,
   RewindParams,
   SendParams,
+  SleepWorkspaceParams,
   SubscribeParams,
   UnsubscribeParams
 } from './structured-agent-session-schemas'
 import { sendStructuredAgentSessionForClient } from './structured-agent-session-send-compatibility'
+import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
+import { structuredSessionNeverStarted } from '../../agent-session-record-founding'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 
 export const STRUCTURED_AGENT_SESSION_METHODS = [
   defineMethod({
@@ -142,14 +146,45 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
     }
   }),
   defineMethod({
-    // Sleeping the chat's workspace: the same close, but the tab stays. `close` throws unless the
-    // provider child's exit is proven, so resolving is the proof the workspace may read asleep.
-    name: 'agentSession.sleep',
+    name: 'agentSession.sleepWorkspace',
     permission: 'workspace',
-    params: OptionsParams,
+    params: SleepWorkspaceParams,
     handler: async (params, ctx) => {
-      await requireStructuredCleanupHost(ctx).close(params.sessionId, 'user-close')
-      return { ok: true as const }
+      const installed = getStructuredAgentSessionHost()
+      if (installed) {
+        return installed.sleepWorkspace(params.workspaceId)
+      }
+      let store: Awaited<ReturnType<typeof ctx.runtime.openAgentSessionRecordStore>>
+      try {
+        store = await ctx.runtime.openAgentSessionRecordStore()
+      } catch (error) {
+        const appeared = getStructuredAgentSessionHost()
+        if (appeared) {
+          return appeared.sleepWorkspace(params.workspaceId)
+        }
+        console.warn('[agent-session] workspace sleep record inventory unavailable', error)
+        return { stoppedSessionIds: [] }
+      }
+      const appeared = getStructuredAgentSessionHost()
+      if (appeared) {
+        return appeared.sleepWorkspace(params.workspaceId)
+      }
+      try {
+        return {
+          stoppedSessionIds: store
+            .listRecords()
+            .filter(
+              (record) =>
+                record.location.workspaceId === params.workspaceId &&
+                record.location.executionHostId === LOCAL_EXECUTION_HOST_ID &&
+                structuredSessionNeverStarted(record)
+            )
+            .map((record) => record.sessionId)
+        }
+      } catch (error) {
+        console.warn('[agent-session] workspace sleep record inventory failed', error)
+        return { stoppedSessionIds: [] }
+      }
     }
   }),
   ...STRUCTURED_AGENT_SESSION_PROMPT_RESPONSE_METHODS,

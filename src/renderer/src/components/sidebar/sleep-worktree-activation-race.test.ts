@@ -1,10 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+type ActivationTestState = {
+  activeWorktreeId: string | null
+  activeWorkspaceExecutionHostId: string | null
+  setActiveWorktree: ReturnType<typeof vi.fn>
+  shutdownWorktreeBrowsers: ReturnType<typeof vi.fn>
+  shutdownWorktreeTerminals: ReturnType<typeof vi.fn>
+  unifiedTabsByWorktree: Record<string, unknown[]>
+  tabsByWorktree: Record<string, { id: string }[]>
+  ptyIdsByTabId: Record<string, string[]>
+}
+
 const mocks = vi.hoisted(() => {
-  const state = {
-    activeWorktreeId: null as string | null,
+  const state: ActivationTestState = {
+    activeWorktreeId: null,
+    activeWorkspaceExecutionHostId: 'local',
     setActiveWorktree: vi.fn((worktreeId: string | null) => {
       state.activeWorktreeId = worktreeId
+      if (!worktreeId) {
+        state.activeWorkspaceExecutionHostId = null
+      }
     }),
     shutdownWorktreeBrowsers: vi.fn().mockResolvedValue(undefined),
     shutdownWorktreeTerminals: vi.fn(async (worktreeId: string) => {
@@ -13,8 +28,8 @@ const mocks = vi.hoisted(() => {
       }
     }),
     unifiedTabsByWorktree: {},
-    tabsByWorktree: {} as Record<string, { id: string }[]>,
-    ptyIdsByTabId: {} as Record<string, string[]>
+    tabsByWorktree: {},
+    ptyIdsByTabId: {}
   }
   const activateAndRevealWorktree = vi.fn()
   const activateAndRevealFolderWorkspace = vi.fn()
@@ -41,6 +56,12 @@ vi.mock('@/lib/worktree-activation', () => ({
 }))
 
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
+vi.mock('@/runtime/structured-agent-session-owner', () => ({
+  structuredAgentSessionTargetForHost: () => ({ kind: 'local' })
+}))
+vi.mock('@/runtime/structured-agent-session-client', () => ({
+  callStructuredAgentSession: async () => ({ stoppedSessionIds: [] })
+}))
 
 import { activateWorktreeFromSidebar } from '@/lib/sidebar-worktree-activation'
 import { runSleepWorktrees } from './sleep-worktree-flow'
@@ -59,6 +80,7 @@ describe('sleep flow vs slept-workspace activation', () => {
       }
     })
     mocks.state.activeWorktreeId = 'wt-parent'
+    mocks.state.activeWorkspaceExecutionHostId = 'local'
     mocks.state.setActiveWorktree.mockClear()
     mocks.state.shutdownWorktreeBrowsers.mockClear().mockResolvedValue(undefined)
     mocks.state.shutdownWorktreeTerminals.mockClear().mockImplementation(async (worktreeId) => {
@@ -81,7 +103,7 @@ describe('sleep flow vs slept-workspace activation', () => {
   })
 
   it('does not leave behind a delayed parent activation after sleeping children', async () => {
-    await runSleepWorktrees(['wt-parent'])
+    await runSleepWorktrees([{ id: 'wt-parent', executionHostId: 'local' }])
 
     expect(mocks.state.activeWorktreeId).toBeNull()
     expect(mocks.state.ptyIdsByTabId['tab-parent']).toEqual([])
@@ -94,7 +116,12 @@ describe('sleep flow vs slept-workspace activation', () => {
       revealInSidebar: false
     })
 
-    await runSleepWorktrees(['wt-child-1', 'wt-child-2', 'wt-child-3'])
+    await runSleepWorktrees(
+      ['wt-child-1', 'wt-child-2', 'wt-child-3'].map((id) => ({
+        id,
+        executionHostId: 'local'
+      }))
+    )
 
     expect(mocks.activateAndRevealWorktree).toHaveBeenCalledTimes(1)
   })

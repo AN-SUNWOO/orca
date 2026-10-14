@@ -250,6 +250,25 @@ afterEach(async () => {
 })
 
 describe('a chat that closes', () => {
+  it('sleeps a workspace child and retains its conversation with a positive stop receipt', async () => {
+    await attach()
+    await host['tasks'].drainAttaches()
+
+    expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [SESSION] })
+    expect(closeSession).toHaveBeenCalledWith(SESSION)
+    expect(store.getRecord(SESSION)).not.toBeNull()
+    expect(host.hasSession(SESSION)).toBe(false)
+    expect(await host.sleepWorkspace('other-workspace')).toEqual({ stoppedSessionIds: [] })
+  })
+
+  it('omits an unproven workspace child from the stop receipt', async () => {
+    await attach()
+    closeSession.mockResolvedValueOnce(false)
+
+    expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [] })
+    expect(store.getRecord(SESSION)).not.toBeNull()
+  })
+
   it('stops the provider child it started', async () => {
     await attach()
 

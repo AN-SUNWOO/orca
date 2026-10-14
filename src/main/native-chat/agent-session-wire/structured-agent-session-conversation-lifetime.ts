@@ -26,6 +26,9 @@ import { StructuredAgentSessionIdleSweep } from './structured-agent-session-idle
 import { AGENT_SESSION_NOT_ATTACHED } from './structured-agent-session-mutation-admission'
 import { deferredStructuredAgentSessionLogger } from './structured-agent-session-logger'
 import { sameProviderChild } from './structured-agent-session-provider-child'
+import type { ExecutionHostId } from '../../../shared/execution-host'
+import { structuredSessionNeverStarted } from '../../runtime/agent-session-record-founding'
+import { stopAgentSessionProviderRoot } from './structured-agent-session-provider-exit-proof'
 import type { StructuredAgentSessionExpiredStartup } from './structured-agent-session-startup-attempt'
 
 export type StructuredAgentSessionConversationLifetime = ReturnType<
@@ -84,6 +87,85 @@ export function createStructuredAgentSessionConversationLifetime(host: {
   const providerHoldsDispatch = (sessionId: string): boolean =>
     deps().adapter.holdsDispatch?.(sessionId) === true
 
+  const closeForWorkspaceSleep = (
+    sessionId: string,
+    workspaceId: string,
+    executionHostId: ExecutionHostId
+  ): Promise<{ fence: number; stopped: boolean } | null> => {
+    const matches = (): boolean => {
+      const location = deps().store.getRecord(sessionId)?.location
+      return location?.workspaceId === workspaceId && location.executionHostId === executionHostId
+    }
+    // Pending creates do not yet have a record; their queued close waits for founding to finish.
+    if (matches()) {
+      host.context().runtimeState.acquireAborts.abort(sessionId, 'closed while starting')
+    }
+    return serialize(sessionId, async () => {
+      if (!matches()) {
+        return null
+      }
+      readRefusals.forget(sessionId)
+      const record = deps().store.getRecord(sessionId)
+      if (!record) {
+        return null
+      }
+      const fence = record.lease.runtimeFence
+      const session = sessions.get(sessionId)
+      const child = session?.child
+      const owned = deps().adapter.hasOwnedAcquisition?.(sessionId) === true
+      if (session) {
+        await holdClosedStructuredAgentSessionSends(deps(), sessionId, session.journal, {
+          mark: 'always'
+        })
+      }
+      let ownedStopped = false
+      try {
+        if (child) {
+          await stopAgent(sessionId, { cause: 'user-close' })
+        } else if (owned) {
+          ownedStopped = await stopAgentSessionProviderRoot(
+            () => deps().adapter.releaseAcquisition?.({ sessionId }) ?? Promise.resolve(false)
+          )
+        }
+      } catch (error) {
+        deps().logger.warn('workspace chat stop was not proven', {
+          scope: 'workspace-chat-stop',
+          sessionId,
+          error
+        })
+      }
+      const ended = sessions.get(sessionId)?.lastEndedChild
+      const after = deps().store.getRecord(sessionId)
+      const childStopped =
+        !!child &&
+        !sessions.get(sessionId)?.child &&
+        ended?.rootGone === true &&
+        sameProviderChild(ended, child)
+      const durableStopped =
+        (child || owned) &&
+        after?.lease.runtimeFence === fence &&
+        after.lease.claimStatus === 'released' &&
+        !!after.lease.deathEvidence
+      const stopped =
+        childStopped ||
+        (owned && ownedStopped) ||
+        (!child && !owned && !!after && structuredSessionNeverStarted(after)) ||
+        durableStopped
+      try {
+        await closeConversation(sessionId)
+      } catch (error) {
+        deps().logger.warn('closing a stopped workspace chat handle failed', {
+          scope: 'workspace-chat-close',
+          sessionId,
+          error
+        })
+      }
+      // Lease release advances the fence; preserve the value after this close for the caller's
+      // final identity check against a later restart.
+      return { fence: deps().store.getRecord(sessionId)?.lease.runtimeFence ?? fence, stopped }
+    })
+  }
+
   const idleSweep = new StructuredAgentSessionIdleSweep({
     sessions,
     serialize,
@@ -112,6 +194,7 @@ export function createStructuredAgentSessionConversationLifetime(host: {
   })
 
   return {
+    closeForWorkspaceSleep,
     idleSweep,
     stopAgent,
     /** A host stop of the child the expired attempt published, if it is still that one and still

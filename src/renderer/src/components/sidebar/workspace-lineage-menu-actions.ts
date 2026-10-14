@@ -5,7 +5,13 @@ import type { Worktree } from '../../../../shared/worktree/types'
 import type { Tab } from '../../../../shared/tab-types'
 import type { WorktreeRuntimeOwnerState } from '@/lib/worktree-runtime-owner-state'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
-import { resolveWorkspaceChatSleeps, type WorkspaceSleepTarget } from './sleep-workspace-chats'
+import { isStructuredTab } from '@/components/native-chat/structured-agent-session-tabs'
+import type { WorkspaceSleepTarget } from './sleep-worktree-flow'
+import { LOCAL_EXECUTION_HOST_ID, parseExecutionHostId } from '../../../../shared/execution-host'
+import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
+import { resolveWorktreeOperationRouteResult } from '@/lib/worktree-operation-route'
+import { findIndexedFolderWorkspaceOwner } from '@/lib/worktree-runtime-owner-index'
+import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
 
 type WorkspaceActivityMaps = {
   tabsByWorktree: Record<string, { id: string }[]>
@@ -33,11 +39,41 @@ export function hasSleepableWorkspaceActivity(
 ): boolean {
   const worktreeId = typeof target === 'string' ? target : target.id
   const tabs = tabsByWorktree[worktreeId] ?? []
+  const scope = parseWorkspaceKey(worktreeId)
+  const explicitHost =
+    typeof target === 'string'
+      ? undefined
+      : (target.executionHostId ?? (scope?.type === 'folder' ? undefined : target.hostId))
+  const route = resolveWorktreeOperationRouteResult(chatOwnerState, worktreeId)
+  const folder =
+    scope?.type === 'folder'
+      ? findIndexedFolderWorkspaceOwner(chatOwnerState.folderWorkspaces, scope.folderWorkspaceId)
+      : null
+  const group = folder
+    ? chatOwnerState.projectGroups?.find((candidate) => candidate.id === folder.projectGroupId)
+    : null
+  const selectedHost =
+    explicitHost ??
+    (scope?.type === 'folder'
+      ? folder
+        ? getFolderWorkspaceHostId(
+            folder,
+            group ?? { connectionId: null, executionHostId: null },
+            parseExecutionHostId(
+              chatOwnerState.restoredRuntimeHostIdByWorkspaceSessionKey?.[worktreeId]
+            )?.id ?? LOCAL_EXECUTION_HOST_ID
+          )
+        : null
+      : route.kind === 'resolved'
+        ? route.route.executionHostId
+        : null)
+  const hostId = parseExecutionHostId(selectedHost)?.id
   return (
     tabs.some((tab) => tabHasLivePty(ptyIdsByTabId, tab.id)) ||
     (browserTabsByWorktree[worktreeId] ?? []).length > 0 ||
-    resolveWorkspaceChatSleeps({ ...chatOwnerState, unifiedTabsByWorktree }, target).some(
-      (chat) => chat.target !== null
+    (unifiedTabsByWorktree[worktreeId] ?? []).some(
+      (tab) =>
+        isStructuredTab(tab) && !!hostId && (!tab.executionHostId || tab.executionHostId === hostId)
     )
   )
 }

@@ -214,8 +214,7 @@ describe('Pi dialog-shape client capability', () => {
       expect(await call(method, params, client), method).toMatchObject({ ok: true })
     }
     expect(hostCalls.cancel).toHaveBeenCalledOnce()
-    // `agentSession.close` and `agentSession.sleep` both end in the host's close.
-    expect(hostCalls.close).toHaveBeenCalledTimes(2)
+    expect(hostCalls.close).toHaveBeenCalledOnce()
   })
 
   it('admits current desktop Pi send, options and commands, and preserves other agents', async () => {

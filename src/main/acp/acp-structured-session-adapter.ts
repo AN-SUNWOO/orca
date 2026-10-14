@@ -251,6 +251,8 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
   closeSession = (sessionId: string): Promise<boolean> => this.close(sessionId)
   disposeSession = (sessionId: string): Promise<boolean> => this.close(sessionId)
   releaseAcquisition = (input: { sessionId: string }) => this.close(input.sessionId)
+  hasOwnedAcquisition = (sessionId: string): boolean =>
+    this.sessions.has(sessionId) || this.starts.failedSessionIds().includes(sessionId)
   /** After a sink failure: the exit is recovered as unexpected. */
   forceCloseSession = (sessionId: string): Promise<boolean> => this.stop(sessionId, false)
 

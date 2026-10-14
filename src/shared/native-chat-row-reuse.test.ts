@@ -46,4 +46,13 @@ describe('createNativeChatRowReuse', () => {
     expect(after[0]).toBe(before[0])
     expect(after[1]).toEqual({ status: { seconds: 1 } })
   })
+  it('compares a Set by identity, so a reopened group is never read as unchanged', () => {
+    const reuse = createNativeChatRowReuse<{ open: ReadonlySet<string> }>(1)
+    const idOf = () => 'a'
+    const before = reuse([{ open: new Set() }], idOf)
+    const after = reuse([{ open: new Set(['group-1']) }], idOf)
+
+    expect(after).not.toBe(before)
+    expect(after[0]?.open.has('group-1')).toBe(true)
+  })
 })

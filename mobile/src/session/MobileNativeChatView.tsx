@@ -29,7 +29,7 @@ import {
   type MobileNativeChatPendingItem
 } from './mobile-native-chat-render-data'
 import { useMobileNativeChatPinchGesture } from './use-mobile-native-chat-pinch-gesture'
-import { useMobileNativeChatRowProps } from './use-mobile-native-chat-row-props'
+import { useMobileNativeChatRowRenderers } from './use-mobile-native-chat-row-renderers'
 import { useMobileNativeChatTailFollow } from './use-mobile-native-chat-tail-follow'
 import { useMobileNativeChatTurnDisclosure } from './use-mobile-native-chat-turn-disclosure'
 import {
@@ -46,7 +46,6 @@ import { NO_COMPOSER_TRAY, type ComposerTrayProps } from './use-mobile-native-ch
 import type { MobileChatPermission } from './mobile-native-chat-permission'
 import type { MobileChatQuestion } from './mobile-native-chat-question'
 import type { MobileNativeChatSessionOptionPickersProps } from './MobileNativeChatSessionOptionPickers'
-import { MobileNativeChatMessage } from './MobileNativeChatMessage'
 import { mobileNativeChatUnsentNotices } from './mobile-native-chat-unsent-notices'
 import type { MobileNativeChatStatus } from './use-mobile-native-chat-session'
 
@@ -308,30 +307,11 @@ export function MobileNativeChatView({
     () => mobileNativeChatUnsentNotices(turnJournal, agent),
     [turnJournal, agent]
   )
-  const rowProps = useMobileNativeChatRowProps(turns.listMessages, turns.resolveRow)
-  const { onToggleTurn } = turns
-  const renderItem = useCallback(
-    ({ item, index }: { item: NativeChatMessage; index: number }) => (
-      <MobileNativeChatMessage
-        message={item}
-        toolsExpanded={toolsExpanded}
-        fontScale={fontScale}
-        onOpenFile={onOpenFile}
-        structuredActivityUi={structuredActivityUi}
-        onToggleTurn={onToggleTurn}
-        unsentNotice={item.unsent ? unsentNotices.get(item.id) : undefined}
-        {...rowProps[index]}
-      />
-    ),
-    [
-      toolsExpanded,
-      fontScale,
-      onOpenFile,
-      structuredActivityUi,
-      onToggleTurn,
-      rowProps,
-      unsentNotices
-    ]
+  const { renderItem, renderWaitingRow } = useMobileNativeChatRowRenderers(
+    turns.listMessages,
+    turns.resolveRow,
+    unsentNotices,
+    { toolsExpanded, fontScale, onOpenFile, structuredActivityUi, onToggleTurn: turns.onToggleTurn }
   )
 
   const liveStatus = turns.liveLine ? (
@@ -396,7 +376,7 @@ export function MobileNativeChatView({
               ListFooterComponent={mobileNativeChatListFooter(
                 liveStatus,
                 turns.waitingRows,
-                renderItem
+                renderWaitingRow
               )}
               ListEmptyComponent={emptyStateView}
             />

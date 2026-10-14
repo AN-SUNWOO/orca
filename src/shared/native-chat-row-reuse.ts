@@ -2,8 +2,14 @@ import type { NativeChatMessage } from './native-chat-types'
 
 type Fields = Readonly<Record<string, unknown>>
 
+// Why: only plain objects and arrays compare by value; a Set, Map or class instance keeps its
+// state off its own keys, so two with different contents would otherwise read as equal.
 function isFields(value: unknown): value is Fields {
-  return typeof value === 'object' && value !== null
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const proto: unknown = Object.getPrototypeOf(value)
+  return Array.isArray(value) || proto === Object.prototype || proto === null
 }
 
 /** Same values `depth` objects down, identity below: re-deriving a row rebuilds its
@@ -56,10 +62,18 @@ export function createNativeChatRowReuse<Row extends Fields>(
   }
 }
 
+// A message, its block list, then each block's fields: folding rebuilds the first two.
+const MESSAGE_DEPTH = 2
+
+/** Whether a re-derived message carries the same values as `prior`, down to each block's fields. */
+export function sameNativeChatMessage(prior: NativeChatMessage, next: NativeChatMessage): boolean {
+  return sameValues(prior, next, MESSAGE_DEPTH)
+}
+
 /** Transcript rows by message id, compared down to each block's fields. */
 export function createNativeChatMessageReuse(): (
   messages: NativeChatMessage[]
 ) => NativeChatMessage[] {
-  const reuse = createNativeChatRowReuse<NativeChatMessage>(2)
+  const reuse = createNativeChatRowReuse<NativeChatMessage>(MESSAGE_DEPTH)
   return (messages) => reuse(messages, (index) => messages[index]!.id)
 }

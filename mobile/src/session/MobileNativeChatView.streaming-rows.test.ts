@@ -1,7 +1,9 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
+import { agentJournalSubmissionKey } from '../../../src/shared/agent-session-journal-item-key'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
+import type { NativeChatTurnJournal } from '../../../src/shared/native-chat-turn-membership'
 import { MobileNativeChatView } from './MobileNativeChatView'
 
 vi.mock('react-native', async () => {
@@ -37,6 +39,14 @@ vi.mock('lucide-react-native', () => ({
 }))
 vi.mock('./MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
 vi.mock('./MobileNativeChatPromptCard', () => ({ MobileNativeChatPromptCard: 'PromptCard' }))
+vi.mock('./MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
+vi.mock('./MobileNativeChatPermission', () => ({ MobileNativeChatPermission: 'ChatPermission' }))
+vi.mock('./MobileNativeChatQuestion', () => ({ MobileNativeChatQuestion: 'ChatQuestion' }))
+vi.mock('../components/ActionSheetModal', () => ({ ActionSheetModal: 'ActionSheetModal' }))
+vi.mock('./MobileAgentWorkingIndicator', () => ({
+  MobileAgentWorkingIndicator: 'WorkingIndicator'
+}))
+vi.mock('./MobileNativeChatLiveLine', () => ({ MobileNativeChatLiveLine: 'LiveStatus' }))
 vi.mock('./MobileNativeChatComposer', () => ({ MobileNativeChatComposer: 'Composer' }))
 
 function row(id: string, role: NativeChatMessage['role'], text: string): NativeChatMessage {
@@ -50,8 +60,9 @@ afterEach(() => {
   renderer = null
 })
 
-function show(folded: NativeChatMessage[]): void {
+function show(folded: NativeChatMessage[], turnJournal?: NativeChatTurnJournal): void {
   const element = createElement(MobileNativeChatView, {
+    turnJournal,
     messages: folded,
     folded,
     status: 'ready',
@@ -105,5 +116,41 @@ it('keeps renderItem and settled rows while a structured reply streams', () => {
 
   show([...history, row('a2', 'assistant', 'Hello'), row('u3', 'user', 'more')])
   expect(list().props.renderItem).not.toBe(renderItem)
+  expect(settledStatus()).toBe(status)
+})
+
+it("redraws a not-sent row when the host's rejection arrives, keeping the others", () => {
+  const id = agentJournalSubmissionKey('lost')
+  const history = [
+    row('u1', 'user', 'go'),
+    row('a1', 'assistant', 'done'),
+    { ...row(id, 'user', 'next'), unsent: true as const }
+  ]
+  const noticeOf = (): unknown => {
+    const data: NativeChatMessage[] = list().props.data
+    const index = data.findIndex((message) => message.id === id)
+    return list().props.renderItem({ item: data[index], index }).props.unsentNotice
+  }
+  show(history, { items: [], submissions: [] })
+  const status = settledStatus()
+  expect(noticeOf()).toBeUndefined()
+
+  show(history, {
+    items: [],
+    submissions: [
+      {
+        clientMessageId: 'lost',
+        fence: 1,
+        payloadFingerprint: 'lost',
+        dispatchState: 'rejected',
+        providerItemId: null,
+        reason: null,
+        submittedAt: 1,
+        resolvedAt: 2
+      }
+    ]
+  })
+
+  expect(noticeOf()).toEqual(expect.any(String))
   expect(settledStatus()).toBe(status)
 })

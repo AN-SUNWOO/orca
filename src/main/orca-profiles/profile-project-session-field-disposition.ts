@@ -119,7 +119,7 @@ export const WORKSPACE_SESSION_FIELD_DISPOSITION = {
   sleepingAgentSessionsByPaneKey: { onRepoRemoval: 'notRepoScoped', onTransfer: 'notTransferred' },
   explicitlySleptChatsByWorkspace: {
     onRepoRemoval: 'prunedByOwnerKey',
-    onTransfer: 'notTransferred'
+    onTransfer: 'copiedByOwnerKey'
   },
   terminalPtyIncarnationsByPaneKey: {
     onRepoRemoval: 'prunedByBespokeRule',

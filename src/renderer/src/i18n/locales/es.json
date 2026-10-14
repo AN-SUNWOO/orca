@@ -18227,6 +18227,7 @@
         "permissionAskSharedDescription": "Pregunta antes de ediciones o comandos que aún no tiene permitidos",
         "permissionAcceptEdits": "Aceptar ediciones",
         "permissionAcceptEditsDescription": "Aprueba ediciones y comandos de archivos; pregunta por lo demás",
+        "permissionAcceptEditsAntigravityDescription": "Aprueba ediciones de archivos; pregunta por lo demás",
         "permissionAuto": "Aprobar por mí",
         "permissionAutoDescription": "Revisa las solicitudes de aprobación por ti",
         "permissionFullAccess": "Acceso total",

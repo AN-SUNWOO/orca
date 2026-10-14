@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { z } from 'zod'
+import { computeAgentSessionPayloadFingerprint } from '../../shared/agent-session-mutation-envelope'
 import { readAgentJournalTurn } from '../../shared/agent-session-turn-record'
 import {
   closeProviderTimelineRigs,
@@ -18,6 +19,13 @@ import {
   waitFor
 } from './acp-structured-adapter.test-support'
 import { GrokFixtureReplay } from './acp-structured-fixture-replay.test-support'
+import { framesOf, launch, openHostRig, RESUMES, send } from './acp-structured-host.test-support'
+import { CALLER } from '../native-chat/agent-session-wire/structured-agent-session-host-test-harness'
+import {
+  HOST_TEST_SESSION,
+  hostTestAttachParams,
+  hostTestOperationId
+} from '../native-chat/agent-session-wire/structured-agent-session-host-test-data'
 import { resolveAcpLaunchInvocation } from './acp-structured-launch-resolution'
 import { readAcpFixture, type AcpFixtureFrame } from './acp-timeline-fixture.test-support'
 
@@ -102,4 +110,56 @@ it('launches on its own private folder with file sign-in and no other Google cre
     expect(process.platform === 'win32' || (mode & 0o777) === 0o700).toBe(true)
   }
   await rm(stateDirectory, { recursive: true, force: true })
+})
+
+it('runs the chat permission mode picked mid-chat as the server mode on the next send', async () => {
+  let resumed = false
+  const { rig, host, fence } = await openHostRig({
+    spec: ANTIGRAVITY,
+    initialize: RESUMES,
+    script: (agent) => {
+      agent.on('session/resume', (frame) => agent.reply(frame, {}))
+      agent.on('session/prompt', (frame) => agent.reply(frame, { stopReason: 'end_turn' }))
+    },
+    deps: {
+      resolveLaunch: async () => ({
+        ...(await launch(() => resumed, ANTIGRAVITY)()),
+        env: { GEMINI_HOME: join(tmpdir(), 'antigravity-chat') }
+      })
+    }
+  })
+  const attach = hostTestAttachParams(null, {
+    provider: 'antigravity',
+    agent: 'antigravity',
+    accountHome: { variable: 'GEMINI_HOME', path: '/data/antigravity-chat' },
+    providerHandle: undefined
+  })
+  expect(await host.attach(CALLER, attach)).toMatchObject({ ok: true })
+  resumed = true
+  const modes: unknown[] = []
+  let child = rig.child()
+  for (const value of ['accept-edits', 'full-access']) {
+    const fields = { key: 'permissionMode', value }
+    const fingerprint = { method: 'agentSession.setOption', sessionId: HOST_TEST_SESSION, fields }
+    const envelope = {
+      sessionId: HOST_TEST_SESSION,
+      clientOperationId: hostTestOperationId(),
+      expectedRuntimeFence: fence(),
+      payloadFingerprint: computeAgentSessionPayloadFingerprint(fingerprint)
+    }
+    expect(await host.setOption(CALLER, { envelope, ...fields })).toMatchObject({ ok: true })
+    await send(host, value)
+    // The child launched with the earlier mode is replaced before the send reaches it.
+    const previous = child
+    child = await waitFor(() => {
+      expect(rig.child()).not.toBe(previous)
+      expect(framesOf(rig.child(), 'session/prompt')).toHaveLength(1)
+      return rig.child()
+    })
+    modes.push(framesOf(child, 'session/set_config_option')[0]?.params)
+  }
+  expect(modes).toEqual([
+    expect.objectContaining({ configId: 'mode', value: 'auto_edit' }),
+    expect.objectContaining({ configId: 'mode', value: 'yolo' })
+  ])
 })

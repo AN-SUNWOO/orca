@@ -35,13 +35,20 @@ const CODEX_CHAT_PERMISSION_MODES: AgentChatPermissionModeSupport = {
   modes: ['ask', 'auto', 'full-access']
 }
 
+// No Auto: the server has no reviewer that answers approvals for the person.
+const ANTIGRAVITY_CHAT_PERMISSION_MODES: AgentChatPermissionModeSupport = {
+  modes: ['ask', 'accept-edits', 'full-access']
+}
+
+const AGENT_CHAT_PERMISSION_MODES_BY_AGENT = new Map<string, AgentChatPermissionModeSupport>([
+  ['claude', CLAUDE_CHAT_PERMISSION_MODES],
+  ['codex', CODEX_CHAT_PERMISSION_MODES],
+  ['antigravity', ANTIGRAVITY_CHAT_PERMISSION_MODES]
+])
+
 /** The one table of which agents' chats offer which modes; null keeps following Agent Permissions. */
 export function agentChatPermissionModes(agent: string): AgentChatPermissionModeSupport | null {
-  return agent === 'claude'
-    ? CLAUDE_CHAT_PERMISSION_MODES
-    : agent === 'codex'
-      ? CODEX_CHAT_PERMISSION_MODES
-      : null
+  return AGENT_CHAT_PERMISSION_MODES_BY_AGENT.get(agent) ?? null
 }
 
 /** The saved choice if this agent offers it; anything else asks, never grants more access. */

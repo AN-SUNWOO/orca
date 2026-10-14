@@ -34,6 +34,15 @@ const CODEX_DESCRIPTIONS: Partial<Record<AgentChatPermissionMode, string>> = {
   'full-access': 'Never asks; can edit any file and use the network'
 }
 
+const ANTIGRAVITY_DESCRIPTIONS: Partial<Record<AgentChatPermissionMode, string>> = {
+  'accept-edits': 'Approves file edits; asks for the rest'
+}
+
+const AGENT_DESCRIPTIONS = new Map([
+  ['codex', CODEX_DESCRIPTIONS],
+  ['antigravity', ANTIGRAVITY_DESCRIPTIONS]
+])
+
 /** Only decides whether the menu offers Approve for me, by the host's own rule. */
 function currentModelSupportsAutoMode(
   catalog: AgentSessionOptionCatalog | null,
@@ -71,8 +80,7 @@ export function structuredAgentSessionPermissionDescriptor(state: {
         value,
         label: MODE_COPY[value].label,
         description:
-          (state.record.agent === 'codex' ? CODEX_DESCRIPTIONS[value] : undefined) ??
-          MODE_COPY[value].description
+          AGENT_DESCRIPTIONS.get(state.record.agent)?.[value] ?? MODE_COPY[value].description
       }))
     },
     valueSource: 'applied',

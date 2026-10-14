@@ -286,7 +286,10 @@ const ANTIGRAVITY_LAUNCH_SPEC: AcpLaunchSpec = {
   installDirectories: () => [],
   managedRuntime: ANTIGRAVITY_ACP_RUNTIME,
   // Its yolo mode still asks the person questions and administrative reviews.
-  permissionModeConfig: { configId: 'mode', values: { ask: 'default', 'full-access': 'yolo' } },
+  permissionModeConfig: {
+    configId: 'mode',
+    values: { ask: 'default', 'accept-edits': 'auto_edit', 'full-access': 'yolo' }
+  },
   imagePrompts: true,
   modelDiscovery: {
     kind: 'unavailable',

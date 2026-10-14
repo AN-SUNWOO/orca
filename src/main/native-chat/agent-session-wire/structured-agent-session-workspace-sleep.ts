@@ -58,7 +58,7 @@ export async function sleepStructuredAgentSessionWorkspace(
   const stoppedSessionIds: string[] = []
   const failures: NonNullable<AgentSessionWorkspaceSleepResult['failures']> = []
   for (const { sessionId, stop } of outcomes) {
-    if (stop.status === 'rejected' || (stop.value && !stop.value.stopped)) {
+    if (stop.status === 'rejected') {
       failures.push({ sessionId, reason: 'stop-unverifiable' })
       continue
     }
@@ -67,10 +67,14 @@ export async function sleepStructuredAgentSessionWorkspace(
     }
     try {
       const record = host.deps.store.getRecord(sessionId)
-      const session = host.sessions.get(sessionId)
       if (!record || !belongs(record.location) || record.lease.runtimeFence !== stop.value.fence) {
         continue
       }
+      if (!stop.value.stopped) {
+        failures.push({ sessionId, reason: 'stop-unverifiable' })
+        continue
+      }
+      const session = host.sessions.get(sessionId)
       if (
         session?.child ||
         host.tasks.hasPending(sessionId) ||

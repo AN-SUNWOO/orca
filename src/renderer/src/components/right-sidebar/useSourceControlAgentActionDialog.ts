@@ -48,6 +48,7 @@ export function useSourceControlAgentActionDialog({
   onStart
 }: SourceControlAgentActionDialogProps): UseSourceControlAgentActionDialogResult {
   const settings = useAppStore((state) => state.settings)
+  const isRemoteOperationActive = useAppStore((state) => state.isRemoteOperationActive)
   const repo = useRepoById(repoId ?? null)
   const launchAgentScope = useMemo(
     () => resolveSourceControlLaunchAgentScope({ settings, repo, actionId }),
@@ -218,11 +219,11 @@ export function useSourceControlAgentActionDialog({
     })
 
   const canStart =
-    Boolean(trimmedCommandInput) &&
-    Boolean(selectedAgent) &&
+    Boolean(trimmedCommandInput && selectedAgent) &&
     !selectedAgentUnavailable &&
     !connectionUnavailable &&
     !detecting &&
+    !(actionId === 'resolveConflicts' && isRemoteOperationActive) &&
     !isStarting
 
   const handleOpenChange = useCallback(

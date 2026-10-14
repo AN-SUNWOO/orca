@@ -824,4 +824,25 @@ describe('OperationBanner', () => {
     expect(buttonContaining(mergeMarkup, 'Abort merge')).toContain('data-variant="outline"')
     expect(buttonContaining(rebaseMarkup, 'Abort rebase')).toContain('data-variant="outline"')
   })
+
+  it('offers Resolve with AI for every in-progress operation only when AI actions are visible', () => {
+    for (const operation of ['merge', 'rebase', 'cherry-pick'] as const) {
+      const visibleMarkup = renderToStaticMarkup(
+        <OperationBanner
+          conflictOperation={operation}
+          sourceControlAiActionsVisible
+          onResolveWithAI={vi.fn()}
+        />
+      )
+      const hiddenMarkup = renderToStaticMarkup(
+        <OperationBanner
+          conflictOperation={operation}
+          sourceControlAiActionsVisible={false}
+          onResolveWithAI={vi.fn()}
+        />
+      )
+      expect(visibleMarkup).toContain('Resolve with AI')
+      expect(hiddenMarkup).not.toContain('Resolve with AI')
+    }
+  })
 })

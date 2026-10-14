@@ -158,10 +158,11 @@ export function useSourceControlAi({
     [conflictOperation, unresolvedConflicts, worktreePath]
   )
   const handleResolveConflictsWithAI = useCallback((): void => {
-    if (!activeWorktreeId) {
+    if (!activeWorktreeId || getStoreState().isRemoteOperationActive) {
       return
     }
-    if (unresolvedConflicts.length === 0) {
+    // A paused operation can need recovery after all conflicts are staged.
+    if (unresolvedConflicts.length === 0 && conflictOperation === 'unknown') {
       toast.message(
         translate(
           'auto.components.right.sidebar.use.source.control.ai.cfafa92509',
@@ -171,7 +172,7 @@ export function useSourceControlAi({
       return
     }
     setResolveConflictsComposerOpen(true)
-  }, [activeWorktreeId, unresolvedConflicts.length])
+  }, [activeWorktreeId, conflictOperation, getStoreState, unresolvedConflicts.length])
 
   const {
     isLaunchingCommitFailureAgent,

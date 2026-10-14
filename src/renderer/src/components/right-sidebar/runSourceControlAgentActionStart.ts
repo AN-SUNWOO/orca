@@ -1,6 +1,7 @@
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
+import { useAppStore } from '@/store'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { Repo } from '../../../../shared/repo-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -79,6 +80,16 @@ export async function runSourceControlAgentActionStart({
   onLaunched,
   onClose
 }: RunSourceControlAgentActionStartArgs): Promise<boolean> {
+  // Detection and delivery planning can outlive the state that opened the composer.
+  if (actionId === 'resolveConflicts' && useAppStore.getState().isRemoteOperationActive) {
+    toast.error(
+      translate(
+        'auto.components.right.sidebar.run.source.control.agent.action.start.git.operation.running',
+        'Wait for the running Git operation to finish.'
+      )
+    )
+    return false
+  }
   let launched = false
   let launchFailureNotified = false
   let launchAcceptedNotified = false

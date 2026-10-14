@@ -23,6 +23,7 @@ vi.mock('sonner', () => ({
 }))
 
 import { runSourceControlAgentActionStart } from './runSourceControlAgentActionStart'
+import { useAppStore } from '@/store'
 
 function buildArgs(
   overrides: Partial<Parameters<typeof runSourceControlAgentActionStart>[0]> = {}
@@ -54,6 +55,27 @@ function buildArgs(
 describe('runSourceControlAgentActionStart', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('rejects conflict recovery before creating a tab when Git is still running', async () => {
+    const onLaunchAccepted = vi.fn()
+    const initialState = useAppStore.getState()
+    useAppStore.getState().beginRemoteOperation('rebase')
+    try {
+      await expect(
+        runSourceControlAgentActionStart(
+          buildArgs({ actionId: 'resolveConflicts', onLaunchAccepted })
+        )
+      ).resolves.toBe(false)
+      expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
+      expect(mocks.focusTerminalTabSurface).not.toHaveBeenCalled()
+      expect(onLaunchAccepted).not.toHaveBeenCalled()
+      expect(mocks.onLaunched).not.toHaveBeenCalled()
+      expect(mocks.onSaveAgentDefault).not.toHaveBeenCalled()
+      expect(mocks.onClose).not.toHaveBeenCalled()
+    } finally {
+      useAppStore.setState(initialState, true)
+    }
   })
 
   it('waits for deferred prompt delivery before confirming a source-control launch', async () => {

@@ -65,6 +65,10 @@ export function transcriptPollUpdate<T extends AgentHookEventPayload>(
     ...polled,
     hasExplicitPrompt: undefined,
     hookEventName:
-      polled.payload.mainAgent?.state === 'done' && !polled.toolAgentId ? 'Stop' : undefined
+      polled.payload.mainAgent?.state === 'done' &&
+      !polled.payload.interrupted &&
+      !polled.toolAgentId
+        ? 'Stop'
+        : undefined
   }
 }

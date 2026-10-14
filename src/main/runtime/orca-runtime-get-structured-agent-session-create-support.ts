@@ -11,7 +11,8 @@ import { getLocalProjectWorktreeGitOptions } from '../project-runtime-git-option
 import type { AgentSessionAttachParams } from '../native-chat/agent-session-wire/structured-agent-session-attach'
 import {
   resolveHostStructuredAgentCreateSupport,
-  resolveHostStructuredAgentLaunchEnvironment
+  resolveHostStructuredAgentLaunchEnvironment,
+  structuredAgentHostLaunchSources
 } from './structured-agent-launch-support'
 import { structuredAgentRuntimeRegistration } from './structured-agent-runtime-registrations'
 import { structuredLaunchSeedOptions } from '../../shared/native-chat-session-option-defaults'
@@ -178,6 +179,11 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     }
     const launchEnv = this.structuredAgentLaunchEnv(agent, this.requireStore().getSettings())
     return resolveAccountHome({ launchEnv, location: null })
+  }
+
+  /** What a chat start of `agent` on this host launches from, for a child that serves no chat. */
+  resolveStructuredAgentHostLaunchSources(agent: StructuredAgentId) {
+    return structuredAgentHostLaunchSources(agent, this)
   }
 
   protected async resolveStructuredAgentSessionIntent(

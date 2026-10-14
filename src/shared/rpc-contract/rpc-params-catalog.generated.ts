@@ -63,7 +63,8 @@ import {
 } from './ai-vault-params'
 import {
   AntigravityAccountMutationParams,
-  AntigravityAccountTargetParams
+  AntigravityAccountTargetParams,
+  AntigravityChatSignInFlowParams
 } from './antigravity-accounts-params'
 import { ArtifactsDeleteParams, ListOptions, SourceRequest, WriteRequest } from './artifacts-params'
 import {
@@ -614,6 +615,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'accounts.addCodexFromHome': AddCodexFromHomeParams,
   'accounts.addDataFromHome': AddDataAccountParams,
   'accounts.antigravityAddCurrent': AntigravityAccountTargetParams,
+  'accounts.antigravityChatSignInCancel': AntigravityChatSignInFlowParams,
+  'accounts.antigravityChatSignInLink': AntigravityChatSignInFlowParams,
+  'accounts.antigravityChatSignInStart': null,
   'accounts.antigravityList': AntigravityAccountTargetParams,
   'accounts.antigravityRemove': AntigravityAccountMutationParams,
   'accounts.antigravitySelect': AntigravityAccountMutationParams,

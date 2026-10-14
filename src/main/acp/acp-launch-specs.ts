@@ -269,9 +269,11 @@ const ANTIGRAVITY_SESSION_HISTORY: StructuredAgentSessionHistory = {
   parseResumeArgs: () => null
 }
 
+export const ANTIGRAVITY_SIGN_IN_PROMPT = 'Open the following link to authenticate the ACP server:'
+
 // Google's Antigravity ACP server, which Orca installs (the `agy` CLI has no ACP mode). Its chats
 // sign in to a folder of their own on each host; an `agy` login is not theirs.
-const ANTIGRAVITY_LAUNCH_SPEC: AcpLaunchSpec = {
+export const ANTIGRAVITY_LAUNCH_SPEC = {
   agent: 'antigravity',
   command: ANTIGRAVITY_ACP_RUNTIME.command,
   ignoreAgentCommandSetting: true,
@@ -284,8 +286,7 @@ const ANTIGRAVITY_LAUNCH_SPEC: AcpLaunchSpec = {
   // Signs in with the Google account the folder saved; without one, the server prints a sign-in link.
   authMethod: ({ advertised }) =>
     advertised.includes('oauth-personal') ? 'oauth-personal' : undefined,
-  signInPrompt: (line) =>
-    line.trimStart().startsWith('Open the following link to authenticate the ACP server:'),
+  signInPrompt: (line) => line.trimStart().startsWith(ANTIGRAVITY_SIGN_IN_PROMPT),
   account: hostFolderAccountBinding('GEMINI_HOME', 'antigravity-chat', ['antigravity-acp']),
   installDirectories: () => [],
   managedRuntime: ANTIGRAVITY_ACP_RUNTIME,
@@ -307,7 +308,7 @@ const ANTIGRAVITY_LAUNCH_SPEC: AcpLaunchSpec = {
   launchGate: new AcpLaunchGate(
     'Antigravity sign-in or sign-out is in progress. Try again after it finishes.'
   )
-}
+} satisfies AcpLaunchSpec
 
 export const ACP_LAUNCH_SPECS: readonly AcpLaunchSpec[] = [
   GROK_LAUNCH_SPEC,

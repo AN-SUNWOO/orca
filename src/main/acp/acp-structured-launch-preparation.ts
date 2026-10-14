@@ -9,22 +9,33 @@ import type { AcpStructuredLaunch } from './acp-structured-launch-resolution'
 import type { AcpStructuredSessionAdapterDeps } from './acp-structured-session-adapter-deps'
 
 /** The launch a start spawns, prepared; `closedBeforeSpawn` throws once the start was abandoned. */
-export async function prepareAcpStructuredLaunch(
+export function prepareAcpStructuredLaunch(
   deps: Pick<AcpStructuredSessionAdapterDeps, 'spec' | 'resolveLaunch' | 'dataDirectory'>,
   acquire: Pick<StructuredAgentSessionAcquireInput, 'identity' | 'spawnToken' | 'signal'>,
   closedBeforeSpawn: () => void
 ): Promise<AcpStructuredLaunch> {
-  const { spec } = deps
   const resolveLaunch = () =>
-    deps
-      .resolveLaunch({ identity: acquire.identity, spawnToken: acquire.spawnToken })
-      .catch(preSpawnFailure)
+    deps.resolveLaunch({ identity: acquire.identity, spawnToken: acquire.spawnToken })
+  return prepareAcpLaunch(deps, resolveLaunch, acquire.signal, closedBeforeSpawn)
+}
+
+/** Any spawn of the agent on this host, a chat's or not: its binary installed, its account ready. */
+export async function prepareAcpLaunch<
+  Launch extends { command: string; env: Record<string, string> }
+>(
+  deps: Pick<AcpStructuredSessionAdapterDeps, 'spec' | 'dataDirectory'>,
+  resolve: () => Promise<Launch>,
+  signal: AbortSignal | undefined,
+  closedBeforeSpawn: () => void
+): Promise<Launch> {
+  const { spec } = deps
+  const resolveLaunch = () => resolve().catch(preSpawnFailure)
   let launch = await resolveLaunch()
   closedBeforeSpawn()
   // A missed lookup returns the bare name; a selected Command setting resolves or refuses.
   const { managedRuntime } = spec
   if (managedRuntime && deps.dataDirectory && launch.command === spec.command) {
-    await managedRuntime.materialize(deps.dataDirectory, acquire.signal).catch(preSpawnFailure)
+    await managedRuntime.materialize(deps.dataDirectory, signal).catch(preSpawnFailure)
     closedBeforeSpawn()
     launch = await resolveLaunch()
     closedBeforeSpawn()

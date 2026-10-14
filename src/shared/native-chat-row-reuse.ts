@@ -65,11 +65,6 @@ export function createNativeChatRowReuse<Row extends Fields>(
 // A message, its block list, then each block's fields: folding rebuilds the first two.
 const MESSAGE_DEPTH = 2
 
-/** Whether a re-derived message carries the same values as `prior`, down to each block's fields. */
-export function sameNativeChatMessage(prior: NativeChatMessage, next: NativeChatMessage): boolean {
-  return sameValues(prior, next, MESSAGE_DEPTH)
-}
-
 /** Transcript rows by message id, compared down to each block's fields. */
 export function createNativeChatMessageReuse(): (
   messages: NativeChatMessage[]

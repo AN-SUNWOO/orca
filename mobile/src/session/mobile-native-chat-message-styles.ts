@@ -75,6 +75,12 @@ export const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.metaSize
   },
+  unsentNotice: {
+    maxWidth: '88%',
+    marginTop: spacing.xs,
+    color: colors.statusRed,
+    fontSize: typography.metaSize
+  },
   toolRun: {
     marginTop: spacing.xs
   },

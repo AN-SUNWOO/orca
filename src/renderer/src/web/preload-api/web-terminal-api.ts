@@ -111,7 +111,11 @@ export function createPtyApi(): NonNullable<Partial<PreloadApi>['pty']> {
       macTccAttribution: () =>
         Promise.resolve({ health: 'unknown' as const, folderAccessMismatch: null }),
       // Why: the TCC row belongs to the host's app bundle, which a web client cannot reach.
-      resetFolderAccess: () => Promise.resolve({ outcome: 'unsupported' as const })
+      resetFolderAccess: () => Promise.resolve({ outcome: 'unsupported' as const }),
+      // Why: the host daemon's /proc evidence is not reachable from a web client.
+      severedDaemon: () => Promise.resolve({ severed: null }),
+      restartSeveredDaemon: () =>
+        Promise.resolve({ status: 'refused' as const, reason: 'not-severed' as const })
     }
   }
 }

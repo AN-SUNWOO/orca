@@ -29,8 +29,6 @@ import {
   structuredAgentSessionMutationDelegates,
   type StructuredAgentSessionMutationContext
 } from './structured-agent-session-host-mutations'
-import { settleStructuredAgentSessionLateDispatch } from './structured-agent-session-late-dispatch'
-import { releaseStructuredAgentSessionUnansweredDispatches as releaseUnanswered } from './structured-agent-session-unanswered-dispatch-release'
 import { flushStructuredAgentSessionHost } from './structured-agent-session-host-teardown'
 import type {
   StructuredAgentSessionCaller,
@@ -102,7 +100,8 @@ export class StructuredAgentSessionHost {
       this.sessions,
       this.subscribers,
       (sessionId) => this.lifetime.conversation(sessionId),
-      this.clientDelivery.readChildWork
+      this.clientDelivery.readChildWork,
+      this.clientDelivery.childWorkIncomplete
     )
     this.runtimeState = new StructuredAgentSessionHostRuntimeState(
       deps,
@@ -125,7 +124,8 @@ export class StructuredAgentSessionHost {
       ensureProviderChild: (sessionId, startedFor) =>
         agentStart.ensureStructuredAgentSessionAgent(this.attachContext(), sessionId, startedFor),
       // Put to rest like an idle agent: the stop writes nothing, and the next start is new.
-      stopSignedOutAgent: (id) => this.lifetime.stopAgent(id, { cause: 'evict', resting: true }),
+      stopOutgrownAgent: (id) => this.lifetime.stopAgent(id, { cause: 'evict', resting: true }),
+      mutationContext: () => this.mutationContext(),
       clientDelivery: this.clientDelivery
     })
     this.restore = reveal.createStructuredAgentSessionHostRestore(deps, {
@@ -283,6 +283,8 @@ export class StructuredAgentSessionHost {
       publish: (sessionId, journal) => this.subscribers.publish(sessionId, journal),
       conversation: this.lifetime.conversation,
       readChildWork: this.clientDelivery.readChildWork,
+      publishChildWork: this.clientDelivery.publishChildWork,
+      childWorkIncomplete: this.clientDelivery.childWorkIncomplete,
       serialize: (sessionId, task) => this.serialize(sessionId, task),
       openConversation: this.conversationDelivery.open,
       ensureAgent: (sessionId) =>
@@ -340,11 +342,8 @@ export class StructuredAgentSessionHost {
 
   subscribe = (input: AgentSessionSubscribeInput) => this.backgroundTasks.subscribe(input)
 
-  settleLateDispatch = (input: Parameters<typeof settleStructuredAgentSessionLateDispatch>[1]) =>
-    settleStructuredAgentSessionLateDispatch(this.mutationContext(), input)
-
-  releaseUnansweredDispatches = (input: Parameters<typeof releaseUnanswered>[1]) =>
-    releaseUnanswered(this.mutationContext(), input)
+  settleLateDispatch = this.mutations.settleLateDispatch
+  releaseUnansweredDispatches = this.mutations.releaseUnansweredDispatches
 
   publishChildWorkEvidence = this.clientDelivery.publishChildWork
   unsubscribe = (sessionId: string, id: string): void => this.subscribers.close(sessionId, id)

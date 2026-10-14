@@ -134,6 +134,7 @@ export function createStructuredSessionMocks() {
       structuredTransport?: Record<string, unknown> & {
         queueResume?: QueueResumeMock
         onError?: NativeChatStructuredComposerTransport['onError']
+        optionPickerRequest?: NativeChatStructuredComposerTransport['optionPickerRequest']
       }
       isWorking?: boolean
       isStopping?: boolean
@@ -230,7 +231,8 @@ export function createStructuredSessionMocks() {
               tasks: mocks.backgroundTasks,
               settledTasks: mocks.settledBackgroundTasks,
               supportsStop: mocks.supportsBackgroundTaskStop,
-              supportsStopAll: mocks.supportsBackgroundTaskStopAll
+              offersStopAll:
+                !mocks.supportsBackgroundTaskStop && mocks.supportsBackgroundTaskStopAll
             },
             turnId: mocks.turnId,
             commandRefusalCauses: {

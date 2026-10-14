@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 
 const mocks = vi.hoisted(() => ({ statRuntimePath: vi.fn() }))
 
-vi.mock('@/runtime/runtime-file-client', () => ({
-  isRemoteRuntimeFileOperation: () => false,
+vi.mock('@/runtime/runtime-file-routing', () => ({ isRemoteRuntimeFileOperation: () => false }))
+vi.mock('@/runtime/runtime-file-metadata-client', () => ({
   statRuntimePath: mocks.statRuntimePath
 }))
 

@@ -5,10 +5,8 @@ import {
 } from '../../../shared/execution-host'
 import type { GlobalSettings } from '../../../shared/global-settings-types'
 import type { Repo } from '../../../shared/repo-types'
-import {
-  runtimeTargetForOwnerHostId,
-  type RuntimeClientTarget
-} from '@/runtime/runtime-client-target'
+import { ipcOrRuntimeTargetForHostId } from '@/runtime/runtime-client-target'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
 export type RepoRuntimeOwnerState = {
   repos?: readonly Pick<Repo, 'id' | 'connectionId' | 'executionHostId'>[]
@@ -44,7 +42,7 @@ export function runtimeTargetForRepoOwner(
   repoId: string | null | undefined
 ): RuntimeClientTarget | null {
   const repo = repoId ? findRepoOwner(state, repoId) : null
-  return repo ? runtimeTargetForOwnerHostId(getRepoExecutionHostId(repo)) : null
+  return repo ? ipcOrRuntimeTargetForHostId(getRepoExecutionHostId(repo)) : null
 }
 
 export function getRuntimeEnvironmentIdForRepo(

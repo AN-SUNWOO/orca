@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentSessionJournal } from '../agent-session-journal/journal-store'
+import { JournalStopAcceptor } from '../agent-session-journal/journal-stop-acceptance'
 import { openTestJournalHostDatabase } from '../agent-session-journal/journal-host-database-test-support'
 import { AGENT_JOURNAL_THREAD_SCOPE } from '../../../shared/agent-session-journal-types'
 import {
@@ -463,25 +464,25 @@ describe('Resume', () => {
 })
 
 describe('a failed Stop', () => {
-  // Withdrawing is bookkeeping: its failure is reported, and the Stop still interrupts and pauses.
-  it('still takes effect when its withdrawal fails, and pauses the queue', async () => {
+  // Saved before it acts: a Stop whose acceptance fails pauses nothing and interrupts nothing.
+  it('pauses nothing and interrupts nothing when its acceptance cannot be saved', async () => {
     await rig.workingSend()
-    const draftId = await queuedDraft('queued before the stop')
-    const reject = vi
-      .spyOn(AgentSessionJournal.prototype, 'rejectQueuedSubmissions')
+    await queuedDraft('queued before the stop')
+    const accept = vi
+      .spyOn(JournalStopAcceptor.prototype, 'accept')
       .mockRejectedValueOnce(new Error('disk full'))
     const warned = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
-      expect(await rig.stop()).toMatchObject({ ok: true })
-      expect(warned).toHaveBeenCalledWith(
-        "[agent-session] stop-queued-bookkeeping: Stop's withdrawal failed",
-        expect.objectContaining({ step: 'withdrawal', error: new Error('disk full') })
-      )
+      expect(await rig.stop()).toMatchObject({
+        ok: false,
+        refusal: { details: { reason: 'stopFailed' } }
+      })
     } finally {
-      reject.mockRestore()
+      accept.mockRestore()
       warned.mockRestore()
     }
-    await expectPaused(draftId)
+    expect(rig.cancelTurn).not.toHaveBeenCalled()
+    expect(await rig.queuePause()).toBeNull()
   })
 
   it('keeps its pause when it fails after the interrupt reached the agent', async () => {
@@ -497,10 +498,13 @@ describe('a failed Stop', () => {
         }
         return append.apply(this, args)
       })
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
-      await expect(rig.stop()).rejects.toThrow('disk full')
+      // Saved before the interrupt, so the answer is its receipt; the failure after it is logged.
+      expect(await rig.stop()).toMatchObject({ ok: true })
     } finally {
       failing.mockRestore()
+      warned.mockRestore()
     }
     await expectPaused(draftId)
   })

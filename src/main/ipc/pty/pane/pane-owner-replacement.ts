@@ -78,6 +78,15 @@ export function swapReplacedPaneBinding(
   }
 }
 
+/** Clears a stopped id's binding and keeps the pane; false when another owner took the pane. */
+export async function retireReplacedPaneBinding(
+  store: Store,
+  replaced: ReplacedPaneOwner & { pane: NonNullable<ReplacedPaneOwner['pane']> }
+): Promise<boolean> {
+  const { hostId, ...pane } = replaced.pane
+  return store.retirePtyBinding({ ...pane, ptyId: replaced.ptyId }, hostId)
+}
+
 /** Best effort: a failed replacement must not leave the stopped id bound for the remount to reattach. */
 export async function releaseStoppedPaneBinding(
   store: Store | undefined,
@@ -86,9 +95,8 @@ export async function releaseStoppedPaneBinding(
   if (!store || !replaced.pane) {
     return
   }
-  const { hostId, ...pane } = replaced.pane
   try {
-    await store.retirePtyBinding({ ...pane, ptyId: replaced.ptyId }, hostId)
+    await retireReplacedPaneBinding(store, { ...replaced, pane: replaced.pane })
   } catch (error) {
     console.warn('[pty] could not clear the stopped pane binding after a failed restart:', error)
   }

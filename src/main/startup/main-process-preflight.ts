@@ -93,7 +93,7 @@ import { getMainProcessLifecycleIdentity } from '../crash-reporting/main-process
 import {
   ensureVirtualDisplayForHeadlessServe,
   hasUsableLinuxDisplay,
-  MISSING_LINUX_DISPLAY_MESSAGE
+  missingLinuxDisplayMessage
 } from './ensure-virtual-display'
 import {
   createGpuCrashDiagnosticsRecorder,
@@ -136,7 +136,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   }
   // Why: on Windows a CLI launch that lost ELECTRON_RUN_AS_NODE would boot the GUI and exit silently; redirect to node mode before the lock gate below.
   // The redirect runs before the serve-argv rewrite so it still matches on the launch argv verbatim.
-  // Direct serve stays in-process so its signal handlers own all children.
+  // A direct Linux `serve` is exec'd into the CLI here (same pid); it only continues in-process if exec fails.
   const cliLaunchRedirect = maybeRedirectCliLaunch({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,
@@ -154,7 +154,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   state.isServeMode = process.argv.includes('--serve')
   // Fail before Chromium's missing-display teardown can segfault (#13719).
   if (app.isPackaged && !state.isServeMode && !hasUsableLinuxDisplay()) {
-    process.stderr.write(`${MISSING_LINUX_DISPLAY_MESSAGE}\n`)
+    process.stderr.write(`${missingLinuxDisplayMessage(false)}\n`)
     app.exit(1)
   }
   if (state.isServeMode) {
@@ -387,7 +387,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   })
   // Why: continuing without Xvfb lets Ozone initialize without a display and SIGSEGV (#17615).
   if (state.isServeMode && !state.headlessBrowserDisplayAvailable) {
-    process.stderr.write(`${MISSING_LINUX_DISPLAY_MESSAGE}\n`)
+    process.stderr.write(`${missingLinuxDisplayMessage(true)}\n`)
     app.exit(1)
   }
   initializeSyntheticTitleRuntime()

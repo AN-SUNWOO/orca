@@ -356,14 +356,26 @@ describe('projectSessionTabs', () => {
     })
   })
 
-  it('names nothing active when the view selects nothing, and keeps one group without a tree', () => {
+  it('names the first group but no tab active when the view selects nothing, and keeps one group without a tree', () => {
     const ctx = testContext()
     const { model } = build(ctx, [{ type: 'createTerminalTab', workspace: WS }])
     const projected = projectSessionTabs(WS, model.workspaces[WS]!, views(), noFacts, false)
-    expect(projected).toMatchObject({ activeGroupId: null, activeTabId: null, activeTabType: null })
+    expect(projected).toMatchObject({
+      activeGroupId: model.workspaces[WS]!.groups[0]!.id,
+      activeTabId: null,
+      activeTabType: null
+    })
     expect(projected.tabGroups).toHaveLength(1)
     expect(projected).not.toHaveProperty('tabGroupLayout')
     expect(projected.tabs[0]).toMatchObject({ title: 'Terminal 1', isActive: false })
+  })
+
+  it('names the first group active when the saved one is gone, as a window restores it', () => {
+    const { model, left } = workspace()
+    const view = views({ activeGroupIdByWorktree: { [WS]: 'group-gone' } })
+    expect(projectSessionTabs(WS, model.workspaces[WS]!, view, noFacts, false).activeGroupId).toBe(
+      left
+    )
   })
 
   it('round-trips every row id to the tab (and pane) it names', () => {

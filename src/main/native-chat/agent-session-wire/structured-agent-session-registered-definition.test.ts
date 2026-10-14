@@ -63,8 +63,8 @@ function fakeAdapter(): StructuredAgentSessionAdapter {
 function pick(agents: StructuredAgentRegistry, record: AgentSessionRecord | null, key: string) {
   const persistOptions = vi.fn(async () => {})
   const result = recordStructuredAgentSessionOptionIntent(
-    { store: { getRecord: () => record }, agents },
-    { sessionId: RECORD.sessionId, persistOptions, publish: vi.fn() },
+    { store: { getRecord: () => record, replaceSessionOptions: vi.fn() }, agents },
+    { sessionId: RECORD.sessionId, fence: 1, persistOptions, publish: vi.fn(), now: () => 0 },
     { key, value: 'enabled' }
   )
   return { result, persistOptions }
@@ -126,7 +126,11 @@ describe('a registered definition', () => {
     const options = await readAtRest(agents)
     expect(options.models.map((model) => model.id)).toEqual(['pilot-model'])
     // No pick for effort: the registered rules read the model's default.
-    expect(options.current).toEqual({ model: 'pilot-model', effort: 'low' })
+    expect(options.current).toEqual({
+      model: 'pilot-model',
+      effort: 'low',
+      permissionMode: 'ask'
+    })
     expect(options.threadGoal).toEqual({ current: null })
   })
 

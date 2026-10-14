@@ -60,7 +60,7 @@ describe('ACP Stop names a turn', () => {
     expect(rig.settled.map((settled) => settled.clientMessageId)).toEqual(['old', 'new'])
   })
 
-  it('a Stop naming an ended turn during the gap before the next prompt opens stops that prompt', async () => {
+  it('a Stop naming a turn with no journal row, in the gap before the next prompt opens, stops that prompt', async () => {
     const rig = await openAcpAdapterRig()
     await rig.acquire()
     await sendHello(rig, 'old')

@@ -70,8 +70,7 @@ const SubagentEntry = z.object({
   state: z.string().min(1),
   tokens: z.number().optional(),
   startedAt: z.number().optional(),
-  settledAt: z.number().optional(),
-  ownerFence: z.number().int().nonnegative().optional()
+  settledAt: z.number().optional()
 })
 
 /** Renderers select blocks by `type` equality and skip what they cannot draw,
@@ -111,6 +110,15 @@ const Block = openDiscriminatedUnion(
       groupId: z.string(),
       agents: z.array(SubagentEntry)
     }),
+    // `outcomeBasis` and `background` stay open for the same reason `state` does.
+    SubagentEntry.extend({
+      type: z.literal('subagent'),
+      groupId: z.string(),
+      parentId: z.string().optional(),
+      run: z.string().optional(),
+      outcomeBasis: z.string().optional(),
+      background: z.boolean().optional()
+    }),
     // `kind` and `state` stay open strings for the same reason a child's
     // lifecycle does: a vocabulary a newer build writes must not turn the row
     // malformed. The renderer falls back on anything it cannot name.
@@ -126,8 +134,7 @@ const Block = openDiscriminatedUnion(
       outputFile: z.string().optional(),
       tokens: z.number().optional(),
       startedAt: z.number().optional(),
-      settledAt: z.number().optional(),
-      ownerFence: z.number().int().nonnegative().optional()
+      settledAt: z.number().optional()
     })
   ])
 )

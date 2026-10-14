@@ -36,7 +36,7 @@ describe('restart-survival E2E routing', () => {
     'src/main/runtime/rpc/methods/browser-client-host.ts',
     'src/main/browser/browser-client-host-authority-replacement-wait.ts',
     'src/main/browser/paired-runtime-browser-client-host-composition.ts',
-    'src/renderer/src/runtime/web-session-tabs-sync.ts',
+    'src/renderer/src/runtime/web-session-tabs-sync/snapshot-api.ts',
     'src/renderer/src/runtime/host-session-snapshot-authority.ts',
     'src/renderer/src/runtime/restored-client-hosted-browser-host-attach.ts',
     'src/renderer/src/store/slices/runtime-status.ts',
@@ -129,8 +129,9 @@ describe('PR E2E gate contract', () => {
       'src/main/daemon/daemon-pty-spawn-result.ts',
       'src/renderer/src/components/terminal-pane/remote-runtime-pty-transport.ts',
       'src/renderer/src/components/terminal-pane/terminal-error-accumulation.ts',
-      'src/renderer/src/runtime/web-runtime-session.ts',
-      'src/renderer/src/runtime/web-session-tabs-sync.ts',
+      'src/renderer/src/runtime/web-runtime-terminal-creation.ts',
+      'src/renderer/src/runtime/web-runtime-session-tab-lifecycle.ts',
+      'src/renderer/src/runtime/web-session-tabs-sync/use-web-session-tabs-sync.ts',
       'src/renderer/src/runtime/web-session-terminal-orphan-recovery.ts',
       'src/renderer/src/runtime/web-session-terminal-orphan-recovery-adoption.ts',
       'src/renderer/src/runtime/web-session-terminal-orphan-recovery-surface.ts',
@@ -187,7 +188,7 @@ describe('PR E2E gate contract', () => {
         'src/renderer/src/components/terminal-pane/remote-runtime-pty-transport-test-harness.ts'
       ])
     ).not.toContain('tests/e2e/paired-remote-terminal-materialization-reconnect.spec.ts')
-    expect(selectPrE2eSpecs(['src/main/ipc/pty.ts'])).not.toContain(
+    expect(selectPrE2eSpecs(['src/main/ipc/pty/register-handlers.ts'])).not.toContain(
       'tests/e2e/paired-remote-terminal-materialization-reconnect.spec.ts'
     )
   })

@@ -19,9 +19,9 @@ import {
 import { parseExecutionHostId } from '../../../../shared/execution-host'
 import {
   assertRuntimeEnvironmentCapability,
-  callRuntimeRpc,
-  type RuntimeClientTarget
+  callRuntimeRpc
 } from '../../runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { adoptFromEndpoint } from '../adopt-from-endpoint'
 
 export function getProjectSetupRuntimeTarget(

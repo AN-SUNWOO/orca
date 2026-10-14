@@ -103,7 +103,7 @@ export class JournalLifecycleBatchAppender {
     if (this.wasApplied(input.settlementId)) {
       return []
     }
-    // A provider's batch states its generation on every item it writes.
+    // A provider's batch states its generation on every item it creates.
     const { ownerFence } = input
     const mutations =
       ownerFence === undefined

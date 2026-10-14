@@ -1,7 +1,7 @@
 import { memo, useContext } from 'react'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import { cn } from '@/lib/utils'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import { MessageRow, type NativeChatDeliveryNotice } from './NativeChatMessageRow'
 import { NativeChatResolutionReceipt } from './NativeChatResolutionReceipt'
 import { NativeChatWorkingStatus } from './NativeChatWorkingStatus'
@@ -76,7 +76,7 @@ export const NativeChatTranscriptRow = memo(function NativeChatTranscriptRow({
         sections={slot.sections}
         onSetSectionOpen={context.subagentDisclosure.setSectionOpen}
         // The type its roster row's list inherits, so both halves of the list match.
-        className="text-xs leading-relaxed text-muted-foreground"
+        className="text-xs leading-relaxed text-chat-foreground-faint"
       />
     )
   }

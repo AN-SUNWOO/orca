@@ -18,7 +18,6 @@ import type { JournalLifecycleMutationInput } from '../agent-session-journal/jou
 import type { ResolveDispatchInput } from '../agent-session-journal/journal-store-contracts'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import { lostLiveWorkJournalBody } from '../agent-session-journal/journal-subagent-liveness'
-import { journalEntryOwnerFence } from '../agent-session-journal/journal-item-provenance'
 import {
   endedUnseenMessageBody,
   runningCallEnd,
@@ -64,10 +63,6 @@ export type StaleStructuredAgentSessionStateInput = {
   /** Only what generations below this fence wrote, which can no longer write, is settled; their
    *  sends handed over and never answered become doubt. Absent: every item, and no send. */
   below?: number
-  /** Roster entries and background tasks are settled by their own provenance
-   *  (`journal-item-provenance.ts`): below this fence, in any row, even a live generation's.
-   *  Absent: every entry of a row settled here, and no other row's. */
-  entriesBelow?: number
 }
 
 /** Settles it, and answers how many items it revised. */
@@ -101,8 +96,7 @@ export function planStaleStructuredAgentSessionState(
   const { journal, below } = input
   const ended = (fence: number | undefined) =>
     below === undefined || (fence !== undefined && fence < below)
-  const all = journal.snapshot().items
-  const items = all.filter((item) => ended(journal.itemFence(item.itemId)))
+  const items = journal.snapshot().items.filter((item) => ended(journal.itemFence(item.itemId)))
   const dispatches =
     below === undefined
       ? []
@@ -112,37 +106,7 @@ export function planStaleStructuredAgentSessionState(
           // Doubt, never non-delivery: what a gone owner was handed and never answered.
           { reason: DISPATCH_DOUBT_PROVIDER_EXITED }
         )
-  const mutations = staleMutations(input, items)
-  const { entriesBelow } = input
-  if (entriesBelow !== undefined) {
-    // A live generation's row can still carry a child or a task an ended one ran.
-    for (const item of all) {
-      const itemFence = journal.itemFence(item.itemId)
-      const body = ended(itemFence)
-        ? null
-        : lostLiveWorkJournalBody(item.body, {
-            lost: (entry) => entryEndedBelow(entry, itemFence, entriesBelow)
-          })
-      if (body) {
-        mutations.push({
-          kind: 'item',
-          itemId: item.itemId,
-          body,
-          turnScope: item.turnScope ?? AGENT_JOURNAL_THREAD_SCOPE
-        })
-      }
-    }
-  }
-  return { mutations, dispatches }
-}
-
-function entryEndedBelow(
-  entry: { ownerFence?: number },
-  itemFence: number | undefined,
-  below: number
-): boolean {
-  const fence = journalEntryOwnerFence(entry, itemFence)
-  return fence !== undefined && fence < below
+  return { mutations: staleMutations(input, items), dispatches }
 }
 
 function staleMutations(
@@ -174,15 +138,8 @@ function staleMutations(
     // leaves them to the evidence.
     const end = runningCallEnd(item.turnScope, (id) => journal.itemBody(id), verdictFor(item).state)
     const terminal = endedUnseenMessageBody(item.body) ?? terminalAgentJournalBody(item.body, end)
-    // One revision per item: its live subagents and background tasks end with it, but for any a
-    // live generation observed since.
-    const itemFence = journal.itemFence(item.itemId)
-    const { entriesBelow } = input
-    const body =
-      lostLiveWorkJournalBody(terminal ?? item.body, {
-        lost: (entry) =>
-          entriesBelow === undefined ? true : entryEndedBelow(entry, itemFence, entriesBelow)
-      }) ?? terminal
+    // One revision per item: a live subagent or background task it holds ends with it.
+    const body = lostLiveWorkJournalBody(terminal ?? item.body) ?? terminal
     if (body) {
       mutations.push({
         kind: 'item',

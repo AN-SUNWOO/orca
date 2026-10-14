@@ -9,8 +9,7 @@ import {
   agentSessionWriteNoticeParts
 } from '../../../shared/agent-session-refusal-notice'
 import { agentSessionRefusalFailure } from '../../../shared/agent-session-write-failure'
-import { isSubagentGroupBlock } from '../../../shared/native-chat-types'
-import { codexSubagentGroupIdentity } from '../../codex/codex-subagent-roster'
+import { journaledSubagent } from '../agent-session-journal/journal-subagent-item'
 import {
   HOST_TEST_SESSION as SESSION,
   hostTestOperationId
@@ -31,7 +30,6 @@ import {
   REASONING,
   reconciled,
   recoveredRows,
-  ROSTER_GROUP,
   rowFence,
   sendText,
   TASK,
@@ -114,10 +112,7 @@ describe('an observed exit whose settlement the database refused', () => {
     expect(body(APPROVAL)).toMatchObject({ resolution: { state: 'cancelled' } })
     expect(body(TOOL)).toMatchObject({ state: 'failed', endedAs: 'interrupted' })
     expect(body(REASONING)).not.toMatchObject({ state: 'running' })
-    const roster = body(codexSubagentGroupIdentity(ROSTER_GROUP))
-    expect(
-      roster?.kind === 'message' ? roster.blocks.find(isSubagentGroupBlock)?.agents : undefined
-    ).toMatchObject([{ id: 'a', state: 'unverifiable' }])
+    expect(journaledSubagent(session.journal, 'a')).toMatchObject({ state: 'unverifiable' })
     expect(body(TASK)).toMatchObject({
       blocks: [
         { text: 'Background command "sleep 20" stopped reporting' },

@@ -2,9 +2,9 @@ import { useCallback } from 'react'
 import { getConnectionId } from '@/lib/connection-context'
 import {
   cancelRuntimeGeneratePullRequestFields,
-  generateRuntimePullRequestFields,
-  type RuntimeGeneratePullRequestFieldsOverrides
-} from '@/runtime/runtime-git-client'
+  generateRuntimePullRequestFields
+} from '@/runtime/runtime-git-generation-client'
+import type { RuntimeGeneratePullRequestFieldsOverrides } from '@/runtime/runtime-git-client-context'
 import type { PullRequestGenerationOutcome } from '../../create-pull-request-dialog-field-model'
 import { settlePullRequestGenerationRequest } from '../../pull-request-generation-request-outcome'
 import { useAppStore } from '@/store'

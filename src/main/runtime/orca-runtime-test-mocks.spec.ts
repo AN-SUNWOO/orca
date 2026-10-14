@@ -256,7 +256,7 @@ export type {
 export type { BrowserClientHostCommandEvent } from '../../shared/browser-client-host-protocol'
 export type { FolderWorkspace } from '../../shared/folder-workspace-types'
 export type { GitUsernameModule }
-export type { IPtyProvider } from '../providers/types'
+export type { IPtyProvider } from '../providers/pty-provider-contract'
 export type { MessagePriority, MessageRow, MessageType } from './orchestration/types'
 export type { ProjectGroup } from '../../shared/project-group-types'
 export type { RpcRequest } from './rpc/core'

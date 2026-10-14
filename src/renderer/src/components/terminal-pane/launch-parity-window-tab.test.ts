@@ -14,6 +14,7 @@ import {
 } from '@/lib/launch-parity-renderer.test-fixture'
 import { getDefaultSettings } from '../../../../shared/constants'
 import { WINDOW_LAUNCH_CASES } from '../../../../shared/launch-parity-window-cases.test-fixture'
+import { PLUS_LAUNCH_CASES } from '../../../../shared/launch-parity-plus-cases.test-fixture'
 import {
   LAUNCH_TAB_ID,
   LAUNCH_TOKEN,
@@ -55,6 +56,7 @@ const load = perClientLoader(async () => ({
   quick: await import('@/lib/run-quick-command-in-new-tab'),
   vault: await import('@/lib/launch-ai-vault-session'),
   resume: await import('@/lib/ai-vault-resume-command'),
+  dashboard: await import('@/components/dashboard/launch-dashboard-agent'),
   pane: await import('./pty-connection'),
   paneOptions: await import('./terminal-pane-manager-options'),
   defaults: await import('@/lib/pane-manager/pane-terminal-options'),
@@ -88,6 +90,19 @@ async function openTab(c: WindowLaunchCase) {
       promptDelivery: 'draft',
       launchSource: 'terminal_context_menu',
       initialCwd: producer.initialCwd
+    })
+  } else if (producer.kind === 'plus' && producer.via === 'dashboard') {
+    // Its workspace activation asks for a PR refresh, which this harness has no bridge for.
+    Object.assign(window.api, { gh: {} })
+    modules.dashboard.launchDashboardAgent({ worktreeId, agent: producer.agent })
+  } else if (producer.kind === 'plus') {
+    // Hand-built copies of what the "+" menu and the new-agent shortcut pass.
+    modules.launch.launchAgentInNewTab({
+      requestId: `parity-${c.name}`,
+      agent: producer.agent,
+      worktreeId,
+      groupId: store.getState().activeGroupIdByWorktree[worktreeId],
+      launchSource: producer.via === 'menu' ? 'tab_bar_quick_launch' : 'shortcut'
     })
   } else {
     // The sidebar's "continue from transcript" builds the startup, then opens the tab.
@@ -175,7 +190,7 @@ async function paneSpawnRequest(c: WindowLaunchCase): Promise<unknown> {
   )
 }
 
-// Pins main's current launch behaviour as the convergence parity baseline (rows 2 and 6, window
+// Pins main's current launch behaviour as the convergence parity baseline (rows 1, 2 and 6, window
 // half): the real producer, store and pane build the pty:spawn request each case's table row names.
 // C2 (typed-prompt tabs onto the pane trigger) and C3 (Antigravity continue) check against it.
 describe('window-tab producers: the pty:spawn request a real pane sends', () => {
@@ -190,7 +205,7 @@ describe('window-tab producers: the pty:spawn request a real pane sends', () => 
     vi.unstubAllGlobals()
   })
 
-  it.each(WINDOW_LAUNCH_CASES)('row $row: $name', async (c) => {
+  it.each([...WINDOW_LAUNCH_CASES, ...PLUS_LAUNCH_CASES])('row $row: $name', async (c) => {
     expect(await paneSpawnRequest(c)).toEqual(windowSpawnRequest(c))
   })
 })

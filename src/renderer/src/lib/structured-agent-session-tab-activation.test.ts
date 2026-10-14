@@ -13,13 +13,9 @@ vi.mock('@/store', () => ({
   useAppStore: { getState: () => mocks.state }
 }))
 
-vi.mock('./worktree-runtime-owner', () => ({
-  getRuntimeEnvironmentIdForWorktree: () => 'env-1'
-}))
+vi.mock('./worktree-runtime-owner', () => ({ getRuntimeEnvironmentIdForWorktree: () => 'env-1' }))
 
-vi.mock('@/runtime/runtime-rpc-client', () => ({
-  callRuntimeRpc: mocks.callRuntimeRpc
-}))
+vi.mock('@/runtime/runtime-rpc-client', () => ({ callRuntimeRpc: mocks.callRuntimeRpc }))
 
 vi.mock('@/runtime/runtime-worktree-selector', () => ({
   toRuntimeWorktreeSelector: (worktreeId: string) => `id:${worktreeId}`

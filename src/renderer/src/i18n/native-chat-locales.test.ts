@@ -47,7 +47,6 @@ describe('native chat locale copy', () => {
         'effort',
         'fastMode',
         'thinking',
-        'options',
         'sessionOptions',
         'chooseInAgentPicker',
         'toggleOption',
@@ -59,6 +58,10 @@ describe('native chat locale copy', () => {
       for (const key of ['fast', ...localizedEffortValues] as const) {
         expect(composer.optionValue[key].trim()).not.toBe('')
         expect(composer.optionValue[key]).not.toBe(englishComposer.optionValue[key])
+      }
+      for (const key of ['minimal', 'medium', 'xhigh'] as const) {
+        expect(composer.optionValueShort[key].trim()).not.toBe('')
+        expect(composer.optionValueShort[key]).not.toBe(englishComposer.optionValueShort[key])
       }
     }
   )

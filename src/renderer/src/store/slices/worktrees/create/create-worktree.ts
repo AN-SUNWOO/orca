@@ -1,4 +1,4 @@
-import { runtimeTargetForExecutionHostId } from '@/runtime/runtime-client-target'
+import { runtimeRpcTargetForAuthorityKey } from '@/runtime/runtime-client-target'
 import { repoHostId } from '../listing/worktree-host-ownership'
 import {
   isUnresolvedOwnerHostId,
@@ -16,9 +16,9 @@ import {
 } from '../../../../../../shared/new-workspace/worktree-create-retry-policy'
 import {
   assertRuntimeEnvironmentCapability,
-  callRuntimeRpc,
-  type RuntimeClientTarget
+  callRuntimeRpc
 } from '../../../../runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../../../../shared/runtime-client-target'
 import { runtimeTargetForRepoOwner } from '@/lib/repo-runtime-owner'
 import { WORKTREE_LINKED_WORK_ITEM_CONTEXT_RUNTIME_CAPABILITY } from '../../../../../../shared/protocol-version'
 import { showLocalBaseRefUpdateSuggestionToast } from '@/components/sidebar/local-base-ref-suggestion-toast'
@@ -190,7 +190,7 @@ export function createCreateWorktree(
       }
       // Direct SSH still uses desktop IPC; paired runtimes use their captured environment.
       const target = options?.executionHostId
-        ? (runtimeTargetForExecutionHostId(options.executionHostId) ?? { kind: 'local' as const })
+        ? (runtimeRpcTargetForAuthorityKey(options.executionHostId) ?? { kind: 'local' as const })
         : runtimeTargetForRepoOwner(get(), repoId)
       if (!target) {
         throw new Error('The project host is unresolved. Choose a host and retry.')

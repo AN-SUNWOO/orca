@@ -57,7 +57,7 @@ export function useNativeChatStructuredComposerTransport(args: {
           agent: props.agent,
           snapshot: controller.optionSnapshot,
           invokeAction: async (id) => {
-            setOptionPickerRequest((current) => ({ id, sequence: (current?.sequence ?? 0) + 1 }))
+            setOptionPickerRequest({ id, consume: () => setOptionPickerRequest(null) })
             return true
           },
           setOption: controller.setStructuredOption,

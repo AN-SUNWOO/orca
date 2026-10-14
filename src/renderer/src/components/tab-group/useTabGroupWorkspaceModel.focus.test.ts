@@ -70,12 +70,20 @@ vi.mock('../../lib/focus-terminal-tab-surface', () => ({
   focusTerminalTabSurface: mocks.focusTerminalTabSurface
 }))
 
-vi.mock('../../runtime/web-runtime-session', () => ({
+vi.mock('../../runtime/web-runtime-session-tab-lifecycle', () => ({
   activateWebRuntimeSessionTab: mocks.activateWebRuntimeSessionTab,
-  closeWebRuntimeSessionTab: mocks.closeWebRuntimeSessionTab,
-  createWebRuntimeSessionBrowserTab: vi.fn(),
-  createWebRuntimeSessionTerminal: mocks.createWebRuntimeSessionTerminal,
-  isWebRuntimeSessionActive: mocks.isWebRuntimeSessionActive,
+  closeWebRuntimeSessionTab: mocks.closeWebRuntimeSessionTab
+}))
+vi.mock('../../runtime/web-runtime-browser-creation', () => ({
+  createWebRuntimeSessionBrowserTab: vi.fn()
+}))
+vi.mock('../../runtime/web-runtime-terminal-creation', () => ({
+  createWebRuntimeSessionTerminal: mocks.createWebRuntimeSessionTerminal
+}))
+vi.mock('../../runtime/web-runtime-session-environment', () => ({
+  isWebRuntimeSessionActive: mocks.isWebRuntimeSessionActive
+}))
+vi.mock('../../../../shared/terminal-surface-id', () => ({
   toHostSessionTabId: (tabId: string) => tabId
 }))
 

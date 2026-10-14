@@ -681,10 +681,11 @@ describe('NativeChatStructuredSession', () => {
       await expect(dispatchCommand?.('/model')).resolves.toMatchObject({ accepted: true })
     })
 
-    expect(mocks.composerProps?.structuredTransport?.optionPickerRequest).toEqual({
-      id: 'model',
-      sequence: 1
-    })
+    const request = mocks.composerProps?.structuredTransport?.optionPickerRequest
+    expect(request).toMatchObject({ id: 'model' })
+
+    act(() => request?.consume())
+    expect(mocks.composerProps?.structuredTransport?.optionPickerRequest).toBeNull()
   })
 
   it('passes Claude grouped questions and one shared answer through the card', () => {

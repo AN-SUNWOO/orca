@@ -3,12 +3,14 @@ import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { projectStructuredItemsToNativeChat } from '../../../../shared/structured-agent-session-projection'
+import type { AgentSessionFailureFact } from '../../../../shared/agent-session-failure'
 import type { AgentJournalStatusItem } from '../../../../shared/agent-session-journal-types'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { MessageRow } from './NativeChatMessageRow'
 import { NativeChatNoticeRow } from './NativeChatNoticeRow'
 import { i18n } from '@/i18n/i18n'
 import { agentSessionFailureWords } from '../../../../shared/agent-session-failure-words'
+import { agentSessionFailureFact } from '../../../../shared/agent-session-failure'
 import {
   NativeChatOrcaStopContext,
   type NativeChatOrcaStopView
@@ -95,7 +97,7 @@ describe('the row an Orca stop leaves', () => {
   ])('names a %s and the machine, muted', (cause, sentence) => {
     renderStatus(orcaStopRow(cause), 'studio-mac')
     const row = screen.getByText(`${sentence} You can continue in this conversation.`)
-    expect(row.parentElement?.parentElement).toHaveClass('text-muted-foreground')
+    expect(row.parentElement?.parentElement).toHaveClass('text-chat-foreground-faint')
     expect(screen.queryByText(LEGACY_TEXT)).toBeNull()
   })
 
@@ -136,7 +138,7 @@ describe('the row an Orca stop leaves', () => {
     expect(
       screen.getByText('Orca on QA SSH stopped while this response was in progress.').parentElement
         ?.parentElement
-    ).toHaveClass('text-muted-foreground')
+    ).toHaveClass('text-chat-foreground-faint')
     expect(screen.queryByText(/was closed/)).toBeNull()
   })
 
@@ -170,13 +172,13 @@ describe('the row an Orca stop leaves', () => {
       screen.getByText(
         'Orca on studio-mac stopped unexpectedly while this response was in progress.'
       ).parentElement?.parentElement
-    ).toHaveClass('text-muted-foreground')
+    ).toHaveClass('text-chat-foreground-faint')
     cleanup()
     renderStatus(represented, null, true)
     expect(
       screen.getByText('This response was interrupted. You can continue in this conversation.')
         .parentElement?.parentElement
-    ).toHaveClass('text-muted-foreground')
+    ).toHaveClass('text-chat-foreground-faint')
   })
 
   it('keeps the host words for a cause this build does not know', () => {
@@ -187,7 +189,7 @@ describe('the row an Orca stop leaves', () => {
   it('keeps the host words when the chat has no machine to name, muted all the same', () => {
     renderStatus(orcaStopRow('update'), null)
     expect(screen.getByText(LEGACY_TEXT).parentElement?.parentElement).toHaveClass(
-      'text-muted-foreground'
+      'text-chat-foreground-faint'
     )
   })
 
@@ -344,10 +346,28 @@ describe('notice rows', () => {
       expect(screen.getByText('Future host guidance')).toBeInTheDocument()
     }
   )
+  it("shows the host's words for a background task the agent would not stop, as an older client does", async () => {
+    await i18n.changeLanguage('ja')
+    // A client that predates the kind reads no fact, so the row's own text is what it shows.
+    renderStatus(
+      {
+        kind: 'status',
+        ...agentSessionFailureWords(
+          agentSessionFailureFact('backgroundTaskNotStopped', { backgroundStop: 'task' }),
+          { surface: 'row' }
+        )
+      },
+      null,
+      false,
+      false,
+      'Codex'
+    )
+    expect(screen.getByText("The background task wasn't stopped.")).toBeInTheDocument()
+  })
   it('renders compaction as a centered separator', () => {
     renderStatus({ kind: 'status', text: 'Context compacted', presentation: 'compaction' })
     expect(screen.getByRole('separator', { name: 'Context compacted' })).toHaveClass(
-      'text-muted-foreground'
+      'text-chat-foreground-faint'
     )
     expect(
       screen.getByText('Context compacted').parentElement?.querySelectorAll('.bg-border')
@@ -415,7 +435,45 @@ describe('notice rows', () => {
     ['history-item-too-large', 'This part of the chat was too large to show.']
   ])('words a %s row itself, as a muted status line', (presentation, words) => {
     renderStatus({ kind: 'status', text: 'Words an older host wrote', presentation })
-    expect(screen.getByText(words)).toHaveClass('text-muted-foreground', 'text-sm')
+    expect(screen.getByText(words)).toHaveClass('text-chat-foreground-faint', 'text-sm')
     expect(screen.queryByText('Words an older host wrote')).toBeNull()
   })
+})
+
+describe('Codex installation in notice rows', () => {
+  it.each([null, '0.135.0'])(
+    'shows the plain host failure through the ordinary notice row: %s',
+    (installedVersion) => {
+      const failure: AgentSessionFailureFact = {
+        kind: installedVersion === null ? 'cliMissing' : 'startFailed',
+        ...(installedVersion === null
+          ? {}
+          : {
+              refusal: {
+                code: 'agent_session_operation_invalid',
+                details: {
+                  reason: 'attachFailed',
+                  codexInstallation: { installedVersion, minimumVersion: '0.136.0' }
+                }
+              }
+            })
+      }
+      const text = installedVersion
+        ? 'Codex 0.135.0 is too old for chats. Update to 0.136.0 or newer.'
+        : "Codex wasn't found on the computer running this chat. Install it, or check its Command in Settings → Agents."
+      renderStatus(
+        {
+          kind: 'status',
+          tone: 'error',
+          ...agentSessionFailureWords(failure, { agentName: 'Codex', surface: 'row' })
+        },
+        null,
+        false,
+        false,
+        'Codex'
+      )
+      expect(screen.getByText(text)).toBeInTheDocument()
+      expect(screen.queryByRole('button')).toBeNull()
+    }
+  )
 })

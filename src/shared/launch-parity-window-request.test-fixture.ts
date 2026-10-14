@@ -31,6 +31,16 @@ export type WindowLaunchProducer =
   /** A terminal's "continue in new session": Claude gets a draft in the pane's cwd. */
   | { kind: 'continuation'; agent: 'claude'; prompt: string; initialCwd: string }
   | { kind: 'transcript-continue'; transcript: string; cwd: string | null }
+  /** A "+" launch with no prompt, as each "+" entry point calls launchAgentInNewTab. */
+  | { kind: 'plus'; agent: 'claude'; via: PlusEntry }
+
+/** "+" entry points. Quick Launch items omit launchSource and get `menu`'s source by default. */
+export type PlusEntry = 'menu' | 'shortcut' | 'dashboard'
+const PLUS_LAUNCH_SOURCE: Record<PlusEntry, string> = {
+  menu: 'tab_bar_quick_launch',
+  shortcut: 'shortcut',
+  dashboard: 'unknown'
+}
 
 type ProjectRuntimeSent =
   | { kind: 'windows-host'; reason: 'global-default' | 'project-override' }
@@ -45,6 +55,8 @@ export type WindowRequestFacts = {
   cwd?: string
   /** The agent's saved default env, sent in the pane env and the launch config. */
   agentEnv?: Record<string, string>
+  /** The agent's saved default args; absent = the settings default. */
+  agentArgs?: string
 }
 
 /** What reaches the provider for that request (main half). */
@@ -56,7 +68,7 @@ export type WindowProviderFacts = {
 export type WindowLaunchCase = {
   name: string
   /** The launch-convergence producer row. */
-  row: 2 | 6
+  row: 1 | 2 | 6
   client: LaunchClient
   workspace: LaunchWorkspace
   settings?: Record<string, unknown>
@@ -121,7 +133,7 @@ export function windowSpawnRequest(c: WindowLaunchCase): Record<string, unknown>
     command: request.command,
     launchConfig: {
       agentCommand: request.agentCommand,
-      agentArgs: AGENT_ARGS[agent],
+      agentArgs: request.agentArgs ?? AGENT_ARGS[agent],
       agentEnv: request.agentEnv ?? {}
     },
     launchToken: LAUNCH_TOKEN,
@@ -139,7 +151,11 @@ export function windowSpawnRequest(c: WindowLaunchCase): Record<string, unknown>
         : {
             agent_kind: agent === 'claude' ? 'claude-code' : agent,
             launch_source:
-              producer.kind === 'quick-command' ? 'quick_command' : 'terminal_context_menu',
+              producer.kind === 'plus'
+                ? PLUS_LAUNCH_SOURCE[producer.via]
+                : producer.kind === 'quick-command'
+                  ? 'quick_command'
+                  : 'terminal_context_menu',
             request_kind: 'new'
           }
   }

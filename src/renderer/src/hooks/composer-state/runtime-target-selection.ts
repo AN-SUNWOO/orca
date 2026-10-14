@@ -1,4 +1,4 @@
-import { runtimeTargetForOwnerHostId } from '@/runtime/runtime-client-target'
+import { ipcOrRuntimeTargetForHostId } from '@/runtime/runtime-client-target'
 import type { ComposerRuntimeTargetSelectionInput } from './composer-target-input-contracts'
 
 import { useEffect, useMemo, useRef } from 'react'
@@ -221,7 +221,7 @@ export function useComposerRuntimeTargetSelection(input: ComposerRuntimeTargetSe
     : null
 
   const selectedRepoTarget = useMemo(
-    () => (selectedRepo ? runtimeTargetForOwnerHostId(getRepoExecutionHostId(selectedRepo)) : null),
+    () => (selectedRepo ? ipcOrRuntimeTargetForHostId(getRepoExecutionHostId(selectedRepo)) : null),
     [selectedRepo]
   )
 

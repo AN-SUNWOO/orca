@@ -80,10 +80,10 @@ vi.mock('../runtime/agent-state-rules/agent-state-rules-live-update', () => ({
   startAgentStateRulesLiveUpdates: () => {}
 }))
 vi.mock('../daemon/daemon-provider-state', () => ({ daemonOwnsFreshPersistentPtys: () => false }))
-vi.mock('../ipc/pty', () => ({
-  registerHeadlessPtyRuntime: async () => {},
-  getLocalPtyProvider: () => null
+vi.mock('../ipc/pty/register-headless-runtime', () => ({
+  registerHeadlessPtyRuntime: async () => {}
 }))
+vi.mock('../ipc/pty/provider/registry', () => ({ getLocalPtyProvider: () => null }))
 vi.mock('./orcad-profile-state-startup', () => ({
   createOrcadProfileStateStartup: async () => {
     const error = state.profileStartupErrors.shift()
@@ -127,9 +127,11 @@ vi.mock('../runtime/orca-runtime', () => ({
       return 'headless-runtime'
     }
     rehydrateClientHostedBrowserPages() {}
+    restoreHostAccountLaunchEnv() {}
     async refreshRestoredOrchestrationAuthority() {}
     async reconcileLegacyWorkerTerminals() {}
     async stopLegacyWorkerTerminalRecovery() {}
+    async closeNotificationDismissals() {}
     syncWindowGraph() {}
     setMobilePushRegistrar(
       registrar: Parameters<RuntimeMobileNotificationController['setPushRegistrar']>[0]

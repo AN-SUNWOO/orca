@@ -14,8 +14,8 @@ import {
   type ExecutionHostId
 } from '../../../shared/execution-host'
 import { normalizeProjectHostSetupRow } from '../../../shared/project-catalog-row-normalization'
-import type { RuntimeClientTarget } from '../runtime/runtime-client-target'
-import { getRuntimeTargetHostId } from './runtime-target-host'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
+import { getRuntimeTargetHostId } from '../runtime/runtime-client-target'
 
 export type FetchedRepo = { kind: 'repo'; row: Repo }
 export type FetchedProjectGroup = { kind: 'projectGroup'; row: ProjectGroup }

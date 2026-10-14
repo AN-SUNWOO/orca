@@ -1,4 +1,4 @@
-import type { IFilesystemProvider } from './types'
+import type { IFilesystemProvider } from './filesystem-provider-contract'
 
 // Why still here: only the remote file-watcher subsystem reads it, and nothing in production
 // registers a provider; that subsystem and this table go together in their own change.

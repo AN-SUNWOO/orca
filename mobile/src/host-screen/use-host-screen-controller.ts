@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useLocalSearchParams, usePathname } from 'expo-router'
 import { useRouteHandoff } from '../navigation/route-handoff'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useHostProtocolGates } from '../components/HostProtocolGate'
+import { useHostProtocolGates } from '../components/host-protocol-gates-context'
 import { visibleHostRouteNotice } from '../host-route-notice'
 import { resolveHostRouteActionState } from '../host-route-action-state'
 import { useActiveWorktreeScroll } from '../hooks/use-active-worktree-scroll'
@@ -78,6 +78,7 @@ export function useHostScreenController({
     connState,
     embedded,
     fetchRepoMetadata,
+    hostCapabilities,
     hostId,
     state,
     syncViewSettingsFromDesktop: settings.syncViewSettingsFromDesktop
@@ -88,6 +89,7 @@ export function useHostScreenController({
     embedded,
     fetchWorktrees: catalog.fetchWorktrees,
     forgetHostClient,
+    hostCapabilities,
     hostId,
     pathname,
     router,
@@ -101,7 +103,7 @@ export function useHostScreenController({
   }
   const showNewWorktree = resolvedRouteActionState.showNewWorktree
 
-  const displayWorktrees = useHostDisplayWorktrees(connState, state)
+  const displayWorktrees = useHostDisplayWorktrees(connState, state, hostId)
   const sectionsResult = useWorkspaceSections({
     displayWorktrees,
     sortMode: state.sortMode,

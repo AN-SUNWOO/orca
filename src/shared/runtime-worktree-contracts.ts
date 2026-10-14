@@ -9,6 +9,13 @@ import type {
 } from './worktree/lineage-types'
 import type { RuntimeListingHostScope } from './runtime-listing-host-scope'
 import type { GitWorktreeInfo, Worktree } from './worktree/types'
+import type { WorkspaceStatusWarning } from './workspace-status-warning'
+
+export type RuntimeWorktreeSetResult = {
+  worktree: RuntimeWorktreeRecord
+  /** Older hosts omit warnings; metadata writes still succeed. */
+  warnings?: WorkspaceStatusWarning[]
+}
 
 export type RuntimeWorktreeAgentRow = {
   paneKey: string

@@ -496,6 +496,24 @@ describe('a create that succeeded but is incomplete', () => {
     expect(result.warning).toBe('Could not copy untracked files into the new workspace.')
   })
 
+  it('carries lineage warnings alongside create warnings', async () => {
+    const runtime = runtimeStub({
+      createWarning: 'Could not copy untracked files into the new workspace.',
+      createLineageWarnings: [
+        {
+          code: 'LINEAGE_PARENT_CONTEXT_CONFLICT',
+          message: 'The inferred parent contexts conflict.'
+        }
+      ]
+    })
+
+    const result = await launch(CREATE_LAUNCH, runtime)
+
+    expect(result.warning).toBe(
+      'Could not copy untracked files into the new workspace. Also the inferred parent contexts conflict.'
+    )
+  })
+
   it('carries a create warning onto an agent-first terminal launch', async () => {
     // settings: {} leaves the structured preference off, so the launch is agent-first and returns
     // on the cached startup handle - the early path that also had to learn to carry a warning.

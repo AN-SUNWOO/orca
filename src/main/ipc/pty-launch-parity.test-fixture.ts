@@ -3,7 +3,7 @@
 // through the runtime controller registerPtyHandlers installs. Suites still declare the IPC vi.mock block.
 import { vi } from 'vitest'
 import type { Mock } from 'vitest'
-import { registerPtyHandlers } from './pty'
+import { registerPtyHandlers } from './pty/register-handlers'
 import { existsSyncMock, statSyncMock } from './pty-ipc-mock-registry'
 import type { PtyIpcSuiteFixtures } from './pty-ipc-test-harness'
 import { OrcaRuntimeService } from '../runtime/orca-runtime'

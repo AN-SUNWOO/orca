@@ -4,10 +4,7 @@ import { requireSameEvidenceCode } from './relay-evidence-code-provenance.mjs'
 
 // Migration-only by policy: zero hosts and no reservation, so a wave rolls one without
 // displacing anybody. It enters and must leave migration-only, never general.
-// C35 is an Asia spare that stays migration-only until a reviewed change promotes it.
-export const SAME_CAP_MIGRATION_ONLY_CELLS = [
-  'production-gce-c17', 'production-gce-c18', 'production-gce-c35'
-]
+export const SAME_CAP_MIGRATION_ONLY_CELLS = ['production-gce-c17', 'production-gce-c18']
 
 export const SAME_CAP_CELLS = [
   'production-gce-c7', 'production-gce-c8', 'production-gce-c9', 'production-gce-c10',
@@ -16,6 +13,7 @@ export const SAME_CAP_CELLS = [
   'production-gce-c23', 'production-gce-c24', 'production-gce-c25', 'production-gce-c26',
   'production-gce-c27', 'production-gce-c28', 'production-gce-c29', 'production-gce-c30',
   'production-gce-c31', 'production-gce-c32', 'production-gce-c33', 'production-gce-c34',
+  'production-gce-c35',
   ...SAME_CAP_MIGRATION_ONLY_CELLS
 ]
 

@@ -299,7 +299,7 @@ it('settles a command the provider refused as a failure with its reason, and mov
   // The message was not sent, in the provider's words; the command's row says the compaction failed.
   expect(snapshot.submissions.find((entry) => entry.clientMessageId === cmid)).toMatchObject({
     dispatchState: 'rejected',
-    reason: 'The provider did not accept this message: Not enough messages to compact.',
+    reason: "The agent didn't accept this message: Not enough messages to compact.",
     rejection: { kind: 'providerRejected', detail: NOT_ENOUGH }
   })
   expect(

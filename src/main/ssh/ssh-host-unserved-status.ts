@@ -2,7 +2,7 @@
 import type { SshManagedServerStatus } from '../../shared/ssh-types'
 import type { HostServerOnConnectResult } from './ssh-host-server-on-connect'
 
-type UnservedDecision = Extract<HostServerOnConnectResult, { route: 'relay' }>
+type UnservedDecision = Extract<HostServerOnConnectResult, { route: 'unserved' }>
 
 // Why `kind: 'relay'`: the published status keeps its shipped shape; it now means "not served".
 export function unservedServerStatus(

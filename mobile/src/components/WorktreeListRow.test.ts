@@ -11,7 +11,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { WorktreeAgentRow } from './WorktreeAgentRow'
-import { WorktreeListRow, type WorktreeListRowItem } from './WorktreeListRow'
+import type { Worktree } from '../worktree/workspace-list-types'
+import { WorktreeListRow } from './WorktreeListRow'
 
 const { agentSpinnerRender, agentStateDotRender } = vi.hoisted(() => ({
   agentSpinnerRender: vi.fn(),
@@ -56,10 +57,7 @@ vi.mock('./WorktreeMetaGlyphs', () => ({
   WorktreeMetaGlyphs: () => null
 }))
 
-type TestItem = WorktreeListRowItem & {
-  status: 'working' | 'active' | 'permission' | 'done' | 'inactive'
-  lastOutputAt: number
-}
+type TestItem = Worktree & { status: NonNullable<Worktree['status']> }
 
 const stableRepoIcon = { type: 'emoji', emoji: 'o' } as const
 let updateSibling: Dispatch<SetStateAction<number>> = () => undefined
@@ -113,11 +111,14 @@ function agent(overrides: Partial<RuntimeWorktreeAgentRow> = {}): RuntimeWorktre
 
 const baseItem: TestItem = {
   worktreeId: 'worktree-1',
+  repoId: 'repo-1',
   repo: 'orca',
+  path: 'mobile-list',
+  hasAttachedPty: true,
+  isPinned: false,
   branch: 'feature/mobile-list',
   displayName: 'mobile-list',
   liveTerminalCount: 1,
-  preview: 'Waiting',
   unread: false,
   linkedPR: null,
   agents: [agent()],
@@ -149,7 +150,6 @@ describe('memoized worktree rows', () => {
 
     let expectedRenders = 1
     const liveUpdates: TestItem[] = [
-      { ...baseItem, preview: 'Running tests' },
       { ...baseItem, unread: true },
       { ...baseItem, lastOutputAt: 2_000 },
       { ...baseItem, agents: [agent({ state: 'waiting', updatedAt: 2_000 })] },
@@ -170,6 +170,41 @@ describe('memoized worktree rows', () => {
       renderer!.update(createElement(ListRowHarness, { item: baseItem, now: 32_000 }))
     )
     expect(agentSpinnerRender).toHaveBeenCalledTimes(++expectedRenders)
+  })
+
+  it('skips a value-equal item and re-renders for time, callbacks and nested agent fields', async () => {
+    const onPress = () => undefined
+    const row = (item: TestItem, overrides: { now?: number; onPress?: () => void } = {}) =>
+      createElement(WorktreeListRow, {
+        item,
+        isReadOnly: false,
+        now: overrides.now ?? 2_000,
+        repoColor: '#000000',
+        repoIcon: { type: 'emoji', emoji: 'o' },
+        status: item.status,
+        onPress: overrides.onPress ?? onPress
+      })
+    await act(async () => {
+      renderer = create(row(baseItem))
+    })
+    expect(agentSpinnerRender).toHaveBeenCalledTimes(1)
+
+    // A fresh parse of the same row, with a fresh repo icon object, is not a change.
+    await act(async () => renderer!.update(row(structuredClone(baseItem))))
+    expect(agentSpinnerRender).toHaveBeenCalledTimes(1)
+
+    await act(async () => renderer!.update(row(baseItem, { now: 32_000 })))
+    expect(agentSpinnerRender).toHaveBeenCalledTimes(2)
+
+    const nestedChange = structuredClone(baseItem)
+    nestedChange.agents![0]!.lastAssistantMessage = 'Tests pass'
+    await act(async () => renderer!.update(row(nestedChange, { now: 32_000 })))
+    expect(agentSpinnerRender).toHaveBeenCalledTimes(3)
+
+    await act(async () =>
+      renderer!.update(row(nestedChange, { now: 32_000, onPress: () => undefined }))
+    )
+    expect(agentSpinnerRender).toHaveBeenCalledTimes(4)
   })
 
   it('memoizes agent rows without hiding agent updates', async () => {

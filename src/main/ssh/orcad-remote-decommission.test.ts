@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type * as DeployHelpers from './ssh-relay-deploy-helpers'
+import type * as ExecCommandModule from './ssh-relay-exec-command'
 import type * as RecordFile from './orcad-remote-record-file'
 import type * as InstallLock from './ssh-relay-install-lock'
 
-vi.mock('./ssh-relay-deploy-helpers', async (importOriginal) => ({
-  ...(await importOriginal<typeof DeployHelpers>()),
+vi.mock('./ssh-relay-exec-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof ExecCommandModule>()),
   execCommand: vi.fn()
 }))
 vi.mock('./ssh-connection-utils', () => ({ shellEscape: (s: string) => `'${s}'` }))
@@ -17,7 +17,7 @@ vi.mock('./orcad-remote-record-file', async (importOriginal) => ({
   writeAtomicOrcadRemoteRecord: vi.fn()
 }))
 
-import { execCommand } from './ssh-relay-deploy-helpers'
+import { execCommand } from './ssh-relay-exec-command'
 import { acquireInstallLock } from './ssh-relay-install-lock'
 import { writeAtomicOrcadRemoteRecord } from './orcad-remote-record-file'
 import { decommissionRemoteOrcad } from './orcad-remote-decommission'

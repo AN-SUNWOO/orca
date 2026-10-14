@@ -5,7 +5,7 @@
 // the next change remembers. Lifecycle batches carry producers per mutation.
 //
 // The sink carries only the provider's own observations, bound at its child's fence: that fence is
-// the generation whose execution produced each item (`JournalItemRow.ownerFence`).
+// the generation whose execution produced each item it creates (`JournalItemRow.ownerFence`).
 
 import { agentJournalLinkageFields } from '../../../shared/agent-session-journal-producer'
 import type { JournalItemAppendOptions } from '../agent-session-journal/journal-store-contracts'

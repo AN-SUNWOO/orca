@@ -2,6 +2,8 @@ import { createElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 
+// The desktop's server-list feed loads react-native; its timer never runs without a subscriber.
+vi.mock('react-native', () => ({}))
 vi.mock('expo-router', () => ({ useFocusEffect: () => {} }))
 vi.mock('../cache/worktree-cache', () => ({
   getCachedWorktrees: () => null,

@@ -2,7 +2,7 @@ import { emitPtyListeners, createPtyExitPayload } from './daemon-pty-listener-em
 import { DaemonPtyDaemonRecovery } from './daemon-pty-daemon-recovery'
 import { supportsMode2031UnsubscribeFact, type DaemonEvent } from './types'
 import type { DaemonEndpointIdentity } from './daemon-hello-protocol'
-import type { IPtyProvider } from '../providers/types'
+import type { IPtyProvider } from '../providers/pty-provider-contract'
 import type { DeveloperPermissionStatus } from '../../shared/developer-permissions-types'
 import {
   AUTOMATIC_WORK_RESUME_UNSUPPORTED,

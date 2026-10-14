@@ -78,6 +78,9 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
         : null
     const effectiveStartup = args.startup ?? agentStartup?.startup ?? draftStartup?.startup
     const effectiveStartupFollowup = agentStartup?.followup
+    const startupLaunchRuntime = args.startup
+      ? undefined
+      : (agentStartup ?? draftStartup)?.launchRuntime
     const effectiveCreatedWithAgent = args.startup
       ? args.createdWithAgent
       : (agentStartup?.agent ??
@@ -93,6 +96,7 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
         repo,
         startup: effectiveStartup,
         startupFollowup: effectiveStartupFollowup,
+        startupLaunchRuntime,
         createdWithAgent: effectiveCreatedWithAgent,
         draftPaste: effectiveDraftPaste,
         deps: {
@@ -206,6 +210,7 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
       defaultTabs,
       startup: effectiveStartup,
       startupFollowup: effectiveStartupFollowup,
+      startupLaunchRuntime,
       createdWithAgent: effectiveCreatedWithAgent,
       draftPaste: effectiveDraftPaste,
       warning,
@@ -216,13 +221,13 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
         pasteDraft: (handle, draft) => this.pasteStartupDraftWhenReady(handle, draft),
         sendFollowup: (handle, followup) => this.sendStartupFollowupWhenReady(handle, followup),
         provision: (options) => this.provisionManagedWorktreeTerminals(options, worktree),
-        activate: (repoId, worktreeId, activationSetup, startup, activationDefaultTabs) =>
+        activate: (repoId, worktreeId, startup, failedSetup, failedDefaultTabs) =>
           this.notifyActivateWorktree(
             repoId,
             worktreeId,
-            activationSetup,
+            failedSetup,
             startup,
-            activationDefaultTabs,
+            failedDefaultTabs,
             args.navigation
           )
       }

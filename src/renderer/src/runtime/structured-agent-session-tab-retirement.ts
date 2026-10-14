@@ -21,7 +21,8 @@ import {
 import { clearWebSessionCloseIntent, recordWebSessionCloseIntent } from './web-session-close-intent'
 import type { WebSessionIntentOwner } from './web-session-intent-owner'
 import { captureWebSessionIntentOwner } from './web-runtime-session-environment'
-import { callRuntimeRpc, type RuntimeClientTarget } from './runtime-rpc-client'
+import { callRuntimeRpc } from './runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 
 const inFlightRetirements = new Map<string, Promise<boolean>>()

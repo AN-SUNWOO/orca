@@ -6,6 +6,12 @@ import {
   getDaemonProvider
 } from '../daemon/daemon-provider-state'
 import { restartDaemon } from '../daemon/daemon-provider-restart'
+import {
+  readSeveredDaemonStatus,
+  restartSeveredDaemon,
+  type SeveredDaemonIncarnation,
+  type SeveredDaemonRestartResult
+} from '../daemon/daemon-host-image-state'
 import { getAllDaemonAdapters, getCurrentDaemonAdapter } from '../daemon/daemon-provider-routing'
 import {
   getDaemonFolderAccessMismatch,
@@ -69,6 +75,24 @@ export function registerDaemonManagementHandlers(): void {
   ipcMain.removeHandler('pty:management:restart')
   ipcMain.removeHandler('pty:management:macTccAttribution')
   ipcMain.removeHandler('pty:management:resetFolderAccess')
+  ipcMain.removeHandler('pty:management:severedDaemon')
+  ipcMain.removeHandler('pty:management:restartSeveredDaemon')
+
+  // Why: a Linux AppImage daemon kept for its live terminals after its files vanished; the
+  // banner polls this and offers the verified restart below.
+  ipcMain.handle('pty:management:severedDaemon', async () => ({
+    severed: await readSeveredDaemonStatus().catch(() => null)
+  }))
+  ipcMain.handle(
+    'pty:management:restartSeveredDaemon',
+    async (_event, args: unknown): Promise<SeveredDaemonRestartResult> => {
+      const expected = parseSeveredDaemonIncarnation(args)
+      if (!expected) {
+        return { status: 'refused', reason: 'unverifiable' }
+      }
+      return restartSeveredDaemon(expected)
+    }
+  )
 
   // Why: lets Settings warn that macOS privacy grants no longer reach daemon terminals (STA-3491),
   // and carries the folder-access evidence the notice needs (STA-7948) on the same focus-time poll.
@@ -205,4 +229,24 @@ export function registerDaemonManagementHandlers(): void {
       return { success: false }
     }
   })
+}
+
+function parseSeveredDaemonIncarnation(args: unknown): SeveredDaemonIncarnation | null {
+  if (
+    typeof args !== 'object' ||
+    args === null ||
+    !('pid' in args) ||
+    !('linuxStartTicks' in args) ||
+    !('bootId' in args)
+  ) {
+    return null
+  }
+  const { pid, linuxStartTicks, bootId } = args
+  return typeof pid === 'number' &&
+    Number.isSafeInteger(pid) &&
+    pid > 0 &&
+    typeof linuxStartTicks === 'string' &&
+    typeof bootId === 'string'
+    ? { pid, linuxStartTicks, bootId }
+    : null
 }

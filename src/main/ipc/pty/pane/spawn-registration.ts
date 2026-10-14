@@ -1,6 +1,6 @@
 import type { Store } from '../../../persistence'
 import type { OrcaRuntimeService } from '../../../runtime/orca-runtime'
-import type { IPtyProvider, PtySpawnResult } from '../../../providers/types'
+import type { IPtyProvider, PtySpawnResult } from '../../../providers/pty-provider-contract'
 import {
   isCurrentPtyExit,
   ptyIncarnationById,

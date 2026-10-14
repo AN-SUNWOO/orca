@@ -196,7 +196,7 @@ describe('SSH Windows consumers of qualified server slots', () => {
       ['arm64', 'preview']
     ])
     const addon = sshSteps.findIndex((step) =>
-      step.run?.includes('build-windows-process-tree-relay-addon.mjs')
+      step.run?.includes('build-windows-process-tree-addon.mjs')
     )
     const template = sshSteps.findIndex((step) => step.run?.includes('build-orcad-template.mjs'))
     const hosts = sshSteps.findIndex((step) => step.name?.startsWith('Run the Windows host cells'))

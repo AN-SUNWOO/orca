@@ -1,6 +1,10 @@
+import type * as ExecCommandModule from './ssh-relay-exec-command'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('./ssh-relay-deploy-helpers', () => ({ execCommand: vi.fn() }))
+vi.mock('./ssh-relay-exec-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof ExecCommandModule>()),
+  execCommand: vi.fn()
+}))
 vi.mock('./ssh-relay-install-lock', () => ({
   acquireInstallLock: vi.fn().mockResolvedValue(undefined),
   RELAY_INSTALL_LOCK_NAME: '.install-lock'
@@ -14,7 +18,7 @@ vi.mock('./orcad-remote-node-runtime', () => ({
 }))
 
 import type { OrcadHostTransport } from './orcad-host-transport'
-import { execCommand } from './ssh-relay-deploy-helpers'
+import { execCommand } from './ssh-relay-exec-command'
 import { uploadRelayDirectory, writeRelayFile } from './ssh-relay-install-transfers'
 import { installOrcadBundle } from './orcad-remote-install'
 import { getRemoteHostPlatform } from './ssh-remote-platform'

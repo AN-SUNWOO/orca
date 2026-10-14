@@ -11,7 +11,7 @@ import {
   rejectPendingSnapshotRequest
 } from './remote-runtime-terminal-snapshot-state'
 import type { TerminalMultiplexEvent } from './remote-runtime-terminal-multiplexer-types'
-import { unwrapRuntimeRpcResult } from './runtime-rpc-client'
+import { unwrapRuntimeRpcResult } from './runtime-rpc-result'
 
 type SubscribedCapabilities = {
   ackOutputSourceRanges: boolean

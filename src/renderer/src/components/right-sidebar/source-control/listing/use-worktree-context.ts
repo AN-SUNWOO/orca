@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { getConnectionId } from '@/lib/connection-context'
 import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
-import { runtimeTargetForOwnerHostId } from '@/runtime/runtime-client-target'
+import { ipcOrRuntimeTargetForHostId } from '@/runtime/runtime-client-target'
 import { resolveSourceControlLaunchPlatform } from '@/lib/source-control-launch-platform'
 import { getWorktreeGitIdentityDisplay } from '@/lib/worktree-git-identity-display'
 import { useAppStore } from '@/store'
@@ -111,7 +111,7 @@ export function useSourceControlWorktreeContext() {
   const activeRepoTarget = useMemo(
     () =>
       activeRepoId
-        ? runtimeTargetForOwnerHostId(
+        ? ipcOrRuntimeTargetForHostId(
             getRepoExecutionHostId({
               connectionId: activeRepoConnectionId,
               executionHostId: activeRepoExecutionHostId

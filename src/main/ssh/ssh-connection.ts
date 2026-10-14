@@ -85,7 +85,7 @@ import {
   requiresSystemSshForSecurityKey,
   shouldUseSystemSshTransport
 } from './ssh-transport-selection'
-import type { FileUploadSession } from '../providers/types'
+import type { FileUploadSession } from '../providers/filesystem-provider-contract'
 import { openSshSessionChannelWithRetry, waitForSshChannelOpen } from './ssh-channel-open'
 import { tagSftpHandshakeCorruption } from './sftp-handshake-corruption'
 import { withTimeout } from '../../shared/promise-timeout-fallback'

@@ -2145,7 +2145,7 @@ jobs:
             # in some runs, yet it is the file most at risk of losing its
             # signature in the NSIS rebuild. Verify it in every release.
             $targets = @(Get-Content 'inner-signing-list.txt')
-            foreach ($requiredTarget in @('Orca.exe', 'resources\bin\orca.exe')) {
+            foreach ($requiredTarget in @('Orca.exe', 'resources\bin\orca.exe', 'resources\bin\orca-agent-hook.exe')) {
               if ($targets -notcontains $requiredTarget) { $targets += $requiredTarget }
             }
             if ($targets -notcontains 'resources\elevate.exe') {

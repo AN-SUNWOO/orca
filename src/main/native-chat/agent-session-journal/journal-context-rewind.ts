@@ -95,6 +95,7 @@ export async function rewindJournalContext(input: {
       write: (db) => receipt!.write(db),
       committed: () => receipt!.committed()
     },
+    undefined,
     input.options
   )
   const last = rows.at(-1)!

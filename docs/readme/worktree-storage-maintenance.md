@@ -6,17 +6,26 @@ Run from the repository to preview maintenance across its locally registered Git
 pnpm run reclaim:worktree-space
 ```
 
-Apply the previewed operations with:
+After stopping cross-version tests in all this repository's worktrees, apply cleanup with:
 
 ```sh
-pnpm run reclaim:worktree-space --apply
+pnpm run reclaim:worktree-space --apply --tests-stopped
 ```
 
-The command reuses the existing Electron distribution migration and dev bundle cleanup scripts.
+The command reuses the historical test cache, Electron distribution, and dev bundle cleanup scripts.
 It shares complete Electron distributions through the repository cache and removes idle
-`out/electron-dev` bundles, which development rebuilds on demand. It leaves source files,
+`out/electron-dev` bundles, which development rebuilds on demand. It also removes stamped historical
+test checkouts and shared seeds older than 30 days; tests regenerate them when needed. It leaves source files,
 dependency installs, worktree registrations, and other build output alone. Reported sizes are
 logical file data; APFS clones and hardlinks mean actual disk savings can be smaller.
+
+Use `--release-cache-min-age-days 7` to shorten historical-cache retention, or `0` to select all
+recognised completed historical checkouts. This age option applies only to test caches. Local
+checkout age uses directory modification time, which ordinary reuse does not refresh. The
+`--tests-stopped` flag acknowledges stopped tests; older harnesses cannot prove a completed
+checkout is unused. Missing acknowledgement rejects manual apply before any cleanup begins.
+Cache cleanup skips symlinks, malformed stamps, future formats, and publication/copy locks.
+See [release source sharing](./release-source-sharing.md) for the cache and locking details.
 
 Use `--repo DIRECTORY` to choose another local repository. Git's worktree list determines scope,
 including registered worktrees outside Orca's workspace directory. Folder workspaces without Git
@@ -27,8 +36,11 @@ anything on SSH hosts. Run maintenance on the execution host when maintaining re
 
 Healthy Electron installs join the shared distribution cache during native dependency setup,
 without waiting for an Electron upgrade. The manual command migrates older installs immediately.
+Read-only Electron package directories are retained and reported as skipped. Cache publication
+or copying failures are also reported as skipped rather than silently omitted.
 
-Cleanup runs only when explicitly requested. Starting `pnpm dev` does not trigger a sweep.
+Historical test cache cleanup runs only in this explicit manual command. Automatic invocations
+exclude it because tests may still be importing source.
 The repository lock prevents competing cleanup commands. Dev bundle removal checks active
 processes and recent unfinished builds, then rechecks eligibility immediately before deletion.
 An unreadable process table prevents removal.

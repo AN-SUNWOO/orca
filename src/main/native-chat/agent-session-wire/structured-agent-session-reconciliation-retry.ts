@@ -84,10 +84,6 @@ export class StructuredAgentSessionRetry {
   }
 
   signal = (sessionId: string, signal: StructuredAgentSessionReconciliationSignal = {}): void => {
-    const session = this.context.sessions.get(sessionId)
-    if (session) {
-      session.operationalRevision = (session.operationalRevision ?? 0) + 1
-    }
     const chat = this.disposed ? null : this.owe(sessionId)
     if (chat && signal.evidence) {
       chat.debts.evidence = [...(chat.debts.evidence ?? []), signal.evidence]

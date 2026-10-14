@@ -3,7 +3,7 @@ import {
   relativePathInsideRoot
 } from '../../../shared/cross-platform-path'
 import { normalizeRelativePath } from '@/lib/path'
-import type { RuntimeClientTarget } from './runtime-client-target'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 import type { RuntimeFileOperationArgs } from './runtime-file-client-types'
 

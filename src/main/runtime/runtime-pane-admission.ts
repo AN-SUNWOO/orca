@@ -26,14 +26,15 @@ function admissionFor(args: AdmittedSpawnArgs): TerminalPaneAdmission {
       newLeafId: leafId
     }
   }
-  const viewMode = placement?.kind === 'new-tab' ? placement.row?.viewMode : undefined
+  const row = placement?.kind === 'new-tab' ? placement.row : undefined
   return {
     type: 'createTerminalTab',
     workspace,
     tabId,
     leafId,
     ...(args.groupId ? { groupId: args.groupId } : {}),
-    ...(viewMode ? { viewMode } : {}),
+    ...(row?.viewMode ? { viewMode: row.viewMode } : {}),
+    ...(row?.customTitle ? { title: row.customTitle } : {}),
     ...(args.cwd ? { creation: { startupCwd: args.cwd } } : {})
   }
 }

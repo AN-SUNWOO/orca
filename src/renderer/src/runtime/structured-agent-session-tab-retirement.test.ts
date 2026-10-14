@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RuntimeMobileSessionTabsResult } from '../../../shared/runtime-types'
-import type { RuntimeClientTarget } from './runtime-client-target'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
 const mocks = vi.hoisted(() => ({
   closeSession:
@@ -37,9 +37,7 @@ vi.mock('@/components/native-chat/structured-agent-session-message-sender', () =
 vi.mock('./structured-agent-session-close', () => ({
   closeStructuredAgentSession: mocks.closeSession
 }))
-vi.mock('./runtime-rpc-client', () => ({
-  callRuntimeRpc: mocks.callRuntime
-}))
+vi.mock('./runtime-rpc-client', () => ({ callRuntimeRpc: mocks.callRuntime }))
 vi.mock('./local-session-tab-close-owner', () => ({
   withLocalSessionTabCloseOwner: async (
     _worktreeId: string,

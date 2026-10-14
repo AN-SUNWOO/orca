@@ -1,8 +1,6 @@
 import { useAppStore } from '@/store'
-import {
-  createWebRuntimeSessionTerminal,
-  isWebRuntimeSessionActive
-} from '@/runtime/web-runtime-session'
+import { createWebRuntimeSessionTerminal } from '@/runtime/web-runtime-terminal-creation'
+import { isWebRuntimeSessionActive } from '@/runtime/web-runtime-session-environment'
 import { resolveTerminalWorktreeRoute } from '@/lib/terminal-worktree-route'
 import { persistAgentLaunchTabOrder } from '@/lib/launch-agent-tab-order'
 

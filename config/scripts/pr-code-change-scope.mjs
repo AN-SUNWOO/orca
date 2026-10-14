@@ -135,7 +135,7 @@ const SHELL_PREFIXES = [
   'src/main/zsh-',
   'src/main/runtime/structured-session-cli-login-shell',
   'src/main/runtime/structured-session-login-shell-test-harness',
-  'src/main/runtime/structured-session-child-identity-env',
+  'src/main/runtime/structured-session-child-env',
   'src/renderer/src/components/terminal-pane/fish-color-scheme',
   'src/shared/fish-',
   'src/shared/pty-reply-echo-shapes',
@@ -183,6 +183,8 @@ function changesMobileWebApp(changedFiles) {
 
 const CROSS_VERSION_WIRE_PREFIXES = [
   'tests/e2e/cross-version-wire/',
+  // COMPAT(legacy-relay-bridge): the bridge is proven against a real 1.4.224 relay here.
+  'src/main/ssh/legacy-relay-bridge/',
   'config/scripts/stable-release-tags',
   // The R1 daemon protocol crossing gate runs in this job.
   'config/scripts/daemon-protocol-facts',
@@ -255,7 +257,7 @@ const MANAGED_HOOK_PREFIXES = [
   'config/scripts/smoke-process-host-node18',
   'config/scripts/packaged-process-host-fixture',
   'src/packages/process-host/',
-  'config/scripts/build-relay',
+  'config/scripts/build-wsl-guest',
   'src/wsl-guest/',
   'src/shared/agent-hook',
   'src/main/agent-hooks/'
@@ -294,16 +296,15 @@ const NATIVE_CACHE_FILES = new Set([
   'config/scripts/zip-extractor-command.mjs',
   'src/shared/zip-extractor-command.ts',
   'config/scripts/shared-electron-dist-cache.mjs',
-  'config/scripts/space-sharing-copy.mjs',
-  'native/windows-registry/src/addon.cc',
-  'native/windows-registry/binding.gyp',
-  'native/windows-registry/package.json',
-  'native/windows-registry/index.js'
+  'config/scripts/space-sharing-copy.mjs'
 ])
 
 const NATIVE_CACHE_PREFIXES = [
   'config/patches/node-pty@',
-  'config/patches/@vscode__windows-process-tree'
+  'config/patches/@vscode__windows-process-tree',
+  // The vendored addons' sources: build/ and bin/ beside them are ignored, so nothing else lands here.
+  'native/windows-registry/',
+  'native/windows-security/'
 ]
 
 const SHARED_PACKAGE_PREFIXES = [
@@ -349,9 +350,13 @@ const LINUX_PACKAGE_PREFIXES = [
 const WINDOWS_PACKAGE_PREFIXES = [
   ...SHARED_PACKAGE_PREFIXES,
   'native/windows-cli-launcher/',
+  'native/windows-agent-hook/',
   'native/computer-use-windows/',
   'resources/win32/',
   'config/scripts/build-windows-cli-launcher',
+  'config/scripts/build-windows-agent-hook',
+  'config/scripts/windows-rust-executable-build',
+  'config/scripts/verify-packaged-windows-agent-hook',
   'config/scripts/windows-pty-native-capability',
   'tests/tools/windows-pty-native-capability-smoke/'
 ]
@@ -372,23 +377,30 @@ const WINDOWS_PACKAGE_TESTS = [
   'config/scripts/rebuild-native-deps-windows-process-tree.test.mjs',
   'config/scripts/rebuild-native-deps-node-pty.test.mjs',
   'config/scripts/nsis-process-check.test.mjs',
+  'config/scripts/idle-cpu-process-sampling.test.mjs',
   'config/scripts/ensure-native-runtime-job-ownership.test.mjs',
   'config/scripts/verify-packaged-node-pty-job-ownership.test.mjs',
   'config/scripts/windows-pe-machine.test.mjs',
   'config/scripts/build-windows-cli-launcher.test.mjs',
+  'config/scripts/verify-packaged-windows-agent-hook.test.mjs',
   'config/scripts/script-module-dependencies.test.mjs',
   'src/main/windows-registry-addon.test.ts',
+  'src/shared/windows-security-addon.win32.test.ts',
   'src/main/providers/windows-conpty-wide-char-duplication.node-pty.test.ts',
   'src/main/providers/pty-repaint-wide-char-buffer.node-pty.test.ts',
   'src/shared/__tests__/process-host/windows-command-line.win32.test.ts',
   'src/shared/__tests__/process-host/windows-cmd-shim-resolution.test.ts',
   'src/shared/__tests__/process-host/windows-cmd-shim-resolution.win32.test.ts',
   'src/main/agent-hooks/windows-hook-payload-delivery.test.ts',
+  'src/main/agent-hooks/managed-hook-stdin-lifecycle.test.ts',
   'src/main/jcode/hook-gate-script.test.ts',
   'src/main/agent-hooks/windows-direct-cmd-hook-command.test.ts',
+  'src/main/agent-hooks/windows-native-hook-exe-hosts.test.ts',
+  'src/main/claude/windows-native-hook-registration.test.ts',
   'src/main/agent-hooks/windows-cmd-hook-command-unicode.test.ts',
   'src/main/agent-hooks/windows-batch-hook-launcher.test.ts',
   'src/main/agent-hooks/windows-powershell-hook-launcher.test.ts',
+  'src/main/claude/claude-status-line-windows.test.ts',
   'src/main/codex/windows-hook-command.test.ts',
   'src/main/codex/windows-hook-upgrade.test.ts',
   'src/main/codex/hook-service-managed-install.test.ts',
@@ -398,6 +410,9 @@ const WINDOWS_PACKAGE_TESTS = [
   'src/main/windows/windows-host-job.win32.test.ts',
   'src/main/windows/windows-process-tree-command-line-patch.test.ts',
   'src/main/windows/windows-process-table-native-addon.win32.test.ts',
+  'src/main/daemon/daemon-pid-identity-native.win32.test.ts',
+  'src/main/windows/windows-administrator-status.win32.test.ts',
+  'src/main/windows/windows-administrator-restart.win32.test.ts',
   'src/main/persistence/profile-state/profile-state-access-windows-native.win32.test.ts',
   'src/main/windows-live-tree-kill.win32.test.ts',
   'src/main/wsl/wsl-runner.test.ts',
@@ -572,7 +587,7 @@ function jobDetector(job) {
       return (files) =>
         files.some(
           (file) =>
-            file !== 'src/main/codex/codex-app-server-client.test.ts' &&
+            !/^src\/main\/codex\/codex-app-server-(client|session)\.test\.ts(?!.)/s.test(file) &&
             matchesPrefix(file, CODEX_INDEX_HEAL_CONTRACT_PREFIXES)
         )
     case 'xterm_patch_sync':
@@ -612,10 +627,7 @@ function isProductBundlePath(file, extraPrefixes) {
   if (isTestFile(file)) {
     return false
   }
-  if (file.startsWith('src/')) {
-    return true
-  }
-  return matchesPrefix(file, extraPrefixes)
+  return file.startsWith('src/') || matchesPrefix(file, extraPrefixes)
 }
 
 // These shared fixtures are consumed only by unit tests.
@@ -665,8 +677,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   for await (const chunk of process.stdin) {
     input += chunk
   }
-  const files = input.split(/\r?\n/).filter(Boolean)
-  const classification = classifyPrJobs(files, {
+  const classification = classifyPrJobs(input.split(/\r?\n/).filter(Boolean), {
     allowMobileCiTools: process.argv.includes('--mobile-ci-tools'),
     allowDaemonInitTestSupport: process.argv.includes('--daemon-init-test-support')
   })

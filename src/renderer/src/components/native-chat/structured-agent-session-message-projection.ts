@@ -15,13 +15,7 @@ export function projectStructuredAgentSessionMessages(
   optimistic: readonly StructuredAgentSessionOptimisticMessage[],
   submissions: readonly AgentJournalSubmission[]
 ) {
-  return projectMessages(
-    items,
-    optimistic,
-    submissions,
-    { rejectedInPlace: true },
-    projectStructuredQuestionMessages
-  )
+  return projectMessages(items, optimistic, submissions, projectStructuredQuestionMessages)
 }
 
 export type StructuredPromptItem = AgentJournalRenderItem & {
@@ -30,11 +24,14 @@ export type StructuredPromptItem = AgentJournalRenderItem & {
 
 /** The prompt cards a person can answer: pending, and named by the host as waiting
  *  (`isActionableStructuredAgentSessionPrompt`) when the host names them. */
-export function pendingStructuredSessionPrompts(
-  items: AgentJournalRenderItem[],
+export function pendingStructuredSessionPrompts({
+  journalItems,
+  actionablePromptIds
+}: {
+  journalItems: AgentJournalRenderItem[]
   actionablePromptIds?: readonly string[]
-): StructuredPromptItem[] {
-  return agentSessionCurrentContextRows(items).items.filter(
+}): StructuredPromptItem[] {
+  return agentSessionCurrentContextRows(journalItems).items.filter(
     (item): item is StructuredPromptItem =>
       (item.body.kind === 'approval' || item.body.kind === 'question') &&
       item.body.resolution.state === 'pending' &&

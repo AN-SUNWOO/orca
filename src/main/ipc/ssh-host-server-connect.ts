@@ -99,7 +99,7 @@ export function publishManagedServerConnect(
  */
 export function publishUnservedHostServer(
   target: SshTarget,
-  decision: Extract<HostServerOnConnectResult, { route: 'relay' }>
+  decision: Extract<HostServerOnConnectResult, { route: 'unserved' }>
 ): Error {
   const managedServer = unservedServerStatus(decision)
   setSshHostServerStatus(target.id, managedServer)

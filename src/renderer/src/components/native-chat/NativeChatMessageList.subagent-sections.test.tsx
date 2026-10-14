@@ -508,7 +508,7 @@ import {
       fireEvent.click(screen.getByRole('button', { name: 'Second prompt' }))
       expect(scrollTo.mock.calls).toEqual([
         [{ top: 6000, behavior: 'auto' }],
-        [{ top: selectedTop, behavior: 'smooth' }]
+        [{ top: selectedTop, behavior: 'auto' }]
       ])
       expect(screen.queryByRole('button', { name: /^Edited .*a\.ts(?:\s|$)/ })).toBeNull()
       scrollTo.mockClear()
@@ -523,9 +523,8 @@ import {
       const diffTop =
         screen.getByText('Edited').closest<HTMLElement>('[data-index]')?.offsetTop ?? 0
       expect(Number.isFinite(diffTop)).toBe(true)
-      expect(scrollTo.mock.calls.filter(([options]) => options?.behavior === 'smooth')).toEqual([
-        [{ top: diffTop, behavior: 'smooth' }]
-      ])
+      expect(scrollTo).toHaveBeenCalledWith({ top: diffTop, behavior: 'auto' })
+      expect(scrollTo.mock.calls.some(([options]) => options?.behavior === 'smooth')).toBe(false)
     })
   })
 

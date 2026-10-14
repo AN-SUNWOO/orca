@@ -8,10 +8,11 @@ import {
   RUNTIME_PROTOCOL_VERSION
 } from '../../../../shared/protocol-version'
 import { clearRuntimeCompatibilityCacheForTests } from '@/runtime/runtime-rpc-client'
+import { stubRuntimeEnvironmentBridge } from '../../runtime/runtime-environment-bridge-fixture'
 
 const runtimeEnvironmentCall = vi.fn()
 
-vi.stubGlobal('window', { api: { runtimeEnvironments: { call: runtimeEnvironmentCall } } })
+stubRuntimeEnvironmentBridge({ call: runtimeEnvironmentCall })
 
 type ServedHostStatus = { hostPlatform?: NodeJS.Platform; scoped: boolean }
 

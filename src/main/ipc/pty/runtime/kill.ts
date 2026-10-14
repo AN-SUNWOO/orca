@@ -1,4 +1,4 @@
-import type { IPtyProvider } from '../../../providers/types'
+import type { IPtyProvider } from '../../../providers/pty-provider-contract'
 import { SSH_PROVIDER_UNREGISTERED_REASON } from '../../../../shared/pty-liveness-verdict'
 import { ptyOwnership, ptyIncarnationById } from '../provider/ownership-state'
 import {

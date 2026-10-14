@@ -1,5 +1,5 @@
 import { killAllProcessesForWorktree } from './worktree-teardown'
-import type { IPtyProvider } from '../providers/types'
+import type { IPtyProvider } from '../providers/pty-provider-contract'
 import type { OrcaRuntimeService } from './orca-runtime'
 
 export type FolderWorkspacePtyTeardownDeps = {

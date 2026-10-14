@@ -13,6 +13,7 @@ import {
   POSIX_PATH,
   WINDOW_LAUNCH_CASES
 } from '../../shared/launch-parity-window-cases.test-fixture'
+import { PLUS_LAUNCH_CASES } from '../../shared/launch-parity-plus-cases.test-fixture'
 import {
   expectedWindowProvider,
   launchWorkspaceId,
@@ -122,7 +123,7 @@ type WindowLaneCase = {
 }
 
 const WINDOW_LANE_CASES: WindowLaneCase[] = [
-  ...WINDOW_LAUNCH_CASES.map((c) => ({
+  ...[...WINDOW_LAUNCH_CASES, ...PLUS_LAUNCH_CASES].map((c) => ({
     ...c,
     label: `row ${c.row}: ${c.name}`,
     request: windowSpawnRequest(c),
@@ -136,10 +137,10 @@ const WINDOW_LANE_CASES: WindowLaneCase[] = [
   }))
 ]
 
-// Pins main's current launch behaviour as the convergence parity baseline (rows 2, 5 and 6, main
+// Pins main's current launch behaviour as the convergence parity baseline (rows 1, 2, 5 and 6, main
 // half): each table request, fed to pty:spawn, reaches the provider with these facts (the pane's
 // measured size, never hidden), one agent_started, and a pane binding.
-// C5a-e and C6 check the merged spawn pipeline against it.
+// C2 (row 1), C5a-e and C6 check the merged spawn pipeline against it.
 describe('window lane: pty:spawn request -> provider', () => {
   const suite = setupPtyIpcSuite()
   afterEach(() => restoreMainPlatform())

@@ -34,15 +34,9 @@ import {
 // the turn to open and steers it.
 
 /** Keys Codex accepts as per-turn overrides. An unlisted key would otherwise
- *  become an arbitrary client-controlled `turn/start` parameter. Permission posture is owned by
- *  Agent Permissions and applied when the thread opens. */
-const CODEX_TURN_OPTION_KEYS = new Set([
-  'model',
-  'effort',
-  'approvalsReviewer',
-  'personality',
-  'serviceTier'
-])
+ *  become an arbitrary client-controlled `turn/start` parameter. Permission posture is the chat's
+ *  permission mode, stated when the thread opens: a saved reviewer here would override it. */
+const CODEX_TURN_OPTION_KEYS = new Set(['model', 'effort', 'personality', 'serviceTier'])
 
 export function isCodexTurnOptionKey(key: string): boolean {
   return CODEX_TURN_OPTION_KEYS.has(key)

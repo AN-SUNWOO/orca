@@ -32,7 +32,7 @@ export function WorktreeJumpPaletteSurface({
       title={translate('auto.components.WorktreeJumpPalette.4ee378034d', 'Jump to...')}
       description={translate(
         'auto.components.WorktreeJumpPalette.2770f02910',
-        'Search chats, terminals, worktrees, settings, and actions'
+        'Search chats, terminals, workspaces, settings, and actions'
       )}
       overlayClassName="bg-black/55 backdrop-blur-[2px]"
       contentClassName="top-[min(10%,4rem)] w-[900px] max-w-[96vw] max-h-[min(90vh,calc(100vh-1.5rem))] overflow-hidden rounded-xl border border-border/70 bg-background/96 shadow-[0_26px_84px_rgba(0,0,0,0.32)] backdrop-blur-xl"
@@ -55,7 +55,7 @@ export function WorktreeJumpPaletteSurface({
         ref={controller.inputRef}
         placeholder={translate(
           'auto.components.WorktreeJumpPalette.27f10cca63',
-          'Search chats, terminals, worktrees, settings, and actions...'
+          'Search chats, terminals, workspaces, settings, and actions...'
         )}
         value={controller.query}
         onValueChange={controller.emojiInput.handleValueChange}

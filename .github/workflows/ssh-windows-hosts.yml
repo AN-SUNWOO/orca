@@ -11,6 +11,9 @@ on:
       - 'src/main/ssh/ssh-relay-*'
       - 'src/main/ssh/*runtime*'
       - 'src/main/ssh/orcad-*'
+      - 'src/main/orcad/orcad-artifact-materializer.ts'
+      - 'src/main/orcad/orcad-host-unavailable.ts'
+      - 'src/main/node-runtime/**'
       - 'src/main/ssh/remote-install-*'
       - 'src/main/ssh/ssh-remote-*'
       - 'src/main/ssh/ssh-hostile-host-*'
@@ -24,14 +27,18 @@ on:
       - 'config/scripts/orcad-prebuild-*.mjs'
       - 'config/scripts/orcad-windows-process-tree.mjs'
       - 'config/scripts/orcad-windows-cli-launcher.mjs'
+      - 'config/scripts/orcad-windows-security.mjs'
+      - 'config/scripts/build-windows-security-addon.mjs'
+      - 'native/windows-security/**'
       - 'config/scripts/build-windows-cli-launcher.mjs'
+      - 'config/scripts/windows-rust-executable-build.mjs'
       - 'native/windows-cli-launcher/**'
       - 'src/main/orcad/orcad-cli-launcher.ts'
       - '.github/actions/prepare-windows-cli-launcher/**'
       - 'config/patches/node-pty*'
       - 'config/patches/@vscode__windows-process-tree*'
-      - 'config/scripts/build-windows-process-tree-relay-addon.mjs'
-      - 'config/scripts/relay-windows-process-tree-prepared-addon*.mjs'
+      - 'config/scripts/build-windows-process-tree-addon.mjs'
+      - 'config/scripts/windows-process-tree-prepared-addon*.mjs'
       - 'config/scripts/windows-process-tree-gyp-rebuild.mjs'
       - 'src/shared/windows-breakaway-launch*.ts'
       - 'src/main/ipc/ssh-host-server-*.ts'
@@ -143,7 +150,7 @@ jobs:
           if [ "$REUSE_PREPARED_RUNTIME" = true ]; then
             reuse_args+=(--reuse-prepared-runtime)
           fi
-          node config/scripts/build-windows-process-tree-relay-addon.mjs --arch=${{ matrix.arch }} "${reuse_args[@]}"
+          node config/scripts/build-windows-process-tree-addon.mjs --arch=${{ matrix.arch }} "${reuse_args[@]}"
       - uses: ./.github/actions/prepare-orcad-prebuilds
         with:
           resolve-windows-cache: ${{ github.event_name == 'pull_request' }}

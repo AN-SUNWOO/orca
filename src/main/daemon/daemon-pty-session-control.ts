@@ -9,7 +9,7 @@ import type { ColdRestoreInfo } from './history-reader'
 import { normalizeWslColdRestoreCwd } from './wsl-cold-restore-cwd'
 import { SessionNotFoundError, type ListSessionsResult } from './types'
 import { resolveSafePtyDefaultCwd } from '../providers/pty-default-cwd'
-import type { PtySpawnResult } from '../providers/types'
+import type { PtySpawnResult } from '../providers/pty-provider-contract'
 
 export const LIVENESS_PROBE_TIMEOUT_MS = 2_000
 

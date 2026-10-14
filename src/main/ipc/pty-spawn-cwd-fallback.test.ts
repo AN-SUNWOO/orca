@@ -4,7 +4,7 @@ import { setupPtyIpcSuite } from './pty-ipc-test-harness'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
 import { _setWslCachesForTests } from '../wsl'
 import { acquireWatcherRemovalGate } from './watcher-removal-gate'
-import { registerPtyHandlers } from './pty'
+import { registerPtyHandlers } from './pty/register-handlers'
 
 vi.mock('electron', () => import('./pty-ipc-mock-registry').then((m) => m.electronModuleMock()))
 vi.mock('fs', () => import('./pty-ipc-mock-registry').then((m) => m.fsModuleMock()))

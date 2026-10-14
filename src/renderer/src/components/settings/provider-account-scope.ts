@@ -2,7 +2,7 @@ import { translate } from '@/i18n/i18n'
 import { getLocalExecutionHostLabel } from '../../../../shared/execution-host'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { defaultScopeHost } from '@/lib/default-creation-host'
-import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
+import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 
 /** Which host a provider card or budget belongs to, and how to change it. */
 export type ProviderHostScope = {

@@ -131,6 +131,8 @@ export type JournalSubmissionInput = {
   origin?: 'client' | 'host'
   /** Who it is from (`JournalSubmissionRow.source`); the row keeps the kind only. */
   source?: Pick<AgentSessionMessageSource, 'kind'>
+  /** The model and effort it runs on (`JournalSubmissionRow.options`). */
+  options?: Readonly<Record<string, string>>
 }
 
 /** A submission append that converts a queued draft, in one transaction. */

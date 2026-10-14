@@ -393,7 +393,10 @@ describe('the notice for every reason a host names', () => {
             words.action === 'goElsewhere' ||
             words.action === 'updateOrca'
         )
-        expect(retryNow, cell).toBe(words.cause === 'historyUnavailable')
+        // A card's Cancel that was not saved names its step: its notice has no Retry beside it.
+        expect(retryNow, cell).toBe(
+          words.cause === 'historyUnavailable' || words.cause === 'cancelNotSaved'
+        )
       }
     }
   })
@@ -472,8 +475,18 @@ describe('the notice for every reason a host names', () => {
           'compactAfterAnswer'
         ] as const
       ).some((sentence) => parts.includes(sentence))
+      // "Couldn't stop Codex." and the card's own words already say the Cancel did not happen.
+      const stopFailed =
+        write === 'stop' &&
+        failure.code === 'agent_session_operation_invalid' &&
+        (failure.details?.reason === 'stopFailed' || failure.details?.reason === 'cancelNotSaved')
       expect(notDone, cell).toEqual(
-        answeredAway || ownerStopped || unsupported || saysNotDone || clearWhileWorking
+        answeredAway ||
+          ownerStopped ||
+          unsupported ||
+          saysNotDone ||
+          clearWhileWorking ||
+          stopFailed
           ? []
           : [NOT_DONE[write]]
       )

@@ -294,6 +294,32 @@ describe('a launch the user did not ask to be structured', () => {
   })
 })
 
+describe("a caller's chat default in place of the host's", () => {
+  const EXISTING: AgentLaunchIntent = {
+    agent: 'claude',
+    target: { kind: 'existing', worktree: 'wt-7' }
+  }
+
+  it('opens a chat when the caller says so, though the host setting is off', async () => {
+    const h = harness({ settings: null })
+    const result = await h.run({ ...EXISTING, nativeChatDefault: true })
+    expect(result.outcome.kind).toBe('structured')
+  })
+
+  it('opens a terminal when the caller says so, though the host setting is on', async () => {
+    const h = harness({})
+    const result = await h.run({ ...EXISTING, nativeChatDefault: false })
+    expect(result.outcome.kind).toBe('terminal')
+    expect(h.calls).not.toContain('createSupport')
+  })
+
+  it('still lets the host refuse a chat it cannot create', async () => {
+    const h = harness({ settings: null, createSupport: { supported: false, reason: 'agent' } })
+    const result = await h.run({ ...EXISTING, nativeChatDefault: true })
+    expect(result.outcome.kind).toBe('terminal')
+  })
+})
+
 describe('a launch into a workspace that already exists', () => {
   it('opens a session without creating anything', async () => {
     const h = harness({})

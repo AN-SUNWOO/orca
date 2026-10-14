@@ -1,5 +1,5 @@
 import type { RemoteInstallTransport } from './remote-install-transport'
-import { execCommand } from './ssh-relay-deploy-helpers'
+import { execCommand } from './ssh-relay-exec-command'
 import type { RemoteHostPlatform } from './ssh-remote-platform'
 
 export function execHostCommand(

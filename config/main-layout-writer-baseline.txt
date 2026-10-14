@@ -10,7 +10,7 @@
 1 src/main/ipc/renderer-shutdown-checkpoint.ts
 1 src/main/ipc/runtime-environment-removal-cleanup.ts
 1 src/main/ipc/runtime-environment-session-reconcile.ts
-3 src/main/ipc/session.ts
+2 src/main/ipc/session.ts
 6 src/main/orca-profiles/profile-project-session-state.ts
 4 src/main/orca-profiles/profile-project-source-removal.ts
 2 src/main/orca-profiles/profile-project-state-file.ts

@@ -34,13 +34,14 @@ import {
   endWebRuntimeWakeTerminalRespawn,
   shouldSkipWebRuntimeWakeTerminalRespawn
 } from '../web-runtime-wake-terminal-respawn'
-import { createWebRuntimeSessionTerminal } from '../web-runtime-session'
+import { createWebRuntimeSessionTerminal } from '../web-runtime-terminal-creation'
 import {
   isWebRuntimeInitialTerminalBootstrapInFlight,
   releaseWebRuntimeInitialTerminalBootstrapOnMirrorFrame
 } from '../web-runtime-initial-terminal-bootstrap'
 import { dispatchWebRuntimeInitialTerminalBootstrap } from '../web-runtime-initial-terminal-bootstrap-dispatch'
 import { toRuntimeWorktreeSelector } from '../runtime-worktree-selector'
+import { hostSnapshotAffirmsWorktreeContents } from '../host-session-snapshot-authority'
 import { isSessionTabsStreamEnd, type SessionTabsStreamEvent } from './state'
 import type { SessionTabsSnapshotHandler } from './visibility-resume-types'
 import { subscribeRuntimeEnvironment } from '../runtime-environment-pairing-refresh'
@@ -84,6 +85,7 @@ export function installActiveSessionTabsSubscription({
   const expectedTrackingGeneration = getWebSessionTabsTrackingGeneration(environmentId)
   let requestedInitialTerminal = false
   let requestedRespawnAfterWake = false
+  let hostAffirmedWorktree = false
 
   const applyActiveSnapshot = async (
     event: RuntimeMobileSessionTabsResult & { type: 'snapshot' | 'updated' },
@@ -138,7 +140,8 @@ export function installActiveSessionTabsSubscription({
         isWebRuntimeInitialTerminalBootstrapInFlight(environmentId, activeWorktreeId),
       snapshotIsFresh: decision.apply,
       localTerminalCount,
-      hasPersistedTerminalState: Object.hasOwn(syncState.tabsByWorktree, activeWorktreeId)
+      hasPersistedTerminalState: Object.hasOwn(syncState.tabsByWorktree, activeWorktreeId),
+      firstHostAnswer: !hostAffirmedWorktree
     })
     const respawn = shouldRespawnWebRuntimeTerminalAfterWake({
       event: recoveredEvent,
@@ -157,6 +160,7 @@ export function installActiveSessionTabsSubscription({
           trackingGeneration: expectedTrackingGeneration
         })
     if (decision.apply) {
+      hostAffirmedWorktree ||= hostSnapshotAffirmsWorktreeContents(recovered)
       const replayed = isRuntimeSubscriptionReplayResponse(response)
       settle = applyWebSessionTabsStorePatch(
         (state) => applyWebSessionTabsSnapshot(state, recovered, environmentId),

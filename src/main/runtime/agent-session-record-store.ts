@@ -2,6 +2,7 @@
  *  journal database. */
 
 import type { JournalWriteOptions } from '../native-chat/agent-session-journal/journal-database'
+import { backfillAgentSessionPermissionModes } from './agent-session-permission-backfill'
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import { createAgentSessionConversationReceipts } from './agent-session-conversation-receipts'
 import { commitConversationCommandRecord } from './agent-session-conversation-command-record'
@@ -122,6 +123,9 @@ export class AgentSessionRecordStore {
     return this.transactions.readOnly
   }
 
+  backfillChatPermissionModes = (ranWithFullAccess: (provider: string) => boolean): Promise<void> =>
+    backfillAgentSessionPermissionModes(this.transactions, ranWithFullAccess)
+
   getRecord = (sessionId: string): AgentSessionRecord | null =>
     this.state.records.get(sessionId) ?? null
 
@@ -155,9 +159,8 @@ export class AgentSessionRecordStore {
 
   /** Shows each session that still has a record, in one write: an index written part way would
    *  read as complete at the next launch and drop the rest. */
-  showSessionTabs(sessionIds: readonly string[], options?: JournalWriteOptions): Promise<void> {
-    return this.transact((draft) => showAgentSessionTabs(draft, sessionIds), options)
-  }
+  showSessionTabs = (sessionIds: readonly string[], options?: JournalWriteOptions) =>
+    this.transact((draft) => showAgentSessionTabs(draft, sessionIds), options)
 
   listByScope(location: AgentSessionExecutionLocation): AgentSessionRecord[] {
     const scope = agentSessionScopeKey(location)
@@ -381,9 +384,7 @@ export class AgentSessionRecordStore {
       ended = agentSessionGenerationEnds(before, draft.records, options?.supersessionEvidence)
       return applied
     }, options)
-    for (const end of ended) {
-      this.generationEndListeners.forEach((listener) => listener(end))
-    }
+    ended.forEach((end) => this.generationEndListeners.forEach((listener) => listener(end)))
     if (!heldBefore && this.holdsRecords()) {
       this.firstRecordListeners.forEach((listener) => listener())
     }

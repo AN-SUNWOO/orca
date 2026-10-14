@@ -9,6 +9,7 @@ import { removeDeleteStatesForWorktreeIds } from './worktree-delete-state'
 import { removeWorktreeVisitEntriesForTargets } from '@/lib/worktree-visit-recency'
 import { forgetAmbiguousOwnerWarnings } from '../listing/worktree-owner-settings'
 import { forgetWorktreeSleepIntent } from '@/lib/worktree-sleep-intent'
+import { settleAgentLaunchPaneStart } from '@/lib/agent-launch-pane-start'
 import {
   getStructuredAgentSessionLaunchOwner,
   markStructuredAgentSessionLaunchCancelledSilently,
@@ -57,6 +58,12 @@ export function buildWorktreePurgeState(
     }
   }
   for (const worktreeId of worktreeIdSet) {
+    // A launch tab that never spawned has no spawn left to answer its prompt's wait.
+    for (const tab of s.tabsByWorktree[worktreeId] ?? []) {
+      if (tab.agentLaunchPane) {
+        settleAgentLaunchPaneStart(tab.id, tab.agentLaunchPane.leafId, null)
+      }
+    }
     for (const tab of s.unifiedTabsByWorktree[worktreeId] ?? []) {
       if (tab.contentType === 'agent-session') {
         const target = structuredAgentSessionTargetForTab(s, tab)

@@ -47,6 +47,7 @@ export type RuntimeManagedWorktreeCreateArgs = {
   runHooks?: boolean
   activate?: boolean
   setupDecision?: 'run' | 'skip' | 'inherit'
+  setupOnly?: boolean
   awaitTerminalProvisioning?: boolean
   observeSetupCompletion?: boolean
   createdWithAgent?: TuiAgent
@@ -65,6 +66,8 @@ export type RuntimeManagedWorktreeCreateArgs = {
   startupLaunchSource?: string
   /** A caller-minted `tabId:leafId` for the startup terminal's pane. */
   startupPaneKey?: string
+  /** Account routing env merged over the startup agent's own env. */
+  startupAccountEnv?: Record<string, string>
   pendingFirstAgentMessageRename?: boolean
   automationProvenance?: AutomationWorkspaceProvenance
   /**

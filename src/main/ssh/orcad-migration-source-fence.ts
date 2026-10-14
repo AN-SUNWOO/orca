@@ -103,14 +103,16 @@ export async function fenceOrcadMigrationSource(args: {
       fenceStateReason(existing)
     )
   }
-  if (args.terminalProof.verdict !== 'exited') {
-    return refuse(
-      args.terminalProof.verdict,
-      'orcad_migration_terminals',
-      args.terminalProof.reason
-    )
+  const proof = args.terminalProof
+  if (proof.verdict !== 'exited' && proof.verdict !== 'bridged') {
+    return refuse(proof.verdict, 'orcad_migration_terminals', proof.reason)
   }
-  const preflight = preflightOrcadMigrationExport(args.store, target.id)
+  const preflight = preflightOrcadMigrationExport(
+    args.store,
+    target.id,
+    undefined,
+    proof.verdict === 'bridged' ? proof.bridgedPtyIds : []
+  )
   if (!preflight.claimable) {
     return {
       ...refuse(
@@ -144,7 +146,8 @@ export async function fenceOrcadMigrationSource(args: {
     sshTargetId: target.id,
     sshTargetGeneration: generation,
     manifestSha256: manifest.manifestSha256,
-    provenPtyIds: args.terminalProof.provenPtyIds,
+    provenPtyIds: proof.verdict === 'exited' ? proof.provenPtyIds : [],
+    ...(proof.verdict === 'bridged' ? { bridgedPtyIds: proof.bridgedPtyIds } : {}),
     // Taken with the export, before any commit is possible: the only proof of what the server holds.
     manifest
   }
@@ -157,7 +160,7 @@ export async function fenceOrcadMigrationSource(args: {
     target.id,
     args.terminalProof
   )
-  if (underFence.verdict !== 'exited') {
+  if (underFence.verdict !== 'exited' && underFence.verdict !== 'bridged') {
     await releaseUnstagedFence(args, cutover)
     return refuse(underFence.verdict, 'orcad_migration_terminals', underFence.reason)
   }

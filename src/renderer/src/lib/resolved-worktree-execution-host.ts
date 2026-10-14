@@ -1,5 +1,6 @@
 import {
   LOCAL_EXECUTION_HOST_ID,
+  getRepoExecutionHostId,
   parseExecutionHostId,
   toSshExecutionHostId,
   type ExecutionHostId
@@ -14,11 +15,9 @@ import {
   findIndexedWorktreeOwner,
   findIndexedWorktreeOwnerForHost
 } from './worktree-runtime-owner-index'
-import type { WorktreeRuntimeOwnerState } from './worktree-runtime-owner'
-import {
-  runtimeTargetForExecutionHostId,
-  type RuntimeClientTarget
-} from '@/runtime/runtime-client-target'
+import type { WorktreeRuntimeOwnerState } from './worktree-runtime-owner-state'
+import { runtimeRpcTargetForAuthorityKey } from '@/runtime/runtime-client-target'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
 function getResolvedFolderHost(
   state: WorktreeRuntimeOwnerState,
@@ -91,13 +90,7 @@ export function getResolvedExecutionHostIdForWorktree(
   if (!repo) {
     return null
   }
-  const explicitRepoHost = parseExecutionHostId(repo.executionHostId)
-  if (explicitRepoHost) {
-    return explicitRepoHost.id
-  }
-  return repo.connectionId?.trim()
-    ? toSshExecutionHostId(repo.connectionId)
-    : LOCAL_EXECUTION_HOST_ID
+  return getRepoExecutionHostId(repo)
 }
 
 /**
@@ -112,5 +105,5 @@ export function getActiveWorkspaceOwnerTarget(
     return null
   }
   const hostId = getResolvedExecutionHostIdForWorktree(state, state.activeWorktreeId)
-  return hostId ? runtimeTargetForExecutionHostId(hostId) : null
+  return hostId ? runtimeRpcTargetForAuthorityKey(hostId) : null
 }

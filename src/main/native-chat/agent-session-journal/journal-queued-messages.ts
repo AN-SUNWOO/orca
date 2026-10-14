@@ -111,6 +111,7 @@ export class JournalQueuedMessages {
       hostInstance: string
       requireAttachments?: true
       holdReason?: QueuedMessageHoldReason
+      options?: Readonly<Record<string, string>>
     },
     receipt?: JournalOperationReceipt
   ): Promise<QueuedMessageRow> {

@@ -14,6 +14,7 @@ import { JournalLifecycleBatchAppender } from './journal-lifecycle-batch-appende
 import type { JournalLoad } from './journal-open'
 import { JournalQueuedMessages } from './journal-queued-messages'
 import { JournalStopMarks } from './journal-stop-marks'
+import { JournalStopAcceptor } from './journal-stop-acceptance'
 import { journalQueuePauseRestatement } from './queued-message-pause'
 import type { JournalReducerState } from './journal-reducer'
 import { JournalRowWriter, type JournalOperationReceipt } from './journal-row-writer'
@@ -57,6 +58,7 @@ export type JournalStoreCollaborators = {
   stepWriter: JournalStepWriter
   queuedMessages: JournalQueuedMessages
   stopMarks: JournalStopMarks
+  stops: JournalStopAcceptor
   /** Restores the store's state from disk. Owned here because it needs the same
    *  collaborators the constructor just built. */
   restore: () => Promise<void>
@@ -117,12 +119,13 @@ export function createJournalStoreCollaborators(host: JournalStoreHost): Journal
   const lifecycleBatchAppender = new JournalLifecycleBatchAppender({
     state: host.state,
     cursor: host.cursor,
-    enqueueRows: (plan, options) => rowWriter.enqueueRows(plan, undefined, options)
+    enqueueRows: (plan, options) => rowWriter.enqueueRows(plan, undefined, undefined, options)
   })
   return {
     epochController,
     queuedMessages,
     stopMarks: new JournalStopMarks({ state: host.state }),
+    stops: new JournalStopAcceptor({ writer: rowWriter, state: host.state }),
     // The drafts' repair and prune are startup's (`repairAndPrune`), never this open's.
     restore: () => restoreJournalStore(host, { epochController }),
     rowWriter,

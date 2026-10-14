@@ -1,8 +1,9 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { reclaimWorktreeSpace } from './reclaim-worktree-space.mjs'
+import { runProcess } from '@orca/process-host'
 
 const roots = []
 afterEach(async () => {
@@ -17,26 +18,114 @@ async function fixture() {
   return { commonDirectory: root, repoRoot: root, execute }
 }
 
-it('previews both existing cleanup operations without applying either', async () => {
+it('previews historical test caches and both Electron cleanup operations', async () => {
   const options = await fixture()
   await reclaimWorktreeSpace(options)
-  expect(options.execute).toHaveBeenCalledTimes(2)
+  expect(options.execute).toHaveBeenCalledTimes(3)
   expect(options.execute.mock.calls.flatMap(([spec]) => spec.args)).not.toContain('--apply')
 })
 
-it('forwards apply and repository selection to both cleanup operations', async () => {
-  const options = { ...(await fixture()), apply: true }
+it('forwards apply and repository selection to all cleanup operations', async () => {
+  const options = { ...(await fixture()), apply: true, testsStopped: true }
   await reclaimWorktreeSpace(options)
-  expect(options.execute).toHaveBeenCalledTimes(2)
+  expect(options.execute).toHaveBeenCalledTimes(3)
   for (const [spec] of options.execute.mock.calls) {
     expect(spec.args).toContain('--apply')
     expect(spec.args).toContain(options.repoRoot)
     expect(spec.terminationBarrier).toBe(true)
   }
+  const cache = options.execute.mock.calls[0][0]
+  expect(cache.args).toContain('--tests-stopped')
+  expect(cache.args).toContain('--import')
+  for (const [spec] of options.execute.mock.calls.slice(1)) {
+    expect(spec.args).not.toContain('--tests-stopped')
+  }
+})
+
+it('rejects manual apply before any operation unless cross-version tests are stopped', async () => {
+  const options = { ...(await fixture()), apply: true }
+  await expect(reclaimWorktreeSpace(options)).rejects.toThrow('--tests-stopped')
+  expect(options.execute).not.toHaveBeenCalled()
+})
+
+it('leaves historical caches out of automatic invocations', async () => {
+  const options = { ...(await fixture()), automatic: true, apply: true }
+  await reclaimWorktreeSpace(options)
+  expect(options.execute.mock.calls.flatMap(([spec]) => spec.args).join(' ')).not.toContain(
+    'reclaim-release-test-caches'
+  )
+})
+
+it('forwards an age override only to historical test cache cleanup', async () => {
+  const options = { ...(await fixture()), releaseCacheMinAgeDays: 7 }
+  await reclaimWorktreeSpace(options)
+  expect(options.execute.mock.calls[0][0].args).toEqual(
+    expect.arrayContaining(['--min-age-days', '7'])
+  )
+  for (const [spec] of options.execute.mock.calls.slice(1)) {
+    expect(spec.args).not.toContain('--min-age-days')
+  }
+})
+
+it('rejects an invalid cache age before starting cleanup', async () => {
+  const options = { ...(await fixture()), releaseCacheMinAgeDays: -1 }
+  await expect(reclaimWorktreeSpace(options)).rejects.toThrow('--release-cache-min-age-days')
+  expect(options.execute).not.toHaveBeenCalled()
+})
+
+it('runs the combined CLI from outside a disposable repository and requires acknowledgement', async () => {
+  const options = await fixture()
+  const init = await runProcess({
+    program: 'git',
+    args: ['init', '--quiet'],
+    cwd: options.repoRoot,
+    timeoutMs: 10_000,
+    terminationBarrier: true
+  })
+  expect(init.code).toBe(0)
+  const commit = 'd'.repeat(40)
+  const cache = join(
+    options.repoRoot,
+    'tests',
+    'e2e',
+    '.cross-version-checkouts',
+    'old',
+    `${commit}-format-4`
+  )
+  await mkdir(cache, { recursive: true })
+  const marker = join(cache, 'checkout-stamp.json')
+  await writeFile(marker, JSON.stringify({ commit, format: 4 }))
+  await utimes(cache, new Date(0), new Date(0))
+  const run = (flags = []) =>
+    runProcess({
+      program: process.env.ORCA_TEST_NODE_EXECUTABLE ?? process.execPath,
+      args: [
+        resolve(import.meta.dirname, 'reclaim-worktree-space.mjs'),
+        '--repo',
+        options.repoRoot,
+        ...flags
+      ],
+      cwd: tmpdir(),
+      env: { ...process.env, ORCA_BACKGROUND_LAUNCH: '1' },
+      timeoutMs: 20_000,
+      terminationBarrier: true
+    })
+  const preview = await run()
+  expect(preview.code, preview.stderr).toBe(0)
+  expect(preview.stdout).toContain('Would remove 1 cache(s)')
+  expect(await readFile(marker, 'utf8')).toContain(commit)
+  const blocked = await run(['--apply'])
+  expect(blocked.code).not.toBe(0)
+  expect(blocked.stderr).toContain('--tests-stopped')
+  expect(await readFile(marker, 'utf8')).toContain(commit)
+  const applied = await run(['--apply', '--tests-stopped'])
+  expect(applied.code, applied.stderr).toBe(0)
+  expect(applied.stdout).toContain('Removed 1 cache(s)')
+  await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
 })
 
 it('rejects competing sweeps and releases the lock after a failed operation', async () => {
-  const options = { ...(await fixture()), apply: true }
+  const options = { ...(await fixture()), apply: true, testsStopped: true }
   let release
   const blocked = new Promise((resolve) => {
     release = resolve
@@ -58,7 +147,7 @@ it('rejects competing sweeps and releases the lock after a failed operation', as
   await rejected
   options.execute.mockResolvedValue({ code: 0, timedOut: false })
   await reclaimWorktreeSpace(options)
-  expect(options.execute).toHaveBeenCalledTimes(3)
+  expect(options.execute).toHaveBeenCalledTimes(4)
 })
 
 it('preserves the cleanup failure and reports a concurrent lock release failure separately', async () => {
@@ -85,5 +174,5 @@ it('fails if cleanup succeeds but the repository lock cannot be released', async
   await expect(reclaimWorktreeSpace({ ...options, acquireLock: async () => release })).rejects.toBe(
     failure
   )
-  expect(options.execute).toHaveBeenCalledTimes(2)
+  expect(options.execute).toHaveBeenCalledTimes(3)
 })

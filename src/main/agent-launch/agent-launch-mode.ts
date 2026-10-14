@@ -265,10 +265,15 @@ export function warnStructuredLaunchDowngrade(
   }
 }
 
-/** The store can be missing on a runtime that never opened one; that reads as no preference. */
+/** The store can be missing on a runtime that never opened one; that reads as no preference.
+ *  A relaying desktop's stamped `nativeChatDefault` stands in for this host's own chat setting. */
 export function readAgentLaunchModeSettings(
-  runtime: Pick<OrcaRuntimeService, 'getClientSettings'>
+  runtime: Pick<OrcaRuntimeService, 'getClientSettings'>,
+  nativeChatDefault?: boolean
 ): AgentLaunchModeSettings | null {
+  if (nativeChatDefault !== undefined) {
+    return { experimentalNativeChat: nativeChatDefault }
+  }
   try {
     return runtime.getClientSettings()
   } catch {

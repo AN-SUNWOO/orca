@@ -5,7 +5,7 @@ const dependencyExports: [string, string[]][] = [
   ['../ipc/filesystem-watcher', ['closeAllWatchers']],
   ['../ipc/worktree-base-directory-watcher', ['disposeWorktreeBaseDirectoryWatchers']],
   ['../ipc/folder-repo-git-upgrade', ['stopFolderRepoGitUpgradeWatch']],
-  ['../ipc/pty', ['killAllPty']],
+  ['../ipc/pty/kill-all', ['killAllPty']],
   ['../daemon/daemon-provider-state', ['disconnectDaemon', 'shutdownDaemon']],
   ['../ipc/ssh-shutdown-drain', ['beginSshShutdown']],
   ['../agent-hooks/server', ['agentHookServer']],

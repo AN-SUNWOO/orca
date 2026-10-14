@@ -1,11 +1,12 @@
+import type * as ExecCommandModule from './ssh-relay-exec-command'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as RecordFile from './orcad-remote-record-file'
 import type * as InstallLock from './ssh-relay-install-lock'
 import type * as TerminalBarrier from './orcad-rollback-terminal-barrier'
 
-vi.mock('./ssh-relay-deploy-helpers', () => ({
-  execCommand: vi.fn(),
-  isUnconfirmedSshCommandTermination: () => false
+vi.mock('./ssh-relay-exec-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof ExecCommandModule>()),
+  execCommand: vi.fn()
 }))
 vi.mock('./ssh-connection-utils', () => ({ shellEscape: (s: string) => `'${s}'` }))
 vi.mock('./ssh-relay-install-transfers', () => ({
@@ -51,7 +52,7 @@ vi.mock('./orcad-rollback-terminal-barrier', async (importOriginal) => ({
   }
 }))
 
-import { execCommand } from './ssh-relay-deploy-helpers'
+import { execCommand } from './ssh-relay-exec-command'
 import { writeAtomicOrcadRemoteRecord } from './orcad-remote-record-file'
 import { rollbackOrcad, type OrcadRollbackOptions } from './orcad-remote-rollback'
 import { emptyOrcadActivationRecord, type OrcadActivationRecord } from './orcad-activation-record'

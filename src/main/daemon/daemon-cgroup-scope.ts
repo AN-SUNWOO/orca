@@ -166,6 +166,17 @@ export function isDurableDaemonScopeSupported(deps: ScopeProbeDeps = {}): boolea
   }
 }
 
+/** The environment that reaches this user's systemd manager (see resolveUserRuntimeDir). */
+export function userManagerEnv(
+  env: NodeJS.ProcessEnv,
+  canonicalRuntimeDir: string | null = CANONICAL_USER_RUNTIME_DIR
+): NodeJS.ProcessEnv {
+  const runtimeDir = resolveUserRuntimeDir(env, canonicalRuntimeDir)
+  const next: NodeJS.ProcessEnv = runtimeDir ? { ...env, XDG_RUNTIME_DIR: runtimeDir } : { ...env }
+  removeChromiumDisabledSessionBus(next)
+  return next
+}
+
 export type DurableDaemonScopeCommand = {
   command: string
   args: string[]

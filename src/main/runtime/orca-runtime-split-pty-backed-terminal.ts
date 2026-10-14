@@ -63,7 +63,16 @@ export class OrcaRuntimeWithSplitPtyBackedTerminal extends OrcaRuntimeWithSplitT
       cwd: workspace.path,
       command: opts.command,
       commandDelivery: 'provider',
-      env: await this.buildTerminalWorkspaceEnv(workspace, opts.env ?? {}, paneKey, parentTabId),
+      env: await this.buildTerminalWorkspaceEnv(
+        workspace,
+        // A split is a plain shell: it takes the host's account pointer, as every create does.
+        {
+          ...(workspace.connectionId ? {} : this.accounts.hostLaunchEnvFor(null)),
+          ...opts.env
+        },
+        paneKey,
+        parentTabId
+      ),
       envToDelete: opts.envToDelete,
       connectionId: workspace.connectionId,
       worktreeId: workspace.id,
@@ -194,8 +203,9 @@ export class OrcaRuntimeWithSplitPtyBackedTerminal extends OrcaRuntimeWithSplitT
           pty.ptyId
         )
       : null
-    if (sourceAuthority.persisted && committedSourceAuthority?.rendererMounted) {
+    if (committedSourceAuthority?.persisted && !committedSourceAuthority.rendererRunsOtherPty) {
       // Why: renderer adoption is a projection after the durable main commit; rejection cannot undo it.
+      // Not gated on the window's graph: it lags tabs the window already holds (STA-9417).
       void revealSplit().catch(() => undefined)
     }
 

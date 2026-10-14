@@ -206,7 +206,7 @@ jobs:
       - name: Set up Bun for preflight checks
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version-file: config/.bun-version
 
       - name: Check process-host imports
         if: '!cancelled()'
@@ -217,7 +217,18 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          bun --bun run check:process-host-imports
+          bun config/scripts/check-import-boundaries.mjs
+
+      - name: Check main-process sync launches
+        if: '!cancelled()'
+        id: main-sync-spawn-ratchet
+        background: true
+        env:
+          PREFLIGHT_PHASE_SELECTED: ${{ needs.code_paths.outputs.static_analysis == 'true' }}
+          PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
+        run: |
+          if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
+          bun --bun run check:main-sync-spawn-ratchet
 
       # Keep each check in its own log while sharing this runner.
       - name: Lint
@@ -290,7 +301,7 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          pnpm run typecheck:ci
+          pnpm run typecheck:ci --bun-concurrency=2 --bun-threads=2
 
       - name: Check Zustand selector fan-out budget
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -344,11 +355,7 @@ jobs:
 
       - name: Enforce layout-writer ratchets
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:layout-writer-ratchets
-
-      - name: Check compatibility-folder imports
-        if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:compat-boundary-imports
+        run: bun config/scripts/check-layout-writer-ratchets.mjs
 
       - name: Check Node runtime pin
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -356,6 +363,7 @@ jobs:
 
       # Why: extraction writes sorted evidence to an isolated temporary path,
       # so feature PRs need one normalized AST pass rather than a three-OS matrix.
+      # Use preflight's pinned Bun even when the optional local pin differs.
       - name: Verify localization extraction
         if: '!cancelled()'
         id: localization-extraction
@@ -372,7 +380,7 @@ jobs:
             scope="$(node config/scripts/localization-extraction-change-scope.mjs "$RUNNER_TEMP/localization-changes")" && [ "$scope" = false ]; then
             echo "Localization extraction inputs are unchanged."
           else
-            pnpm run verify:localization-extraction
+            bun config/scripts/verify-localization-extraction.mjs
           fi
 
       # Why both: the ratchet proves nothing reachable from the runtime imports electron,
@@ -422,7 +430,7 @@ jobs:
 
       - name: Verify localization coverage
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run verify:localization-coverage
+        run: bun config/scripts/audit-localization-coverage.mjs --check
 
       - wait: [localization-catalogs, localization-extraction]
 
@@ -470,6 +478,8 @@ jobs:
       - wait: typecheck
 
       - wait: process-host-imports
+
+      - wait: main-sync-spawn-ratchet
 
       - wait: unit-plan
 
@@ -893,7 +903,7 @@ jobs:
       - name: Install WebKit for the drawer check
         id: webkit
         background: true
-        run: pnpm exec playwright install --with-deps webkit
+        run: pnpm exec playwright-core install --with-deps webkit
 
       # The entry lives in mobile/ so one React resolves; without this every RN import is nothing.
       - uses: ./.github/actions/install-mobile-dependencies
@@ -1110,7 +1120,7 @@ jobs:
           status=0
           pnpm run build:cli || status=1
 
-          scripts=(build:relay build:electron-vite:parallel)
+          scripts=(build:wsl-guest build:electron-vite:parallel)
           pids=()
           for script in "${scripts[@]}"; do
             pnpm run "$script" &
@@ -1159,6 +1169,27 @@ jobs:
           rpm_marker="$(rpm2cpio "$rpm" | cpio --quiet --extract --to-stdout ./opt/Orca/resources/package-type)"
           [[ "$deb_marker" == deb ]] || { echo "Expected deb marker, got: $deb_marker"; exit 1; }
           [[ "$rpm_marker" == rpm ]] || { echo "Expected rpm marker, got: $rpm_marker"; exit 1; }
+          # Only the AppImage carries the pinned Node (config/scripts/appimage-node-runtime.cjs).
+          if dpkg-deb --fsys-tarfile "$deb" | tar -t | grep '/resources/node-runtime' >/dev/null; then
+            echo "The deb must not carry the AppImage's Node"; exit 1
+          fi
+          if rpm2cpio "$rpm" | cpio --quiet -t | grep '/resources/node-runtime' >/dev/null; then
+            echo "The rpm must not carry the AppImage's Node"; exit 1
+          fi
+          appimage_root="$(mktemp -d)"
+          (cd "$appimage_root" && "$GITHUB_WORKSPACE/dist/orca-linux.AppImage" --appimage-extract 'resources/node-runtime/bin/node' >/dev/null)
+          test -x "$appimage_root/squashfs-root/resources/node-runtime/bin/node"
+          "$appimage_root/squashfs-root/resources/node-runtime/bin/node" --version
+          rm -rf "$appimage_root"
+          ls -l dist/orca-linux.AppImage "$deb" "$rpm"
+
+      # Kept briefly so a reviewer can run this exact AppImage on a real Linux desktop.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: orca-linux-appimage-${{ github.event.pull_request.head.sha }}
+          path: dist/orca-linux.AppImage
+          retention-days: 3
+          compression-level: 0
 
       - wait: shutdown-fixture-cache
 
@@ -1236,6 +1267,41 @@ jobs:
         run: >-
           pnpm exec vitest run --config config/vitest.config.ts
           config/scripts/nsis-process-check.test.mjs
+          config/scripts/idle-cpu-process-sampling.test.mjs
+
+      - name: Cache Windows CLI launcher
+        uses: actions/cache@v5
+        with:
+          # Why the cargo directories ride along: a hit on .build skips the build
+          # entirely, but a miss otherwise recompiles the resource crate from a
+          # cold registry.
+          path: |
+            native/windows-cli-launcher/.build
+            native/windows-cli-launcher/target
+            native/windows-agent-hook/.build
+            native/windows-agent-hook/target
+            ~/.cargo/registry
+          key: windows-cli-launcher-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/windows-cli-launcher/**', 'native/windows-agent-hook/**', 'config/scripts/build-windows-cli-launcher.mjs', 'config/scripts/build-windows-agent-hook.mjs', 'config/scripts/windows-rust-executable-build.mjs', 'resources/build/icon.ico', 'package.json') }}
+
+      # Why an explicit step rather than trusting the runner image: the packaged
+      # CLI launcher is a native Rust binary, and a host without cargo fails deep
+      # inside electron-builder's native hook instead of here.
+      - name: Ensure the Rust toolchain for the Windows CLI launcher
+        shell: pwsh
+        run: |
+          if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+            rustup toolchain install stable --profile minimal
+            rustup default stable
+          }
+          cargo --version
+
+      # Why before the tests: the orca-agent-hook.exe suites then share one prebuilt binary rather
+      # than each starting its own build mid-run.
+      - name: Build the Windows agent hook
+        run: node config/scripts/build-windows-agent-hook.mjs
+
+      - name: Build the Windows CLI launcher
+        run: node config/scripts/build-windows-cli-launcher.mjs
 
       - name: Test Windows-specific boundaries
         run: >-
@@ -1248,8 +1314,10 @@ jobs:
           config/scripts/verify-packaged-node-pty-job-ownership.test.mjs
           config/scripts/windows-pe-machine.test.mjs
           config/scripts/build-windows-cli-launcher.test.mjs
+          config/scripts/verify-packaged-windows-agent-hook.test.mjs
           config/scripts/script-module-dependencies.test.mjs
           src/main/windows-registry-addon.test.ts
+          src/shared/windows-security-addon.win32.test.ts
           config/scripts/windows-process-tree-gyp-path.test.mjs
           config/scripts/windows-process-tree-gyp-rebuild.test.mjs
           config/scripts/package-electron-runtime-contract.test.mjs
@@ -1266,11 +1334,15 @@ jobs:
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.win32.test.ts
           src/main/agent-hooks/windows-hook-payload-delivery.test.ts
+          src/main/agent-hooks/managed-hook-stdin-lifecycle.test.ts
           src/main/jcode/hook-gate-script.test.ts
           src/main/agent-hooks/windows-direct-cmd-hook-command.test.ts
+          src/main/agent-hooks/windows-native-hook-exe-hosts.test.ts
+          src/main/claude/windows-native-hook-registration.test.ts
           src/main/agent-hooks/windows-cmd-hook-command-unicode.test.ts
           src/main/agent-hooks/windows-batch-hook-launcher.test.ts
           src/main/agent-hooks/windows-powershell-hook-launcher.test.ts
+          src/main/claude/claude-status-line-windows.test.ts
           src/main/codex/windows-hook-command.test.ts
           src/main/codex/windows-hook-upgrade.test.ts
           src/main/codex/hook-service-managed-install.test.ts
@@ -1280,6 +1352,9 @@ jobs:
           src/main/windows/windows-host-job.win32.test.ts
           src/main/windows/windows-process-tree-command-line-patch.test.ts
           src/main/windows/windows-process-table-native-addon.win32.test.ts
+          src/main/windows/windows-administrator-status.win32.test.ts
+          src/main/windows/windows-administrator-restart.win32.test.ts
+          src/main/daemon/daemon-pid-identity-native.win32.test.ts
           src/main/persistence/profile-state/profile-state-access-windows-native.win32.test.ts
           src/main/windows-live-tree-kill.win32.test.ts
           src/main/wsl/wsl-runner.test.ts
@@ -1308,30 +1383,6 @@ jobs:
       # Why the :parallel variant: identical to build:release except the three
       # electron-vite targets overlap instead of running back to back. The Linux package
       # job already packages and smoke-tests an AppImage built that way.
-      - name: Cache Windows CLI launcher
-        uses: actions/cache@v5
-        with:
-          # Why the cargo directories ride along: a hit on .build skips the build
-          # entirely, but a miss otherwise recompiles the resource crate from a
-          # cold registry.
-          path: |
-            native/windows-cli-launcher/.build
-            native/windows-cli-launcher/target
-            ~/.cargo/registry
-          key: windows-cli-launcher-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/windows-cli-launcher/**', 'config/scripts/build-windows-cli-launcher.mjs', 'resources/build/icon.ico', 'package.json') }}
-
-      # Why an explicit step rather than trusting the runner image: the packaged
-      # CLI launcher is a native Rust binary, and a host without cargo fails deep
-      # inside electron-builder's native hook instead of here.
-      - name: Ensure the Rust toolchain for the Windows CLI launcher
-        shell: pwsh
-        run: |
-          if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
-            rustup toolchain install stable --profile minimal
-            rustup default stable
-          }
-          cargo --version
-
       - name: Build package inputs
         run: pnpm run build:release:parallel
 

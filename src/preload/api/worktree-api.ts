@@ -34,6 +34,7 @@ import type {
   DetectedWorktreeListResult,
   GitHubPrStartPoint,
   GitPushTarget,
+  GitStatusMetadataChangedEvent,
   GitWorktreeInfo,
   Worktree,
   WorktreeHeadIdentity
@@ -137,7 +138,9 @@ export type WorktreeApi = {
    *  in main memory only — null after a restart or once the failure clears. */
   getBranchRenameFailureOutput: (args: { worktreeId: string }) => Promise<string | null>
   onChanged: (callback: (data: { repoId: string }) => void) => () => void
-  onGitStatusMetadataChanged: (callback: (data: { repoId: string }) => void) => () => void
+  onGitStatusMetadataChanged: (
+    callback: (data: GitStatusMetadataChangedEvent) => void
+  ) => () => void
   onHeadIdentitiesChanged: (
     callback: (data: { repoId: string; identities: WorktreeHeadIdentity[] }) => void
   ) => () => void

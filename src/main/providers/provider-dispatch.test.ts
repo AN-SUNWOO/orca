@@ -54,7 +54,7 @@ vi.mock('../pi/titlebar-extension-service', () => ({
   piTitlebarExtensionService: { buildPtyEnv: () => ({}), clearPty: vi.fn() }
 }))
 
-import { registerPtyHandlers } from '../ipc/pty'
+import { registerPtyHandlers } from '../ipc/pty/register-handlers'
 
 describe('PTY provider dispatch', () => {
   const handlers = new Map<string, (...args: unknown[]) => unknown>()

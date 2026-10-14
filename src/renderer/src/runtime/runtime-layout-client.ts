@@ -8,7 +8,7 @@ import {
   type WorkspaceLayoutChangeFrame,
   type WorkspaceLayoutStreamFrame
 } from '../../../shared/workspace-layout/workspace-layout-stream-frames'
-import type { RuntimeClientTarget } from './runtime-client-target'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { subscribeRuntimeRpc } from './runtime-rpc-subscribe'
 
 /** `retrying`: waiting to reopen a lost stream. `refused`: the host answered that it will never

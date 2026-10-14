@@ -39,6 +39,8 @@ export type AgentLaunchSurfaceFactory = {
     paneKey?: string
     /** The tab's first view, derived on the host by the window's own rule. */
     viewMode?: 'terminal' | 'chat'
+    /** Account routing env merged over the agent's own (`agent.launch`'s `accountEnv`). */
+    accountEnv?: Readonly<Record<string, string>>
   }): Promise<{
     handle: string
     /** The pane this create minted; a factory whose runtime reports none omits it, never invents. */
@@ -121,6 +123,8 @@ export type AgentLaunchWorkspaceFactory = {
     paneKey?: string
     /** The launch's session options, read as the startup terminal's model/effort/mode preferences. */
     options?: Readonly<Record<string, unknown>>
+    /** Account routing env merged over the startup agent's own. */
+    accountEnv?: Readonly<Record<string, string>>
   }): Promise<{
     worktreeId: string
     /** The new workspace's SSH connection; `null` is local. The executor carries it but nothing

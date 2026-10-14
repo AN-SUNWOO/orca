@@ -63,7 +63,7 @@ async function startOrcadManagedIdleExit(
     version: string
   }
 ): Promise<void> {
-  const { getLocalPtyProvider } = await import('../ipc/pty')
+  const { getLocalPtyProvider } = await import('../ipc/pty/provider/registry')
   const { getDaemonEndpointFacts } = await import('../daemon/daemon-provider-state')
   const { countLiveOrcadDaemonSessions, retireOrcadDaemonIfIdle } =
     await import('./orcad-daemon-retirement')

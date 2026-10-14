@@ -142,6 +142,7 @@ describe('mobile relay hosts: phone -> desktop lists the servers it shows', () =
           params,
           5_000
         ),
+      hostsBrowserPage: () => false,
       onEnvironmentRetired: () => () => {}
     }
     desktop.setMobileDesktopRelayHosts(hosts)

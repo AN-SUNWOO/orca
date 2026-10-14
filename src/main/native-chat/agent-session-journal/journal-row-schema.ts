@@ -171,6 +171,9 @@ export type JournalSubmissionRow = JournalRowBase & {
   /** Who it is from: its `AgentSessionMessageSource`'s kind only (`AgentJournalSubmission`).
    *  Absent on rows from before it was recorded. Older readers keep the key and ignore it. */
   source?: { kind: string }
+  /** The model and effort the person's composer sent it with, applied when it is handed over.
+   *  Older readers keep the key and ignore it. */
+  options?: Readonly<Record<string, string>>
 }
 
 export type JournalSubmissionOrigin = 'client' | 'host'

@@ -200,6 +200,35 @@ describe('runtime AI Vault session scanner', () => {
       })
     ).rejects.toThrow('Invalid aiVault.prepareSessionResume response')
   })
+
+  it('emits the desktop sentinel only for this exact missing RPC', async () => {
+    mocks.callRuntimeEnvironment.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'method_not_found', message: 'Unknown method: aiVault.prepareSessionResume' }
+    })
+
+    await expect(
+      prepareRuntimeAiVaultSessionResume('/user-data', 'env-1', {
+        agent: 'claude',
+        filePath: '/sessions/a.jsonl',
+        codexHome: null,
+        executionHostId: 'runtime:env-1'
+      })
+    ).rejects.toThrow('aiVault.prepareSessionResume: method_not_found')
+
+    mocks.callRuntimeEnvironment.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'method_not_found', message: 'Unknown method: terminal.send' }
+    })
+    await expect(
+      prepareRuntimeAiVaultSessionResume('/user-data', 'env-1', {
+        agent: 'claude',
+        filePath: '/sessions/a.jsonl',
+        codexHome: null,
+        executionHostId: 'runtime:env-1'
+      })
+    ).rejects.toThrow('Unknown method: terminal.send')
+  })
 })
 
 function result(

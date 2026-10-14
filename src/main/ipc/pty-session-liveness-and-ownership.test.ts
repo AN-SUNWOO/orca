@@ -2,12 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { onMock } from './pty-ipc-mock-registry'
 import { setupPtyIpcSuite } from './pty-ipc-test-harness'
 import { AGENT_SESSION_CLAIM_DIGEST_VERSION } from '../../shared/agent-session-host-authority'
-import {
-  deletePtyOwnership,
-  registerPtyHandlers,
-  setPtyOwnership,
-  setLocalPtyProvider
-} from './pty'
+import { deletePtyOwnership, setPtyOwnership } from './pty/provider/ownership-state'
+import { registerPtyHandlers } from './pty/register-handlers'
+import { setLocalPtyProvider } from './pty/provider/registry'
 
 vi.mock('electron', () => import('./pty-ipc-mock-registry').then((m) => m.electronModuleMock()))
 vi.mock('fs', () => import('./pty-ipc-mock-registry').then((m) => m.fsModuleMock()))

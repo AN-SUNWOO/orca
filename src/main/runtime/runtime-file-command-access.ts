@@ -25,7 +25,7 @@ import {
   type RuntimeFileExplorerPath
 } from './runtime-file-command-target'
 import { parseExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
-import type { FileStat } from '../providers/types'
+import type { FileStat } from '../providers/filesystem-provider-contract'
 
 export class RuntimeFileCommandAccess {
   protected readonly terminalFileGrants = new Map<string, TerminalFileGrant>()

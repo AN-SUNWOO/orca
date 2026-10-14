@@ -1,8 +1,9 @@
+import type * as ExecCommandModule from './ssh-relay-exec-command'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('./ssh-relay-deploy-helpers', () => ({
-  execCommand: vi.fn(),
-  isUnconfirmedSshCommandTermination: () => false
+vi.mock('./ssh-relay-exec-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof ExecCommandModule>()),
+  execCommand: vi.fn()
 }))
 vi.mock('./ssh-connection-utils', () => ({ shellEscape: (s: string) => `'${s}'` }))
 vi.mock('./ssh-relay-gc-claim', () => ({
@@ -10,8 +11,8 @@ vi.mock('./ssh-relay-gc-claim', () => ({
   releaseRelayGcClaimWithRetry: vi.fn().mockResolvedValue('released'),
   tryAcquireRelayGcClaim: vi.fn().mockResolvedValue('token')
 }))
-vi.mock('./ssh-relay-gc-tombstone', () => ({
-  cleanupRelayGcTombstones: vi.fn().mockResolvedValue(undefined)
+vi.mock('./remote-install-gc-tombstone', () => ({
+  cleanupRemoteInstallGcTombstones: vi.fn().mockResolvedValue(undefined)
 }))
 vi.mock('./ssh-relay-install-lock', () => ({
   RELAY_INSTALL_LOCK_NAME: '.install-lock',
@@ -20,7 +21,7 @@ vi.mock('./ssh-relay-install-lock', () => ({
   isRelayInstallLockStale: vi.fn().mockResolvedValue(false)
 }))
 
-import { execCommand } from './ssh-relay-deploy-helpers'
+import { execCommand } from './ssh-relay-exec-command'
 import { gcOldOrcadVersions } from './orcad-remote-gc'
 import { emptyOrcadActivationRecord } from './orcad-activation-record'
 import { serializeOrcadActivationTransaction } from './orcad-activation-transaction'

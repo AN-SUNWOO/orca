@@ -42,11 +42,14 @@ const HOST_STATUS_WORDS: Record<AgentSessionHostStatusPresentation, () => string
 
 export function NativeChatNoticeRow({
   block,
+  messageId,
   agentName,
   onLinkClick,
   allowFileUriLinks = false
 }: {
   block: NativeChatTextBlock
+  /** The transcript row's message, so a plan's code blocks keep their wrap past the row's mount. */
+  messageId?: string
   agentName?: string
   onLinkClick?: CommentMarkdownLinkClickHandler
   allowFileUriLinks?: boolean
@@ -63,7 +66,7 @@ export function NativeChatNoticeRow({
       <div
         role="separator"
         aria-label={label}
-        className="flex items-center gap-3 py-2 text-xs text-muted-foreground"
+        className="flex items-center gap-3 py-2 text-xs text-chat-foreground-faint"
       >
         <span className="h-px flex-1 bg-border" />
         <span>{label}</span>
@@ -74,7 +77,7 @@ export function NativeChatNoticeRow({
   if (block.presentation === 'command-output') {
     // Why: command output is laid out in columns; proportional type breaks its grid.
     return (
-      <pre className="whitespace-pre-wrap break-words font-mono text-xs text-foreground">
+      <pre className="whitespace-pre-wrap break-words font-mono text-xs text-chat-foreground">
         {block.text}
       </pre>
     )
@@ -82,7 +85,7 @@ export function NativeChatNoticeRow({
   if (isAgentSessionHostStatusPresentation(block.presentation)) {
     // The look of any other host status line; only the words are the reader's.
     return (
-      <p className="min-w-0 max-w-full select-text text-sm text-muted-foreground [overflow-wrap:anywhere]">
+      <p className="min-w-0 max-w-full select-text text-sm text-chat-foreground-faint [overflow-wrap:anywhere]">
         {HOST_STATUS_WORDS[block.presentation]()}
       </p>
     )
@@ -97,6 +100,7 @@ export function NativeChatNoticeRow({
         </CardHeader>
         <CardContent className="px-4 text-sm leading-relaxed text-foreground">
           <NativeChatMarkdown
+            rowKey={messageId === undefined ? undefined : `plan:${messageId}`}
             content={block.text}
             variant="document"
             renderCodeBlock={NativeChatCodeBlock}
@@ -153,11 +157,11 @@ export function NativeChatNoticeRow({
   return (
     <div
       className={cn(
-        'space-y-2 text-sm text-foreground',
+        'space-y-2 text-sm text-chat-foreground',
         Icon && 'rounded-md border border-border bg-muted/20 p-3',
-        tone === 'warning' && 'text-[color:var(--warning,#f59e0b)]',
+        tone === 'warning' && 'text-chat-warning',
         tone === 'error' && 'text-destructive',
-        tone === 'notice' && 'text-muted-foreground'
+        tone === 'notice' && 'text-chat-foreground-faint'
       )}
     >
       <div className="flex items-start gap-2">

@@ -17,7 +17,7 @@ import {
 import { ptyIncarnationById, ptyOwnership } from '../ipc/pty/provider/ownership-state'
 import { getLocalPtyProvider, setLocalPtyProvider } from '../ipc/pty/provider/registry'
 import { createPtyIpcSession } from '../ipc/pty/session'
-import type { IPtyProvider } from '../providers/types'
+import type { IPtyProvider } from '../providers/pty-provider-contract'
 import { OrcaRuntimeService } from './orca-runtime'
 import {
   INCARNATION_ID,

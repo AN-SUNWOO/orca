@@ -151,9 +151,6 @@ export type NativeChatSubagentEntry = {
   startedAt?: number
   /** Epoch ms the entry latched terminal. */
   settledAt?: number
-  /** The agent generation (lease fence) whose execution this entry last observed: stamped by the
-   *  journal on a fresh observation, kept when carried unchanged. Absent: the row's own. */
-  ownerFence?: number
 }
 
 /** One spawn group's roster, revised in place as its children report activity.
@@ -163,6 +160,24 @@ export type NativeChatSubagentGroupBlock = {
   /** Stable group key — the parent turn that spawned these children. */
   groupId: string
   agents: NativeChatSubagentEntry[]
+}
+
+/** One subagent's own row: written where it was spawned and revised in place for every later
+ *  change and run. Siblings sharing `groupId` and `parentId` draw as one group, which readers
+ *  derive; no row lists them together. */
+export type NativeChatSubagentBlock = NativeChatSubagentEntry & {
+  type: 'subagent'
+  /** The turn that spawned it: siblings with the same key draw together. */
+  groupId: string
+  /** The subagent that spawned it. Absent ⇒ the session's own agent did. */
+  parentId?: string
+  /** The provider's id for the run `state` describes. Absent when the provider names none. */
+  run?: string
+  /** `stop-acknowledged`: stopped because the agent accepted a Stop, not because the child
+   *  reported its own end; that run's own ending may still replace it. */
+  outcomeBasis?: 'stop-acknowledged'
+  /** Told to outlive the turn that spawned it. */
+  background?: true
 }
 
 /** One provider background task — a shell command, workflow or monitor run
@@ -198,8 +213,6 @@ export type NativeChatBackgroundTaskBlock = {
   startedAt?: number
   /** Epoch ms the row latched terminal. */
   settledAt?: number
-  /** As `NativeChatSubagentEntry.ownerFence`. */
-  ownerFence?: number
 }
 
 export type NativeChatBlock =
@@ -208,6 +221,7 @@ export type NativeChatBlock =
   | NativeChatToolResultBlock
   | NativeChatImageRefBlock
   | NativeChatSubagentGroupBlock
+  | NativeChatSubagentBlock
   | NativeChatBackgroundTaskBlock
 
 /** A transcript row. Structured rows carry the journal row's producer linkage, so
@@ -365,6 +379,10 @@ export function isSubagentGroupBlock(
   block: NativeChatBlock
 ): block is NativeChatSubagentGroupBlock {
   return block.type === 'subagent-group'
+}
+
+export function isSubagentBlock(block: NativeChatBlock): block is NativeChatSubagentBlock {
+  return block.type === 'subagent'
 }
 
 export function isBackgroundTaskBlock(

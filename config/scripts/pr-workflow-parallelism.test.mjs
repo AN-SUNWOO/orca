@@ -7,9 +7,9 @@ const workflow = parse(readFileSync('.github/workflows/pr.yml', 'utf8'))
 const unitTestWorkflow = parse(readFileSync('.github/workflows/unit-tests.yml', 'utf8'))
 
 describe('PR workflow parallelism', () => {
-  it('enforces process-host boundaries in the required static-analysis checks', () => {
+  it('enforces import boundaries in the required static-analysis checks', () => {
     const guard = workflow.jobs.preflight.steps.find((step) =>
-      step.run?.includes('bun --bun run check:process-host-imports')
+      step.run?.includes('bun config/scripts/check-import-boundaries.mjs')
     )
     expect(guard?.if).toBe('!cancelled()')
     expect(guard?.env.PREFLIGHT_PHASE_SELECTED).toBe(

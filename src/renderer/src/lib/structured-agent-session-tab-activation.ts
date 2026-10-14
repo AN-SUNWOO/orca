@@ -1,6 +1,7 @@
 import { getRuntimeEnvironmentIdForWorktree } from './worktree-runtime-owner'
 import { useAppStore } from '@/store'
-import { callRuntimeRpc, type RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
 import {
   executionHostIdForStructuredTarget,

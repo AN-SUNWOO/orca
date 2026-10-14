@@ -157,7 +157,8 @@ function Probe(props: ProbeProps): null {
       sessionId: props.sessionId,
       enabled: true,
       fence: props.fence,
-      mutate: props.mutate
+      mutate: props.mutate,
+      takesSendOptions: true
     })
   )
   return null

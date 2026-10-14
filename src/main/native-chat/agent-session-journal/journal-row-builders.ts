@@ -13,7 +13,7 @@ import { agentSessionJournalProviderHandle } from '../../../shared/agent-session
 import { journalRowSchemaVersion } from '../../../shared/agent-session-journal-types'
 import { agentJournalLinkageFields } from '../../../shared/agent-session-journal-producer'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
-import { journalItemOwnerFence, journalObservedBody } from './journal-item-provenance'
+import { journalItemOwnerFence } from './journal-item-provenance'
 import type { JournalReducerState } from './journal-reducer'
 import type {
   JournalDispatchRow,
@@ -97,6 +97,7 @@ export function journalSubmissionRowBuilder(
     handoverRecorded?: true
     queuedMessageId?: string
     origin?: 'client' | 'host'
+    options?: Readonly<Record<string, string>>
   },
   /** Present when the append hands off a queued draft: the row names that draft, stamped here
    *  from the consume itself so no hand-off path can leave the link off. */
@@ -190,15 +191,7 @@ export function journalLifecycleBatchRowBuilder(
       const revision = nextJournalItemRevision(current, itemId, runningRevisions)
       return journalLifecycleMutationRow(
         mutation.kind === 'item'
-          ? {
-              ...mutation,
-              body: journalObservedBody(
-                current,
-                resolved,
-                turnEndAfterStop(current, resolved, mutation.body),
-                mutation.ownerFence
-              )
-            }
+          ? { ...mutation, body: turnEndAfterStop(current, resolved, mutation.body) }
           : mutation,
         itemId,
         revision,
@@ -258,12 +251,7 @@ export function buildJournalItemRow(
   // A tombstoned row keeps its revision in `tombstones`, and the reducer drops
   // any item at or below it — so a re-add has to outrank the tombstone too.
   const revision = nextJournalItemRevision(input.state, itemId, input.revisions)
-  const body = journalObservedBody(
-    input.state,
-    resolved,
-    turnEndAfterStop(input.state, resolved, input.body),
-    input.ownerFence
-  )
+  const body = turnEndAfterStop(input.state, resolved, input.body)
   return {
     kind: 'item',
     itemId,
@@ -310,6 +298,7 @@ export function buildJournalSubmissionRow(input: {
   queuedMessageId?: string
   origin?: 'client' | 'host'
   source?: Pick<AgentSessionMessageSource, 'kind'>
+  options?: Readonly<Record<string, string>>
 }): JournalSubmissionRow {
   return {
     kind: 'submission',
@@ -322,6 +311,7 @@ export function buildJournalSubmissionRow(input: {
     ...(input.queuedMessageId !== undefined ? { queuedMessageId: input.queuedMessageId } : {}),
     ...(input.origin !== undefined ? { origin: input.origin } : {}),
     // The kind only; who the senders are is on the message body.
-    ...(input.source !== undefined ? { source: { kind: input.source.kind } } : {})
+    ...(input.source !== undefined ? { source: { kind: input.source.kind } } : {}),
+    ...(input.options ? { options: input.options } : {})
   }
 }

@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -7,10 +6,12 @@ import ts from 'typescript-api'
 
 import {
   diffCounts,
-  formatBaseline,
-  parseBaseline,
-  parseBaselineNotes
-} from './check-focus-read-ratchet.mjs'
+  formatCountBaseline,
+  listTrackedFiles,
+  parseCountBaseline,
+  pruneCountBaseline,
+  totalCount
+} from './ratchet-baseline.mjs'
 
 // Two ratchets for writers of workspace tab layout, which is moving to one owner in the runtime.
 // Per-file counts may only go down. Deleted symbols are left to the compiler.
@@ -398,19 +399,9 @@ export function countLayoutWrites(sourceText, ratchet, fileName = 'file.tsx') {
   return count
 }
 
-function trackedFiles(root, scanRoot) {
-  return execFileSync('git', ['ls-files', scanRoot], {
-    cwd: root,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024
-  })
-    .split('\n')
-    .filter((rel) => rel && isScannedPath(rel))
-}
-
 export function collectCurrentCounts(ratchet, root = process.cwd()) {
   const counts = new Map()
-  for (const rel of trackedFiles(root, ratchet.scanRoot)) {
+  for (const rel of listTrackedFiles(root, [ratchet.scanRoot]).filter(isScannedPath)) {
     if (ratchet.allowed(rel)) {
       continue
     }
@@ -429,10 +420,6 @@ export function collectCurrentCounts(ratchet, root = process.cwd()) {
   return counts
 }
 
-function total(counts) {
-  return [...counts.values()].reduce((sum, count) => sum + count, 0)
-}
-
 const ADVICE =
   'Workspace layout is moving to one runtime owner; send a layout command instead of writing it here.'
 
@@ -448,7 +435,7 @@ export function main(root = process.cwd()) {
     const current = collectCurrentCounts(ratchet, root)
     const { grown, shrunk } = diffCounts(
       current,
-      parseBaseline(fs.readFileSync(baselineFile, 'utf8'))
+      parseCountBaseline(fs.readFileSync(baselineFile, 'utf8'))
     )
     for (const { file, now, allowed } of grown) {
       console.error(
@@ -464,7 +451,9 @@ export function main(root = process.cwd()) {
     if (grown.length > 0) {
       failed = true
     } else {
-      console.log(`Layout-writer ratchet (${ratchet.id}) OK — ${total(current)} ${ratchet.label}.`)
+      console.log(
+        `Layout-writer ratchet (${ratchet.id}) OK — ${totalCount(current)} ${ratchet.label}.`
+      )
     }
   }
   return failed ? 1 : 0
@@ -472,18 +461,9 @@ export function main(root = process.cwd()) {
 
 export function prune(root = process.cwd()) {
   for (const ratchet of RATCHETS) {
-    const baselineFile = path.join(root, ratchet.baselinePath)
-    const text = fs.existsSync(baselineFile) ? fs.readFileSync(baselineFile, 'utf8') : ''
     const current = collectCurrentCounts(ratchet, root)
-    // Lowers entries only; growth still has to be fixed in the code.
-    const pruned = new Map(
-      [...parseBaseline(text)].map(([file, allowed]) => [
-        file,
-        Math.min(allowed, current.get(file) ?? 0)
-      ])
-    )
-    fs.writeFileSync(baselineFile, formatBaseline(pruned, ratchet.header, parseBaselineNotes(text)))
-    console.log(`Pruned ${ratchet.baselinePath} to ${total(pruned)} ${ratchet.label}.`)
+    const kept = pruneCountBaseline(root, ratchet.baselinePath, ratchet.header, current)
+    console.log(`Pruned ${ratchet.baselinePath} to ${kept} ${ratchet.label}.`)
   }
 }
 
@@ -495,7 +475,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       const counts = collectCurrentCounts(ratchet, root)
       fs.writeFileSync(
         path.join(root, ratchet.baselinePath),
-        formatBaseline(counts, ratchet.header)
+        formatCountBaseline(counts, ratchet.header)
       )
     }
   } else if (process.argv[2] === '--prune') {

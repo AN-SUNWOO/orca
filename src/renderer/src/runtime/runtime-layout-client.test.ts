@@ -5,7 +5,7 @@ import {
   EMPTY_WORKSPACE_LAYOUT_CACHE,
   type WorkspaceLayoutCache
 } from '../store/workspace-layout-cache'
-import type { RuntimeClientTarget } from './runtime-client-target'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { subscribeRuntimeLayout, type RuntimeLayoutStreamStatus } from './runtime-layout-client'
 
 type FakeStream = {

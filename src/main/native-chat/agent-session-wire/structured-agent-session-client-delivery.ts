@@ -53,6 +53,7 @@ export class StructuredAgentSessionClientDelivery {
     this.statusFeed = createStructuredAgentSessionHostStatusFeed({
       sessions,
       now,
+      currentWork: (sessionId, journal) => this.currentWork(sessionId, journal),
       deps,
       onAgentStarted,
       onChildWorkChanged
@@ -119,6 +120,9 @@ export class StructuredAgentSessionClientDelivery {
   readChildWork = (sessionId: string): AgentChildWorkView[] | undefined =>
     this.statusFeed.readChildWork(sessionId)
 
+  childWorkIncomplete = (sessionId: string): boolean =>
+    this.statusFeed.childWorkIncomplete(sessionId)
+
   publishStatusAndSettlement = (sessionId: string): void => {
     this.statusFeed.publish(sessionId)
     const journal = this.sessions.get(sessionId)?.journal
@@ -133,10 +137,13 @@ export class StructuredAgentSessionClientDelivery {
    *  whatever became of the cleanup's own write. An end is no activity: it renews no idle clock.
    *  `restate`: each chat re-baselines at the fence, as a death of the child's own does. */
   publishGenerationEnded = (sessionId: string, options: { restate?: boolean } = {}): void => {
-    const journal = this.sessions.get(sessionId)?.journal
-    if (!journal) {
+    const session = this.sessions.get(sessionId)
+    if (!session) {
       return
     }
+    // What readers cache of current work is keyed on the bump, then all re-derive.
+    session.operationalRevision = (session.operationalRevision ?? 0) + 1
+    const { journal } = session
     if (options.restate) {
       const fence = structuredAgentSessionConversationFence(this.deps().store, sessionId)
       this.subscribers.snapshot(sessionId, journal, fence)

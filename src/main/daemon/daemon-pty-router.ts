@@ -4,11 +4,11 @@ import { DaemonPtyAdapterSubscriptionFanout } from './daemon-pty-adapter-subscri
 import type {
   IPtyProvider,
   PtyBackgroundStreamEvent,
-  PtyProviderBufferSnapshot,
   PtyProcessInfo,
+  PtyProviderBufferSnapshot,
   PtySpawnOptions,
   PtySpawnResult
-} from '../providers/types'
+} from '../providers/pty-provider-contract'
 import type { PtyProcessInspection } from '../providers/pty-process-inspection'
 import { isDaemonEndpointGoneError } from './daemon-errors'
 import { LegacyDaemonExitProof } from './daemon-legacy-exit-proof'

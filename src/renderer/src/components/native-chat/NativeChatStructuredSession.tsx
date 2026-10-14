@@ -86,6 +86,7 @@ export function NativeChatStructuredSession(
     composerScopeKey: structuredAgentSessionDraftScopeKey(props.sessionId),
     queueFollowUps,
     hostStopping: hostExecution.stopping,
+    hostOptionStamp: hostExecution.optionStamp,
     providerStarting: hostExecution.phase === 'starting',
     providerRunning: hostExecution.phase !== null,
     rewind: rewindHost,

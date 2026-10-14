@@ -1,4 +1,3 @@
-import type { StructuredAgentSessionStatusObserverOptions } from './structured-agent-session-status-observation'
 // The host's answer to "what is every structured session doing", fanned out to session lists.
 //
 // A client used to learn whether a turn was running by replaying the journal through its own
@@ -17,12 +16,13 @@ import type {
   AgentSessionStatusSummary
 } from '../../../shared/agent-session-wire'
 import type { AgentChildWorkEvidence } from '../../../shared/agent-status-child-work-evidence'
+import type { AgentChildWorkRecord } from '../../../shared/agent-status-child-work'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import type {
-  StructuredAgentSessionEndedChild,
-  StructuredAgentSessionProviderChild
-} from './structured-agent-session-host-types'
+  StatusFeedSession,
+  StructuredAgentSessionStatusFeedDeps
+} from './structured-agent-session-status-feed-deps'
 import { structuredAgentSessionStatusSummary } from './structured-agent-session-status-summary'
 import { structuredStatusChildWork } from './structured-agent-session-status-child-work'
 import {
@@ -30,52 +30,16 @@ import {
   type StructuredAgentSessionJournalProjection
 } from './structured-agent-session-status-journal-projection'
 import { structuredStatusSummariesEqual } from './structured-agent-session-status-summary-equality'
-import type { StructuredAgentSessionLogger } from './structured-agent-session-logger'
-import {
-  StructuredAgentSessionStatusOwnership,
-  type StructuredAgentSessionStatusSink
-} from './structured-agent-session-status-ownership'
+import { StructuredAgentSessionStatusOwnership } from './structured-agent-session-status-ownership'
 
 export type { StructuredAgentSessionStatusSink } from './structured-agent-session-status-ownership'
+export type { StructuredAgentSessionStatusFeedDeps } from './structured-agent-session-status-feed-deps'
 
 export type { StructuredAgentSessionStatusState } from './structured-agent-session-status-journal-projection'
 
 export type StructuredAgentSessionStatusSubscriber = {
   id: string
   emit: (event: AgentSessionStatusEvent) => void
-}
-
-type StatusFeedSession = {
-  journal: AgentSessionJournal
-  params: { location: AgentSessionRecord['location']; provider: AgentSessionRecord['provider'] }
-  child?: Pick<StructuredAgentSessionProviderChild, 'phase' | 'generation' | 'fence'> | null
-  /** What the current-work projection reads of the last child this host saw end. */
-  lastEndedChild?: Pick<StructuredAgentSessionEndedChild, 'fence' | 'rootGone'>
-  operationalRevision?: number
-  restartResume?: AgentSessionStatusSummary['restartResume']
-}
-
-export type StructuredAgentSessionStatusFeedDeps = {
-  sessions: ReadonlyMap<string, StatusFeedSession>
-  getRecord: (sessionId: string) => AgentSessionRecord | null
-  /** `AgentSessionRecordStore.replacedRuntime`; absent where no runtime was replaced. */
-  replacedRuntime?: (sessionId: string) => { fence: number } | undefined
-  now: () => number
-  /** Where a failing sink or observer is reported; neither may cost subscribers their event. */
-  logger: StructuredAgentSessionLogger
-  /** Every projection change, whether or not anyone is subscribed. `replay` marks a re-projection
-   *  of state the host already knew (restore, an arriving subscriber) rather than a journal edge. */
-  onStatusChanged?: (
-    summary: AgentSessionStatusSummary,
-    options: StructuredAgentSessionStatusObserverOptions
-  ) => void
-  /** Resolved on every call: the host builds this feed in a field initializer, before its own
-   *  deps are assigned. The sink holds the session's child records; the summary reads them there. */
-  statusSink?: () => StructuredAgentSessionStatusSink | undefined
-  /** The session's child records changed, so every other reader of them republishes. */
-  onChildWorkChanged?: (sessionId: string) => void
-  /** The session's agent proved a start: its row's phase became `ready`. */
-  onAgentStarted?: (sessionId: string) => void
 }
 
 export class StructuredAgentSessionStatusFeed {
@@ -338,6 +302,14 @@ export class StructuredAgentSessionStatusFeed {
       return undefined
     }
   }
+
+  childWorkIncomplete = (sessionId: string): boolean =>
+    this.ownership.childWorkIncomplete(sessionId)
+
+  /** The records the views project. Read only from the child-work observer, which already
+   *  reports a failure. */
+  readChildWorkRecords = (sessionId: string): AgentChildWorkRecord[] | undefined =>
+    this.ownership.readChildWorkRecords(sessionId)
 
   private admitChildWork(
     sessionId: string,

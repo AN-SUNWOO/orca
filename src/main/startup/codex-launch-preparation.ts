@@ -1,4 +1,4 @@
-import type { CodexHomeLaunchContext } from '../ipc/pty'
+import type { CodexHomeLaunchContext } from '../ipc/pty/host-env/types'
 import type { CodexAccountSelectionTarget } from '../codex-accounts/runtime-selection'
 import { codexHookService } from '../codex/hook-service'
 import { getDefaultWslDistro } from '../wsl'

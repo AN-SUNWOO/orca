@@ -34,9 +34,13 @@ vi.mock('@/lib/client-creation-action-policy', () => ({
   })
 }))
 vi.mock('@/lib/focus-terminal-tab-surface', () => ({ focusTerminalTabSurface: vi.fn() }))
-vi.mock('@/runtime/web-runtime-session', () => ({
-  createWebRuntimeSessionBrowserTab: vi.fn(),
-  createWebRuntimeSessionTerminal: vi.fn(),
+vi.mock('@/runtime/web-runtime-browser-creation', () => ({
+  createWebRuntimeSessionBrowserTab: vi.fn()
+}))
+vi.mock('@/runtime/web-runtime-terminal-creation', () => ({
+  createWebRuntimeSessionTerminal: vi.fn()
+}))
+vi.mock('@/runtime/web-runtime-session-environment', () => ({
   isWebRuntimeSessionActive: () => false
 }))
 vi.mock('@/lib/open-mobile-emulator-tab', () => ({

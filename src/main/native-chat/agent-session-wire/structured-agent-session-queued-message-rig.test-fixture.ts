@@ -43,7 +43,12 @@ import { claudeAndCodexDeclared } from './structured-agent-session-adapter-route
 import { retryIdle } from './structured-agent-session-retry.test-fixture'
 
 export const QUEUED_RIG_CALLER = { callerKey: 'client-1' }
-type RigSendOptions = { internal?: true; from?: AgentMessageSource }
+type RigSendOptions = {
+  internal?: true
+  from?: AgentMessageSource
+  /** The model and effort the send carries. */
+  carried?: Readonly<Record<string, string>>
+}
 
 export function eventually(assertion: () => void | Promise<void>): Promise<void> {
   return vi.waitFor(assertion, { timeout: 10_000 })
@@ -111,7 +116,11 @@ export async function createQueuedMessageTestRig(
     const body = { ...hostTestMessage(text), ...(options?.from ? { from: options.from } : {}) }
     const clientOperationId = hostTestOperationId()
     // Fingerprinted as the host digests a send: the message without its sender.
-    const fields = { body: agentSessionMessagePayload(body), ...(delivery ? { delivery } : {}) }
+    const fields = {
+      body: agentSessionMessagePayload(body),
+      ...(delivery ? { delivery } : {}),
+      ...(options?.carried ? { options: options.carried } : {})
+    }
     const result = host.send(QUEUED_RIG_CALLER, {
       envelope: envelope(fields, 'agentSession.send', clientOperationId),
       ...fields,
@@ -226,12 +235,6 @@ export async function createQueuedMessageTestRig(
     })
   }
 
-  /** A host-process restart: the app quits (its own teardown runs) and a new host opens the same
-   *  state. A quit writes no close's Stop event, so a person's Stop pause survives it. */
-  async function restartHostProcess(beforeStartup?: () => unknown): Promise<void> {
-    await quitRestartHostProcess(beforeStartup)
-  }
-
   /** A host process that dies with no close: a new process loads the same state directory, its
    *  records with it, and runs its startup as the runtime does before any client reaches it: the
    *  restart reconcile and its settlement, then the restore of the chat's tab, which decides a
@@ -256,7 +259,8 @@ export async function createQueuedMessageTestRig(
     await host.startupSettled()
   }
 
-  /** The app quits — the host's own teardown runs — and a new host opens the same state. */
+  /** The app quits — the host's own teardown runs — and a new host opens the same state. A quit
+   *  writes no close's Stop event, so a person's Stop pause survives it. */
   async function quitRestartHostProcess(beforeStartup?: () => unknown): Promise<void> {
     await host.flushAllStreamedEvents()
     await crashRestartHostProcess(beforeStartup)
@@ -321,6 +325,7 @@ export async function createQueuedMessageTestRig(
     cancelTurn,
     closeSession,
     compact,
+    setOption: provider.adapter.setOption,
     starts: provider.starts,
     answerPrompt: provider.adapter.answerPrompt,
     holdNextStart: provider.holdNextStart,
@@ -339,7 +344,7 @@ export async function createQueuedMessageTestRig(
     workingSend,
     settleAccepted,
     settleRejected,
-    restartHostProcess,
+    restartHostProcess: quitRestartHostProcess,
     crashRestartHostProcess,
     crashReloadHostProcess,
     quitRestartHostProcess,

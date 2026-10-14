@@ -1,8 +1,9 @@
+import type * as ExecCommandModule from './ssh-relay-exec-command'
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NODE_RUNTIME_ASSETS, NODE_RUNTIME_PIN } from '../../shared/node-runtime-pin'
 import type { OrcadHostTransport } from './orcad-host-transport'
-import { execCommand } from './ssh-relay-deploy-helpers'
+import { execCommand } from './ssh-relay-exec-command'
 import { uploadRelayDirectory } from './ssh-relay-install-transfers'
 import {
   ensureRemoteOrcadNodeRuntime,
@@ -22,7 +23,10 @@ import {
 import { getRemoteHostPlatform } from './ssh-remote-platform'
 import { decodeRemotePowerShellScript } from './ssh-remote-powershell'
 
-vi.mock('./ssh-relay-deploy-helpers', () => ({ execCommand: vi.fn() }))
+vi.mock('./ssh-relay-exec-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof ExecCommandModule>()),
+  execCommand: vi.fn()
+}))
 vi.mock('./ssh-relay-install-transfers', () => ({ uploadRelayDirectory: vi.fn() }))
 
 const host = getRemoteHostPlatform('win32-x64')

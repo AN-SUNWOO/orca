@@ -1,10 +1,11 @@
 import { useMemo, useRef } from 'react'
+import { useStructuredAgentSessionSendOptions } from './use-structured-agent-session-send-options'
 import { useStructuredAgentSessionSends } from './use-structured-agent-session-sends'
 import { useStructuredAgentSessionCommandWrite } from './use-structured-agent-session-command-write'
 import { structuredAgentSessionNewSendsQueue } from './structured-agent-session-queue-request'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { AgentSessionCancelResult } from '../../../../shared/agent-session-wire'
-import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-label'
 import { useStructuredLegacyLaunchStop } from '@/lib/structured-agent-session-legacy-launch-stop'
 import { supportsStructuredAgentSessionPromptCancel } from '@/runtime/structured-agent-session-client'
@@ -63,6 +64,8 @@ export function useStructuredAgentSession(args: {
   queueFollowUps?: boolean
   /** The host says a person's Stop is still ending this session's work. */
   hostStopping?: boolean
+  /** The option values the host's status carries; a change re-reads the chat's options. */
+  hostOptionStamp?: string
   /** The host's rewind latch and what follows a message returned by a rewind. */
   rewind?: NativeChatRewindHost
 }) {
@@ -102,6 +105,7 @@ export function useStructuredAgentSession(args: {
     optionSnapshot,
     optionSurface,
     setStructuredOption,
+    sendSource,
     unavailable,
     threadGoal: threadGoalSupport,
     contextUsage: contextUsageSupport,
@@ -116,12 +120,14 @@ export function useStructuredAgentSession(args: {
     providerVisible,
     providerStarting,
     ...(args.providerRunning ? { providerRunning: true } : {}),
+    ...(args.hostOptionStamp ? { hostOptionStamp: args.hostOptionStamp } : {}),
     fence: state.fence,
     turnId: transportState.turnId,
     unloadedTurnRevisions: state.unloadedTurnRevisions,
     mutate,
     ...(launch ? { launch } : {})
   })
+  const sendOptions = useStructuredAgentSessionSendOptions(sessionId, launch, sendSource)
   // Only a capable host may see `delivery`; a card any host publishes shows, with its actions.
   const queueCapability = useStructuredAgentSessionHostQueuesMessagesState(target)
   const queuedMessageIds = useMemo(
@@ -135,10 +141,7 @@ export function useStructuredAgentSession(args: {
     hostStopping,
     mutate
   })
-  const prompts = pendingStructuredSessionPrompts(
-    transportState.journalItems,
-    transportState.actionablePromptIds
-  )
+  const prompts = pendingStructuredSessionPrompts(transportState)
   const promptsUnanswerableHere = pendingPromptsAllUnanswerableHere(prompts)
   // A send after a command the queue will run goes behind it, even with follow-ups off.
   // A host's queue waits on any pending prompt, and nothing here can settle one this build cannot
@@ -159,7 +162,8 @@ export function useStructuredAgentSession(args: {
     queue,
     historyLoaded: transportEnabled && state.status === 'ready',
     isWorking: transportState.isWorking,
-    stopping: stopControl.stopping
+    stopping: stopControl.stopping,
+    sendOptions
   })
 
   const threadGoal = useStructuredAgentSessionThreadGoal({

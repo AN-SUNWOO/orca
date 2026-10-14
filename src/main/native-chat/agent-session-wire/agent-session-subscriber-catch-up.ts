@@ -14,10 +14,17 @@ import type { AgentSessionJournal } from '../agent-session-journal/journal-store
 import { emptyAgentSessionBatch } from './agent-session-empty-batch'
 import {
   agentSessionPublishedWorkFields,
-  createAgentSessionCatchUpReader
-} from './agent-session-history-page'
+  withPublishedWork,
+  withPublishedWorkResult
+} from './agent-session-published-work'
 import type { StructuredAgentSessionCurrentWork } from './structured-agent-session-current-work'
 import {
+  createAgentSessionCatchUpReader,
+  readAgentSessionHydrationPage
+} from './agent-session-history-page'
+import { subscriberHistoryReader } from './agent-session-bounded-frames'
+import {
+  subscriberCommandsChanged,
   subscriberQueuedMessagesChanged,
   type SubscriberFieldHooks
 } from './agent-session-subscriber-frame-fields'
@@ -64,14 +71,18 @@ export function deliverToSubscriber(
     emitCaughtUp(port, subscriber, emitCheckpoint, shared, { journal, work })
     return
   }
-  const readPage = createAgentSessionCatchUpReader(journal, work)
+  const reader = subscriberHistoryReader(subscriber)
+  const readPage = createAgentSessionCatchUpReader(journal, reader)
   while (true) {
-    const result = readPage({
-      sessionId: subscriber.sessionId,
-      direction: 'after',
-      cursor: subscriber.cursor,
-      limit: AGENT_SESSION_HISTORY_MAX_LIMIT
-    })
+    const result = withPublishedWorkResult(
+      readPage({
+        sessionId: subscriber.sessionId,
+        direction: 'after',
+        cursor: subscriber.cursor,
+        limit: AGENT_SESSION_HISTORY_MAX_LIMIT
+      }),
+      work
+    )
     if (!result.ok) {
       const page = { ...result.page, fence: subscriber.fence }
       port.emit(subscriber, {
@@ -90,6 +101,24 @@ export function deliverToSubscriber(
     const advanced = page.window.nextCursor.sequence > subscriber.cursor.sequence
     if (!advanced) {
       emitCaughtUp(port, subscriber, emitCheckpoint, shared, { journal, work })
+      return
+    }
+    // A phone's app ends a stream that outruns its unacked window, so a gap of more than one page
+    // arrives as the newest page instead; older rows load on scroll.
+    if (page.hasNewer && subscriber.boundedFrames) {
+      const tail = withPublishedWork(
+        readAgentSessionHydrationPage(journal, subscriber.fence, reader),
+        work
+      )
+      port.emit(subscriber, {
+        type: 'snapshot',
+        sessionId: subscriber.sessionId,
+        page: tail,
+        fence: subscriber.fence,
+        hostNow,
+        activity: port.activity(subscriber.sessionId)
+      })
+      subscriber.cursor = tail.liveCursor ?? tail.window.nextCursor
       return
     }
     port.emit(
@@ -133,9 +162,7 @@ function emitCaughtUp(
   },
   current: { journal: AgentSessionJournal; work: StructuredAgentSessionCurrentWork | undefined }
 ): void {
-  const commandsChanged =
-    port.hooks.readCommands !== undefined &&
-    (port.hooks.readCommands(subscriber.sessionId) ?? null) !== subscriber.commands
+  const commandsChanged = subscriberCommandsChanged(port.hooks, subscriber)
   const queuedChanged = subscriberQueuedMessagesChanged(port.hooks, subscriber)
   // A generation that ended (or began) with no row, or an exit this host saw with no lease write,
   // changes what is current: the caught-up frame restates the view.

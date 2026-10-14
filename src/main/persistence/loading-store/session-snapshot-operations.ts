@@ -20,6 +20,7 @@ import {
 } from './session-host-partitions'
 import { dropClosedTerminalTabs } from '../closed-terminal-tab-write-fence'
 import { scheduleSave } from './write-scheduling'
+import { orderTerminalRowsByTabGroups } from '../../../shared/workspace-layout/terminal-row-order'
 
 type SessionSnapshotOperationsRuntime = Pick<
   StoreRuntimeState,
@@ -105,6 +106,7 @@ export class SessionSnapshotOperations {
   }
 
   private publishSession(session: WorkspaceSessionState, hostId: ExecutionHostId): void {
+    session = orderTerminalRowsByTabGroups(session)
     const { runtime, scheduling } = this[sessionSnapshotOperationsContext]
     if (hostId === LOCAL_EXECUTION_HOST_ID) {
       runtime.state.workspaceSession = session

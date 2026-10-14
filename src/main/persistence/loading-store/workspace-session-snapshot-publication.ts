@@ -28,6 +28,7 @@ import {
   type SessionSnapshotOperations
 } from './session-snapshot-operations'
 import { scheduleSave } from './write-scheduling'
+import { orderTerminalRowsByTabGroups } from '../../../shared/workspace-layout/terminal-row-order'
 
 export function setLocalWorkspaceSession(
   owner: SessionSnapshotOperations,
@@ -109,6 +110,8 @@ export function setLocalWorkspaceSession(
       retainedScrollbackRefs(context.runtime)
     )
   }
+  // Why last: the steps above rebase rows on the stored ones; the groups set the order.
+  session = orderTerminalRowsByTabGroups(session)
   context.runtime.state.workspaceSession = session
   if (deferSnapshotFiles) {
     enqueueTerminalScrollbackSnapshotWork(owner, prior, session)

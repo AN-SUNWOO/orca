@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useNavigation, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
@@ -36,6 +36,7 @@ import { isHostRouteOf } from './page-route-policy'
 import { useResponsiveLayout } from '../layout/responsive-layout'
 import { storageReadParamsSchema, type BridgeNativeVerb } from './bridge/bridge-native-verbs'
 import { SHELL_OPENING_LABEL, ShellPageCover, ShellWaitingFrame } from './ShellWaitingFrame'
+import { ShellDownloadProgress } from './ShellDownloadProgress'
 import { pageSafeAreaInsets, usePublishedSafeAreaInsets } from './page-safe-area-insets'
 
 function failureMessage(reason: MobileWebShellFailureCause): string {
@@ -43,14 +44,14 @@ function failureMessage(reason: MobileWebShellFailureCause): string {
     case 'isolation-unavailable':
       return "This device's WebView is too old to open the workspace safely."
     case 'download-failed':
-      return 'The workspace could not be downloaded from this host.'
+      return 'The latest app could not be downloaded from this host.'
     case 'status-unreadable':
       return "Could not read this host's status. Go back and reopen it."
     case 'render-process-gone':
       return 'The workspace stopped responding.'
     case 'generation-unreadable':
     case 'document-load-failed':
-      return 'The downloaded workspace could not be opened.'
+      return 'The downloaded app could not be opened.'
   }
 }
 
@@ -59,7 +60,7 @@ function failureMessage(reason: MobileWebShellFailureCause): string {
 function updateNoticeMessage(notice: MobileWebShellUpdateNotice): string {
   switch (notice) {
     case 'update-failed':
-      return "Couldn't update the workspace from this host. Showing the last version that worked."
+      return "Couldn't download the latest app from this host. Showing the last version that worked."
   }
 }
 
@@ -71,18 +72,6 @@ function Waiting({ label }: { label: string }) {
   return (
     <Centered>
       <ShellWaitingFrame label={label} />
-    </Centered>
-  )
-}
-
-function Fetching({ state }: { state: Extract<MobileWebShellSessionState, { kind: 'fetching' }> }) {
-  return (
-    <Centered>
-      <ActivityIndicator color={colors.textSecondary} accessibilityLabel="Downloading workspace" />
-      <Text style={styles.waitingLabel}>Downloading workspace</Text>
-      <Text style={styles.progress} testID="mobile-web-shell-progress">
-        {`${state.completedAssets}/${state.totalAssets} files · ${state.receivedBytes}/${state.totalBytes} bytes`}
-      </Text>
     </Centered>
   )
 }
@@ -366,13 +355,17 @@ export function MobileWebShellScreen({
     return (
       <Centered>
         <Text style={styles.waitingLabel} testID="mobile-web-shell-offline">
-          Connect to this host to download the workspace
+          Connect to this host to download the latest app
         </Text>
       </Centered>
     )
   }
   if (state.kind === 'fetching') {
-    return <Fetching state={state} />
+    return (
+      <Centered>
+        <ShellDownloadProgress state={state} host={snapshot?.host ?? null} />
+      </Centered>
+    )
   }
   if (state.kind !== 'ready') {
     return <Waiting label={state.kind === 'activating' ? SHELL_OPENING_LABEL : 'Checking host'} />
@@ -460,11 +453,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.md,
     textAlign: 'center'
-  },
-  progress: {
-    fontSize: typography.metaSize,
-    color: colors.textMuted,
-    marginTop: spacing.sm
   },
   failedMessage: {
     fontSize: typography.bodySize,

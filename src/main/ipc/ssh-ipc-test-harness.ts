@@ -1,7 +1,6 @@
 import { vi } from 'vitest'
 import type { Mock } from 'vitest'
 import { registerSshHandlers, resetSshHandlerStateForTests } from './ssh'
-import { clearProviderPtyState, deletePtyOwnership, getPtyIdsForConnection } from './pty'
 import type { SshIpcMocks } from './ssh-ipc-module-mocks'
 import type { SshConnectionManagerMock, SshPortForwardManagerMock } from './ssh-ipc-mock-shapes'
 
@@ -73,6 +72,7 @@ export function createSshIpcHarness(mocks: SshIpcMocks): SshIpcHarness {
     removeForward: vi.fn(),
     listForwards: vi.fn().mockReturnValue([]),
     removeAllForwards: vi.fn(),
+    closeAll: vi.fn(),
     dispose: vi.fn(),
     setCallbacks: vi.fn(),
     callbacksRef: { current: null as unknown }
@@ -123,14 +123,12 @@ export function createSshIpcHarness(mocks: SshIpcMocks): SshIpcHarness {
     mockPortForwardManager.removeForwardAndWait.mockReset()
     mockPortForwardManager.listForwards.mockReset().mockReturnValue([])
     mockPortForwardManager.removeAllForwards.mockReset()
+    mockPortForwardManager.closeAll.mockReset().mockResolvedValue(undefined)
     mockPortForwardManager.dispose.mockReset()
     mockPortForwardManager.setCallbacks.mockReset()
     mockPortForwardManager.callbacksRef.current = null
     powerMonitorOnMock.mockReset()
     powerMonitorOffMock.mockReset()
-    vi.mocked(getPtyIdsForConnection).mockReset().mockReturnValue([])
-    vi.mocked(clearProviderPtyState).mockReset()
-    vi.mocked(deletePtyOwnership).mockReset()
 
     registerSshHandlers(mockStore as never, () => mockWindow as never)
   }

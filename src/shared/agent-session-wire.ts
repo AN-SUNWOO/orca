@@ -1,4 +1,5 @@
 import type { AgentSessionUnavailable } from './agent-session-availability'
+import type { AgentSessionCurrentWorkFields } from './agent-session-current-work-wire'
 import type {
   AgentSessionBackgroundTask,
   AgentSessionBackgroundTaskState
@@ -148,17 +149,7 @@ export type AgentSessionHistoryPage = {
   subagentRoster?: AgentSessionSubagentRosterEntry[]
   /** As of the page's read; a client applies it only from a page that replaces its state. */
   latestTurn?: AgentSessionLatestTurn | null
-  /** Rides with `latestTurn`: the approvals and questions still waiting on the person that the
-   *  agent running now raised, over the whole journal. One an agent that has ended raised is not
-   *  listed, since nothing can take its answer. Absent from an older host, whose clients read every
-   *  pending prompt they hold as waiting. */
-  actionablePromptIds?: string[]
-  /** Rides with `latestTurn`: whether the agent running now is working, by the host's projection of
-   *  current work — its running turn, or a send it owes, eligible or handed over and unanswered.
-   *  What an agent that has ended left counts for nothing. Absent from an older host, whose
-   *  clients derive it from the rows they hold. */
-  working?: boolean
-}
+} & AgentSessionCurrentWorkFields
 
 export type AgentSessionHistoryResult =
   | { ok: true; page: AgentSessionHistoryPage; providerSession?: AgentProviderSessionMetadata }
@@ -217,11 +208,8 @@ export type AgentSessionSubscribeEvent =
       /** Rides every batch that carries rows, removals or submissions, so absent there means an
        *  older host; absent on one that carries none, which changes no turn. */
       latestTurn?: AgentSessionLatestTurn | null
-      /** Rides with `latestTurn` (`AgentSessionHistoryPage.actionablePromptIds`). */
-      actionablePromptIds?: string[]
-      /** Rides with `latestTurn` (`AgentSessionHistoryPage.working`). */
-      working?: boolean
-    } & AgentSessionFrameFields)
+    } & AgentSessionCurrentWorkFields &
+      AgentSessionFrameFields)
   | ({
       type: 'reset'
       sessionId: string
@@ -262,6 +250,8 @@ export type AgentSessionStatusSummary = {
   latestPrompt: string
   /** Provider model in force for the next turn; absent until the host has read the options. */
   model?: string
+  /** The chat's saved permission mode; a client re-reads options when it or `model` moves. */
+  permissionMode?: string
   /** The tool the running turn is inside, else the last one it used. Absent unless `status`
    *  is 'working'. */
   toolName?: string
@@ -411,6 +401,8 @@ export type AgentSessionModelOption = {
   efforts: AgentSessionOptionChoice[]
   /** Provider catalog fact. Absent means the host could not determine support. */
   supportsFastMode?: boolean
+  /** Whether the model runs Approve for me; absent is unknown, which neither offers nor launches it. */
+  supportsAutoMode?: boolean
   /** Service tiers the provider lists for this model besides its standard one, each valued by the
    *  provider's own tier id. Absent means unknown; a client that reads it offers one speed choice
    *  (`default` for standard) in place of the Fast toggle. */
@@ -513,6 +505,8 @@ export type AgentSessionOptionsResult = {
     fastMode?: boolean
     /** Next-turn service tier id where the model lists `serviceTiers`; `default` is standard. */
     serviceTier?: string
+    /** The permission mode a start runs now; absent from a host or agent with no picker. */
+    permissionMode?: string
     /** Provider-reported effective routing, distinct from the next-turn preference. */
     fastModeState?: AgentSessionFastModeState
     /**

@@ -110,7 +110,7 @@ export function installPaneAgentIdentity(session: ConnectPanePtySession): void {
    *  pane armed at 1 that reports exactly once more compares equal. It needs a foreign drop inside
    *  the confirm window; the relaunch case that would otherwise hit it is already discarded by
    *  onCommandStarted, and the cost is retiring a pane the process table just proved is a shell. */
-  const reconcileEndedProcessIfPaneQuiet = (armedAcceptedStatusSeq: number | undefined): void => {
+  session.reconcileEndedProcessIfPaneQuiet = (armedAcceptedStatusSeq: number | undefined): void => {
     const current = useAppStore.getState().agentStatusByPaneKey[session.cacheKey]
     if (current && current.acceptedStatusSeq !== armedAcceptedStatusSeq) {
       return
@@ -124,7 +124,7 @@ export function installPaneAgentIdentity(session: ConnectPanePtySession): void {
   session.visibleForegroundSamplePending = false
   session.visibleForegroundSampleSettled = false
   session.settleDeferredCommandFinishedStatusDrop = (
-    options: { confirmedShell?: boolean } = {}
+    options: { confirmedShell?: boolean; processExitConfirmed?: boolean } = {}
   ): void => {
     const dropStatus = session.deferredCommandFinishedStatusDrop
     const reconcile = session.deferredConfirmedShellReconcile
@@ -147,6 +147,10 @@ export function installPaneAgentIdentity(session: ConnectPanePtySession): void {
       session.deferredCommandFinishedStatusDrop = null
       if (!verifiable) {
         dropStatus()
+        // Why: only a process-table-confirmed exit proves the agent's main-side latches are dead.
+        if (options.processExitConfirmed) {
+          reconcile?.()
+        }
       }
     }
     void Promise.resolve(window.api?.agentStatus?.hasVerifiableAgentProcess?.(session.cacheKey))
@@ -281,7 +285,7 @@ export function installPaneAgentIdentity(session: ConnectPanePtySession): void {
       const armedAcceptedStatusSeq = entry?.acceptedStatusSeq
       session.deferredCommandFinishedStatusDrop = dropStatus
       session.deferredConfirmedShellReconcile = () =>
-        reconcileEndedProcessIfPaneQuiet(armedAcceptedStatusSeq)
+        session.reconcileEndedProcessIfPaneQuiet(armedAcceptedStatusSeq)
       return
     }
     session.deferredCommandFinishedStatusDrop = null

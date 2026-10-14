@@ -25,7 +25,7 @@ describe('unit support routing', () => {
     (unitHarness) => {
       for (const file of [
         'src/renderer/src/runtime/web-session-tabs-sync-next-test-harness.ts',
-        'src/renderer/src/runtime/web-session-tabs-sync.ts',
+        'src/renderer/src/runtime/web-session-tabs-sync/snapshot-api.ts',
         'src/renderer/src/components/native-chat/NativeChatStructuredSession.next-test-harness.tsx',
         'src/renderer/src/components/native-chat/NativeChatStructuredSession.tsx',
         'src/main/providers/windows-conpty-wide-char-duplication.node-pty.test.ts',
@@ -50,7 +50,7 @@ describe('unit support routing', () => {
     const spec = 'tests/e2e/paired-client-hosted-browser-restart-survival.spec.ts'
     for (const file of [
       'src/renderer/src/runtime/web-session-tabs-sync-next-test-harness.ts',
-      'src/renderer/src/runtime/web-session-tabs-sync.ts',
+      'src/renderer/src/runtime/web-session-tabs-sync/snapshot-api.ts',
       spec
     ]) {
       expect(selectPrE2eSpecs([harness, file]), file).toContain(spec)

@@ -529,10 +529,7 @@ describe('orca root help', () => {
     )
     expect(logSpy.mock.calls[0][0]).toContain('Agent Sessions And Worktrees:')
     expect(logSpy.mock.calls[0][0]).toContain(
-      '`worktree create --agent` creates a new checkout with an agent.'
-    )
-    expect(logSpy.mock.calls[0][0]).toContain(
-      'orca terminal create --worktree active --command "codex"'
+      'orca agent launch --agent codex --model gpt-6-astra --effort high'
     )
     expect(logSpy.mock.calls[0][0]).toContain(
       'orchestration worker-start Start a supervised worker locally or on a connected Orca server'
@@ -723,7 +720,7 @@ describe('orca root help', () => {
     expect(callMock).not.toHaveBeenCalled()
   })
 
-  it('distinguishes new worktrees from fresh agent terminals in command help', async () => {
+  it('points both create commands at the agent launch for starting agents', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     logSpy.mockClear()
 
@@ -731,17 +728,14 @@ describe('orca root help', () => {
 
     expect(String(logSpy.mock.calls[0][0])).toContain('This creates a new checkout.')
     expect(String(logSpy.mock.calls[0][0])).toContain(
-      'orca terminal create --worktree active --command "codex"'
+      'For a fresh agent in an existing worktree, use `orca agent launch`'
     )
 
     logSpy.mockClear()
     await main(['terminal', 'create', '--help'], '/tmp/repo')
 
     const terminalHelp = String(logSpy.mock.calls[0][0])
-    expect(terminalHelp).toContain('Use this, not worktree create')
-    expect(terminalHelp).toContain(
-      'orca terminal create --worktree active --command "codex" --json'
-    )
+    expect(terminalHelp).toContain('To start an agent, use `orca agent launch`')
     expect(callMock).not.toHaveBeenCalled()
   })
 })

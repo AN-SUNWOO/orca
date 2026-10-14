@@ -41,7 +41,8 @@ const SHAPES = {
       ['production-gce-c31'],
       ['production-gce-c32'],
       ['production-gce-c33'],
-      ['production-gce-c34']
+      ['production-gce-c34'],
+      ['production-gce-c35']
     ]
   }
 }

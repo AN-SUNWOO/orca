@@ -7,7 +7,7 @@ import type {
   LinearWorkspaceSelection
 } from '../../../shared/linear/workspace-types'
 import { callRuntimeRpc, runtimeEnvironmentSupportsCapability } from './runtime-rpc-client'
-import type { RuntimeClientTarget } from './runtime-client-target'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { rowLessSourceTarget, type RowLessSource } from '@/lib/default-creation-host'
 import { isRuntimeProviderSearchQueryWithinLimit } from './runtime-provider-search-bounds'
 import type { LinearIssueAttributeFilter } from '../../../shared/linear/issue-attribute-filter'

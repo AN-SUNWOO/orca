@@ -6,9 +6,6 @@ import type { OrcadSshProvisioningIntent } from './orcad-ssh-provisioning'
 export const MIN_SSH_RELAY_GRACE_PERIOD_SECONDS = 60
 export const MAX_SSH_RELAY_GRACE_PERIOD_SECONDS = 7 * 24 * 60 * 60
 export const LEGACY_DEFAULT_SSH_RELAY_GRACE_PERIOD_SECONDS = 3 * 60 * 60
-export const DEFAULT_BOUNDED_SSH_RELAY_GRACE_PERIOD_SECONDS = 24 * 60 * 60
-export const DEFAULT_SSH_RELAY_GRACE_PERIOD_SECONDS = 0
-export const SSH_RELAY_CONFIGURE_GRACE_TIME_METHOD = 'relay.configureGraceTime'
 
 /**
  * Which runtime executes the SSH relay. `pinned-node` runs the D6 ladder on Orca's uploaded Node and
@@ -314,8 +311,6 @@ export type SshManagedServerStatus =
       detail?: string
       /** Relay terminals still running, when that is what keeps the host on the relay. */
       terminals?: number
-      /** Show the one-time offer to move now, restarting those terminals. */
-      offerMove?: boolean
       /** Those terminals belong to another Orca desktop or session, so this one offers no move. */
       terminalsElsewhere?: boolean
     }

@@ -11,7 +11,6 @@ vi.mock('../ssh/ssh-connection-store', () => mocks.sshConnectionStore)
 vi.mock('./ssh-host-server-connect', () => mocks.hostServerConnect)
 vi.mock('../ssh/ssh-connection-manager', () => mocks.sshConnectionManager)
 vi.mock('../ssh/ssh-channel-multiplexer', () => mocks.sshChannelMultiplexer)
-vi.mock('./pty', () => mocks.pty)
 vi.mock('../ssh/ssh-port-forward', () => mocks.sshPortForward)
 vi.mock('../ssh/ssh-port-scanner', () => mocks.sshPortScanner)
 
@@ -63,7 +62,7 @@ describe('a connect cancelled during its server decision', () => {
       // The census dials after the teardown, opening a transport no one else holds.
       recordSshConnectionOpened(asTransport(opened))
       mockConnectionManager.getConnection.mockReturnValue(opened)
-      return { route: 'relay', reason: 'failed' }
+      return { route: 'unserved', reason: 'failed' }
     })
     await expect(
       Promise.resolve(handlers.get('ssh:connect')!(null, { targetId: 'ssh-1' }))
@@ -91,7 +90,7 @@ describe('a connect cancelled during its server decision', () => {
       recordSshConnectionOpened(asTransport(opened))
       mockConnectionManager.getConnection.mockReturnValue(opened)
       await new Promise<void>((resolve) => (resumeStale = resolve))
-      return { route: 'relay', reason: 'orcad_unavailable', detail: 'unsupported_host' }
+      return { route: 'unserved', reason: 'orcad_unavailable', detail: 'unsupported_host' }
     })
     const stale = Promise.resolve(handlers.get('ssh:connect')!(null, { targetId: 'ssh-1' }))
     await vi.waitFor(() => expect(staleDecided).toBe(true))

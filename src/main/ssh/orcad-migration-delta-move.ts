@@ -38,6 +38,7 @@ import {
 import { retainOrcadMigrationSource } from './orcad-migration-source-retention'
 import {
   assessOrcadMigrationTerminals,
+  type OrcadMigrationTerminalVerdict,
   retireProvenExitedLeases,
   type CensusHostRelayTerminals
 } from './orcad-migration-terminal-gate'
@@ -77,9 +78,10 @@ export async function runOrcadDeltaMove(args: OrcadDeltaMoveArgs): Promise<Orcad
     }
   }
   const terminals = await assessOrcadMigrationTerminals(store, target.id, args.censusHost)
-  if (terminals.verdict !== 'exited') {
+  if (terminals.verdict !== 'exited' && terminals.verdict !== 'bridged') {
     return refuse('orcad_migration_terminals', terminals.reason)
   }
+  const settled: SettledTerminals = terminals
   retireProvenExitedLeases(store, target.id, terminals)
   return args.runTargetLifecycle(target.id, async () => {
     // Why re-checked: another move of this host may have journaled or finished while this waited.
@@ -96,16 +98,18 @@ export async function runOrcadDeltaMove(args: OrcadDeltaMoveArgs): Promise<Orcad
         'This host changed while the move was starting. Try the move again.'
       )
     }
-    const cutover = plan.resumes ?? journalDelta(args, plan, planned, terminals.provenPtyIds, now)
+    const cutover = plan.resumes ?? journalDelta(args, plan, planned, settled, now)
     return commitDelta(args, plan, cutover, changedAt, now)
   })
 }
+
+type SettledTerminals = Extract<OrcadMigrationTerminalVerdict, { verdict: 'exited' | 'bridged' }>
 
 function journalDelta(
   args: OrcadDeltaMoveArgs,
   plan: OrcadDeltaMovePlan,
   planned: string,
-  provenPtyIds: string[],
+  terminals: SettledTerminals,
   now: () => Date
 ): OrcadMigrationSourceCutover {
   const timestamp = now().toISOString()
@@ -120,7 +124,9 @@ function journalDelta(
     sshTargetId: args.target.id,
     sshTargetGeneration: plan.head.sshTargetGeneration,
     manifestSha256: plan.manifest.manifestSha256,
-    provenPtyIds,
+    provenPtyIds: terminals.verdict === 'exited' ? terminals.provenPtyIds : [],
+    // COMPAT(legacy-relay-bridge): a move leaves relay terminals running for the bridge too.
+    ...(terminals.verdict === 'bridged' ? { bridgedPtyIds: terminals.bridgedPtyIds } : {}),
     supersedesMigrationId: plan.head.migrationId,
     // The whole source as the manifest saw it: what the retained rows must keep matching.
     sourceBaselineFingerprint: planned,

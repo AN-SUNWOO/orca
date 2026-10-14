@@ -4,7 +4,7 @@ import {
   getActiveWorkspaceOwnerTarget,
   getResolvedExecutionHostIdForWorktree
 } from './resolved-worktree-execution-host'
-import type { WorktreeRuntimeOwnerState } from './worktree-runtime-owner'
+import type { WorktreeRuntimeOwnerState } from './worktree-runtime-owner-state'
 
 describe('getResolvedExecutionHostIdForWorktree', () => {
   it('keeps missing workspace ownership unresolved', () => {
@@ -45,6 +45,21 @@ describe('getResolvedExecutionHostIdForWorktree', () => {
     expect(getResolvedExecutionHostIdForWorktree(remoteState, 'same-repo::/remote/worktree')).toBe(
       'ssh:target-1'
     )
+  })
+
+  it('falls back from the repo host stamp to its connection id, then local', () => {
+    const state = (repo: { connectionId: string | null; executionHostId?: ExecutionHostId }) => ({
+      repos: [{ id: 'repo', ...repo }],
+      worktreesByRepo: { repo: [{ id: 'repo::wt', repoId: 'repo' }] }
+    })
+    const resolve = (repo: { connectionId: string | null; executionHostId?: ExecutionHostId }) =>
+      getResolvedExecutionHostIdForWorktree(state(repo), 'repo::wt')
+    expect(resolve({ connectionId: 'target-1', executionHostId: 'runtime:env-1' })).toBe(
+      'runtime:env-1'
+    )
+    expect(resolve({ connectionId: null, executionHostId: 'ssh:target-2' })).toBe('ssh:target-2')
+    expect(resolve({ connectionId: 'target-1' })).toBe('ssh:target-1')
+    expect(resolve({ connectionId: '  ' })).toBe('local')
   })
 
   it('keeps missing folder catalogs unresolved but honors restored runtime ownership', () => {

@@ -163,6 +163,7 @@ export async function maybeQueueStructuredAgentSessionSend(
     envelope: { clientOperationId: string }
     body: AgentJournalMessageItem
     delivery?: 'queue-if-active'
+    options?: Readonly<Record<string, string>>
     /** A person's send at a chat surface: every attachment it names must still be stored. */
     userSend?: true
     /** A person's message the host sends for them. */
@@ -215,6 +216,8 @@ export async function maybeQueueStructuredAgentSessionSend(
         // In the session that will send it: the reducer aliases the provider's echo by exactly this.
         fingerprint: agentSessionSendBodyFingerprint(ctx.sessionId, params.body),
         hostInstance: structuredAgentSessionHostInstance(),
+        // Applied when the card goes out, to the turn it starts.
+        ...(params.options ? { options: params.options } : {}),
         ...(params.userSend ? { requireAttachments: true } : {})
       },
       ctx.operationReceipt
@@ -263,7 +266,8 @@ const LOCKED = { contended: true } as const
 export class StructuredAgentSessionQueuedMessageDrain {
   private readonly scheduled = new Set<string>()
   private disposed = false
-  private readonly abandoned = new QueuedSendAbandonment((sessionId, journal) =>
+  /** The card a given-up send left; a person moving it on (Send now, Delete) clears it. */
+  readonly abandoned = new QueuedSendAbandonment((sessionId, journal) =>
     this.deps.publish(sessionId, journal)
   )
 
@@ -283,11 +287,6 @@ export class StructuredAgentSessionQueuedMessageDrain {
 
   /** The card a given-up send left, which the queue shows as not sent. */
   abandonedCard = (sessionId: string): string | undefined => this.abandoned.card(sessionId)
-
-  /** A person moved the card on (Send now, Delete). */
-  cardMoved(sessionId: string): void {
-    this.abandoned.clear(sessionId)
-  }
 
   /** The retry gave up on the chat's automatic send. */
   abandon(sessionId: string): void {
@@ -397,6 +396,7 @@ export class StructuredAgentSessionQueuedMessageDrain {
           origin: 'host',
           payloadFingerprint: next.fingerprint,
           body: next.body,
+          ...(next.options ? { options: next.options } : {}),
           fence,
           handoverRecorded: true
         },

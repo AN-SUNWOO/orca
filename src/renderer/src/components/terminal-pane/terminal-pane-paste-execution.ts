@@ -1,9 +1,9 @@
 import { useAppStore } from '../../store'
 import type { ManagedPane } from '@/lib/pane-manager/pane-manager'
-import type { PtyTransport } from './pty-transport'
+import type { PtyTransport } from './pty-transport-types'
 import { getConnectionId } from '@/lib/connection-context'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
-import type { TerminalPasteSource, TerminalPasteTextOptions } from './terminal-paste-coordinator'
+import type { TerminalPasteSource, TerminalPasteTextOptions } from './terminal-paste-model'
 import { resolveTerminalPasteRuntime } from './terminal-paste-runtime'
 import {
   isTerminalPanePasteFocusCurrent,

@@ -37,4 +37,6 @@ export type StructuredMobileSession = ReturnType<typeof useMobileStructuredAgent
     backgroundTasks: MobileStructuredBackgroundTasks
     /** Where this chat's `::orca-visual` lines read their HTML from; null without a client. */
     visualSource: MobileNativeChatVisualSource | null
+    /** This phone's photos, by the row id their send is drawn under. */
+    imagePreviewsByMessageId: Record<string, string[]>
   }

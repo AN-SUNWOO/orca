@@ -1,7 +1,6 @@
 import { readTerminalSpawnDeferral } from '../../../../shared/host-spawn-admission'
 import { remoteRestoreSpawnIntentParams } from '../../runtime/remote-restore-spawn-intent'
 import { createAgentSessionKeyboardOptions } from '@/runtime/agent-session-keyboard-capability'
-import { withRemoteReattachInputBuffer } from './remote-reattach-input-buffer'
 import { createRemoteRuntimeDisconnectedInputGrace } from './remote-runtime-disconnected-input-grace'
 import {
   createRemoteRuntimeRecoveryInputHold,
@@ -46,21 +45,21 @@ import type {
   PtyTransport,
   PtyTransportRecoveryState
 } from './pty-transport-types'
-import { createPtyOutputProcessor } from './pty-transport'
+import { createPtyOutputProcessor } from './pty-output-processor'
 import { isSshSessionGoneError } from './pty-connection/pty-connect-limits'
-import { RuntimeRpcCallError, unwrapRuntimeRpcResult } from '../../runtime/runtime-rpc-client'
+import { RuntimeRpcCallError, unwrapRuntimeRpcResult } from '../../runtime/runtime-rpc-result'
 import {
   getRemoteRuntimePtyEnvironmentId,
   getRemoteRuntimeTerminalHandle,
   runtimeTerminalErrorMessage,
   toRemoteRuntimePtyId
 } from '../../runtime/runtime-terminal-stream'
-import {
-  getRemoteRuntimeTerminalMultiplexer,
-  REMOTE_TERMINAL_SNAPSHOT_TOO_LARGE,
-  type RemoteRuntimeMultiplexedTerminal,
-  type RemoteRuntimeSnapshotOutcome
-} from '../../runtime/remote-runtime-terminal-multiplexer'
+import { getRemoteRuntimeTerminalMultiplexer } from '../../runtime/remote-runtime-terminal-multiplexer'
+import { REMOTE_TERMINAL_SNAPSHOT_TOO_LARGE } from '../../runtime/remote-runtime-terminal-snapshot-state'
+import type {
+  RemoteRuntimeMultiplexedTerminal,
+  RemoteRuntimeSnapshotOutcome
+} from '../../runtime/remote-runtime-terminal-multiplexer-types'
 import {
   toRuntimeTerminalWorktreeSelector,
   toRuntimeWorktreeSelector
@@ -81,14 +80,17 @@ import {
 } from '@/runtime/agent-session-create-operation'
 import { replaceFitOverridePtyId, setFitOverride } from '@/lib/pane-manager/mobile-fit-overrides'
 import { replaceDriverPtyId, setDriverForPty } from '@/lib/pane-manager/mobile-driver-state'
-import { isWebTerminalSurfaceTabId, toHostSessionTabId } from '@/runtime/web-terminal-surface-id'
+import {
+  isWebTerminalSurfaceTabId,
+  toHostSessionTabId
+} from '../../../../shared/terminal-surface-id'
 import { listRemoteRuntimeSessionTabsAfterCurrentInFlight } from '@/runtime/remote-runtime-session-tabs-inflight'
 import { subscribeAcceptedWebSessionTerminalHandle } from '@/runtime/web-session-terminal-handle-events'
 import { hostSnapshotAffirmsWorktreeContents } from '@/runtime/host-session-snapshot-authority'
 import { runRemoteAgentSessionLaunch } from '@/runtime/remote-agent-session-launch'
 import { useAppStore } from '@/store'
 import { recordWebAgentSessionHandoff } from '@/runtime/web-agent-session-handoff'
-import { refreshWebRuntimeSessionTabsSnapshot } from '@/runtime/web-runtime-session'
+import { refreshWebRuntimeSessionTabsSnapshot } from '@/runtime/web-runtime-session-snapshot'
 import {
   bufferPtyShutdownData,
   bufferPtyShutdownReplayData,
@@ -186,7 +188,6 @@ function isRemoteTerminalGoneMessage(message: string): boolean {
   return (
     message.includes('terminal_exited') ||
     message.includes('terminal_gone') ||
-    message.includes('no_connected_pty') ||
     message.toLocaleLowerCase('en-US').includes('explicitly killed')
   )
 }
@@ -314,7 +315,7 @@ export function createRemoteRuntimePtyTransport(
     })
   }
 
-  const recoveryInputHold = createRemoteRuntimeRecoveryInputHold()
+  const recoveryInputHold = createRemoteRuntimeRecoveryInputHold({ holdBeforeFirstConnect: true })
   const inputJournal = createRemoteRuntimeInputJournal({
     currentStream: sequencedInputTarget,
     // Why: a refusal that never clears would drop every keystroke behind a connected-looking pane.
@@ -982,7 +983,7 @@ export function createRemoteRuntimePtyTransport(
       return true
     }
     if (lastConnectOptions) {
-      void connectForRecovery(lastConnectOptions)
+      void connectHoldingRestoredInput(lastConnectOptions)
       return true
     }
     return false
@@ -1498,8 +1499,11 @@ export function createRemoteRuntimePtyTransport(
   // Why: a pane binding or auto-recovering a known handle holds typing for it instead of dropping it (#25784).
   // Why 'disconnected' too: the same handle still reattaches on its own after the window, within the grace.
   function shouldHoldInput(): boolean {
-    if (destroyed || terminalEnded || handle === null) {
+    if (destroyed || terminalEnded) {
       return false
+    }
+    if (handle === null) {
+      return recoveryInputHold.isHoldingBeforeBind()
     }
     if (recovery.currentPhase === 'disconnected') {
       return !discardExpiredDisconnectedInput()
@@ -1522,8 +1526,8 @@ export function createRemoteRuntimePtyTransport(
 
   // Why: these bytes never reached a stream, so holding them for the reattach cannot duplicate them.
   function holdUnsentInput(text: string): void {
-    if (handle && shouldHoldInput()) {
-      recoveryInputHold.enqueue(heldInputEndpoint(handle), text, 'driving')
+    if (shouldHoldInput()) {
+      recoveryInputHold.enqueue(holdEndpoint(), text, 'driving')
     }
   }
 
@@ -1549,10 +1553,9 @@ export function createRemoteRuntimePtyTransport(
       inputBatcher.enqueueAfterValidation(() => {
         ran = true
         inputBatcher.flush()
-        const held = handle && shouldHoldInput() ? heldInputEndpoint(handle) : null
         resolve(
-          held
-            ? recoveryInputHold.enqueueAccepted(held, data, inputKind, options)
+          shouldHoldInput()
+            ? recoveryInputHold.enqueueAccepted(holdEndpoint(), data, inputKind, options)
             : sendInputAcceptedToRuntime(data, inputKind, options)
         )
       })
@@ -1594,15 +1597,26 @@ export function createRemoteRuntimePtyTransport(
     }
   }
 
+  // Why null: typing on a restored screen stays scoped to the terminal its connect expects, even
+  // after the host binds a replacement and before the connect settles (#10065).
+  function holdEndpoint(): RemoteRuntimeInputEndpoint | null {
+    return handle && !recoveryInputHold.isHoldingBeforeBind() ? heldInputEndpoint(handle) : null
+  }
+
   // Why: releases a stale hold first, so the hold check reads the handle that release left bound.
-  function releaseThenHoldEndpoint(
-    inputKind: TerminalInputKind
-  ): RemoteRuntimeInputEndpoint | null {
-    if (recoveryInputHold.isHolding()) {
+  function releaseThenShouldHold(inputKind: TerminalInputKind): boolean {
+    if (recoveryInputHold.isHolding() && !recoveryInputHold.isHoldingBeforeBind()) {
       releaseHeldInput()
     }
-    return handle && inputKind !== 'query-reply' && shouldHoldInput()
-      ? heldInputEndpoint(handle)
+    return inputKind !== 'query-reply' && shouldHoldInput()
+  }
+
+  // Why: only a connect naming this transport's own remote id restores a terminal typing may reach.
+  function restoredInputEndpoint(sessionId: string | undefined): RemoteRuntimeInputEndpoint | null {
+    const restoredHandle = sessionId ? getRemoteRuntimeTerminalHandle(sessionId) : null
+    return restoredHandle &&
+      toRemoteRuntimePtyId(restoredHandle, currentRuntimeEnvironmentId) === sessionId
+      ? { handle: restoredHandle, incarnationId: null }
       : null
   }
 
@@ -1984,6 +1998,13 @@ export function createRemoteRuntimePtyTransport(
       retireRemoteTerminalId()
       return
     }
+    if (message.includes('no_connected_pty')) {
+      // Why: the host also sends this when its window has not mounted the pane yet, so it proves
+      // nothing about exit; back off and resubscribe, which asks the host to mount it again.
+      closeMultiplexedStream()
+      scheduleResubscribeAfterBackoff()
+      return
+    }
     if (isSshSessionGoneError(message)) {
       // Why: only the HUB may replace its expired SSH pane; a paired viewer must never fall back to
       // client-local SSH. The identity-mismatch suffix is excluded because it means the opposite —
@@ -1995,7 +2016,7 @@ export function createRemoteRuntimePtyTransport(
     }
     const clientError = toRemoteRuntimeClientErrorLike(error)
     if (isRuntimeRpcQueueOverloadError(clientError)) {
-      scheduleCapacityPressureRetry()
+      scheduleResubscribeAfterBackoff()
       return
     }
     if (isRecoverablePaneBindingError(error)) {
@@ -2229,7 +2250,7 @@ export function createRemoteRuntimePtyTransport(
       })
   }
 
-  function scheduleCapacityPressureRetry(): void {
+  function scheduleResubscribeAfterBackoff(): void {
     if (destroyed || !connected || !handle) {
       return
     }
@@ -2435,7 +2456,7 @@ export function createRemoteRuntimePtyTransport(
           resetSameHandleEndReuse()
           if (recoverable) {
             if (retryWithBackoff) {
-              scheduleCapacityPressureRetry()
+              scheduleResubscribeAfterBackoff()
             } else {
               scheduleResubscribeAfterTransportClose()
             }
@@ -2633,275 +2654,284 @@ export function createRemoteRuntimePtyTransport(
     return sendUnacknowledgedInput(data, true)
   }
 
-  let connectForRecovery: PtyTransport['connect'] = (options) => transport.connect(options)
-  const transport: PtyTransport = {
-    async connect(options) {
-      cancelTerminalCreateRetryWait()
-      const connectLifecycleEpoch = ++lifecycleEpoch
-      const createEnvironmentId = currentRuntimeEnvironmentId
-      lastConnectOptions = options
-      lastAttachOptions = null
-      storedCallbacks = options.callbacks
-      resetRecoveryReplacementPolicy()
-      resetSameHandleEndReuse()
-      terminalEnded = false
-      connecting = true
-      emitRecoveryState(true)
-      if (destroyed || !worktreeId) {
-        return
+  // Why: typing on a restored screen reaches its original terminal only, never a fresh create.
+  async function connectHoldingRestoredInput(
+    options: Parameters<PtyTransport['connect']>[0]
+  ): Promise<PtyConnectResult | undefined> {
+    const expected = recoveryInputHold.expect(restoredInputEndpoint(options.sessionId))
+    try {
+      return await connectPane(options)
+    } finally {
+      recoveryInputHold.settleExpectation(expected, handle !== null && !destroyed)
+      if (handle && recoveryInputHold.isHolding()) {
+        releaseHeldInput()
+      }
+    }
+  }
+
+  async function connectPane(
+    options: Parameters<PtyTransport['connect']>[0]
+  ): Promise<PtyConnectResult | undefined> {
+    cancelTerminalCreateRetryWait()
+    const connectLifecycleEpoch = ++lifecycleEpoch
+    const createEnvironmentId = currentRuntimeEnvironmentId
+    lastConnectOptions = options
+    lastAttachOptions = null
+    storedCallbacks = options.callbacks
+    resetRecoveryReplacementPolicy()
+    resetSameHandleEndReuse()
+    terminalEnded = false
+    connecting = true
+    emitRecoveryState(true)
+    if (destroyed || !worktreeId) {
+      return
+    }
+
+    try {
+      if (isWebTerminalSurfaceTabId(tabId ?? '')) {
+        // Reattach callbacks must not publish the replacement as a fresh
+        // spawn before the reattach result commits tab/layout ownership.
+        return await attachHostSessionMirror(
+          options,
+          !options.sessionId,
+          undefined,
+          connectLifecycleEpoch
+        )
       }
 
-      try {
-        if (isWebTerminalSurfaceTabId(tabId ?? '')) {
-          // Reattach callbacks must not publish the replacement as a fresh
-          // spawn before the reattach result commits tab/layout ownership.
-          return await attachHostSessionMirror(
-            options,
-            !options.sessionId,
-            undefined,
-            connectLifecycleEpoch
-          )
+      if (options.sessionId && !getRemoteRuntimeTerminalHandle(options.sessionId)) {
+        // Why: a HUB session persists host-native PTY ids; resolve its pane handle without exposing that SSH identity as a client transport id.
+        const resolution = await resolvePersistedHostPane()
+        if (resolution.kind === 'resolved') {
+          return await adoptResolvedHostPane(resolution.terminal, options)
         }
+      }
 
-        if (options.sessionId && !getRemoteRuntimeTerminalHandle(options.sessionId)) {
-          // Why: a HUB session persists host-native PTY ids; resolve its pane handle without exposing that SSH identity as a client transport id.
-          const resolution = await resolvePersistedHostPane()
-          if (resolution.kind === 'resolved') {
-            return await adoptResolvedHostPane(resolution.terminal, options)
-          }
-        }
-
-        const commandToSend = options.command ?? command
-        const startupCommandDeliveryToSend =
-          options.startupCommandDelivery ?? startupCommandDelivery
-        const envToSend = options.env ?? env
-        const envToDeleteToSend = options.envToDelete ?? envToDelete
-        const launchConfigToSend = options.launchConfig ?? launchConfig
-        const resumeProviderSessionToSend = options.resumeProviderSession ?? resumeProviderSession
-        const launchTokenToSend = options.launchToken ?? launchToken
-        const launchAgentToSend = options.launchAgent ?? launchAgent
-        const restoreSpawnIntent = resumeProviderSessionToSend
-          ? options.resumeSpawnIntent
-          : undefined
-        // Why only for a restore: an extra await would reorder every plain create against destroy.
-        const spawnIntentParams = restoreSpawnIntent
-          ? await remoteRestoreSpawnIntentParams(createEnvironmentId, restoreSpawnIntent)
-          : {}
-        if (restoreSpawnIntent && (destroyed || lifecycleEpoch !== connectLifecycleEpoch)) {
-          return
-        }
-        const legacyCreateParams = {
-          worktree: toRuntimeTerminalWorktreeSelector(worktreeId),
-          clientMutationId: terminalCreateMutationId,
-          ...(commandToSend !== undefined ? { command: commandToSend } : {}),
-          ...(startupCommandDeliveryToSend !== undefined
-            ? { startupCommandDelivery: startupCommandDeliveryToSend }
-            : {}),
-          ...(envToSend !== undefined ? { env: envToSend } : {}),
-          ...(envToDeleteToSend !== undefined ? { envToDelete: envToDeleteToSend } : {}),
-          ...(launchConfigToSend !== undefined ? { launchConfig: launchConfigToSend } : {}),
-          ...(resumeProviderSessionToSend !== undefined
-            ? { resumeProviderSession: resumeProviderSessionToSend }
-            : {}),
-          ...(launchTokenToSend !== undefined ? { launchToken: launchTokenToSend } : {}),
-          ...(launchAgentToSend !== undefined ? { launchAgent: launchAgentToSend } : {}),
-          ...spawnIntentParams,
-          ...(terminalColorQueryReplies ? { terminalColorQueryReplies } : {}),
-          ...(terminalKittyKeyboardProtocol === true
-            ? { terminalKittyKeyboardProtocol: true }
-            : {}),
-          tabId,
-          leafId,
-          focus: false,
-          // Why: transport backs an already-mounted pane; activation is local state, not permission for remote UI reveal.
-          presentation: 'background' as const,
-          ...(activate === true ? { activate: true } : {})
-        }
-        const legacyCreate = () =>
-          createWithUnknownOutcomeRecovery(
-            'terminal',
-            (timeoutMs, reconcileExisting) =>
-              callRuntimeForEnvironment<{ terminal: RuntimeTerminalCreate }>(
-                createEnvironmentId,
-                'terminal.create',
-                {
-                  ...legacyCreateParams,
-                  ...(reconcileExisting ? { reconcileExisting: true } : {})
-                },
-                timeoutMs
-              ),
-            createEnvironmentId,
-            connectLifecycleEpoch
-          )
-        const hostAuthorityCreate = async () => {
-          const keyboardOptions = await agentKeyboardOptions(createEnvironmentId)
-          return createWithUnknownOutcomeRecovery(
-            'agent-session',
-            (timeoutMs) =>
-              resumeProviderSessionToSend
-                ? callRuntimeForEnvironment<RuntimeEnsureAgentSessionResult>(
-                    createEnvironmentId,
-                    'terminal.ensureAgentSession',
+      const commandToSend = options.command ?? command
+      const startupCommandDeliveryToSend = options.startupCommandDelivery ?? startupCommandDelivery
+      const envToSend = options.env ?? env
+      const envToDeleteToSend = options.envToDelete ?? envToDelete
+      const launchConfigToSend = options.launchConfig ?? launchConfig
+      const resumeProviderSessionToSend = options.resumeProviderSession ?? resumeProviderSession
+      const launchTokenToSend = options.launchToken ?? launchToken
+      const launchAgentToSend = options.launchAgent ?? launchAgent
+      const restoreSpawnIntent = resumeProviderSessionToSend ? options.resumeSpawnIntent : undefined
+      // Why only for a restore: an extra await would reorder every plain create against destroy.
+      const spawnIntentParams = restoreSpawnIntent
+        ? await remoteRestoreSpawnIntentParams(createEnvironmentId, restoreSpawnIntent)
+        : {}
+      if (restoreSpawnIntent && (destroyed || lifecycleEpoch !== connectLifecycleEpoch)) {
+        return
+      }
+      const legacyCreateParams = {
+        worktree: toRuntimeTerminalWorktreeSelector(worktreeId),
+        clientMutationId: terminalCreateMutationId,
+        ...(commandToSend !== undefined ? { command: commandToSend } : {}),
+        ...(startupCommandDeliveryToSend !== undefined
+          ? { startupCommandDelivery: startupCommandDeliveryToSend }
+          : {}),
+        ...(envToSend !== undefined ? { env: envToSend } : {}),
+        ...(envToDeleteToSend !== undefined ? { envToDelete: envToDeleteToSend } : {}),
+        ...(launchConfigToSend !== undefined ? { launchConfig: launchConfigToSend } : {}),
+        ...(resumeProviderSessionToSend !== undefined
+          ? { resumeProviderSession: resumeProviderSessionToSend }
+          : {}),
+        ...(launchTokenToSend !== undefined ? { launchToken: launchTokenToSend } : {}),
+        ...(launchAgentToSend !== undefined ? { launchAgent: launchAgentToSend } : {}),
+        ...spawnIntentParams,
+        ...(terminalColorQueryReplies ? { terminalColorQueryReplies } : {}),
+        ...(terminalKittyKeyboardProtocol === true ? { terminalKittyKeyboardProtocol: true } : {}),
+        tabId,
+        leafId,
+        focus: false,
+        // Why: transport backs an already-mounted pane; activation is local state, not permission for remote UI reveal.
+        presentation: 'background' as const,
+        ...(activate === true ? { activate: true } : {})
+      }
+      const legacyCreate = () =>
+        createWithUnknownOutcomeRecovery(
+          'terminal',
+          (timeoutMs, reconcileExisting) =>
+            callRuntimeForEnvironment<{ terminal: RuntimeTerminalCreate }>(
+              createEnvironmentId,
+              'terminal.create',
+              {
+                ...legacyCreateParams,
+                ...(reconcileExisting ? { reconcileExisting: true } : {})
+              },
+              timeoutMs
+            ),
+          createEnvironmentId,
+          connectLifecycleEpoch
+        )
+      const hostAuthorityCreate = async () => {
+        const keyboardOptions = await agentKeyboardOptions(createEnvironmentId)
+        return createWithUnknownOutcomeRecovery(
+          'agent-session',
+          (timeoutMs) =>
+            resumeProviderSessionToSend
+              ? callRuntimeForEnvironment<RuntimeEnsureAgentSessionResult>(
+                  createEnvironmentId,
+                  'terminal.ensureAgentSession',
+                  {
+                    kind: 'explicit',
+                    ...keyboardOptions,
+                    worktree: toRuntimeTerminalWorktreeSelector(worktreeId),
+                    agent: launchAgentToSend!,
+                    providerSession: resumeProviderSessionToSend,
+                    ...(launchConfigToSend?.ompResumeFilePath
+                      ? { ompResumeFilePath: launchConfigToSend.ompResumeFilePath }
+                      : {}),
+                    ...(agentArgsOverride !== undefined ? { agentArgs: agentArgsOverride } : {}),
+                    ...(agentLaunchPreferences
+                      ? { launchPreferences: agentLaunchPreferences }
+                      : {}),
+                    placement: { tabId, leafId },
+                    presentation: 'background',
+                    ...spawnIntentParams
+                  },
+                  timeoutMs
+                )
+              : callRuntimeForEnvironment<RuntimeCreateAgentSessionResult>(
+                  createEnvironmentId,
+                  'terminal.createAgentSession',
+                  withAgentSessionCreateOperationId(
                     {
-                      kind: 'explicit',
                       ...keyboardOptions,
                       worktree: toRuntimeTerminalWorktreeSelector(worktreeId),
                       agent: launchAgentToSend!,
-                      providerSession: resumeProviderSessionToSend,
-                      ...(launchConfigToSend?.ompResumeFilePath
-                        ? { ompResumeFilePath: launchConfigToSend.ompResumeFilePath }
-                        : {}),
+                      ...(agentPrompt ? { prompt: agentPrompt } : {}),
+                      ...(agentPromptDelivery ? { promptDelivery: agentPromptDelivery } : {}),
                       ...(agentArgsOverride !== undefined ? { agentArgs: agentArgsOverride } : {}),
                       ...(agentLaunchPreferences
                         ? { launchPreferences: agentLaunchPreferences }
                         : {}),
                       placement: { tabId, leafId },
-                      presentation: 'background',
-                      ...spawnIntentParams
+                      presentation: 'background'
                     },
-                    timeoutMs
-                  )
-                : callRuntimeForEnvironment<RuntimeCreateAgentSessionResult>(
-                    createEnvironmentId,
-                    'terminal.createAgentSession',
-                    withAgentSessionCreateOperationId(
-                      {
-                        ...keyboardOptions,
-                        worktree: toRuntimeTerminalWorktreeSelector(worktreeId),
-                        agent: launchAgentToSend!,
-                        ...(agentPrompt ? { prompt: agentPrompt } : {}),
-                        ...(agentPromptDelivery ? { promptDelivery: agentPromptDelivery } : {}),
-                        ...(agentArgsOverride !== undefined
-                          ? { agentArgs: agentArgsOverride }
-                          : {}),
-                        ...(agentLaunchPreferences
-                          ? { launchPreferences: agentLaunchPreferences }
-                          : {}),
-                        placement: { tabId, leafId },
-                        presentation: 'background'
-                      },
-                      agentCreateOperation.clientOperationId
-                    ),
-                    timeoutMs
+                    agentCreateOperation.clientOperationId
                   ),
-            createEnvironmentId,
-            connectLifecycleEpoch
-          )
+                  timeoutMs
+                ),
+          createEnvironmentId,
+          connectLifecycleEpoch
+        )
+      }
+      const resumeHostAuthorityCapability = resumeProviderSessionToSend
+        ? agentResumeHostAuthorityCapability(launchAgentToSend)
+        : undefined
+      const created = launchAgentToSend
+        ? agentSessionRequiresHostAuthorityReplay
+          ? await hostAuthorityCreate()
+          : await runRemoteAgentSessionLaunch<RemoteAgentSessionLaunchResult | null>({
+              environmentId: createEnvironmentId,
+              hostAuthority: hostAuthorityCreate,
+              ...(resumeHostAuthorityCapability
+                ? { hostAuthorityCapability: resumeHostAuthorityCapability }
+                : {}),
+              legacy: legacyCreate
+            })
+        : await legacyCreate()
+      if (!created) {
+        if (!destroyed && lifecycleEpoch === connectLifecycleEpoch) {
+          connecting = false
+          recovery.markDisconnected()
         }
-        const resumeHostAuthorityCapability = resumeProviderSessionToSend
-          ? agentResumeHostAuthorityCapability(launchAgentToSend)
-          : undefined
-        const created = launchAgentToSend
-          ? agentSessionRequiresHostAuthorityReplay
-            ? await hostAuthorityCreate()
-            : await runRemoteAgentSessionLaunch<RemoteAgentSessionLaunchResult | null>({
-                environmentId: createEnvironmentId,
-                hostAuthority: hostAuthorityCreate,
-                ...(resumeHostAuthorityCapability
-                  ? { hostAuthorityCapability: resumeHostAuthorityCapability }
-                  : {}),
-                legacy: legacyCreate
-              })
-          : await legacyCreate()
-        if (!created) {
-          if (!destroyed && lifecycleEpoch === connectLifecycleEpoch) {
-            connecting = false
-            recovery.markDisconnected()
-          }
-          return
-        }
-        const createdTerminal = created.terminal
-        adoptExecutionMetadata(createdTerminal)
-        if (created.disposition !== undefined && tabId && createdTerminal.tabId) {
-          recordWebAgentSessionHandoff({
-            environmentId: createEnvironmentId,
-            worktreeId,
+        return
+      }
+      const createdTerminal = created.terminal
+      adoptExecutionMetadata(createdTerminal)
+      if (created.disposition !== undefined && tabId && createdTerminal.tabId) {
+        recordWebAgentSessionHandoff({
+          environmentId: createEnvironmentId,
+          worktreeId,
+          provisionalTabId: tabId,
+          hostTabId: createdTerminal.tabId,
+          hostTerminalHandle: createdTerminal.handle
+        })
+        // Snapshot parity must not delay attachment to a terminal the host already created.
+        void refreshWebRuntimeSessionTabsSnapshot(createEnvironmentId, worktreeId, {
+          expectedEnvironmentPairingRevision: currentPaneRevision(),
+          acceptCurrentSnapshot: true,
+          confirmAgentSessionHandoff: {
             provisionalTabId: tabId,
             hostTabId: createdTerminal.tabId,
             hostTerminalHandle: createdTerminal.handle
-          })
-          // Snapshot parity must not delay attachment to a terminal the host already created.
-          void refreshWebRuntimeSessionTabsSnapshot(createEnvironmentId, worktreeId, {
-            expectedEnvironmentPairingRevision: currentPaneRevision(),
-            acceptCurrentSnapshot: true,
-            confirmAgentSessionHandoff: {
-              provisionalTabId: tabId,
-              hostTabId: createdTerminal.tabId,
-              hostTerminalHandle: createdTerminal.handle
-            }
-          })
-        }
-        if (destroyed || lifecycleEpoch !== connectLifecycleEpoch) {
-          if (
-            !hostSnapshotOwnsLaunch(created, createEnvironmentId) &&
-            (createdTerminal.handle !== handle ||
-              createEnvironmentId !== currentRuntimeEnvironmentId)
-          ) {
-            await closeRemoteTerminal(createdTerminal.handle, createEnvironmentId)
           }
-          return
-        }
-        handle = createdTerminal.handle
-
-        if (createdTerminal.isReattach === true) {
-          storedCallbacks.onReattachDetermined?.()
-        }
-        remotePtyId = toRemoteRuntimePtyId(handle, currentRuntimeEnvironmentId)
-        registerShutdownHandlers(remotePtyId)
-        connected = true
-        desiredViewport = {
-          cols: options.cols ?? 80,
-          rows: options.rows ?? 24
-        }
-        if (createdTerminal.isReattach !== true) {
-          onPtySpawn?.(remotePtyId)
-        }
-        emitRecoveryState()
-
-        try {
-          await subscribeToHandle()
-        } catch (error) {
-          if (!recoverAfterSubscribeFailure(error, handle, remotePtyId)) {
-            throw error
-          }
-        }
-        if (destroyed || !connected || !remotePtyId) {
-          return
-        }
-
-        return {
-          id: remotePtyId,
-          replay: '',
-          ...(authoritativePtyIncarnationId
-            ? { incarnationId: authoritativePtyIncarnationId }
-            : {}),
-          ...(createdTerminal.isReattach === true ? { isReattach: true } : {})
-        } satisfies PtyConnectResult
-      } catch (error) {
-        if (!destroyed && lifecycleEpoch === connectLifecycleEpoch) {
-          connecting = false
-          const message = runtimeTerminalErrorMessage(error)
-          const deferral = readTerminalSpawnDeferral(error)
-          if (deferral) {
-            recovery.cancel()
-            emitRecoveryState()
-            storedCallbacks.onSpawnDeferred?.(deferral)
-          } else if (isRemoteTerminalGoneMessage(message)) {
-            recovery.cancel()
-            handleRemoteTerminalError(error)
-          } else if (isRecoverablePaneBindingError(error)) {
-            scheduleConnectRetryAfterRecoverableFailure()
-          } else {
-            recovery.cancel()
-            emitRecoveryState()
-            surfaceErrorMessage(message)
-          }
-        }
-        return undefined
+        })
       }
-    },
+      if (destroyed || lifecycleEpoch !== connectLifecycleEpoch) {
+        if (
+          !hostSnapshotOwnsLaunch(created, createEnvironmentId) &&
+          (createdTerminal.handle !== handle || createEnvironmentId !== currentRuntimeEnvironmentId)
+        ) {
+          await closeRemoteTerminal(createdTerminal.handle, createEnvironmentId)
+        }
+        return
+      }
+      handle = createdTerminal.handle
+
+      if (createdTerminal.isReattach === true) {
+        storedCallbacks.onReattachDetermined?.()
+      }
+      remotePtyId = toRemoteRuntimePtyId(handle, currentRuntimeEnvironmentId)
+      registerShutdownHandlers(remotePtyId)
+      connected = true
+      desiredViewport = {
+        cols: options.cols ?? 80,
+        rows: options.rows ?? 24
+      }
+      if (createdTerminal.isReattach !== true) {
+        onPtySpawn?.(remotePtyId)
+      }
+      emitRecoveryState()
+
+      try {
+        await subscribeToHandle()
+      } catch (error) {
+        if (!recoverAfterSubscribeFailure(error, handle, remotePtyId)) {
+          throw error
+        }
+      }
+      if (destroyed || !connected || !remotePtyId) {
+        return
+      }
+
+      return {
+        id: remotePtyId,
+        replay: '',
+        ...(authoritativePtyIncarnationId ? { incarnationId: authoritativePtyIncarnationId } : {}),
+        ...(createdTerminal.isReattach === true ? { isReattach: true } : {})
+      } satisfies PtyConnectResult
+    } catch (error) {
+      if (!destroyed && lifecycleEpoch === connectLifecycleEpoch) {
+        connecting = false
+        const message = runtimeTerminalErrorMessage(error)
+        const deferral = readTerminalSpawnDeferral(error)
+        if (deferral) {
+          recovery.cancel()
+          emitRecoveryState()
+          storedCallbacks.onSpawnDeferred?.(deferral)
+        } else if (isRemoteTerminalGoneMessage(message)) {
+          recovery.cancel()
+          handleRemoteTerminalError(error)
+        } else if (isRecoverablePaneBindingError(error)) {
+          scheduleConnectRetryAfterRecoverableFailure()
+        } else {
+          recovery.cancel()
+          emitRecoveryState()
+          surfaceErrorMessage(message)
+        }
+      }
+      return undefined
+    }
+  }
+
+  const transport: PtyTransport = {
+    connect: connectHoldingRestoredInput,
 
     attach(options) {
+      recoveryInputHold.expect(null)
       attachPane(options, false)
     },
 
@@ -2968,8 +2998,7 @@ export function createRemoteRuntimePtyTransport(
 
     // Why: the kind only gates the local hold; terminal.send gets no kind, so the host classifies desktop bytes itself.
     sendInput(data, inputKind): boolean {
-      const held = releaseThenHoldEndpoint(inputKind)
-      if (held) {
+      if (releaseThenShouldHold(inputKind)) {
         if (!data) {
           return true
         }
@@ -2978,7 +3007,7 @@ export function createRemoteRuntimePtyTransport(
           return inputBatcher.push(data)
         }
         inputBatcher.flush()
-        return recoveryInputHold.enqueue(held, data, inputKind)
+        return recoveryInputHold.enqueue(holdEndpoint(), data, inputKind)
       }
       return sendInputNow(data)
     },
@@ -2987,13 +3016,12 @@ export function createRemoteRuntimePtyTransport(
     sendInputImmediate: (data: string): boolean => sendInputImmediateNow(data),
 
     sendInputAccepted(data, inputKind, options) {
-      const held = releaseThenHoldEndpoint(inputKind)
-      if (held && data) {
+      if (releaseThenShouldHold(inputKind) && data) {
         if (inputBatcher.hasPendingValidation()) {
           return holdAcceptedAfterValidation(data, inputKind, options)
         }
         inputBatcher.flush()
-        return recoveryInputHold.enqueueAccepted(held, data, inputKind, options)
+        return recoveryInputHold.enqueueAccepted(holdEndpoint(), data, inputKind, options)
       }
       return sendInputAcceptedToRuntime(data, inputKind, options)
     },
@@ -3089,7 +3117,7 @@ export function createRemoteRuntimePtyTransport(
         recovery.currentPhase === 'disconnected'
       ) {
         recovery.begin()
-        void connectForRecovery(lastConnectOptions)
+        void connectHoldingRestoredInput(lastConnectOptions)
         return true
       }
       // Why: online/resume fires a parked retry; the button must not be weaker than an event (#12684).
@@ -3159,9 +3187,6 @@ export function createRemoteRuntimePtyTransport(
       return stream.serializeBufferOutcome(opts)
     },
 
-    setConnectForRecovery(connect) {
-      connectForRecovery = connect
-    },
     destroy() {
       destroyed = true
       setAttachmentUnavailable()
@@ -3177,5 +3202,5 @@ export function createRemoteRuntimePtyTransport(
       viewportBatcher.clear()
     }
   }
-  return withRemoteReattachInputBuffer(transport)
+  return transport
 }

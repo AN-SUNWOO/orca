@@ -20,6 +20,7 @@ import {
   stopStructuredAgentSessionRuntime
 } from './structured-agent-session-runtime'
 import { createStructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
+import { scriptedCodexTransport } from './scripted-codex-transport.test-fixture'
 import { AgentHookServer } from '../agent-hooks/server'
 import { makeStructuredAgentStatusSubject } from '../../shared/agent-status-subject'
 import { AgentSessionRecoveryCapsule } from './agent-session-recovery-capsule'
@@ -88,12 +89,13 @@ describe('structured Codex child work through the production runtime', () => {
       resolveClaudeAuthPolicy: () => ({ account: 'managed' }),
       resolveCodexCommand: () => 'codex',
       resolveEnvironment: async () => ({ PATH: process.env.PATH }),
-      openCodexConnection: openConnection,
-      readProcessStartTime: async () => 1_700_000_000_000,
+      ...scriptedCodexTransport(openConnection),
       statusSink: {
         publish: () => {},
         forget: () => {},
-        publishChildWork: (...args) => childWork.push(args)
+        publishChildWork: (...args) => {
+          childWork.push(args)
+        }
       }
     })
     const attachParams = hostTestAttachParams(null, { providerHandle: undefined })

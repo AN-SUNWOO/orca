@@ -2,7 +2,7 @@ import { app, type Event } from 'electron'
 import { closeAllWatchers } from '../ipc/filesystem-watcher'
 import { disposeWorktreeBaseDirectoryWatchers } from '../ipc/worktree-base-directory-watcher'
 import { stopFolderRepoGitUpgradeWatch } from '../ipc/folder-repo-git-upgrade'
-import { killAllPty } from '../ipc/pty'
+import { killAllPty } from '../ipc/pty/kill-all'
 import { disconnectDaemon, shutdownDaemon } from '../daemon/daemon-provider-state'
 import { beginSshShutdown } from '../ipc/ssh-shutdown-drain'
 import { agentHookServer } from '../agent-hooks/server'
@@ -249,6 +249,11 @@ function installWillQuitHandler(): void {
           })
           .catch((error) => console.error('[runtime] Failed to stop local RPC transport:', error))
       : Promise.resolve()
+    // After session and RPC teardown, which can still retire notifications; will-quit is past every veto.
+    const notificationDismissalClose = Promise.allSettled([
+      structuredAgentSessionShutdown,
+      rpcStopAndClear
+    ]).then(() => state.runtime?.closeNotificationDismissals())
     // Why: allSettled (not all) keeps fail-open — a daemon-disconnect rejection still quits instead of hanging.
     // Why: telemetry flush folds in before app.quit() (bounded 2s); catch defensively so a flush failure can't cancel the quit chain.
     // Why: normal quits keep the detached daemon for warm reattach, but a dead dev parent leaves the temp/dev profile ownerless.
@@ -274,6 +279,7 @@ function installWillQuitHandler(): void {
       { name: 'codex-backfill-recovery', promise: codexBackfillRecoveryShutdown },
       { name: 'structured-agent-session', promise: structuredAgentSessionShutdown },
       { name: 'usage-cache', promise: usageCacheFlush },
+      { name: 'notification-dismissals', promise: notificationDismissalClose },
       { name: 'stats', promise: statsFlush },
       { name: 'state', promise: storeFlush }
     ])

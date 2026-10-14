@@ -36,7 +36,7 @@ import {
 } from '../../shared/remote-runtime-client'
 import { claudeSessionIdForOrcaSession } from '../claude/claude-structured-session-id'
 import { shellEscape } from '../ssh/ssh-connection-utils'
-import { materializeOrcadArtifact } from '../ssh/orcad-artifact-materializer'
+import { materializeOrcadArtifact } from './orcad-artifact-materializer'
 import {
   hostServerTarget,
   installPackagedOrcadSlotForTests,

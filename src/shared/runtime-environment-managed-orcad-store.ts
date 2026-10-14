@@ -2,10 +2,11 @@ import { parsePairingCode, type PairingOffer } from './pairing'
 import {
   createEnvironmentFromPairingOffer,
   getPreferredLoopbackRuntimePort,
+  getOrcadSshDeployment,
   getPreferredPairingOffer,
   PersistedRuntimeEnvironmentSchema,
   type KnownRuntimeEnvironment,
-  type OrcadDeploymentLink
+  type OrcadSshDeploymentLink
 } from './runtime-environments'
 import {
   readEnvironmentStore,
@@ -26,7 +27,7 @@ export function addManagedOrcadEnvironment(
     id: string
     name: string
     pairingCode: string
-    orcadDeployment: OrcadDeploymentLink
+    orcadDeployment: OrcadSshDeploymentLink
     now?: number
   }
 ): KnownRuntimeEnvironment {
@@ -110,9 +111,15 @@ export function refreshManagedOrcadPairing(
     throw new RuntimeEnvironmentStoreError('invalid_argument', 'Invalid managed pairing code.')
   }
   const current = resolveEnvironmentFromStore(readEnvironmentStore(userDataPath), environmentId)
-  const deployment = current.orcadDeployment
-  if (!deployment) {
+  if (!current.orcadDeployment) {
     throw new RuntimeEnvironmentStoreError('invalid_argument', 'This server is not managed.')
+  }
+  const deployment = getOrcadSshDeployment(current)
+  if (!deployment) {
+    throw new RuntimeEnvironmentStoreError(
+      'invalid_argument',
+      'This server is not managed over SSH.'
+    )
   }
   // Why skip: orcad keeps its pairing state across versions, so an unchanged offer needs no
   // rewrite, and every rewrite re-binds the sidecar entry.

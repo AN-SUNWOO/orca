@@ -4,7 +4,7 @@ import { createDirectSocketFraming, type DirectSocketFraming } from './direct-so
 import { isRpcResponse } from './rpc-response-shape'
 import { isStaleRpcSocketEvent, logRpcSocketClose } from './rpc-socket-close-evidence'
 import { describeSocketEvent, redactSocketEndpoint } from './socket-event-debug'
-import type { ConnectionLogEmitter, ConnectionState, RpcResponse } from './types'
+import type { ConnectionLogEmitter, ConnectionState, RpcRequest, RpcResponse } from './types'
 
 const CONNECT_TIMEOUT_MS = 12_000
 const HANDSHAKE_TIMEOUT_MS = 5_000
@@ -50,7 +50,7 @@ export class RpcClientSocketSession {
     this.armConnectTimeout()
   }
 
-  sendEncrypted(request: unknown): boolean {
+  sendEncrypted(request: RpcRequest): boolean {
     if (this.socket.readyState === WebSocket.OPEN && this.framing) {
       try {
         if (this.framing.sendText(JSON.stringify(request))) {

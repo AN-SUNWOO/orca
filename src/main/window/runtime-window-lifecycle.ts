@@ -130,6 +130,7 @@ export function registerRuntimeWindowLifecycle(
           activate: opts.activate !== false,
           ...(opts.presentation ? { presentation: opts.presentation } : {}),
           ...(opts.surfaceOwner === false ? { surfaceOwner: false } : {}),
+          ...(opts.agentLaunchViewer ? { agentLaunchViewer: opts.agentLaunchViewer } : {}),
           // Why: pre-minted tabId aligns the renderer tab id with the paneKey baked into the PTY env, so hook events route right.
           ...(opts.tabId !== undefined ? { tabId: opts.tabId } : {}),
           ...(opts.leafId !== undefined ? { leafId: opts.leafId } : {}),

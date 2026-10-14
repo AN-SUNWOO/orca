@@ -7,7 +7,7 @@ import { getDefaultWorkspaceSession } from '../../../../shared/constants'
 import type { WorkspaceSessionState } from '../../../../shared/workspace-session-state-types'
 import { SessionNotFoundError } from '../../../daemon/daemon-errors'
 import type { Store } from '../../../persistence'
-import type { IPtyProvider } from '../../../providers/types'
+import type { IPtyProvider } from '../../../providers/pty-provider-contract'
 import { OrcaRuntimeService } from '../../../runtime/orca-runtime'
 import { spawnForStablePane } from './stable-owner'
 

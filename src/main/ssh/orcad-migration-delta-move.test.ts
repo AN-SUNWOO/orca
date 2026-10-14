@@ -128,7 +128,7 @@ async function convertedThenChangedOnOlderBuild(): Promise<void> {
   expect(store.getSshTarget(TARGET.id)?.orcadFence?.sourceChangedAt).toBeDefined()
 }
 
-function deltaMove(at: () => Date = now) {
+function deltaMove(at: () => Date = now, census: 'exited' | 'live' = 'exited') {
   const target = store.getSshTarget(TARGET.id)!
   return runOrcadDeltaMove({
     userDataPath,
@@ -137,7 +137,7 @@ function deltaMove(at: () => Date = now) {
     target,
     environment: listEnvironments(userDataPath)[0]!,
     destination,
-    censusHost: async () => ({ verdict: 'exited', count: 0 }),
+    censusHost: async () => ({ verdict: census, count: census === 'live' ? 1 : 0 }),
     ensureTunnel: async () => {},
     runTargetLifecycle,
     now: at
@@ -375,6 +375,20 @@ describe('moving what an older build added to a converted host', () => {
       { id: 'tab-term', ptyId: null }
     ])
     expect(session?.unifiedTabs?.['repo-1::/srv/app']).toBeUndefined()
+  })
+
+  // COMPAT(legacy-relay-bridge): a live relay terminal no longer blocks the move; the bridge keeps it.
+  it('moves while a downgrade’s terminal still runs, leaving its lease to the bridge', async () => {
+    await convertedThenChangedOnOlderBuild()
+    await olderBuildSessionAfterDowngrade()
+    reconcileManagedOrcadSshTargets(userDataPath, store, now)
+    await expect(deltaMove(now, 'live')).resolves.toMatchObject({ outcome: 'moved' })
+    const delta = listOrcadMigrationSourceCutovers(userDataPath).find(
+      (journal) => journal.supersedesMigrationId
+    )
+    const [lease] = store.getSshRemotePtyLeases(TARGET.id)
+    expect(delta).toMatchObject({ provenPtyIds: [], bridgedPtyIds: [lease.ptyId] })
+    expect(lease.state).not.toBe('terminated')
   })
 
   it('resumes a delta whose commit lost contact, keeping the host marked meanwhile', async () => {

@@ -14,7 +14,7 @@ import { remainingDaemonRequestTimeoutMs } from './daemon-request-deadline'
 import { parsePtySessionId } from '../../shared/pty-session-id-format'
 import type { ListSessionsResult, SessionInfo } from './types'
 import { PtyProcessListAdmission } from '../providers/pty-process-list-admission'
-import type { PtyProcessInfo } from '../providers/types'
+import type { PtyProcessInfo } from '../providers/pty-provider-contract'
 
 export abstract class DaemonPtySessionInventory extends DaemonPtyProcessInspection {
   async listProcesses(opts?: { deadlineMs?: number }): Promise<PtyProcessInfo[]> {

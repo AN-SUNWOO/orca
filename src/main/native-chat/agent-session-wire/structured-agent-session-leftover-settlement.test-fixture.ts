@@ -10,9 +10,9 @@ import {
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
 import { readAgentJournalTurn } from '../../../shared/agent-session-turn-record'
 import {
-  codexSubagentGroupBody,
-  codexSubagentGroupIdentity
-} from '../../codex/codex-subagent-roster'
+  subagentJournalBody,
+  subagentJournalItemIdentity
+} from '../agent-session-journal/journal-subagent-item'
 import {
   liveTestJournalRows,
   openTestJournalHostDatabase
@@ -99,10 +99,15 @@ export async function leaveUnfinishedWork(
       { turnScope: IN_TURN }
     )
     events.appendItem(
-      codexSubagentGroupIdentity(ROSTER_GROUP),
-      codexSubagentGroupBody(ROSTER_GROUP, [
-        { id: 'a', label: 'read', state: 'working', startedAt: 10 }
-      ]),
+      subagentJournalItemIdentity('a'),
+      subagentJournalBody({
+        type: 'subagent',
+        id: 'a',
+        groupId: ROSTER_GROUP,
+        label: 'read',
+        state: 'working',
+        startedAt: 10
+      }),
       { turnScope: AGENT_JOURNAL_THREAD_SCOPE }
     )
     events.appendItem(

@@ -1,5 +1,5 @@
 // Execution provenance (`JournalItemRow.ownerFence`): the generation whose execution produced an
-// item, kept apart from each row's writer fence. Every writer states it; the fold prefers it.
+// item, kept apart from each row's writer fence. Creation states it; every revision keeps it.
 
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -13,7 +13,6 @@ import {
   type AgentSessionJournalIdentity
 } from '../../../shared/agent-session-journal-types'
 import { codexProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
-import { isSubagentGroupBlock } from '../../../shared/native-chat-types'
 import { retainedRowReplacement } from '../agent-session-wire/structured-rewind-retained-host-rows'
 import type { JournalHostDatabase } from './journal-host-database'
 import {
@@ -21,8 +20,6 @@ import {
   liveTestJournalRows,
   openTestJournalHostDatabase
 } from './journal-host-database-test-support'
-import { stampJournalEntryProvenance } from './journal-item-provenance'
-import { subagentGroupJournalBody } from './journal-subagent-group-body'
 import type { AgentSessionJournal } from './journal-store'
 
 const IDENTITY: AgentSessionJournalIdentity = {
@@ -77,9 +74,11 @@ afterEach(async () => {
 })
 
 describe('execution provenance', () => {
-  it("records a provider observation's owner, a host revision keeps it, and a reopen reads it", async () => {
+  it("records the creating observation's owner, every revision keeps it, and a reopen reads it", async () => {
     const journal = await open()
     await journal.appendItem(TURN, RUNNING, { fence: 4, ownerFence: 3, turnScope: SCOPE })
+    // A newer run's provider revising it (a start's context-usage report on the newest saved turn).
+    await journal.appendItem(TURN, RUNNING, { fence: 5, ownerFence: 5, turnScope: SCOPE })
     // Host bookkeeping under a later writer fence states no owner of its own.
     await journal.appendItem(TURN, SETTLED, { fence: 5, turnScope: SCOPE })
     // A first write with no stated owner is its writer generation's.
@@ -92,7 +91,7 @@ describe('execution provenance', () => {
     expect(journal.itemFence(TURN_ID)).toBe(3)
     expect(journal.itemFence(agentJournalItemKey(item(2)))).toBe(6)
     // Every row states it: none leaves the reader to guess from the writer fence.
-    expect(storedOwnerFences()).toEqual([3, 3, 6])
+    expect(storedOwnerFences()).toEqual([3, 3, 3, 6])
     await journals.closeAll()
     expect((await open()).itemFence(TURN_ID)).toBe(3)
   })
@@ -121,23 +120,9 @@ describe('execution provenance', () => {
   })
 
   it("a rewind's retained row carries the old fold's provenance; an older record's is never current", () => {
-    const row = {
-      itemId: TURN_ID,
-      body: RUNNING,
-      observedAt: 1,
-      ownerFence: 2
-    }
+    const row = { itemId: TURN_ID, body: RUNNING, observedAt: 1, ownerFence: 2 }
     expect(retainedRowReplacement(row).ownerFence).toBe(2)
     const { ownerFence: _stated, ...older } = row
     expect(retainedRowReplacement(older).ownerFence).toBe(0)
-  })
-
-  it('reads a roster entry an older build never stamped as its row’s provenance', () => {
-    const roster = subagentGroupJournalBody('group', [
-      { id: 'a', label: 'A', state: 'working', startedAt: 1 }
-    ])
-    const stamped = stampJournalEntryProvenance(roster, { body: roster, ownerFence: 2 }, 3)
-    const groups = stamped.kind === 'message' ? stamped.blocks.filter(isSubagentGroupBlock) : []
-    expect(groups[0]?.agents[0]?.ownerFence).toBe(2)
   })
 })

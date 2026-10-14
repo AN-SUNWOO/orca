@@ -11,7 +11,9 @@ const { hasLoadedProviders } = vi.hoisted(() => ({ hasLoadedProviders: vi.fn(() 
 vi.mock('../native-chat/agent-session-wire/structured-agent-session-registry', () => ({
   getStructuredAgentSessionHost: () => ({ hasLoadedProviders })
 }))
-vi.mock('../ipc/pty', () => ({ getLocalPtyProvider: () => ({ listProcesses: async () => [] }) }))
+vi.mock('../ipc/pty/provider/registry', () => ({
+  getLocalPtyProvider: () => ({ listProcesses: async () => [] })
+}))
 vi.mock('../daemon/daemon-init', () => ({ getDaemonEndpointFacts: () => null }))
 vi.mock('./orcad-daemon-retirement', () => ({
   countLiveOrcadDaemonSessions: vi.fn(async () => 0),

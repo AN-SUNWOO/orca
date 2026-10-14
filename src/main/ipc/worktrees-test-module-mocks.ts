@@ -240,7 +240,8 @@ export const worktreeTeardownModuleMock = () => ({
   killAllProcessesForWorktree: killAllProcessesForWorktreeMock
 })
 
-export const ptyModuleMock = () => ({
-  clearProviderPtyState: clearProviderPtyStateMock,
-  getLocalPtyProvider: getLocalPtyProviderMock
+export const ptyRegistryModuleMock = () => ({ getLocalPtyProvider: getLocalPtyProviderMock })
+
+export const ptyStateCleanupModuleMock = () => ({
+  clearProviderPtyState: clearProviderPtyStateMock
 })

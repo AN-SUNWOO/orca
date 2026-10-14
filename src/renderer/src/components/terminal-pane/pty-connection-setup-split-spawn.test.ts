@@ -341,6 +341,63 @@ describe('connectPanePty', () => {
     expect(transport.connect).toHaveBeenCalledWith(expect.objectContaining({ cols: 120, rows: 50 }))
   })
 
+  it.each(['before', 'during'] as const)(
+    'spawns a startup command without waiting for frames when the window is hidden %s the grid settle',
+    async (hiddenWhen) => {
+      // A hidden window produces no animation frames, so only the queued ones below ever run.
+      const frameCallbacks: FrameRequestCallback[] = []
+      globalThis.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+        frameCallbacks.push(callback)
+        return frameCallbacks.length
+      })
+      const visibilityListeners: (() => void)[] = []
+      const fakeDocument = {
+        visibilityState: hiddenWhen === 'before' ? 'hidden' : 'visible',
+        addEventListener: vi.fn((type: string, listener: () => void) => {
+          if (type === 'visibilitychange') {
+            visibilityListeners.push(listener)
+          }
+        }),
+        removeEventListener: vi.fn()
+      }
+      vi.stubGlobal('document', fakeDocument)
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+
+      const { connectPanePty } = await import('./pty-connection')
+      const transport = createMockTransport()
+      transportFactoryQueue.push(transport)
+      const pane = createPane(1)
+      pane.container = createMeasuredElement({ rect: () => createRect(1200, 800) })
+      pane.fitAddon.proposeDimensions = vi.fn(() => ({ cols: 120, rows: 40 }))
+      pane.fitAddon.fit = vi.fn(() => {
+        pane.terminal.cols = 120
+        pane.terminal.rows = 40
+      })
+      const deps = createDeps({ startup: { command: 'claude' } })
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the pane, manager and deps doubles implement every member connectPanePty reads on this startup path.
+      const args = [pane, createManager(1), deps] as unknown as Parameters<typeof connectPanePty>
+      connectPanePty(...args)
+
+      if (hiddenWhen === 'before') {
+        vi.advanceTimersByTime(250)
+      } else {
+        for (let i = 0; i < 3; i++) {
+          frameCallbacks.shift()?.(0)
+        }
+        expect(transport.connect).not.toHaveBeenCalled()
+        fakeDocument.visibilityState = 'hidden'
+        for (const listener of visibilityListeners) {
+          listener()
+        }
+      }
+
+      expect(createdTransportOptions[0]?.command).toBe('claude')
+      expect(transport.connect).toHaveBeenCalledWith(
+        expect.objectContaining({ cols: 120, rows: 40 })
+      )
+    }
+  )
+
   it('spawns the delayed main setup-split pane when its sibling owns the tab PTY fallback', async () => {
     const frameCallbacks: FrameRequestCallback[] = []
     globalThis.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {

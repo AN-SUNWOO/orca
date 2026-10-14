@@ -1,6 +1,6 @@
 import type * as React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { TERMINAL_PASTE_DIRECT_MAX_BYTES } from './terminal-paste-coordinator'
+import { TERMINAL_PASTE_DIRECT_MAX_BYTES } from './terminal-paste-limits'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
 import { toAppSshPtyId } from '../../../../shared/ssh-pty-id'
 import { flushAsyncTicks, drainPendingTimeouts } from './pty-connection-test-async'

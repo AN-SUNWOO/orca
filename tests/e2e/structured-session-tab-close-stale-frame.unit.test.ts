@@ -9,17 +9,15 @@
 
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type * as RuntimeRpcClient from '../../src/renderer/src/runtime/runtime-rpc-client'
-import type { RuntimeClientTarget } from '../../src/renderer/src/runtime/runtime-client-target'
+import type { RuntimeClientTarget } from '../../src/shared/runtime-client-target'
 import type { RuntimeMobileSessionTabsResult } from '../../src/shared/runtime-types'
 import { OrcaRuntimeService } from '../../src/main/runtime/orca-runtime'
 import { setStructuredAgentSessionHost } from '../../src/main/native-chat/agent-session-wire/structured-agent-session-registry'
 import { useAppStore } from '../../src/renderer/src/store'
 import { applyStructuredSessionTabSnapshots } from '../../src/renderer/src/runtime/local-structured-session-tabs-sync/snapshot-apply'
-import { resetLocalStructuredSessionVersionForTests } from '../../src/renderer/src/runtime/local-structured-session-tabs-sync'
-import {
-  applyWebSessionTabsSnapshot,
-  resetWebSessionTabsSnapshotFreshnessForTests
-} from '../../src/renderer/src/runtime/web-session-tabs-sync'
+import { resetLocalStructuredSessionVersionForTests } from '../../src/renderer/src/runtime/local-structured-session-tabs-sync/inventory-generation-fence'
+import { applyWebSessionTabsSnapshot } from '../../src/renderer/src/runtime/web-session-tabs-sync/snapshot-api'
+import { resetWebSessionTabsSnapshotFreshnessForTests } from '../../src/renderer/src/runtime/web-session-tabs-sync/tracking-lifecycle'
 import { acceptPairedHostStructuredSessions } from '../../src/renderer/src/runtime/structured-agent-session-tab-retirement'
 import { LOCAL_STRUCTURED_SESSION_OWNER } from '../../src/renderer/src/runtime/local-structured-session-owner'
 import { registerSessionTabIpcBridge } from '../../src/renderer/src/hooks/ipc-events/session-tab-ipc-bridge'

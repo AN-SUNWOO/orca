@@ -19,11 +19,11 @@ import {
 import { pinnedNodeRuntimeAsset, type NodeRuntimeTarget } from '../../shared/node-runtime-pin'
 import { randomUUID } from 'node:crypto'
 import type { OrcadHostTransport } from './orcad-host-transport'
-import { execCommand, isUnconfirmedSshCommandTermination } from './ssh-relay-deploy-helpers'
+import { execCommand, isUnconfirmedSshCommandTermination } from './ssh-relay-exec-command'
 import { RELAY_REMOTE_DIR } from './relay-protocol'
 import { joinRemotePath, remoteDirname, type RemoteHostPlatform } from './ssh-remote-platform'
 import { powerShellLiteral } from './ssh-remote-powershell'
-import { ORCAD_WINDOWS_COMMAND_LINE_UNSAFE_CODE } from './orcad-host-unavailable'
+import { ORCAD_WINDOWS_COMMAND_LINE_UNSAFE_CODE } from '../orcad/orcad-host-unavailable'
 import {
   ORCAD_WINDOWS_HOST_SCRIPT,
   ORCAD_WINDOWS_HOST_SCRIPT_FILENAME,

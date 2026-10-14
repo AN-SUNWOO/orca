@@ -1,6 +1,8 @@
+import type * as ExecCommandModule from './ssh-relay-exec-command'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('./ssh-relay-deploy-helpers', () => ({
+vi.mock('./ssh-relay-exec-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof ExecCommandModule>()),
   execCommand: vi.fn(),
   isUnconfirmedSshCommandTermination: (error: unknown) =>
     error instanceof Error && error.message === 'channel lost'
@@ -9,7 +11,7 @@ vi.mock('./ssh-relay-deploy-helpers', () => ({
 vi.mock('./ssh-remote-platform-detection', () => ({ detectRemoteHostPlatform: vi.fn() }))
 vi.mock('./orcad-windows-host-preparation', () => ({ prepareWindowsOrcadHost: vi.fn() }))
 
-import { execCommand } from './ssh-relay-deploy-helpers'
+import { execCommand } from './ssh-relay-exec-command'
 import { detectRemoteHostPlatform } from './ssh-remote-platform-detection'
 import { prepareWindowsOrcadHost } from './orcad-windows-host-preparation'
 import { resolveOrcadRemoteContext } from './orcad-remote-context'

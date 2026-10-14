@@ -38,7 +38,9 @@ export function conversationCommandFailure(
 export type ConversationCommandParams = {
   envelope: AgentSessionMutationEnvelope
   command: AgentSessionConversationCommand
-  /** /compact only: wait as a card while the agent works, as a queued send does. */
+  /** /compact only: wait as a card while the agent works, as a queued send does. /clear is refused
+   *  instead for now: the queue only hands cards to the agent, and a clear is host work (stop the
+   *  agent, reset its context), so queueing it would need the drain to run host commands. */
   delivery?: 'queue-if-active'
   /** Host-local, set by the client-facing command RPC as for an ordinary send. */
   userSend?: true

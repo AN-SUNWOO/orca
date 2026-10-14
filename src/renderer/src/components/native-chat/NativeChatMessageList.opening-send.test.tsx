@@ -125,9 +125,7 @@ describe('a message sent while the turn ahead is still opening', () => {
     return (
       <NativeChatMessageList
         session={{
-          messages: projectStructuredAgentSessionMessages(items, optimistic, submissions, {
-            rejectedInPlace: true
-          }),
+          messages: projectStructuredAgentSessionMessages(items, optimistic, submissions),
           status: 'ready',
           sessionId: 'session-1',
           agent: 'codex',
@@ -402,9 +400,7 @@ describe('a send a Stop took back before the agent started it', () => {
     return (
       <NativeChatMessageList
         session={{
-          messages: projectStructuredAgentSessionMessages(items, [], submissions, {
-            rejectedInPlace: true
-          }),
+          messages: projectStructuredAgentSessionMessages(items, [], submissions),
           status: 'ready',
           sessionId: 'session-1',
           agent: 'codex',

@@ -176,9 +176,9 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
 
   cancelTurn: StructuredAgentSessionAdapter['cancelTurn'] = async (input) => {
     const session = this.live(input.sessionId)
-    // The Stop ends the child unless it is declined here. Claude's rule: a Stop naming an ended turn
-    // while another one is live stops nothing; in the gap before a follow-up's turn opens, which no
-    // client can name, it stops what is in flight.
+    // The Stop ends the child unless it is declined here. The host forwards a named Stop only for
+    // the live turn or one with no journal row yet; for the latter, in the gap before a follow-up's
+    // turn opens, it stops what is in flight. A named turn other than the live one stops nothing.
     const liveTurnId = input.resolveLiveTurnId?.() ?? session.lane.openTurnId
     if (input.turnId !== undefined && liveTurnId !== null && input.turnId !== liveTurnId) {
       return { cancelled: false, refusal: { turnNotRunning: true } }
@@ -235,7 +235,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
 
   stopBackgroundTasks: NonNullable<StructuredAgentSessionAdapter['stopBackgroundTasks']> = (
     input
-  ) => stopAcpChildren(this.live(input.sessionId), input.fence, input.taskIds, () => this.now())
+  ) => stopAcpChildren(this.live(input.sessionId), input.fence, input.taskIds, input.acknowledge)
 
   backgroundTaskStops: NonNullable<StructuredAgentSessionAdapter['backgroundTaskStops']> = (
     sessionId

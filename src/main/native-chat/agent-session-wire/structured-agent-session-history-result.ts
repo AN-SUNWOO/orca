@@ -8,9 +8,12 @@ import type {
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import {
   readAgentSessionHistory,
-  type AgentSessionHistoryScope,
-  type AgentSessionPublishedWork
+  type AgentSessionHistoryScope
 } from './agent-session-history-page'
+import {
+  withPublishedWorkResult,
+  type AgentSessionPublishedWork
+} from './agent-session-published-work'
 
 export function structuredAgentSessionProviderSessionMetadata(
   record: AgentSessionRecord | null
@@ -27,11 +30,8 @@ export function readStructuredAgentSessionHistoryResult(input: {
   /** The host's current-work projection, which the page's turn and prompt fields state. */
   work?: AgentSessionPublishedWork
 }): AgentSessionHistoryResult {
-  const result = readAgentSessionHistory(
-    input.journal,
-    input.request,
-    undefined,
-    input.scope,
+  const result = withPublishedWorkResult(
+    readAgentSessionHistory(input.journal, input.request, { scope: input.scope }),
     input.work
   )
   const fence = input.record?.lease.runtimeFence

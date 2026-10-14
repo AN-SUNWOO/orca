@@ -100,7 +100,8 @@ import {
   sshHostServerConversionSchema,
   sshHostServerDecidedSchema,
   sshHostServerDeployFailedSchema,
-  sshHostServerMoveSchema
+  sshHostServerMoveSchema,
+  sshHostServerLegacyRelayBridgeSchema
 } from './telemetry-ssh-host-server-event-schemas'
 
 // ── Event registry: the one record the validator consumes ───────────────
@@ -207,6 +208,7 @@ export const eventSchemas = {
   ssh_host_server_conversion: sshHostServerConversionSchema,
   ssh_host_server_deploy_failed: sshHostServerDeployFailedSchema,
   ssh_host_server_move: sshHostServerMoveSchema,
+  ssh_host_server_legacy_relay_bridge: sshHostServerLegacyRelayBridgeSchema,
 
   smart_sort_class_distribution: smartSortClassDistributionSchema,
   smart_sort_class_1_promotion: smartSortClass1PromotionSchema,

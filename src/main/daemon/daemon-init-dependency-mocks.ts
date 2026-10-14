@@ -84,6 +84,9 @@ export function createDaemonInitModuleFactories(state: DaemonInitMockState) {
           if (result.mode) {
             this.handle.mode = result.mode
           }
+          if (result.quarantine) {
+            this.handle.quarantine = result.quarantine
+          }
           if (result.adopted) {
             this.handle.adopted = true
           }
@@ -226,9 +229,11 @@ export function createDaemonInitModuleFactories(state: DaemonInitMockState) {
     daemonPtyAdapter: () => ({
       DaemonPtyAdapter: MockDaemonPtyAdapter
     }),
-    ipcPty: () => ({
+    ptyProviderRegistry: () => ({
       getLocalPtyProvider: getLocalPtyProviderMock,
-      setLocalPtyProvider: setLocalPtyProviderMock,
+      setLocalPtyProvider: setLocalPtyProviderMock
+    }),
+    ptyListenerLifecycle: () => ({
       unbindLocalProviderListeners: unbindLocalProviderListenersMock,
       rebindLocalProviderListeners: rebindLocalProviderListenersMock
     }),

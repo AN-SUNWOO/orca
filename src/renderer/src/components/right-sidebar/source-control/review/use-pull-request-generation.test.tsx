@@ -2,7 +2,7 @@
 
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type * as RuntimeGitClient from '@/runtime/runtime-git-client'
+import type * as RuntimeGitGenerationClient from '@/runtime/runtime-git-generation-client'
 import type { RuntimeGeneratePullRequestFieldsResult } from '@/runtime/runtime-git-client-context'
 import { useAppStore } from '@/store'
 import { DEFAULT_SOURCE_CONTROL_AI_PR_CREATION_DEFAULTS } from '../../../../../../shared/source-control-ai-settings'
@@ -12,8 +12,8 @@ const runtime = vi.hoisted(() => ({
   generate: vi.fn()
 }))
 
-vi.mock('@/runtime/runtime-git-client', async (importOriginal) => {
-  const original = await importOriginal<typeof RuntimeGitClient>()
+vi.mock('@/runtime/runtime-git-generation-client', async (importOriginal) => {
+  const original = await importOriginal<typeof RuntimeGitGenerationClient>()
   return {
     ...original,
     cancelRuntimeGeneratePullRequestFields: runtime.cancel,

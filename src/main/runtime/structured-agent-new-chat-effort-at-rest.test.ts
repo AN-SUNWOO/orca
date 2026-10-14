@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentSessionAccountHome, AgentSessionRecord } from '../../shared/agent-session-record'
 import type { AgentSessionModelOption } from '../../shared/agent-session-wire'
 import { structuredAgentSessionSeedCatalog } from '../../shared/structured-agent-session-seed-catalog'
+import { agentChatPermissionModes } from '../../shared/agent-chat-permission-mode'
 import {
   applyStructuredAgentSessionModelCatalog,
   applyStructuredAgentSessionOptions,
@@ -32,6 +33,9 @@ import { readStructuredAgentSessionOptions } from '../native-chat/agent-session-
 import { StructuredAgentRegistry } from '../native-chat/agent-session-wire/structured-agent-registry'
 import { PI_RPC_AGENT } from '../pi/rpc-agent-definition'
 import { piModelCatalogFromListing } from '../pi/rpc-model-catalog-probe'
+
+// A chat whose agent offers permission modes also names its own, which a new chat leaves at Ask.
+const modeOf = (agent: string) => (agentChatPermissionModes(agent) ? { permissionMode: 'ask' } : {})
 
 const unused = (): never => {
   throw new Error('an at-rest read never calls the adapter')
@@ -259,7 +263,7 @@ describe("a new chat's effort pill before its agent starts", () => {
       expect(first.model?.value).toBe(model)
       expect(first.effort?.value).toBe(effort)
       expect(settled).toEqual(first)
-      expect(atRest.current).toEqual({ model, effort })
+      expect(atRest.current).toEqual({ model, effort, ...modeOf(agent) })
     }
   )
 
@@ -276,7 +280,7 @@ describe("a new chat's effort pill before its agent starts", () => {
       expect(first.model?.value).toBeUndefined()
       expect(first.effort).toBeNull()
       expect(settled).toEqual(first)
-      expect(atRest.current).toEqual({})
+      expect(atRest.current).toEqual(modeOf(agent))
     }
   )
 
@@ -287,14 +291,14 @@ describe("a new chat's effort pill before its agent starts", () => {
     })
 
     // The account default is not what this repo runs, so its effort is never claimed.
-    expect(atRest.current).toEqual({ model: 'gpt-5.5' })
+    expect(atRest.current).toEqual({ model: 'gpt-5.5', permissionMode: 'ask' })
     expect(atRest.conversationCommands).toEqual(['clear', 'compact'])
   })
 
   it('names the folder’s default effort for a client that needs a model too', async () => {
     const { atRest } = await newChatFrames('codex', { readsWithoutModel: false })
 
-    expect(atRest.current).toEqual({ model: 'gpt-5.5', effort: 'medium' })
+    expect(atRest.current).toEqual({ model: 'gpt-5.5', effort: 'medium', permissionMode: 'ask' })
   })
 
   it('keeps a saved effort over the default model’s', async () => {
@@ -307,6 +311,6 @@ describe("a new chat's effort pill before its agent starts", () => {
   it('leaves the effort of a saved model to the agent, as its running child reports it', async () => {
     const { atRest } = await newChatFrames('codex', { saved: { model: 'gpt-5.5-mini' } })
 
-    expect(atRest.current).toEqual({ model: 'gpt-5.5-mini' })
+    expect(atRest.current).toEqual({ model: 'gpt-5.5-mini', permissionMode: 'ask' })
   })
 })

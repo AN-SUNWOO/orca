@@ -95,9 +95,7 @@ import type { NativeChatMessage } from '../../../../shared/native-chat-types'
     return (
       <NativeChatMessageList
         session={{
-          messages: projectStructuredAgentSessionMessages(items, [], submissions, {
-            rejectedInPlace: true
-          }),
+          messages: projectStructuredAgentSessionMessages(items, [], submissions),
           status: 'ready',
           sessionId: 'session-1',
           agent: 'codex',
@@ -654,9 +652,7 @@ import type { NativeChatMessage } from '../../../../shared/native-chat-types'
       return (
         <NativeChatMessageList
           session={{
-            messages: projectStructuredAgentSessionMessages(items, [], [], {
-              rejectedInPlace: true
-            }),
+            messages: projectStructuredAgentSessionMessages(items, [], []),
             status: 'ready',
             sessionId: 'session-1',
             agent: 'codex',

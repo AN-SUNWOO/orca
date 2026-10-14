@@ -5,9 +5,9 @@ import { useAppStore } from '@/store'
 import { getConnectionId } from '@/lib/connection-context'
 import {
   generateRuntimePullRequestFields,
-  cancelRuntimeGeneratePullRequestFields,
-  type RuntimeGeneratePullRequestFieldsOverrides
-} from '@/runtime/runtime-git-client'
+  cancelRuntimeGeneratePullRequestFields
+} from '@/runtime/runtime-git-generation-client'
+import type { RuntimeGeneratePullRequestFieldsOverrides } from '@/runtime/runtime-git-client-context'
 import type { ChecksPanelReviewState } from './use-checks-panel-review-state'
 import type { ChecksPanelControllerState } from './use-checks-panel-controller-state'
 import { stripBaseRef } from '../create-pull-request-base-ref-normalization'

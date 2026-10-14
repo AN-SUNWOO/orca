@@ -35,7 +35,7 @@ const STACK_WRITERS = [
   'src/renderer/src/store/slices/terminals.ts',
   'src/renderer/src/components/terminal-pane/TerminalPane.tsx',
   'src/renderer/src/runtime/sync-runtime-graph.ts',
-  'src/renderer/src/runtime/web-session-tabs-sync.ts',
+  'src/renderer/src/runtime/web-session-tabs-sync/store-patch.ts',
   'src/main/runtime/orca-runtime-split-terminal.ts',
   'src/main/runtime/orca-runtime-sync-window-graph.ts',
   'src/main/runtime/mobile-session-layout-projection.ts',

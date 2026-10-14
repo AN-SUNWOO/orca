@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
-import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
+import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { resolveGeneratedFields } from './pull-request-generation-auto-submit'
 
 export type PullRequestFieldName = 'base' | 'title' | 'body' | 'draft'

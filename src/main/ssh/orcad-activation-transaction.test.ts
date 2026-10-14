@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import type * as DeployHelpers from './ssh-relay-deploy-helpers'
+import type * as ExecCommandModule from './ssh-relay-exec-command'
 import type * as InstallLock from './ssh-relay-install-lock'
 
-vi.mock('./ssh-relay-deploy-helpers', async (importOriginal) => ({
-  ...(await importOriginal<typeof DeployHelpers>()),
+vi.mock('./ssh-relay-exec-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof ExecCommandModule>()),
   execCommand: vi.fn().mockResolvedValue('')
 }))
 vi.mock('./ssh-relay-install-lock', async (importOriginal) => ({
@@ -11,7 +11,7 @@ vi.mock('./ssh-relay-install-lock', async (importOriginal) => ({
   acquireInstallLock: vi.fn().mockResolvedValue(undefined)
 }))
 
-import { execCommand } from './ssh-relay-deploy-helpers'
+import { execCommand } from './ssh-relay-exec-command'
 import { acquireInstallLock, RemoteInstallLockBusyError } from './ssh-relay-install-lock'
 import {
   parseOrcadActivationTransaction,

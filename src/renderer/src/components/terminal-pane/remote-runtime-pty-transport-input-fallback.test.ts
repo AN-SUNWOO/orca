@@ -254,7 +254,6 @@ describe('createRemoteRuntimePtyTransport', () => {
         return newStream
       })
     vi.doMock('../../runtime/remote-runtime-terminal-multiplexer', () => ({
-      REMOTE_TERMINAL_SNAPSHOT_TOO_LARGE: 'remote_terminal_snapshot_too_large',
       getRemoteRuntimeTerminalMultiplexer: vi.fn(() => ({ subscribeTerminal }))
     }))
     const { createRemoteRuntimePtyTransport } = await import('./remote-runtime-pty-transport')

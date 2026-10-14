@@ -7,11 +7,7 @@ import { GROK_ACP_DIALECT } from './acp-dialects/grok-dialect'
 import { OMP_ACP_DIALECT } from './acp-dialects/omp-dialect'
 import { OPENCODE_ACP_DIALECT } from './acp-dialects/opencode-dialect'
 import { ANTIGRAVITY_ACP_DIALECT } from './acp-dialects/antigravity-dialect'
-import {
-  directoryAccountBinding,
-  hostFolderAccountBinding,
-  type AcpAccountBinding
-} from './acp-account-binding'
+import { directoryAccountBinding, type AcpAccountBinding } from './acp-account-binding'
 import { openCodeAcpAccountBinding } from '../opencode/opencode-structured-account-home'
 import { scrubOpenCodeAcpEnvironment } from '../opencode/opencode-acp-environment'
 import { openCodeStoredUserMessagesReader } from '../opencode/opencode-acp-stored-messages'
@@ -48,6 +44,7 @@ import {
   ANTIGRAVITY_ACP_COMMAND,
   ANTIGRAVITY_ACP_RUNTIME
 } from '../antigravity/antigravity-acp-runtime'
+import { antigravityChatAccount } from '../antigravity/antigravity-chat-account'
 import { AcpLaunchGate } from './acp-launch-gate'
 
 /** How an agent lists its models without a session: from its `initialize` answer (plus extension
@@ -288,7 +285,7 @@ export const ANTIGRAVITY_LAUNCH_SPEC = {
   authMethod: ({ advertised }) =>
     advertised.includes('oauth-personal') ? 'oauth-personal' : undefined,
   signInPrompt: (line) => line.trimStart().startsWith(ANTIGRAVITY_SIGN_IN_PROMPT),
-  account: hostFolderAccountBinding('GEMINI_HOME', 'antigravity-chat', ['antigravity-acp']),
+  account: antigravityChatAccount,
   installDirectories: () => [],
   managedRuntime: ANTIGRAVITY_ACP_RUNTIME,
   // Its yolo mode still asks the person questions and administrative reviews.

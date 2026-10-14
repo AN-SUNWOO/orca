@@ -7,8 +7,10 @@ import { PassThrough } from 'node:stream'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createFakePipedChild } from '../../shared/__fixtures__/fake-spawned-child'
 import type { terminateProviderProcessTree } from '../provider-process/provider-process-teardown'
-import { createAcpAgentConnection } from '../acp/acp-agent-connection'
+import { createAcpAgentConnection, type AcpAgentConnection } from '../acp/acp-agent-connection'
 import { ANTIGRAVITY_LAUNCH_SPEC, ANTIGRAVITY_SIGN_IN_PROMPT } from '../acp/acp-launch-specs'
+import { prepareAcpStructuredLaunch } from '../acp/acp-structured-launch-preparation'
+import type { ConnectAcpAgent } from '../acp/acp-structured-connection'
 import { AcpScriptedAgent, deferred } from '../acp/acp-scripted-agent.test-support'
 import {
   antigravitySignInUrl,
@@ -30,7 +32,7 @@ afterEach(async () => {
 })
 
 /** A sign-in on a scratch data folder whose server prints `link` when asked to authenticate. */
-async function signInAgainst(link: string) {
+async function signInAgainst(link: string, configure?: (connection: AcpAgentConnection) => void) {
   const stateDirectory = await mkdtemp(join(tmpdir(), 'orca-agy-sign-in-'))
   folders.push(stateDirectory)
   const agent = new AcpScriptedAgent()
@@ -54,7 +56,7 @@ async function signInAgainst(link: string) {
   const bin = join(stateDirectory, 'bin')
   await mkdir(bin)
   await writeFile(join(bin, ANTIGRAVITY_LAUNCH_SPEC.command), '', { mode: 0o755 })
-  const { flowId } = startAntigravityChatSignIn({
+  const host = {
     launchSources: async () => ({
       accountHome: { variable: 'GEMINI_HOME', path: folder },
       env: { PATH: bin },
@@ -62,9 +64,14 @@ async function signInAgainst(link: string) {
       dataDirectory: stateDirectory
     }),
     stopLiveChats: async () => {},
-    connect: (launch, options) => createAcpAgentConnection(launch, options, () => child)
-  })
-  return { agent, folder, flowId, finishBrowser: () => browserDone.resolve() }
+    connect: vi.fn<ConnectAcpAgent<AcpAgentConnection>>((launch, options) => {
+      const connection = createAcpAgentConnection(launch, options, () => child)
+      configure?.(connection)
+      return connection
+    })
+  }
+  const { flowId } = startAntigravityChatSignIn(host)
+  return { agent, folder, flowId, host, child, finishBrowser: () => browserDone.resolve() }
 }
 
 it('shows the server link, then reads signed in once the browser finishes', async () => {
@@ -100,4 +107,68 @@ it('never shows a link that is not a Google sign-in back to this host', async ()
   ]) {
     expect(antigravitySignInUrl(`${ANTIGRAVITY_SIGN_IN_PROMPT} ${link}`)).toBeNull()
   }
+})
+
+it('retains an unclosed sign-in child for both launch entry points until its exit is proven', async () => {
+  const close = vi.fn(async () => false)
+  const old = await signInAgainst(GOOGLE_LINK, (connection) => {
+    vi.spyOn(connection, 'close').mockImplementation(close)
+  })
+  await readAntigravityChatSignInLink(old.flowId, 'starting')
+  old.finishBrowser()
+  expect((await readAntigravityChatSignInLink(old.flowId, 'waiting')).phase).toBe('failed')
+  const launch = old.host.connect.mock.calls[0][0]
+  expect((await stat(launch.env.TMPDIR)).isDirectory()).toBe(true)
+  expect((await stat(launch.cwd)).isDirectory()).toBe(true)
+  const next = startAntigravityChatSignIn(old.host)
+  expect(await readAntigravityChatSignInLink(next.flowId, 'starting')).toMatchObject({
+    phase: 'failed'
+  })
+  expect(old.host.connect).toHaveBeenCalledTimes(1)
+  const { dataDirectory } = await old.host.launchSources()
+  const prepareChat = () =>
+    prepareAcpStructuredLaunch(
+      {
+        spec: ANTIGRAVITY_LAUNCH_SPEC,
+        dataDirectory,
+        resolveLaunch: async () => ({
+          ...launch,
+          spec: ANTIGRAVITY_LAUNCH_SPEC,
+          fullAccess: false,
+          resume: null
+        })
+      },
+      {
+        identity: {
+          sessionId: 'retry-chat',
+          workspaceId: 'folder',
+          hostId: 'local',
+          agent: 'antigravity',
+          providerHandle: null
+        },
+        spawnToken: 'retry-chat'
+      },
+      () => {}
+    )
+  const gate = ANTIGRAVITY_LAUNCH_SPEC.launchGate.enter(undefined)
+  const spawnChat = vi.fn()
+  try {
+    await expect(prepareChat().then(spawnChat)).rejects.toThrow('could not be stopped')
+    expect(spawnChat).not.toHaveBeenCalled()
+    expect(close).toHaveBeenCalledTimes(3)
+    close.mockImplementationOnce(async () => {
+      old.child.emit('exit', 0, null)
+      return true
+    })
+    const ready = await prepareChat()
+    expect(ready.env.GEMINI_HOME).toBe(old.folder)
+    spawnChat(ready)
+    expect(spawnChat).toHaveBeenCalledTimes(1)
+  } finally {
+    gate.leave()
+  }
+  await vi.waitFor(async () => {
+    await expect(stat(launch.env.TMPDIR)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(launch.cwd)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
 })

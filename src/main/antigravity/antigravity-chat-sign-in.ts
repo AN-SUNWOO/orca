@@ -23,6 +23,10 @@ import type { ConnectAcpAgent } from '../acp/acp-structured-connection'
 import { resolveAcpLaunchInvocation } from '../acp/acp-structured-launch-resolution'
 import { prepareAcpLaunch } from '../acp/acp-structured-launch-preparation'
 import type { structuredAgentHostLaunchSources } from '../runtime/structured-agent-launch-support'
+import {
+  AntigravitySignInCloseUnprovenError,
+  closeAntigravitySignInOwner
+} from './antigravity-chat-account'
 
 // The server's own wait for the browser; a Link poll stays under a client's 30 s.
 const FLOW_DEADLINE_MS = 300_000
@@ -36,7 +40,7 @@ type Phase = AntigravityChatSignInState['phase']
 type Flow = {
   state: AntigravityChatSignInState
   ended: AbortController
-  changed: PromiseWithResolvers<void>
+  changed: Set<() => void>
   done: Promise<void>
 }
 
@@ -51,16 +55,19 @@ let flow: Flow | null = null
 
 const settled = (phase: Phase): boolean => phase !== 'starting' && phase !== 'waiting'
 
-function publish(current: Flow, next: Omit<AntigravityChatSignInState, 'flowId'>): void {
-  if (settled(current.state.phase)) {
+function publish(
+  current: Flow,
+  next: Omit<AntigravityChatSignInState, 'flowId'>,
+  cleanupFailed = false
+): void {
+  if (settled(current.state.phase) && !cleanupFailed) {
     return
   }
   current.state = { flowId: current.state.flowId, ...next }
   if (settled(next.phase)) {
     current.ended.abort()
   }
-  current.changed.resolve()
-  current.changed = Promise.withResolvers()
+  current.changed.forEach((notify) => notify())
 }
 
 export function startAntigravityChatSignIn(host: AntigravityChatSignInHost): { flowId: string } {
@@ -75,7 +82,7 @@ export function startAntigravityChatSignIn(host: AntigravityChatSignInHost): { f
   const current: Flow = {
     state: { flowId: randomUUID(), phase: 'starting' },
     ended: new AbortController(),
-    changed: Promise.withResolvers(),
+    changed: new Set(),
     done: Promise.resolve()
   }
   flow = current
@@ -92,7 +99,11 @@ async function runFlow(current: Flow, host: AntigravityChatSignInHost): Promise<
     publish(current, { phase: 'signedIn' })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    publish(current, { phase: 'failed', error: message })
+    publish(
+      current,
+      { phase: 'failed', error: message },
+      error instanceof AntigravitySignInCloseUnprovenError
+    )
   } finally {
     clearTimeout(deadline)
   }
@@ -113,8 +124,10 @@ async function signIn(current: Flow, host: AntigravityChatSignInHost): Promise<v
   const launch = await prepareAcpLaunch(deps, resolve, signal, closed)
   const connect = await acpPrivateTempConnect(deps, closed)
   const cwd = await mkdtemp(join(tmpdir(), 'orca-antigravity-sign-in-'))
+  let connection: AcpAgentConnection | null = null
+  const removeCwd = () => rm(cwd, { recursive: true, force: true })
   try {
-    const connection = connect(
+    connection = connect(
       { ...launch, args: spec.args({ fullAccess: false, pluginDir: null }), cwd },
       {
         clientInfo: { name: 'orca', version: '1' },
@@ -125,17 +138,21 @@ async function signIn(current: Flow, host: AntigravityChatSignInHost): Promise<v
         }
       }
     )
-    const stop = (): void => void connection.close()
+    const owner = connection
+    owner.onExit(() => void removeCwd().catch(() => {}))
+    const stop = (): void => void owner.close().catch(() => false)
     signal.addEventListener('abort', stop, { once: true })
     try {
       // Resolves once the browser finishes, or at once when the folder is already signed in.
       await connection.authenticate('oauth-personal')
     } finally {
       signal.removeEventListener('abort', stop)
-      await connection.close()
+      await closeAntigravitySignInOwner(launch.env.GEMINI_HOME, owner)
     }
   } finally {
-    await rm(cwd, { recursive: true, force: true })
+    if (!connection || connection.exited) {
+      await removeCwd()
+    }
   }
 }
 
@@ -174,11 +191,16 @@ export async function readAntigravityChatSignInLink(
   const current = flow?.state.flowId === flowId ? flow : null
   if (current && current.state.phase === shown && !settled(shown)) {
     const changed = new AbortController()
-    void current.changed.promise.then(() => changed.abort())
-    await delayUnlessAborted(
-      LINK_WAIT_MS,
-      AbortSignal.any([changed.signal, ...(signal ? [signal] : [])])
-    )
+    const notify = (): void => changed.abort()
+    current.changed.add(notify)
+    try {
+      await delayUnlessAborted(
+        LINK_WAIT_MS,
+        AbortSignal.any([changed.signal, ...(signal ? [signal] : [])])
+      )
+    } finally {
+      current.changed.delete(notify)
+    }
   }
   return current?.state ?? { flowId, phase: 'cancelled' }
 }

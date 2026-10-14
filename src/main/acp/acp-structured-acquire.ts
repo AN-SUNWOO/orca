@@ -63,6 +63,7 @@ export async function acquireAcpStructuredSession(input: {
 }): Promise<{ acquisition: AgentSessionAcquisition; session: AcpStructuredSession }> {
   const { acquire, deps, generation } = input
   const { spec } = deps
+  const agentName = acpAgentName(spec.agent)
   const sessionId = acquire.identity.sessionId
   const now = deps.now ?? Date.now
   const events = acquire.events
@@ -72,9 +73,7 @@ export async function acquireAcpStructuredSession(input: {
   }
   const closedBeforeSpawn = () => {
     if (input.abandoned()) {
-      throw new AgentSessionPreSpawnError(
-        new Error(`${acpAgentName(spec.agent)} was closed before it started`)
-      )
+      throw new AgentSessionPreSpawnError(new Error(`${agentName} was closed before it started`))
     }
   }
   closedBeforeSpawn()
@@ -186,7 +185,7 @@ export async function acquireAcpStructuredSession(input: {
       sink,
       sessionId,
       agent: spec.agent,
-      agentName: acpAgentName(spec.agent),
+      agentName,
       generation,
       providerSessionId,
       dialect: spec.dialect,
@@ -215,7 +214,6 @@ export async function acquireAcpStructuredSession(input: {
     )
   }
   await identity.onSpawned(pid)
-  const agentName = acpAgentName(spec.agent)
   try {
     const initialized = await connection.initialize()
     // Chosen here, on the machine Grok runs on, from the environment it was launched with.

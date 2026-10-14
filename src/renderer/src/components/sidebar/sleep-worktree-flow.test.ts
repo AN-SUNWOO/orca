@@ -122,6 +122,18 @@ describe('workspace sleep flow', () => {
     expect(mocks.toast).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps proved chat stops but leaves the workspace incomplete when another stop is unverified', async () => {
+    mocks.call.mockResolvedValueOnce({
+      stoppedSessionIds: ['session-1'],
+      failures: [{ sessionId: 'session-2', reason: 'stop-unverifiable' }]
+    })
+
+    const result = await runSleepWorktree('wt-1', 'local')
+    expect(result[0]).toMatchObject({ completed: false, stoppedSessionIds: ['session-1'] })
+    expect(mocks.state.shutdownWorktreeTerminals).toHaveBeenCalled()
+    expect(mocks.toast).toHaveBeenCalledTimes(1)
+  })
+
   it('does not run delayed panels or steal a newer selection after an explicit wake', async () => {
     mocks.state.activeWorktreeId = 'wt-1'
     mocks.state.activeWorkspaceExecutionHostId = 'local'

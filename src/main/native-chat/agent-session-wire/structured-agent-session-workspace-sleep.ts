@@ -1,4 +1,5 @@
 import type { AgentSessionExecutionLocation } from '../../../shared/agent-session-record'
+import type { AgentSessionWorkspaceSleepResult } from '../../../shared/agent-session-workspace-sleep'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 import type { StructuredAgentSessionHostDeps } from './structured-agent-session-host-types'
 import type { StructuredAgentSessionConversationLifetime } from './structured-agent-session-conversation-lifetime'
@@ -18,7 +19,7 @@ type WorkspaceSleepHost = {
 export async function sleepStructuredAgentSessionWorkspace(
   host: WorkspaceSleepHost,
   workspaceId: string
-): Promise<{ stoppedSessionIds: string[] }> {
+): Promise<AgentSessionWorkspaceSleepResult> {
   let records: ReturnType<StructuredAgentSessionHostDeps['store']['listRecords']>
   try {
     records = host.deps.store.listRecords()
@@ -28,7 +29,7 @@ export async function sleepStructuredAgentSessionWorkspace(
       workspaceId,
       error
     })
-    return { stoppedSessionIds: [] }
+    return { stoppedSessionIds: [], failures: [{ reason: 'inventory-unavailable' }] }
   }
   const belongs = (location: AgentSessionExecutionLocation): boolean =>
     location.workspaceId === workspaceId && location.executionHostId === LOCAL_EXECUTION_HOST_ID
@@ -36,25 +37,39 @@ export async function sleepStructuredAgentSessionWorkspace(
     ...records.filter((record) => belongs(record.location)).map((record) => record.sessionId),
     ...host.tasks.pendingMembers(workspaceId, LOCAL_EXECUTION_HOST_ID)
   ])
-  const outcomes = await Promise.allSettled(
-    [...candidates].map((sessionId) =>
-      host.lifetime
-        .closeForWorkspaceSleep(sessionId, workspaceId, LOCAL_EXECUTION_HOST_ID)
-        .then((result) => ({ sessionId, result }))
-    )
-  )
-  const stoppedSessionIds = outcomes.flatMap((outcome) => {
-    if (outcome.status !== 'fulfilled' || !outcome.value.result?.stopped) {
-      return []
+  const admitted = [...candidates].map((sessionId) => {
+    let close: ReturnType<WorkspaceSleepHost['lifetime']['closeForWorkspaceSleep']>
+    try {
+      close = host.lifetime.closeForWorkspaceSleep(sessionId, workspaceId, LOCAL_EXECUTION_HOST_ID)
+    } catch (error) {
+      close = Promise.reject(error)
     }
-    const { sessionId, result } = outcome.value
+    return { sessionId, close, tail: host.tasks.waitForCurrent(sessionId) }
+  })
+  const outcomes = await Promise.all(
+    admitted.map(async ({ sessionId, close, tail }) => {
+      const [stop] = await Promise.allSettled([close, tail])
+      return { sessionId, stop }
+    })
+  )
+  const stoppedSessionIds: string[] = []
+  const failures: NonNullable<AgentSessionWorkspaceSleepResult['failures']> = []
+  for (const { sessionId, stop } of outcomes) {
+    if (stop.status === 'rejected' || !stop.value?.stopped) {
+      failures.push({
+        sessionId,
+        reason: stop.status === 'fulfilled' && !stop.value ? 'superseded' : 'stop-unverifiable'
+      })
+      continue
+    }
     try {
       const record = host.deps.store.getRecord(sessionId)
       const session = host.sessions.get(sessionId)
+      if (!record || !belongs(record.location) || record.lease.runtimeFence !== stop.value.fence) {
+        failures.push({ sessionId, reason: 'superseded' })
+        continue
+      }
       if (
-        !record ||
-        !belongs(record.location) ||
-        record.lease.runtimeFence !== result.fence ||
         session?.child ||
         host.tasks.hasPending(sessionId) ||
         host.deliveryRunning(sessionId) ||
@@ -62,17 +77,18 @@ export async function sleepStructuredAgentSessionWorkspace(
         session?.journal.pendingSubmissions().length ||
         host.deps.hasOpenDispatch?.(record)
       ) {
-        return []
+        failures.push({ sessionId, reason: 'superseded' })
+        continue
       }
-      return [sessionId]
+      stoppedSessionIds.push(sessionId)
     } catch (error) {
       host.deps.logger.warn('workspace chat stop receipt could not be checked', {
         scope: 'workspace-chat-receipt',
         sessionId,
         error
       })
-      return []
+      failures.push({ sessionId, reason: 'stop-unverifiable' })
     }
-  })
-  return { stoppedSessionIds }
+  }
+  return failures.length > 0 ? { stoppedSessionIds, failures } : { stoppedSessionIds }
 }

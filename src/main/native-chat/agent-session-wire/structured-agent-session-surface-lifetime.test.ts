@@ -265,7 +265,10 @@ describe('a chat that closes', () => {
     await attach()
     closeSession.mockResolvedValueOnce(false)
 
-    expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [] })
+    expect(await host.sleepWorkspace('workspace-1')).toEqual({
+      stoppedSessionIds: [],
+      failures: [{ sessionId: SESSION, reason: 'stop-unverifiable' }]
+    })
     expect(store.getRecord(SESSION)).not.toBeNull()
   })
 
@@ -284,7 +287,10 @@ describe('a chat that closes', () => {
       return result
     })
 
-    expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [] })
+    expect(await host.sleepWorkspace('workspace-1')).toEqual({
+      stoppedSessionIds: [],
+      failures: [{ sessionId: SESSION, reason: 'superseded' }]
+    })
     expect(newerSend).not.toBeNull()
     expect(await newerSend).toMatchObject({ ok: true })
   })

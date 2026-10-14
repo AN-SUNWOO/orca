@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import type { AgentSessionWorkspaceSleepResult } from '../../../../shared/agent-session-workspace-sleep'
 import { useAppStore } from '@/store'
 import {
   clearWorktreeSleepIntent,
@@ -174,10 +175,11 @@ export async function runSleepWorktrees(
     ...target,
     token: markWorktreeSleepIntent(target.workspaceId, target.executionHostId)
   }))
+  const noNativeSessions: AgentSessionWorkspaceSleepResult = { stoppedSessionIds: [] }
   const nativeCalls = marked.map(({ workspaceId, executionHostId }) => {
     const nativeTarget = structuredAgentSessionTargetForHost(executionHostId)
     return nativeTarget
-      ? callStructuredAgentSession<{ stoppedSessionIds: string[] }>(
+      ? callStructuredAgentSession<AgentSessionWorkspaceSleepResult>(
           nativeTarget,
           'agentSession.sleepWorkspace',
           { workspaceId }
@@ -185,7 +187,7 @@ export async function runSleepWorktrees(
           (value) => ({ ok: true as const, value }),
           (error: unknown) => ({ ok: false as const, error })
         )
-      : Promise.resolve({ ok: true as const, value: { stoppedSessionIds: [] } })
+      : Promise.resolve({ ok: true as const, value: noNativeSessions })
   })
   const activeRoute = state.activeWorktreeId
     ? resolveWorktreeOperationRouteResult(state, state.activeWorktreeId)
@@ -214,6 +216,14 @@ export async function runSleepWorktrees(
       const native = await nativeCalls[index]
       if (native.ok) {
         stoppedSessionIds = native.value.stoppedSessionIds
+        if (native.value.failures?.length) {
+          console.error('[sleep-worktree] native chat stop incomplete', {
+            workspaceId,
+            failures: native.value.failures
+          })
+          nativeCompleted = false
+          errors.push(describeChatStopFailure())
+        }
       } else {
         console.error('[sleep-worktree] native chat stop failed', {
           workspaceId,

@@ -87,6 +87,29 @@ export function createStructuredAgentSessionConversationLifetime(host: {
   const providerHoldsDispatch = (sessionId: string): boolean =>
     deps().adapter.holdsDispatch?.(sessionId) === true
 
+  const holdStopClose = async <T>(
+    sessionId: string,
+    stop: (held: boolean) => Promise<T>,
+    onCloseError?: (error: unknown) => void
+  ): Promise<T> => {
+    const session = sessions.get(sessionId)
+    const held = session
+      ? await holdClosedStructuredAgentSessionSends(deps(), sessionId, session.journal, {
+          mark: 'always'
+        })
+      : true
+    const result = await stop(held)
+    try {
+      await closeConversation(sessionId)
+    } catch (error) {
+      if (!onCloseError) {
+        throw error
+      }
+      onCloseError(error)
+    }
+    return result
+  }
+
   const closeForWorkspaceSleep = (
     sessionId: string,
     workspaceId: string,
@@ -113,53 +136,52 @@ export function createStructuredAgentSessionConversationLifetime(host: {
       const session = sessions.get(sessionId)
       const child = session?.child
       const owned = deps().adapter.hasOwnedAcquisition?.(sessionId) === true
-      if (session) {
-        await holdClosedStructuredAgentSessionSends(deps(), sessionId, session.journal, {
-          mark: 'always'
-        })
-      }
-      let ownedStopped = false
-      try {
-        if (child) {
-          await stopAgent(sessionId, { cause: 'user-close' })
-        } else if (owned) {
-          ownedStopped = await stopAgentSessionProviderRoot(
-            () => deps().adapter.releaseAcquisition?.({ sessionId }) ?? Promise.resolve(false)
+      const stopped = await holdStopClose(
+        sessionId,
+        async (held) => {
+          let ownedStopped = false
+          try {
+            if (child) {
+              await stopAgent(sessionId, { cause: 'user-close' })
+            } else if (owned) {
+              ownedStopped = await stopAgentSessionProviderRoot(
+                () => deps().adapter.releaseAcquisition?.({ sessionId }) ?? Promise.resolve(false)
+              )
+            }
+          } catch (error) {
+            deps().logger.warn('workspace chat stop was not proven', {
+              scope: 'workspace-chat-stop',
+              sessionId,
+              error
+            })
+          }
+          const ended = sessions.get(sessionId)?.lastEndedChild
+          const after = deps().store.getRecord(sessionId)
+          const childStopped =
+            !!child &&
+            !sessions.get(sessionId)?.child &&
+            ended?.rootGone === true &&
+            sameProviderChild(ended, child)
+          const durableStopped =
+            (child || owned) &&
+            after?.lease.runtimeFence === fence &&
+            after.lease.claimStatus === 'released' &&
+            !!after.lease.deathEvidence
+          return (
+            held &&
+            (childStopped ||
+              (owned && ownedStopped) ||
+              (!child && !owned && !!after && structuredSessionNeverStarted(after)) ||
+              durableStopped)
           )
-        }
-      } catch (error) {
-        deps().logger.warn('workspace chat stop was not proven', {
-          scope: 'workspace-chat-stop',
-          sessionId,
-          error
-        })
-      }
-      const ended = sessions.get(sessionId)?.lastEndedChild
-      const after = deps().store.getRecord(sessionId)
-      const childStopped =
-        !!child &&
-        !sessions.get(sessionId)?.child &&
-        ended?.rootGone === true &&
-        sameProviderChild(ended, child)
-      const durableStopped =
-        (child || owned) &&
-        after?.lease.runtimeFence === fence &&
-        after.lease.claimStatus === 'released' &&
-        !!after.lease.deathEvidence
-      const stopped =
-        childStopped ||
-        (owned && ownedStopped) ||
-        (!child && !owned && !!after && structuredSessionNeverStarted(after)) ||
-        durableStopped
-      try {
-        await closeConversation(sessionId)
-      } catch (error) {
-        deps().logger.warn('closing a stopped workspace chat handle failed', {
-          scope: 'workspace-chat-close',
-          sessionId,
-          error
-        })
-      }
+        },
+        (error) =>
+          deps().logger.warn('closing a stopped workspace chat handle failed', {
+            scope: 'workspace-chat-close',
+            sessionId,
+            error
+          })
+      )
       // Lease release advances the fence; preserve the value after this close for the caller's
       // final identity check against a later restart.
       return { fence: deps().store.getRecord(sessionId)?.lease.runtimeFence ?? fence, stopped }
@@ -281,16 +303,7 @@ export function createStructuredAgentSessionConversationLifetime(host: {
       host.context().runtimeState.acquireAborts.abort(sessionId, 'closed while starting')
       return serialize(sessionId, async () => {
         readRefusals.forget(sessionId)
-        const session = sessions.get(sessionId)
-        if (session) {
-          // Settled and marked before the stop, so no start delivers it, and nothing it closed with
-          // sends by itself, even if the handle stays open.
-          await holdClosedStructuredAgentSessionSends(deps(), sessionId, session.journal, {
-            mark: 'always'
-          })
-        }
-        await stopStructuredAgentSessionAgentUnderSerialize(host.context(), sessionId, { cause })
-        await closeConversation(sessionId)
+        await holdStopClose(sessionId, () => stopAgent(sessionId, { cause }))
       })
     }
   }

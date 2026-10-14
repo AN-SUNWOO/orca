@@ -1,4 +1,7 @@
-import { runKeyedSerializedOperation } from '../../cli/keyed-promise-queue'
+import {
+  getKeyedSerializedQueueTail,
+  runKeyedSerializedOperation
+} from '../../cli/keyed-promise-queue'
 import type { AgentSessionExecutionLocation } from '../../../shared/agent-session-record'
 
 export class StructuredAgentSessionTaskQueue {
@@ -13,15 +16,7 @@ export class StructuredAgentSessionTaskQueue {
   >()
 
   serialize<T>(sessionId: string, task: () => Promise<T>): Promise<T> {
-    const result = runKeyedSerializedOperation(this.chains, sessionId, task)
-    const ownTail = this.chains.get(sessionId)
-    // Settle this queue entry before its caller checks for work admitted afterward.
-    return ownTail
-      ? result.then(async (value) => {
-          await ownTail
-          return value
-        })
-      : result
+    return runKeyedSerializedOperation(this.chains, sessionId, task)
   }
 
   trackAttach<T>(
@@ -58,6 +53,10 @@ export class StructuredAgentSessionTaskQueue {
       this.chains.has(sessionId) ||
       [...this.pendingLocations.values()].some((pending) => pending.sessionId === sessionId)
     )
+  }
+
+  waitForCurrent(sessionId: string): Promise<void> {
+    return getKeyedSerializedQueueTail(this.chains, sessionId)
   }
 
   async drainAttaches(): Promise<void> {

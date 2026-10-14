@@ -164,27 +164,30 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
           return appeared.sleepWorkspace(params.workspaceId)
         }
         console.warn('[agent-session] workspace sleep record inventory unavailable', error)
-        return { stoppedSessionIds: [] }
+        return { stoppedSessionIds: [], failures: [{ reason: 'inventory-unavailable' }] }
       }
       const appeared = getStructuredAgentSessionHost()
       if (appeared) {
         return appeared.sleepWorkspace(params.workspaceId)
       }
       try {
-        return {
-          stoppedSessionIds: store
-            .listRecords()
-            .filter(
-              (record) =>
-                record.location.workspaceId === params.workspaceId &&
-                record.location.executionHostId === LOCAL_EXECUTION_HOST_ID &&
-                structuredSessionNeverStarted(record)
-            )
-            .map((record) => record.sessionId)
-        }
+        const records = store
+          .listRecords()
+          .filter(
+            (record) =>
+              record.location.workspaceId === params.workspaceId &&
+              record.location.executionHostId === LOCAL_EXECUTION_HOST_ID
+          )
+        const stoppedSessionIds = records
+          .filter(structuredSessionNeverStarted)
+          .map((record) => record.sessionId)
+        const failures = records
+          .filter((record) => !structuredSessionNeverStarted(record))
+          .map((record) => ({ sessionId: record.sessionId, reason: 'stop-unverifiable' as const }))
+        return failures.length > 0 ? { stoppedSessionIds, failures } : { stoppedSessionIds }
       } catch (error) {
         console.warn('[agent-session] workspace sleep record inventory failed', error)
-        return { stoppedSessionIds: [] }
+        return { stoppedSessionIds: [], failures: [{ reason: 'inventory-unavailable' }] }
       }
     }
   }),

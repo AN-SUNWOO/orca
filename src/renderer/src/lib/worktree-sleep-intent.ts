@@ -1,6 +1,6 @@
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../../shared/execution-host'
 
-type SleepIntent = { worktreeId: string; hostId: ExecutionHostId; token: object }
+type SleepIntent = { worktreeId: string; hostId: ExecutionHostId }
 const intents = new Map<string, SleepIntent>()
 const teardownCounts = new Map<string, number>()
 const listeners = new Map<string, Set<() => void>>()
@@ -32,19 +32,19 @@ function notifyCleared(key: string, worktreeId: string): void {
 export function markWorktreeSleepIntent(
   worktreeId: string,
   hostId: ExecutionHostId = LOCAL_EXECUTION_HOST_ID
-): object {
+): SleepIntent {
   const key = keyFor(worktreeId, hostId)
-  const token = {}
-  intents.set(key, { worktreeId, hostId, token })
-  return token
+  const intent = { worktreeId, hostId }
+  intents.set(key, intent)
+  return intent
 }
 
 export function isCurrentWorktreeSleepIntent(
   worktreeId: string,
   hostId: ExecutionHostId,
-  token: object
+  intent: SleepIntent
 ): boolean {
-  return intents.get(keyFor(worktreeId, hostId))?.token === token
+  return intents.get(keyFor(worktreeId, hostId)) === intent
 }
 
 export async function withWorktreeSleepTeardown<T>(

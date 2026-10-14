@@ -55,8 +55,7 @@ export function useBrowserPageGrabAnnotations({
   trackingScroller,
   webviewRef,
   setBrowserOverlayViewport,
-  browserAnnotationsLength,
-  setBrowserAnnotationTrayOpen
+  browserAnnotationsLength
 }: BrowserPageGrabAnnotationsOptions): {
   grabIntent: GrabIntent
   startGrabIntent: (nextIntent: GrabIntent) => void
@@ -199,14 +198,12 @@ export function useBrowserPageGrabAnnotations({
       setGrabIntent(nextIntent)
       if (nextIntent === 'copy') {
         setPendingAnnotationPayload(null)
-      } else {
-        setBrowserAnnotationTrayOpen(true)
       }
       if (grab.state === 'idle' || grab.state === 'error' || grabIntent === nextIntent) {
         grab.toggle()
       }
     },
-    [grab, grabIntent, recordFeatureInteraction, setBrowserAnnotationTrayOpen]
+    [grab, grabIntent, recordFeatureInteraction]
   )
 
   // C / S copy the hovered element without clicking: extract via IPC while armed/awaiting, else use the captured payload.
@@ -272,18 +269,10 @@ export function useBrowserPageGrabAnnotations({
       recordFeatureInteraction('browser-annotations')
       pendingAnnotationPayloadRef.current = null
       setPendingAnnotationPayload(null)
-      setBrowserAnnotationTrayOpen(true)
       showGrabToast(annotationAddedGrabToastMessage(), 'success', payload)
       grab.rearm()
     },
-    [
-      addBrowserPageAnnotation,
-      browserTabId,
-      grab,
-      recordFeatureInteraction,
-      setBrowserAnnotationTrayOpen,
-      showGrabToast
-    ]
+    [addBrowserPageAnnotation, browserTabId, grab, recordFeatureInteraction, showGrabToast]
   )
 
   const handleCancelPendingBrowserAnnotation = useCallback((): void => {

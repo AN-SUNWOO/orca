@@ -35,6 +35,7 @@ import {
 } from './runtime-environment-transport-routing'
 import { publicRuntimeEnvironmentWithHostKey } from './runtime-environment-host-key'
 import { withWslOrcadAccountEnv } from '../wsl/wsl-orcad-account-env'
+import { clearSshCredentialDeclinedForEnvironment } from '../ssh/ssh-credential-decline'
 import {
   observeWslOrcadHostResponse,
   wslOrcadHostSupports
@@ -159,6 +160,7 @@ export function registerRuntimeEnvironmentConnectivityHandlers({
       const environment = resolveEnvironment(getUserDataPath(), args.selector)
       assertWslHostReachable(environment)
       clearRuntimeEnvironmentManualDisconnect(environment.id)
+      clearSshCredentialDeclinedForEnvironment(environment)
       if (environment.orcadDeployment?.kind === 'wsl') {
         // An explicit connect may boot the distro.
         await getWslHostService()?.connect(environment.id)

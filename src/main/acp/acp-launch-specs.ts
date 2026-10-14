@@ -27,10 +27,15 @@ import {
   loadOpenCodeVisualsSkill,
   type AcpVisualsSkillLoader
 } from './acp-visuals-skill'
-import type { StructuredAgentSessionHistory } from '../native-chat/structured-agent-cli-conversations'
+import type {
+  StructuredAgentSessionHistory,
+  StructuredAgentTranscriptImport
+} from '../native-chat/structured-agent-cli-conversations'
 import { GROK_SESSION_HISTORY } from '../grok/grok-session-history'
+import { GROK_TRANSCRIPT_IMPORT } from '../grok/grok-transcript-import'
 import { OPENCODE_SESSION_HISTORY } from '../opencode/opencode-session-history'
 import { OMP_SESSION_HISTORY } from '../omp/omp-session-history'
+import { OMP_TRANSCRIPT_IMPORT } from '../omp/omp-transcript-import'
 
 /** How an agent lists its models without a session: from its `initialize` answer (plus extension
  *  requests), from a listing command, or not at all. Never `authenticate` or `session/new`. */
@@ -91,6 +96,8 @@ export type AcpLaunchSpec = {
   modelDiscovery: AcpModelDiscovery
   /** How a launch loads the inline-visuals skill; absent, the agent's chats have no visuals. */
   visualsSkill?: AcpVisualsSkillLoader
+  /** How a chat adopts a conversation the agent's CLI recorded; null when it cannot. */
+  transcriptImport: StructuredAgentTranscriptImport | null
   /** How the agent's chats own the Session History rows their conversations list as. */
   sessionHistory: StructuredAgentSessionHistory
 }
@@ -126,6 +133,7 @@ const GROK_LAUNCH_SPEC: AcpLaunchSpec = {
   },
   visualsSkill: loadGrokVisualsSkill,
   compaction: true,
+  transcriptImport: GROK_TRANSCRIPT_IMPORT,
   sessionHistory: GROK_SESSION_HISTORY
 }
 
@@ -165,6 +173,7 @@ const OPENCODE_LAUNCH_SPEC: AcpLaunchSpec = {
   },
   visualsSkill: loadOpenCodeVisualsSkill,
   compaction: true,
+  transcriptImport: null,
   sessionHistory: OPENCODE_SESSION_HISTORY
 }
 
@@ -193,6 +202,7 @@ const OMP_LAUNCH_SPEC: AcpLaunchSpec = {
   },
   visualsSkill: loadOmpVisualsSkill,
   compaction: true,
+  transcriptImport: OMP_TRANSCRIPT_IMPORT,
   sessionHistory: OMP_SESSION_HISTORY
 }
 

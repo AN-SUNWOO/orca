@@ -258,6 +258,11 @@ const FAILURE_SENTENCES = {
           agent(say, context)
         )
       : say('noTurnToStop', agent(say, context)),
+  // Mid-sentence, so an unnamed agent is not capitalized.
+  stopFailed: ({ agentName }, _fact, _surface, say) =>
+    agentName ? say('couldNotStop', { agent: agentName }) : say('couldNotStopTheAgent'),
+  backgroundTaskNotStopped: (_context, fact, _surface, say) =>
+    say(fact.backgroundStop === 'task' ? 'backgroundTaskNotStopped' : 'backgroundTasksNotStopped'),
   answerUnconfirmed: (_context, _fact, _surface, say) => say('answerUnconfirmed'),
   hostFault: ({ retryControl }, _fact, _surface, say) =>
     say(retryControl ? 'hostFault' : 'hostFaultTryAgain'),

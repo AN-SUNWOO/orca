@@ -25,6 +25,7 @@ import {
   hostCanStartRecord
 } from './structured-agent-session-provider-support'
 import { performSend } from './structured-agent-session-turns'
+import { observedReceipt } from './structured-agent-session-operation-settlement'
 import { attachStructuredAgentSession } from './structured-agent-session-attach-orchestration'
 import { readAgentSessionHydrationPage } from './agent-session-history-page'
 import { resolveAgentSessionReplayOutcome } from './structured-agent-session-replay-outcome'
@@ -193,7 +194,7 @@ async function foundConversation(
             resolvedBy: callerKey,
             persistOptions: async () => {},
             publish: () => {},
-            operationReceipt: store.founding.receipt(request),
+            operationReceipt: observedReceipt(store, store.founding.receipt(request)),
             now: context.now
           },
           {

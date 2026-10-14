@@ -8,9 +8,9 @@ import {
 } from '../../shared/runtime-navigation'
 import { getRepoExecutionHostId } from '../../shared/execution-host'
 import type { Repo } from '../../shared/repo-types'
+import type { TerminalWorkspaceLaunchScope } from './runtime-legacy-worker-terminal-recovery-types'
 import type { TuiAgent } from '../../shared/tui-agent'
 import type { RuntimeTerminalWait } from '../../shared/runtime-terminal-contracts'
-import type { WorktreeStartupLaunch } from '../../shared/worktree/launch-types'
 import type {
   WorktreeStartupDraftPaste,
   WorktreeStartupFollowup
@@ -144,11 +144,7 @@ export class OrcaRuntimeWithActivateManagedWorktree extends OrcaRuntimeWithListM
     draft: string,
     requestedAgent?: TuiAgent,
     launchSource?: string
-  ): Promise<{
-    agent: TuiAgent
-    startup: WorktreeStartupLaunch
-    draftPaste?: WorktreeStartupDraftPaste
-  } | null> {
+  ): ReturnType<typeof buildWorktreeStartupForDraft> {
     if (!this.store) {
       return null
     }
@@ -158,7 +154,7 @@ export class OrcaRuntimeWithActivateManagedWorktree extends OrcaRuntimeWithListM
       ...(requestedAgent ? { requestedAgent } : {}),
       ...(launchSource ? { launchSource } : {}),
       settings: this.store.getSettings(),
-      getLaunchPlatform: () => this.getAgentLaunchPlatformForRepo(repo)
+      getLaunchRuntime: (agent) => this.resolveStartupAgentLaunchRuntime(repo, agent)
     })
   }
 
@@ -172,8 +168,10 @@ export class OrcaRuntimeWithActivateManagedWorktree extends OrcaRuntimeWithListM
       extraAgentArgs?: string
       launchSource?: string
       onPromptCarry?: (carried: boolean) => void
+      /** The existing workspace it starts in; absent is a new workspace of `repo`. */
+      launchScope?: TerminalWorkspaceLaunchScope
     }
-  ): { agent: TuiAgent; startup: WorktreeStartupLaunch; followup?: WorktreeStartupFollowup } {
+  ): ReturnType<typeof buildWorktreeStartupForAgent> {
     if (!this.store) {
       throw new Error('runtime_unavailable')
     }
@@ -187,7 +185,8 @@ export class OrcaRuntimeWithActivateManagedWorktree extends OrcaRuntimeWithListM
       ...(launchInputs?.launchSource ? { launchSource: launchInputs.launchSource } : {}),
       ...(launchInputs?.onPromptCarry ? { onPromptCarry: launchInputs.onPromptCarry } : {}),
       settings: this.store.getSettings(),
-      getLaunchPlatform: () => this.getAgentLaunchPlatformForRepo(repo),
+      getLaunchRuntime: (agent) =>
+        this.resolveStartupAgentLaunchRuntime(repo, agent, launchInputs?.launchScope),
       toSessionOptions: (preferences) => this.toAgentSessionOptions(preferences)
     })
   }

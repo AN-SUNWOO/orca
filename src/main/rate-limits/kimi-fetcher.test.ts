@@ -115,6 +115,25 @@ describe('fetchKimiRateLimits', () => {
     expect(result.session).toBeNull()
   })
 
+  it('tags a request that throws before a response as a network failure', async () => {
+    fsState.credentials = freshCredentials()
+    netFetchMock.mockRejectedValueOnce(new Error('net::ERR_PROXY_CONNECTION_FAILED'))
+
+    const result = await fetchKimiRateLimits()
+    expect(result.error).toBe('net::ERR_PROXY_CONNECTION_FAILED')
+    expect(result.usageMetadata?.failureKind).toBe('network')
+  })
+
+  it('tags a malformed usage body as a parse failure, not a network one', async () => {
+    fsState.credentials = freshCredentials()
+    netFetchMock.mockResolvedValueOnce(
+      new Response('not json', { status: 200, headers: { 'content-type': 'application/json' } })
+    )
+
+    const result = await fetchKimiRateLimits()
+    expect(result.usageMetadata?.failureKind).toBe('parse')
+  })
+
   it('surfaces an error when the credentials file cannot be parsed', async () => {
     fsState.credentials = '{'
 

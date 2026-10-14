@@ -7,11 +7,10 @@
 
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import type { AgentSessionOperationRow } from '../../shared/agent-session-operation-ledger'
-import {
-  agentSessionWireProviderHandle,
-  type AgentSessionWireProviderHandle
-} from '../../shared/agent-session-provider-handle-encoding'
-import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
+import type {
+  AgentSessionProviderHandle,
+  StructuredAgentId
+} from '../../shared/agent-session-provider-handle'
 import type { AgentSessionLease, AgentSessionRecord } from '../../shared/agent-session-record'
 import { agentSessionLeaseAdmitsWriter } from '../../shared/agent-session-lease-adjudication'
 
@@ -31,7 +30,7 @@ export type StructuredAgentSessionAdoption = {
 
 export type CommittedStructuredAgentSessionAdoptionReplay = {
   record: AgentSessionRecord
-  providerHandle: AgentSessionWireProviderHandle
+  providerHandle: AgentSessionProviderHandle
 }
 
 /** Exact committed-operation identity; attach still validates its fingerprint. */
@@ -63,12 +62,10 @@ export function findCommittedStructuredAgentSessionAdoptionReplay(input: {
   ) {
     return null
   }
-  // The replay re-sends the adoption as its create sent it, so it needs the wire's form.
-  const providerHandle = agentSessionWireProviderHandle(adopted.handle)
-  if (adopted.handle.nativeId !== input.providerSessionId || !providerHandle) {
+  if (adopted.handle.nativeId !== input.providerSessionId) {
     return null
   }
-  return { record, providerHandle }
+  return { record, providerHandle: adopted.handle }
 }
 
 /**
@@ -127,7 +124,11 @@ export async function resolveStructuredAgentSessionAdoption(input: {
   resolveTranscript: (args: {
     providerSessionId: string
     accountHomePath: string
+    launchEnv: NodeJS.ProcessEnv
+    workspaceCwd: string
   }) => Promise<string | null>
+  launchEnv: NodeJS.ProcessEnv
+  workspaceCwd: string
 }): Promise<StructuredAgentSessionAdoption> {
   const seen = new Set<string>()
   for (const accountHomePath of input.candidateAccountHomes) {
@@ -138,7 +139,9 @@ export async function resolveStructuredAgentSessionAdoption(input: {
     seen.add(trimmed)
     const transcriptPath = await input.resolveTranscript({
       providerSessionId: input.providerSessionId,
-      accountHomePath: trimmed
+      accountHomePath: trimmed,
+      launchEnv: input.launchEnv,
+      workspaceCwd: input.workspaceCwd
     })
     if (transcriptPath) {
       return { accountHomePath: trimmed, transcriptPath }

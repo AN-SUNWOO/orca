@@ -261,6 +261,9 @@ async function parseSessionCandidates(args: {
         )
       )
     )
+    // An abort can land while a batch settles: a read it cut short is not that
+    // file's issue, and a partial parse must never be cached or returned.
+    throwIfAiVaultScanCancelled(args.signal)
 
     for (const result of results) {
       if (result.issue) {
@@ -274,9 +277,6 @@ async function parseSessionCandidates(args: {
     index += batchSize
   }
 
-  // An abort can land while the final batch settles; observe it here so a
-  // partial parse is never cached or returned as a complete scan.
-  throwIfAiVaultScanCancelled(args.signal)
   return [...sessions.values()]
 }
 

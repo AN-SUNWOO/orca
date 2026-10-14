@@ -42,6 +42,15 @@ export const BACKGROUND_TERMINAL_SPAWN_FLAGS = {
   persistHostSessionBinding: true
 } as const
 
+/** The PTY's shell inputs: a requested shell, and an agent launch's runtime fact. */
+export const spawnShellInputs = ({
+  shellOverride,
+  launchRuntime
+}: Pick<TerminalCreateOptions, 'shellOverride' | 'launchRuntime'>) => ({
+  ...(shellOverride ? { shellOverride } : {}),
+  ...(launchRuntime ? { launchRuntime } : {})
+})
+
 /** Caller-scoped spawn fields: abort when the caller disconnects; never wake a slept worktree;
  *  the caller's declared fork intent, which the host's gate validates. */
 export function callerSpawnScope(

@@ -16,13 +16,17 @@ import type { Repo } from '../../shared/repo-types'
 import type { GitAdmissionTier } from '../git/command-runner/git-exec-options'
 import {
   getLocalProjectGhExecOptions,
-  resolveLocalProjectRuntimeForRepo,
   type LocalProjectGhExecOptions
 } from '../project-runtime-git-options'
-import { getAgentLaunchPlatformForRepo } from './runtime-agent-launch-resolution'
+import {
+  agentLaunchPlatformForScope,
+  newWorktreeLaunchScope,
+  resolveAgentLaunchRuntime,
+  resolveStartupAgentLaunchRuntime
+} from './agent-launch-scope-runtime'
+import type { TuiAgent } from '../../shared/tui-agent'
+import type { AgentLaunchRuntime } from '../../shared/agent-launch-runtime'
 import type { TerminalWorkspaceLaunchScope } from './runtime-legacy-worker-terminal-recovery-types'
-import { isWindowsAbsolutePathLike } from '../../shared/cross-platform-path'
-import { isWslUncPath } from '../../shared/wsl-paths'
 import { parseAppSshPtyId } from '../../shared/ssh-pty-id'
 import type { PtyProcessInspection } from '../providers/pty-process-inspection'
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
@@ -264,22 +268,30 @@ export class OrcaRuntimeWithRestoreStructuredAgentSessionTabsOnce extends OrcaRu
     return Object.keys(localGitOptions).length > 0 ? [localGitOptions] : []
   }
 
-  protected getAgentLaunchPlatformForRepo(repo: Repo): NodeJS.Platform {
-    const projectRuntime = repo.connectionId
-      ? undefined
-      : resolveLocalProjectRuntimeForRepo(this.requireStore(), repo)
-    return getAgentLaunchPlatformForRepo(repo, projectRuntime)
-  }
-
   protected getAgentLaunchPlatformForWorkspace(
     scope: TerminalWorkspaceLaunchScope
   ): NodeJS.Platform {
-    if (scope.repo) {
-      return this.getAgentLaunchPlatformForRepo(scope.repo)
-    }
-    if (scope.connectionId) {
-      return isWindowsAbsolutePathLike(scope.path) ? 'win32' : 'linux'
-    }
-    return isWslUncPath(scope.path) ? 'linux' : process.platform
+    return agentLaunchPlatformForScope(this.requireStore(), scope)
+  }
+
+  protected resolveAgentLaunchRuntime(
+    scope: TerminalWorkspaceLaunchScope,
+    agent: TuiAgent | undefined
+  ): AgentLaunchRuntime {
+    return resolveAgentLaunchRuntime(this.requireStore(), scope, undefined, agent)
+  }
+
+  /** A startup's fact: the workspace it starts in, else the new worktree a create is making. */
+  protected resolveStartupAgentLaunchRuntime(
+    repo: Repo,
+    agent: TuiAgent,
+    scope?: TerminalWorkspaceLaunchScope
+  ): ReturnType<typeof resolveStartupAgentLaunchRuntime> {
+    const store = this.requireStore()
+    return resolveStartupAgentLaunchRuntime(
+      store,
+      scope ?? newWorktreeLaunchScope(repo, store.getSettings()),
+      agent
+    )
   }
 }

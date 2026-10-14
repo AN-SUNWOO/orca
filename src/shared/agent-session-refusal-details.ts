@@ -18,6 +18,8 @@ import {
 } from './agent-session-argument-problem'
 import { isAgentJournalResolution } from './agent-session-journal-schemas'
 import { AGENT_SESSION_REWIND_REASONS, type AgentSessionRewindReason } from './agent-session-rewind'
+import type { TuiAgent } from './tui-agent'
+import { TUI_AGENT_DISPLAY_NAMES } from './tui-agent-display-names'
 import type {
   AgentSessionOwnerVerdict,
   AgentSessionWireRefusalCode
@@ -31,6 +33,10 @@ export const AGENT_SESSION_REFUSAL_REASONS = {
     'messageIdReused',
     'operationRefusedEarlier',
     'journalWriteFailed',
+    /** A Stop that could not be saved. */
+    'stopFailed',
+    /** A card's Cancel whose dismissal could not be saved. */
+    'cancelNotSaved',
     /** The message names a chat attachment the host no longer stores. */
     'attachmentExpired',
     // The conversation's state
@@ -162,6 +168,8 @@ type AgentSessionRefusalFactsByCode = {
   agent_session_operation_invalid: RewindFacts & {
     account?: AgentSessionAccountKind
     argumentProblem?: AgentSessionArgumentProblem
+    /** The chat's agent a `stopFailed` Stop could not stop. */
+    agent?: TuiAgent
     codexInstallation?: CodexInstallationProblem
   }
   agent_session_operation_unknown: RewindFacts
@@ -255,6 +263,11 @@ function readFact(
   }
 }
 
+/** An agent this build can name; a newer host's agent reads as none. */
+function isNamedAgent(value: unknown): value is TuiAgent {
+  return typeof value === 'string' && Object.hasOwn(TUI_AGENT_DISPLAY_NAMES, value)
+}
+
 export function isAgentSessionRefusalReason<C extends AgentSessionWireRefusalCode>(
   code: C,
   value: unknown
@@ -297,6 +310,11 @@ export function readAgentSessionRefusalDetails<C extends AgentSessionWireRefusal
       ? { account: value.account }
       : {}),
     ...(argumentProblem ? { argumentProblem } : {}),
+    ...(code === 'agent_session_operation_invalid' &&
+    value.reason === 'stopFailed' &&
+    isNamedAgent(value.agent)
+      ? { agent: value.agent }
+      : {}),
     ...(codexInstallation ? { codexInstallation } : {})
   }
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the reason was checked against `code`'s list and only the facts `code` lists (plus the verdict every code may carry) were kept.

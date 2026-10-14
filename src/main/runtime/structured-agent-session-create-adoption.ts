@@ -65,6 +65,8 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
   providerSessionId: string
   selfSessionId: string
   selectedAccountHomePath: string
+  launchEnv: NodeJS.ProcessEnv
+  workspaceCwd: string
 }) {
   const conflict = input.host
     ? findConflictingStructuredAdoption({
@@ -80,6 +82,8 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
   return resolveStructuredAgentSessionAdoption({
     providerSessionId: input.providerSessionId,
     candidateAccountHomes: input.transcriptImport.accountHomeCandidates(input),
-    resolveTranscript: input.transcriptImport.findTranscript
+    resolveTranscript: input.transcriptImport.findTranscript,
+    launchEnv: input.launchEnv,
+    workspaceCwd: input.workspaceCwd
   })
 }

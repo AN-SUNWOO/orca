@@ -1,3 +1,4 @@
+import { classifyThrownUsageRequestError } from './usage-request-failure-kind'
 import { parseUsageRetryAfterMs } from './usage-retry-after'
 
 export class OAuthUsageError extends Error {
@@ -8,6 +9,16 @@ export class OAuthUsageError extends Error {
     readonly retryAfterMs: number | null = null
   ) {
     super(message)
+  }
+}
+
+/** The usage request threw before a usable body: a transport failure or malformed JSON. */
+export class ClaudeUsageRequestError extends Error {
+  readonly failureKind: 'network' | 'parse'
+
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause })
+    this.failureKind = classifyThrownUsageRequestError(cause)
   }
 }
 

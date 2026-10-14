@@ -28,6 +28,7 @@ import {
   testingTargets
 } from './ssh-connect-attempt-registry'
 import { createSshConnectionCallbacks } from './ssh-connection-state-callbacks'
+import { resetSshCredentialDeclinesForTests } from '../ssh/ssh-credential-decline'
 import { registerSshConnectionHandlers } from './ssh-connection-handlers'
 import {
   registerPowerMonitorReconnect,
@@ -151,6 +152,7 @@ export async function resetSshHandlerStateForTests(): Promise<void> {
   testingTargets.clear()
   testConnectionProbes.clear()
   credentialRequestedForTarget.clear()
+  resetSshCredentialDeclinesForTests()
   quitTeardownStartGate.resetForTests()
   resetSshShutdownDrain()
 

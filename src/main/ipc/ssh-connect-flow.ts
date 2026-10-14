@@ -24,12 +24,20 @@ import { connectionManager } from './ssh-ipc-context'
 import { abandonDecisionTransport } from './ssh-session-teardown'
 import { awaitTargetLifecycle } from './ssh-target-lifecycle-queue'
 import { startLegacyRelayBridge } from '../ssh/legacy-relay-bridge/legacy-relay-bridge-registry'
+import { clearSshCredentialDeclined } from '../ssh/ssh-credential-decline'
 
-export async function connectTarget(targetId: string): Promise<SshConnectionState> {
+/** `automatic`: no user asked for this connect, so a cancelled sign-in stays cancelled. */
+export async function connectTarget(
+  targetId: string,
+  options: { automatic?: boolean } = {}
+): Promise<SshConnectionState> {
   const e2eProbePath = process.env.ORCA_E2E_FORBID_LOCAL_SSH_CONNECT_PROBE
   if (e2eProbePath) {
     appendFileSync(e2eProbePath, `${JSON.stringify(targetId)}\n`)
     throw new Error('e2e_forbidden_local_ssh_connect')
+  }
+  if (!options.automatic) {
+    clearSshCredentialDeclined(targetId)
   }
   // Why: fence callers that entered before a same-turn disconnect/reset but resume after its cleanup.
   const admissionAuthority = getSshProviderAuthority(targetId)

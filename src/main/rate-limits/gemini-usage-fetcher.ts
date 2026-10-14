@@ -1,5 +1,5 @@
 import { net } from 'electron'
-import type { ProviderRateLimits } from '../../shared/rate-limit-types'
+import type { ProviderRateLimits, UsageRateLimitFailureKind } from '../../shared/rate-limit-types'
 import {
   loadProjectId,
   readAuthJson,
@@ -14,6 +14,7 @@ import {
   deduplicateBuckets,
   deriveSessionSummary
 } from './gemini-bucket-formatting'
+import { classifyThrownUsageRequestError } from './usage-request-failure-kind'
 
 const API_TIMEOUT_MS = 10_000
 const RETRIEVE_QUOTA_URL = 'https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota'
@@ -39,6 +40,18 @@ function parseQuotaResponse(data: unknown): QuotaBucket[] {
     rawBuckets = data.buckets
   }
   return rawBuckets.filter((b) => isQuotaBucket(b))
+}
+
+function geminiError(err: unknown, failureKind?: UsageRateLimitFailureKind): ProviderRateLimits {
+  return {
+    provider: 'gemini',
+    session: null,
+    weekly: null,
+    updatedAt: Date.now(),
+    error: err instanceof Error ? err.message : 'Unknown error',
+    status: 'error',
+    ...(failureKind ? { usageMetadata: { failureKind } } : {})
+  }
 }
 
 async function fetchQuota(accessToken: string, projectId: string): Promise<ProviderRateLimits> {
@@ -76,6 +89,8 @@ async function fetchQuota(accessToken: string, projectId: string): Promise<Provi
       error: null,
       status: 'ok'
     }
+  } catch (err) {
+    return geminiError(err, classifyThrownUsageRequestError(err))
   } finally {
     clearTimeout(timeout)
   }
@@ -236,13 +251,6 @@ export async function fetchGeminiRateLimits(
           })()
     return result
   } catch (err) {
-    return {
-      provider: 'gemini',
-      session: null,
-      weekly: null,
-      updatedAt: Date.now(),
-      error: err instanceof Error ? err.message : 'Unknown error',
-      status: 'error'
-    }
+    return geminiError(err)
   }
 }

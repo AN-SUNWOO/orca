@@ -12,6 +12,7 @@ import {
   createAuthFilesystemOperation,
   type SharedAuthFilesystemOperation
 } from './auth-filesystem-operation'
+import { classifyThrownUsageRequestError } from './usage-request-failure-kind'
 
 // Why: Kimi Code's managed coding plan exposes subscription usage at
 // `${base}/usages` (see packages/oauth/src/managed-usage.ts in the CLI bundle).
@@ -350,6 +351,8 @@ export async function fetchKimiRateLimits(options?: {
     const data: unknown = await res.json()
     return mapUsageResponse(typeof data === 'object' && data !== null ? data : {})
   } catch (err) {
-    return result('error', err instanceof Error ? err.message : 'Kimi usage request failed')
+    return result('error', err instanceof Error ? err.message : 'Kimi usage request failed', {
+      failureKind: classifyThrownUsageRequestError(err)
+    })
   }
 }

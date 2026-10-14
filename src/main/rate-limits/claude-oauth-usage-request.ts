@@ -2,7 +2,11 @@ import { net, session } from 'electron'
 import type { ProviderRateLimits, RateLimitWindow } from '../../shared/rate-limit-types'
 import { ensureElectronProxyFromEnvironment } from '../network/proxy-settings'
 import { abortSignalWithTimeout } from '../lib/abort-signal-with-timeout'
-import { createOAuthUsageError } from './claude-oauth-usage-error'
+import {
+  ClaudeUsageRequestError,
+  createOAuthUsageError,
+  OAuthUsageError
+} from './claude-oauth-usage-error'
 import { mapClaudeUsageWindow, type ClaudeUsageWindowInput } from './claude-usage-window'
 import { abortedClaudeRateLimitResult } from './claude-usage-result'
 import {
@@ -74,6 +78,7 @@ export async function fetchClaudeOAuthUsage(
 
   const requestSignal = abortSignalWithTimeout(signal, API_TIMEOUT_MS)
 
+  let data: OAuthUsageResponse
   try {
     const response = await net.fetch(OAUTH_USAGE_URL, {
       headers: {
@@ -87,24 +92,24 @@ export async function fetchClaudeOAuthUsage(
       throw await createOAuthUsageError(response)
     }
 
-    const data = (await response.json()) as OAuthUsageResponse
-    if (signal?.aborted) {
-      return abortedClaudeRateLimitResult()
-    }
-    return {
-      provider: 'claude',
-      session: mapClaudeUsageWindow(data.five_hour, 300),
-      weekly: mapClaudeUsageWindow(data.seven_day, 10080),
-      fableWeekly: mapFableWeeklyWindow(data),
-      extraUsage: mapClaudeExtraUsage(data),
-      updatedAt: Date.now(),
-      error: null,
-      status: 'ok'
-    }
+    data = await response.json()
   } catch (error) {
     if (signal?.aborted) {
       return abortedClaudeRateLimitResult()
     }
-    throw error
+    throw error instanceof OAuthUsageError ? error : new ClaudeUsageRequestError(error)
+  }
+  if (signal?.aborted) {
+    return abortedClaudeRateLimitResult()
+  }
+  return {
+    provider: 'claude',
+    session: mapClaudeUsageWindow(data.five_hour, 300),
+    weekly: mapClaudeUsageWindow(data.seven_day, 10080),
+    fableWeekly: mapFableWeeklyWindow(data),
+    extraUsage: mapClaudeExtraUsage(data),
+    updatedAt: Date.now(),
+    error: null,
+    status: 'ok'
   }
 }

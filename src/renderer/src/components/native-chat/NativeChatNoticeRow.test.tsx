@@ -10,6 +10,7 @@ import { MessageRow } from './NativeChatMessageRow'
 import { NativeChatNoticeRow } from './NativeChatNoticeRow'
 import { i18n } from '@/i18n/i18n'
 import { agentSessionFailureWords } from '../../../../shared/agent-session-failure-words'
+import { agentSessionFailureFact } from '../../../../shared/agent-session-failure'
 import {
   NativeChatOrcaStopContext,
   type NativeChatOrcaStopView
@@ -345,6 +346,24 @@ describe('notice rows', () => {
       expect(screen.getByText('Future host guidance')).toBeInTheDocument()
     }
   )
+  it("shows the host's words for a background task the agent would not stop, as an older client does", async () => {
+    await i18n.changeLanguage('ja')
+    // A client that predates the kind reads no fact, so the row's own text is what it shows.
+    renderStatus(
+      {
+        kind: 'status',
+        ...agentSessionFailureWords(
+          agentSessionFailureFact('backgroundTaskNotStopped', { backgroundStop: 'task' }),
+          { surface: 'row' }
+        )
+      },
+      null,
+      false,
+      false,
+      'Codex'
+    )
+    expect(screen.getByText("The background task wasn't stopped.")).toBeInTheDocument()
+  })
   it('renders compaction as a centered separator', () => {
     renderStatus({ kind: 'status', text: 'Context compacted', presentation: 'compaction' })
     expect(screen.getByRole('separator', { name: 'Context compacted' })).toHaveClass(

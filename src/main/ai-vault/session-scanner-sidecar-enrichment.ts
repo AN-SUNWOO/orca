@@ -31,7 +31,8 @@ export function sidecarEnrichesWithoutReparse(candidate: SessionFileCandidate): 
 export async function enrichSessionFromSidecar(
   candidate: SessionFileCandidate,
   foldSession: AiVaultSession | null,
-  platform: NodeJS.Platform
+  platform: NodeJS.Platform,
+  signal?: AbortSignal
 ): Promise<SidecarEnrichment> {
   if (candidate.agent === 'devin') {
     return enrichDevinSessionFromDb(candidate.file.sidecar, foldSession, platform)
@@ -39,7 +40,7 @@ export async function enrichSessionFromSidecar(
   if (candidate.agent !== 'cursor' || !foldSession) {
     return { session: foldSession, refused: false }
   }
-  const meta = await readCursorChatMeta(candidate.file.path)
+  const meta = await readCursorChatMeta(candidate.file.path, signal)
   if (!meta) {
     return {
       session: foldSession,

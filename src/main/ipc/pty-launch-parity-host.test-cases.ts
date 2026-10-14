@@ -2,7 +2,7 @@
 // producer makes and the facts main hands the provider, the phone and telemetry for it.
 import type { TerminalCreateOptions } from '../runtime/runtime-terminal-contracts'
 import type { LaunchWorkspace } from '../../shared/launch-parity-window-request.test-fixture'
-import { POSIX_PATH } from '../../shared/launch-parity-window-cases.test-fixture'
+import { POSIX_PATH, WSL_PATH } from '../../shared/launch-parity-window-cases.test-fixture'
 
 export const HOST_TAB_ID = '33333333-3333-4333-8333-333333333333'
 export const HOST_LEAF_ID = '44444444-4444-4444-8444-444444444444'
@@ -128,6 +128,14 @@ function aiButton(
 export const HOST_LAUNCH_CASES: HostLaunchCase[] = [
   // C1 (host planner inputs) and C2 (AI buttons onto the pane trigger) must keep these commands.
   aiButton('macOS repo', 'darwin', repo(POSIX_PATH), { command: POSIX_CLAUDE, ...ZSH }),
+  // C1: a `\\wsl$` repo with no saved runtime is quoted for Linux and runs in its distro, as in "+".
+  aiButton(
+    'Windows wsl$ repo, no saved runtime',
+    'win32',
+    repo(WSL_PATH),
+    { command: POSIX_CLAUDE, shellOverride: 'wsl.exe', terminalWindowsWslDistro: 'Ubuntu' },
+    CMD
+  ),
   aiButton(
     'macOS folder, saved default args',
     'darwin',

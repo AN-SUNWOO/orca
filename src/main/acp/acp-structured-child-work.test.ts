@@ -382,29 +382,35 @@ describe('Grok roster evidence through the existing host child store', () => {
     }
   })
 
-  // Grok's own refusal means it did nothing; a reply about another subagent proves nothing, so it is unknown.
+  // Grok's own refusal means it did nothing; a reply about another subagent proves nothing, so it is
+  // unknown. The Stop is accepted either way, and its note says which.
   it.each([
-    ['rpc-error', { ok: false, refusal: { code: 'agent_session_operation_invalid' } }],
-    ['mismatched-id', { ok: false, refusal: { code: 'agent_session_operation_unknown' } }]
-  ] as const)(
-    'does not settle or cancel the parent after a targeted %s',
-    async (failure, answer) => {
-      const f = await fixture()
-      await f.spawn('first')
-      await f.spawn('sibling')
-      f.agent.on('_x.ai/subagent/cancel', (frame) => {
-        if (failure === 'rpc-error') {
-          f.agent.fail(frame, -32601, 'Method unavailable')
-        } else {
-          f.agent.reply(frame, { result: { subagentId: 'other', cancelled: true } })
-        }
-      })
-      expect(await f.targetedStop('first')).toMatchObject(answer)
-      expect(f.childWork.views().every((view) => view.membership === 'live')).toBe(true)
-      expect(f.agent.frames.filter((frame) => frame.method === 'session/cancel')).toEqual([])
-      expect(f.rig.child().closed).toBe(false)
-    }
-  )
+    ['rpc-error', "The background task wasn't stopped."],
+    ['mismatched-id', 'Cancellation was not confirmed.']
+  ] as const)('does not settle or cancel the parent after a targeted %s', async (failure, note) => {
+    const f = await fixture()
+    await f.spawn('first')
+    await f.spawn('sibling')
+    f.agent.on('_x.ai/subagent/cancel', (frame) => {
+      if (failure === 'rpc-error') {
+        f.agent.fail(frame, -32601, 'Method unavailable')
+      } else {
+        f.agent.reply(frame, { result: { subagentId: 'other', cancelled: true } })
+      }
+    })
+    expect(await f.targetedStop('first')).toMatchObject({
+      ok: true,
+      value: { cancelled: false }
+    })
+    expect(
+      (await f.rows()).flatMap((row) =>
+        row.body.kind === 'status' && row.body.failure ? [row.body.text] : []
+      )
+    ).toEqual([note])
+    expect(f.childWork.views().every((view) => view.membership === 'live')).toBe(true)
+    expect(f.agent.frames.filter((frame) => frame.method === 'session/cancel')).toEqual([])
+    expect(f.rig.child().closed).toBe(false)
+  })
 
   it('records nothing for a subagent first reported finished, and occupies no running surface', async () => {
     const f = await fixture()

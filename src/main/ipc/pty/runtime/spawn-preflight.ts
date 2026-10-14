@@ -29,9 +29,7 @@ import {
 } from '../../../daemon/pty-session-id'
 import { resolveWslSessionContext } from '../../../daemon/wsl-session-context'
 import { isAgentStatusHooksEnabled } from '../../../agent-hooks/managed-agent-hook-controls'
-import { resolveLocalWindowsTerminalRuntimeOptions } from '../../../../shared/local-windows-terminal-runtime'
-import { resolveLocalProjectRuntimeForWorktreeId } from '../../../local-project-runtime-resolution'
-import { resolveManagedSshHostLoginShell } from '../../../pty/managed-ssh-host-login-shell'
+import { resolvePlainTerminalPtyOptions } from '../../../local-project-runtime-resolution'
 import { resolvePathEnvKey } from '../../../pty/windows-environment-path'
 import { stampWslOrchestrationCompatibilityHost } from '../../../pty/wsl-orca-env'
 import { stampRuntimeSourceEnv } from '../../../../shared/runtime-source-env'
@@ -62,26 +60,16 @@ export async function prepareRuntimePtySpawn(
     await freshSpawnRecovery
   }
   ctx.isClaudeLaunch = !ctx.preAdoptedStablePane && isClaudeLaunchCommand(args.command)
-  // Why: runtime-created terminals carry no renderer-computed projectRuntime; resolve from worktreeId to honor the project's Windows runtime.
-  // `args.shellOverride` is the per-request pick (`terminal create --shell`), read here the way
-  // the renderer twin (ipc/spawn-preflight.ts) reads a tab's override. Without it a runtime create
-  // could only ever get the host default shell, so a caller asking for cmd/PowerShell got the
-  // default shell with the request typed into it. Still Windows-only: the override names a
-  // Windows shell, and spawn-options applies it under the same platform gate.
+  // Why: runtime-created terminals carry no renderer projectRuntime. An agent launch brings the PTY
+  // its command was quoted for; anything else takes the project's runtime and `--shell` pick.
   ctx.terminalRuntimeOptions =
-    process.platform === 'win32'
-      ? resolveLocalWindowsTerminalRuntimeOptions({
-          requestedShellOverride: args.shellOverride,
-          settings: ctx.deps.getSettings?.(),
-          projectRuntime: resolveLocalProjectRuntimeForWorktreeId(ctx.deps.store, args.worktreeId),
-          fallbackHostShell: process.env.COMSPEC || 'powershell.exe',
-          sshLoginShell: resolveManagedSshHostLoginShell()
-        })
-      : {
-          shellOverride:
-            args.shellOverride ?? (ctx.deps.getSettings?.()?.terminalDefaultShell || undefined),
-          terminalWindowsWslDistro: null
-        }
+    args.launchRuntime?.pty ??
+    resolvePlainTerminalPtyOptions(
+      ctx.deps.store,
+      ctx.deps.getSettings?.(),
+      args.worktreeId,
+      args.shellOverride
+    )
   ctx.daemonShellOverride = ctx.terminalRuntimeOptions.shellOverride
   ctx.isDaemonHostSpawn =
     !(ctx.provider instanceof LocalPtyProvider) && !routesFreshSpawnsToLocalProvider(ctx.provider)

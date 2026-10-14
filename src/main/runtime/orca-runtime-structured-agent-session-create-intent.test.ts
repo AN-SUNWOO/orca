@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const applyAgentWorkspaceTrust = vi.hoisted(() => vi.fn(async () => ({})))
 vi.mock('../agent-workspace-trust', () => ({ applyAgentWorkspaceTrust }))
@@ -9,6 +12,10 @@ import { attachFingerprintFields } from '../native-chat/agent-session-wire/struc
 
 beforeEach(() => {
   applyAgentWorkspaceTrust.mockClear()
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
 })
 
 function createCodexIntentRuntime(
@@ -303,6 +310,79 @@ describe('structured agent-session create intent', () => {
 })
 
 describe('adopting a conversation recorded outside Orca', () => {
+  it('resolves OMP history with the configured launch environment', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'orca-omp-create-intent-'))
+    try {
+      const accountHome = join(root, 'account', 'agent')
+      const ambientData = join(root, 'ambient-data')
+      const launchData = join(root, 'launch-data')
+      const workspaceCwd = join(root, 'workspace')
+      const sessionId = '0198c2a4-7d1e-7c3a-9a4b-1f2e3d4c5b6a'
+      const sessionFile = join(
+        launchData,
+        'omp',
+        'profiles',
+        'configured',
+        'sessions',
+        '-workspace',
+        `2026-10-12T00-00-00-000Z_${sessionId}.jsonl`
+      )
+      await mkdir(join(ambientData, 'omp', 'profiles', 'ambient'), { recursive: true })
+      await mkdir(join(launchData, 'omp', 'profiles', 'configured'), { recursive: true })
+      await mkdir(join(root, 'account'), { recursive: true })
+      await mkdir(workspaceCwd, { recursive: true })
+      await mkdir(dirname(sessionFile), { recursive: true })
+      await writeFile(
+        sessionFile,
+        `${JSON.stringify({ type: 'session', id: sessionId, cwd: workspaceCwd })}\n`
+      )
+      vi.stubEnv('XDG_DATA_HOME', ambientData)
+      vi.stubEnv('OMP_PROFILE', 'ambient')
+      const runtime = new OrcaRuntimeService(
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: create intent only reads getSettings from the store.
+        {
+          getSettings: () => ({
+            agentDefaultEnv: {
+              omp: {
+                PI_CODING_AGENT_DIR: accountHome,
+                OMP_CODING_AGENT_DIR: '',
+                HOME: root,
+                XDG_DATA_HOME: launchData,
+                OMP_PROFILE: 'configured'
+              }
+            }
+          })
+        } as never
+      )
+      vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
+        supported: true
+      })
+      Object.assign(runtime, {
+        resolveStructuredAgentSessionLocation: vi.fn(async () => ({
+          executionHostId: 'local',
+          wslDistro: null,
+          workspaceId: 'workspace-1',
+          workspaceKind: 'git-worktree' as const
+        })),
+        resolveRuntimeFileTarget: vi.fn(async () => ({
+          worktree: { path: workspaceCwd }
+        }))
+      })
+
+      const intent = await runtime.resolveStructuredAgentSessionCreateIntent({
+        envelope: { sessionId: 'chat-1', clientOperationId: 'operation-1' },
+        worktree: 'id:workspace-1',
+        agent: 'omp',
+        resumeFrom: { providerSessionId: sessionId }
+      })
+
+      expect(intent.adopt?.transcriptPath).toBe(sessionFile)
+      expect(intent.accountHome).toEqual({ variable: 'PI_CODING_AGENT_DIR', path: accountHome })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('refuses an agent registered with no transcript importer before any adoption work', async () => {
     const runtime = new OrcaRuntimeService(
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: create intent only reads getSettings from the store.

@@ -34,7 +34,6 @@ import {
   structuredAgentSessionCompactBody
 } from './structured-agent-session-command-turn'
 import {
-  performCancel,
   performPrompt,
   performSend,
   performSetOption,
@@ -48,6 +47,8 @@ import {
   type AgentSessionPromptRequest
 } from './structured-agent-session-turns-prompt'
 import { queuedSendAnswer } from './structured-agent-session-queued-send-answer'
+import { STOP_COMMAND_RECEIPT } from './structured-agent-session-stop-acceptance'
+import { runTargetedCancel } from './structured-agent-session-targeted-cancel'
 import type { JournalOperationReceipt } from '../agent-session-journal/journal-row-writer'
 import type { CommandReceiptResult } from '../agent-session-journal/command-receipt-schema'
 import type { JournalRow } from '../agent-session-journal/journal-row-schema'
@@ -59,8 +60,6 @@ export type MutationPlan<TValue> = {
   operationIdScope?: 'global'
   /** Admitted without the writer lease: see `admitAgentSessionMutation`. */
   conversationWrite?: true
-  /** Still runs, decided from the committed ledger, when its ledger row cannot be written. */
-  runsWithoutLedgerRow?: true
   run: (ctx: AgentSessionTurnContext) => Promise<TurnOutcome<TValue>>
   /** `receipt`: the accepted command receipt's result, for a plan with `commandReceipt`. */
   replay: (
@@ -100,13 +99,13 @@ export type MutationCommandReceipt<TValue> = {
   unwritten?: (value: TValue, ctx: AgentSessionTurnContext) => CommandReceiptResult | null
 }
 
-/** The journal row an accepted command wrote, which must be of the kind it accepts with. */
+/** The journal row an accepted command wrote, which must be of a kind it accepts with. */
 export function journalRowReceiptResult(
   row: JournalRow | undefined,
-  kind: JournalRow['kind']
+  ...kinds: JournalRow['kind'][]
 ): CommandReceiptResult {
-  if (row?.kind !== kind) {
-    throw new Error(`an accepted command requires its ${kind} row`)
+  if (!row || !kinds.includes(row.kind)) {
+    throw new Error(`an accepted command requires its ${kinds.join(' or ')} row`)
   }
   return { kind: 'journal-row', epoch: row.epoch, sequence: row.seq }
 }
@@ -286,35 +285,26 @@ export function cancelPlan(params: {
   acknowledgeStops?: (evidence: AgentChildWorkEvidence[]) => void
   unlisted?: StructuredAgentSessionBackgroundStopInput['unlisted']
 }): MutationPlan<AgentSessionCancelResult> {
+  const named = params.turnId !== undefined ? { turnId: params.turnId } : {}
   return {
     method: 'agentSession.cancel',
     // Stop is a conversation write; a prompt or background-task cancel needs the live child.
     ...(params.scope || params.prompt ? {} : { conversationWrite: true as const }),
-    // A Stop must reach the agent even when storage refuses the row recording it.
-    runsWithoutLedgerRow: true,
+    // Saved before it acts: a Stop whose acceptance cannot be saved interrupts nothing.
+    commandReceipt: STOP_COMMAND_RECEIPT,
     fields: {
-      ...(params.turnId !== undefined ? { turnId: params.turnId } : {}),
+      ...named,
       ...(params.scope ? { scope: params.scope } : {}),
       ...(params.taskId ? { taskId: params.taskId } : {}),
       ...(params.prompt ? { prompt: params.prompt } : {})
     },
+    // The chat's own Stop runs through `mutateWithChatStop`; this is a background-task stop's and a
+    // prompt card's interrupt.
     run: (ctx) =>
-      performCancel(ctx, {
-        clientOperationId: params.envelope.clientOperationId,
-        ...(params.turnId !== undefined ? { turnId: params.turnId } : {}),
-        ...(params.scope ? { scope: params.scope } : {}),
-        ...(params.taskId ? { taskId: params.taskId } : {}),
-        ...(params.prompt ? { prompt: params.prompt } : {}),
-        ...(params.childWork ? { childWork: params.childWork } : {}),
-        ...(params.acknowledgeStops ? { acknowledgeStops: params.acknowledgeStops } : {}),
-        ...(params.unlisted ? { unlisted: params.unlisted } : {})
-      }),
-    // Interrupting twice would kill a turn the client never asked to stop, so a
-    // replay reports the turn as already handled.
-    replay: () => ({
-      ...(params.turnId !== undefined ? { turnId: params.turnId } : {}),
-      cancelled: false
-    })
+      runTargetedCancel(ctx, { ...params, clientOperationId: params.envelope.clientOperationId }),
+    // A retry acknowledges the Stop it repeats and never stops anything again: interrupting twice
+    // would stop a turn the client never asked to stop.
+    replay: () => ({ ...named, cancelled: false })
   }
 }
 

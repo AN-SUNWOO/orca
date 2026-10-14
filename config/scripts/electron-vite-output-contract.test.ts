@@ -150,6 +150,8 @@ describe('Electron Vite output contract', () => {
     expect(external('zod', undefined, false)).toBe(false)
     expect(external('smol-toml', undefined, false)).toBe(false)
     expect(external('smol-toml/package.json', undefined, false)).toBe(false)
+    expect(external('@noble/hashes/blake3', undefined, false)).toBe(false)
+    expect(external('@noble/hashes/utils', undefined, false)).toBe(false)
     expect(electronViteConfig.main?.build?.externalizeDeps?.exclude).toContain('tldts')
     expect(electronViteConfig.main?.build?.externalizeDeps?.exclude).toContain('zod')
     expect(electronViteConfig.main?.build?.externalizeDeps?.exclude).toContain('smol-toml')

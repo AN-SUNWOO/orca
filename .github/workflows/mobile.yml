@@ -81,7 +81,7 @@ jobs:
       # from the Gemfile, which is how the release jobs could land on different
       # fastlane versions in the first place. Fail here instead.
       BUNDLE_FROZEN: 'true'
-      ORCA_MOBILE_TYPECHECK_CACHE_DIR: ${{ github.workspace }}/mobile/.cache/typechecks
+      ORCA_MOBILE_TYPECHECK_COMPILER: 'native'
 
     defaults:
       run:
@@ -128,18 +128,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache mobile typecheck state
-        uses: actions/cache@v5
-        with:
-          path: mobile/.cache/typechecks/*.tsbuildinfo
-          key: mobile-typechecks-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'mobile/pnpm-lock.yaml', 'mobile/tsconfig*.json') }}-${{ github.sha }}
-          restore-keys: mobile-typechecks-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'mobile/pnpm-lock.yaml', 'mobile/tsconfig*.json') }}-
-
       # Call installed tools so pnpm's dependency refresh cannot race between checks.
       - name: Typecheck
         id: production-types
         background: true
-        run: node node_modules/typescript/bin/tsc --noEmit --incremental --tsBuildInfoFile "$ORCA_MOBILE_TYPECHECK_CACHE_DIR/production.tsbuildinfo"
+        env:
+          GOMAXPROCS: '2'
+        run: node scripts/typecheck-mobile.mjs
 
       # Why a ratchet and not the raw typecheck: mobile/tsconfig.json excludes test files, so until
       # tsconfig.test.json existed nothing checked them, and at introduction 127 of the 632 had
@@ -148,6 +143,8 @@ jobs:
       - name: Typecheck tests (ratchet)
         id: test-types
         background: true
+        env:
+          GOMAXPROCS: '2'
         run: node scripts/check-tests-typecheck-ratchet.mjs
 
       # This includes the bridged replay of the whole recording corpus, which used to be a second
@@ -219,7 +216,7 @@ jobs:
   main-tests:
     name: Mobile tests on main
     env:
-      ORCA_MOBILE_TYPECHECK_CACHE_DIR: ${{ github.workspace }}/mobile/.cache/typechecks
+      ORCA_MOBILE_TYPECHECK_COMPILER: 'native'
     if: github.event_name == 'push'
     # Why ARM: the same pure-Node Vitest run `verify` makes on a pull request.
     runs-on: ubuntu-24.04-arm
@@ -243,21 +240,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache mobile typecheck state
-        uses: actions/cache@v5
-        with:
-          path: mobile/.cache/typechecks/*.tsbuildinfo
-          key: mobile-typechecks-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'mobile/pnpm-lock.yaml', 'mobile/tsconfig*.json') }}-${{ github.sha }}
-          restore-keys: mobile-typechecks-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'mobile/pnpm-lock.yaml', 'mobile/tsconfig*.json') }}-
-
       - name: Typecheck
         id: production-types
         background: true
-        run: node node_modules/typescript/bin/tsc --noEmit --incremental --tsBuildInfoFile "$ORCA_MOBILE_TYPECHECK_CACHE_DIR/production.tsbuildinfo"
+        env:
+          GOMAXPROCS: '2'
+        run: node scripts/typecheck-mobile.mjs
 
       - name: Typecheck tests (ratchet)
         id: test-types
         background: true
+        env:
+          GOMAXPROCS: '2'
         run: node scripts/check-tests-typecheck-ratchet.mjs
 
       # The whole suite, not only the recordings: the mutant and page-bridge suites read the goldens

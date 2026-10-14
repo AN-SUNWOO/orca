@@ -20,6 +20,7 @@ describe('resolveAgentStartupPlanInputs with extra agent args', () => {
       settings: SETTINGS,
       platform,
       isRemote,
+      shell: undefined,
       extraAgentArgs: '--model opus --add-dir "my docs"'
     })
     const plan = buildAgentStartupPlan({ ...inputs, prompt: 'go' })
@@ -34,6 +35,7 @@ describe('resolveAgentStartupPlanInputs with extra agent args', () => {
       settings: SETTINGS,
       platform: 'darwin',
       isRemote: false,
+      shell: undefined,
       extraAgentArgs: '--effort high'
     })
     const desktopArgs = mergeExtraAgentArgs({
@@ -64,6 +66,7 @@ describe('resolveAgentStartupPlanInputs with extra agent args', () => {
         settings: SETTINGS,
         platform: 'linux',
         isRemote: false,
+        shell: undefined,
         extraAgentArgs: '--permission-mode bypassPermissions'
       })
     ).toThrow('"--permission-mode"')
@@ -75,6 +78,7 @@ describe('resolveAgentStartupPlanInputs with extra agent args', () => {
       settings: SETTINGS,
       platform: 'linux',
       isRemote: false,
+      shell: undefined,
       agentArgs: null,
       extraAgentArgs: '  '
     })

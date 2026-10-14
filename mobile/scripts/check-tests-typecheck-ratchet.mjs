@@ -1,9 +1,9 @@
 import { runProcessSync } from '@orca/process-host'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
+import { resolveMobileTypecheckCompiler } from './mobile-typecheck-compiler.mjs'
 
 // Ratchet gate for the mobile test typecheck.
 //
@@ -144,13 +144,10 @@ export function diffBaseline(current, baseline) {
   }
 }
 
-// Run tsc's JS entry on this Node rather than the node_modules/.bin shim, which is a POSIX shell
-// script: on Windows the shim is tsc.CMD and an extensionless path gets .exe appended.
-function runTsc(root, args) {
-  const entry = createRequire(import.meta.url).resolve('typescript/lib/tsc.js')
+function runTsc(root, args, compiler) {
   return runProcessSync({
-    program: process.execPath,
-    args: [entry, ...args],
+    program: compiler.program,
+    args: [...compiler.args, ...args],
     cwd: root,
     timeoutMs: null,
     maxOutputBytes: 64 * 1024 * 1024
@@ -160,14 +157,21 @@ function runTsc(root, args) {
 // tsc exits non-zero on type errors, which is the expected state here, so only a crash is fatal.
 // One pass answers both questions: --listFiles names the program, the diagnostics name the failures.
 export function collectTypecheckPass(root = process.cwd()) {
+  const compiler = resolveMobileTypecheckCompiler()
   const cache = process.env.ORCA_MOBILE_TYPECHECK_CACHE_DIR
-  const result = runTsc(root, [
-    '--noEmit',
-    '--listFiles',
-    '-p',
-    PROJECT,
-    ...(cache ? ['--incremental', '--tsBuildInfoFile', path.join(cache, 'tests.tsbuildinfo')] : [])
-  ])
+  const result = runTsc(
+    root,
+    [
+      '--noEmit',
+      '--listFiles',
+      '-p',
+      PROJECT,
+      ...(cache && !compiler.native
+        ? ['--incremental', '--tsBuildInfoFile', path.join(cache, 'tests.tsbuildinfo')]
+        : [])
+    ],
+    compiler
+  )
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
   return {
     failing: parseFailingFiles(output),

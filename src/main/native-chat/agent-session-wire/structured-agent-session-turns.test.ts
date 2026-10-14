@@ -10,6 +10,7 @@ import type { AgentSessionJournal } from '../agent-session-journal/journal-store
 import { createTrackedJournalOpener } from '../agent-session-journal/journal-host-database-test-support'
 import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
 import { performCancel, type AgentSessionTurnContext } from './structured-agent-session-turns'
+import { runTargetedCancel } from './structured-agent-session-targeted-cancel'
 import { createDeferredStructuredAgentSessionEventSink } from './structured-agent-session-event-sink'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
 import { createStructuredAgentSessionLogger } from './structured-agent-session-logger'
@@ -209,7 +210,7 @@ describe('performCancel', () => {
       now: () => 1
     }
 
-    const result = await performCancel(ctx, {
+    const result = await runTargetedCancel(acceptedStop(ctx), {
       clientOperationId: 'cancel-background-tasks',
       turnId: 'background-tasks',
       scope: 'background-tasks',
@@ -250,7 +251,7 @@ describe('performCancel', () => {
       now: () => 1
     }
 
-    const result = await performCancel(ctx, {
+    const result = await runTargetedCancel(acceptedStop(ctx), {
       clientOperationId: 'cancel-background-task-2',
       turnId: 'background-tasks',
       scope: 'background-tasks',
@@ -300,7 +301,7 @@ describe('performCancel', () => {
       publish: vi.fn(),
       now: () => 1
     }
-    const result = await performCancel(ctx, {
+    const result = await runTargetedCancel(acceptedStop(ctx), {
       clientOperationId: operation,
       turnId: 'background-tasks',
       scope: 'background-tasks',
@@ -310,38 +311,8 @@ describe('performCancel', () => {
       ...(acknowledgeStops ? { acknowledgeStops } : {})
     })
     expect(cancelTurn).not.toHaveBeenCalled()
-    // A background Stop writes no row; only what the agent itself wrote is there.
-    expect(journal.snapshot().items).toHaveLength(untargeted?.onJournal ? 1 : 0)
-    return result
+    return { result, items: journal.snapshot().items }
   }
-
-  it('refuses a background Stop the agent shows still running, so the person hears it failed', async () => {
-    const result = await backgroundStopWith(
-      async () => ({ cancelled: false, stillRunning: true }),
-      'cancel-background-task-survived'
-    )
-
-    expect(result).toMatchObject({
-      ok: false,
-      refusal: { code: 'agent_session_operation_invalid' }
-    })
-    expect(result.ok ? undefined : result.refusal.details).toBeUndefined()
-  })
-
-  it.each([
-    ['timed out', 'codex app-server request timed out'],
-    ['lost the agent', 'codex app-server connection closed']
-  ])('answers a background Stop that %s as unconfirmed, never not stopped', async (_, message) => {
-    const result = await backgroundStopWith(async () => {
-      throw new Error(message)
-    }, 'cancel-background-task-unconfirmed')
-
-    expect(result).toMatchObject({
-      ok: false,
-      refusal: { code: 'agent_session_operation_unknown' }
-    })
-    expect(result.ok ? undefined : result.refusal.details).toBeUndefined()
-  })
 
   it('ends the agent for unlisted work only when, after the listed stops, no turn runs', async () => {
     const stop = vi.fn(async () => {})
@@ -356,7 +327,11 @@ describe('performCancel', () => {
       undefined,
       { unlisted: { present: () => incomplete, stop }, listed: [liveTask('task-1')] }
     )
-    expect(atRest).toEqual({ ok: true, value: { turnId: 'background-tasks', cancelled: true } })
+    expect(atRest.result).toEqual({
+      ok: true,
+      value: { turnId: 'background-tasks', cancelled: true }
+    })
+    expect(atRest.items).toEqual([])
     expect(stop).toHaveBeenCalledOnce()
 
     // A turn the agent opens while the listed stops are out is not the Stop's to end.
@@ -387,7 +362,12 @@ describe('performCancel', () => {
         onJournal: (opened) => (journal = opened)
       }
     )
-    expect(woke).toEqual({ ok: true, value: { turnId: 'background-tasks', cancelled: false } })
+    expect(woke.result).toEqual({
+      ok: true,
+      value: { turnId: 'background-tasks', cancelled: false }
+    })
+    // Only what the agent itself wrote is there.
+    expect(woke.items).toHaveLength(1)
     expect(stop).toHaveBeenCalledOnce()
   })
 
@@ -397,7 +377,7 @@ describe('performCancel', () => {
     const stopBackgroundTasks = vi.fn(async () => {
       throw new Error('ACP child cancellation is unavailable')
     })
-    const result = await backgroundStopWith(
+    const { result, items } = await backgroundStopWith(
       stopBackgroundTasks,
       'cancel-background-unlisted-acp',
       undefined,
@@ -407,13 +387,14 @@ describe('performCancel', () => {
       }
     )
     expect(result).toEqual({ ok: true, value: { turnId: 'background-tasks', cancelled: true } })
+    expect(items).toEqual([])
     expect(stopBackgroundTasks).not.toHaveBeenCalled()
     expect(stop).toHaveBeenCalledOnce()
   })
 
   it('ends a run the agent accepted the stop of, even when a later stop in the batch fails', async () => {
     const acknowledgeStops = vi.fn()
-    const result = await backgroundStopWith(
+    const { result, items } = await backgroundStopWith(
       async ({ acknowledge }) => {
         acknowledge?.({ taskId: 'task-1' })
         throw new Error('claude control request timed out')
@@ -422,15 +403,27 @@ describe('performCancel', () => {
       acknowledgeStops
     )
 
-    expect(result).toMatchObject({
-      ok: false,
-      refusal: { code: 'agent_session_operation_unknown' }
-    })
+    // Saved first, so the timeout comes back as the unconfirmed note, never a refusal.
+    expect(result).toEqual({ ok: true, value: { turnId: 'background-tasks', cancelled: false } })
+    expect(items).toHaveLength(1)
     expect(acknowledgeStops).toHaveBeenCalledWith([
       expect.objectContaining({ type: 'stop-acknowledged', childWorkId: 'child-task-1' })
     ])
   })
 })
+
+/** A Stop whose receipt is already saved, as the receipt runner hands a background Stop. */
+function acceptedStop(ctx: AgentSessionTurnContext): AgentSessionTurnContext {
+  return {
+    ...ctx,
+    operationReceipt: {
+      write: () => {},
+      committed: () => {},
+      isCommitted: () => true,
+      commitAlone: async () => {}
+    }
+  }
+}
 
 /** A live child record the strip would offer a stop, named by the provider as `providerId`. */
 function liveTask(

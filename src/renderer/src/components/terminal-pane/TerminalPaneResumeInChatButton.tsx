@@ -10,7 +10,7 @@ import { activateAiVaultStructuredSession } from '@/lib/activate-ai-vault-struct
 import { useAppStore } from '@/store'
 import { isAiVaultSessionResumableContent } from '../../../../shared/ai-vault-types'
 import { agentLabel } from '../../../../shared/ai-vault-session-filters'
-import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
+import { adoptsCliConversations } from '../../../../shared/structured-agent-cli-conversation-adoption'
 import { resumeAiVaultSessionInNewChat } from '../right-sidebar/ai-vault-session-resume-in-chat-launch'
 import {
   lookupTabSessionHistoryRow,
@@ -85,7 +85,7 @@ export function TerminalPaneResumeInChatButton({
       return
     }
     const move = resolveTabSessionSwitch(useAppStore.getState(), row, subject)
-    if (move?.action === 'resume-in-new-chat' && isAgentSessionHandleProvider(row.agent)) {
+    if (move?.action === 'resume-in-new-chat' && adoptsCliConversations(row.agent)) {
       await resumeAiVaultSessionInNewChat(
         row,
         row.agent,

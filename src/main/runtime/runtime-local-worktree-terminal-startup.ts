@@ -4,6 +4,7 @@ import type { Repo } from '../../shared/repo-types'
 import type { TuiAgent } from '../../shared/tui-agent'
 import type { Worktree } from '../../shared/worktree/types'
 import type { WorktreeStartupLaunch } from '../../shared/worktree/launch-types'
+import type { AgentLaunchRuntime } from '../../shared/agent-launch-runtime'
 import { createSequencedSetupAgentCommands } from '../../shared/setup-agent-sequencing'
 import { getSetupRunnerCommandPlatformForPath } from '../../shared/setup-runner-command'
 import type { RuntimeTerminalCreate } from '../../shared/runtime-types'
@@ -60,6 +61,8 @@ export async function startRuntimeLocalWorktreeTerminals(args: {
   defaultTabs?: CreateWorktreeResult['defaultTabs']
   startup?: WorktreeStartupLaunch
   startupFollowup?: WorktreeStartupFollowup
+  /** What a host-built startup was quoted for, or the repair error it fails with. */
+  startupLaunchRuntime?: AgentLaunchRuntime | Error
   createdWithAgent?: TuiAgent
   draftPaste?: WorktreeStartupDraftPaste
   warning?: string
@@ -95,6 +98,9 @@ export async function startRuntimeLocalWorktreeTerminals(args: {
 
   if (sequencedStartup && ports.canSpawn) {
     try {
+      if (args.startupLaunchRuntime instanceof Error) {
+        throw args.startupLaunchRuntime
+      }
       const terminal = await ports.createTerminal(`id:${worktree.id}`, {
         command: sequencedStartup.command,
         ...(request.startupCwd ? { cwd: request.startupCwd } : {}),
@@ -103,6 +109,7 @@ export async function startRuntimeLocalWorktreeTerminals(args: {
         env: sequencedStartup.env,
         ...(sequencedStartup.launchConfig ? { launchConfig: sequencedStartup.launchConfig } : {}),
         ...(args.createdWithAgent ? { launchAgent: args.createdWithAgent } : {}),
+        ...(args.startupLaunchRuntime ? { launchRuntime: args.startupLaunchRuntime } : {}),
         ...(sequencedStartup.viewMode ? { viewMode: sequencedStartup.viewMode } : {}),
         startupCommandDelivery: sequencedStartup.startupCommandDelivery,
         telemetry: sequencedStartup.telemetry,

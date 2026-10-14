@@ -148,5 +148,6 @@ describe('fetchOpenCodeGoUsageWithApiKey', () => {
 
     expect(outcome.kind).toBe('failed')
     expect(outcome.kind === 'failed' && outcome.message).not.toContain(API_KEY)
+    expect(outcome.kind === 'failed' && outcome.failureKind).toBe('network')
   })
 })

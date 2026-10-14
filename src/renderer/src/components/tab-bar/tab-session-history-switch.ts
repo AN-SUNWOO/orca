@@ -4,8 +4,8 @@
 import type { AppState } from '@/store/types'
 import { getIndexedAllWorktrees } from '@/store/worktree-repo-index'
 import {
-  collectAiVaultTitleRequests,
-  resolvePaneAiVaultTitleRequest
+  collectAgentPaneConversations,
+  resolvePaneAgentConversation
 } from '@/lib/ai-vault-tab-title-requests'
 import {
   isAiVaultSessionResumableContent,
@@ -18,7 +18,10 @@ import {
   parseExecutionHostId,
   type ExecutionHostScope
 } from '../../../../shared/execution-host'
-import type { AgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
+import {
+  adoptsCliConversations,
+  type CliConversationAdoptingAgent
+} from '../../../../shared/structured-agent-cli-conversation-adoption'
 import { agentForksConversations } from '../../../../shared/agent-resume-argv'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { AgentType } from '../../../../shared/agent-status-types'
@@ -50,7 +53,7 @@ export type TabSessionHistorySubject = {
   | { kind: 'chat'; sessionId: string }
   | {
       kind: 'cli'
-      agent: AgentSessionHandleProvider
+      agent: CliConversationAdoptingAgent
       providerSessionId: string
     }
 )
@@ -79,22 +82,22 @@ export function canPaneOfferResumeInNewChat(
   state: AppState,
   pane: { worktreeId: string; paneKey: string }
 ): boolean {
-  const titleRequest = resolvePaneAiVaultTitleRequest(state, pane)
-  if (!titleRequest) {
+  const conversation = resolvePaneAgentConversation(state, pane, adoptsCliConversations)
+  if (!conversation) {
     return false
   }
   const hostScope = resolveAiVaultHostScopeDefaults(
-    getAiVaultResumeWorkspaceExecutionHostId(state, titleRequest.worktreeId),
-    titleRequest.worktreeId
+    getAiVaultResumeWorkspaceExecutionHostId(state, conversation.worktreeId),
+    conversation.worktreeId
   ).defaultExecutionHostScope
   // The row gate's launch-route half, so a project the chat route refuses (WSL, repair) hides it.
   return (
     canHostOfferTabSessionMove('cli', hostScope) &&
     structuredAgentSessionLaunchFeasible(state, {
-      agent: titleRequest.agent,
+      agent: conversation.agent,
       workspace: {
-        kind: workspaceKindForWorktreeId(titleRequest.worktreeId),
-        worktreeId: titleRequest.worktreeId
+        kind: workspaceKindForWorktreeId(conversation.worktreeId),
+        worktreeId: conversation.worktreeId
       },
       settings: state.settings
     })
@@ -134,23 +137,25 @@ export function resolveTabSessionHistorySubject(
         : null
     return target ? { ...target, kind: 'chat', sessionId: args.nativeChat.sessionId } : null
   }
-  // The pane-to-conversation mapping tab titles use, limited to agents still running: once the agent
-  // exits, the tab title keeps its conversation but the move is no longer offered.
-  const titleRequest = args.paneKey
-    ? resolvePaneAiVaultTitleRequest(state, {
-        worktreeId: args.tab.worktreeId,
-        paneKey: args.paneKey
-      })
-    : (collectAiVaultTitleRequests(state, { runningAgentsOnly: true }).find(
-        (candidate) => candidate.tabId === args.tab.id
-      ) ?? null)
-  const target = titleRequest ? workspace(titleRequest.worktreeId, 'cli') : null
-  return titleRequest && target
+  // The pane-to-conversation mapping tab titles use, for the agents a chat can take over, limited to
+  // agents still running: once the agent exits, the tab title keeps its conversation but the move is
+  // no longer offered.
+  const conversation = args.paneKey
+    ? resolvePaneAgentConversation(
+        state,
+        { worktreeId: args.tab.worktreeId, paneKey: args.paneKey },
+        adoptsCliConversations
+      )
+    : (collectAgentPaneConversations(state, adoptsCliConversations, {
+        runningAgentsOnly: true
+      }).find((candidate) => candidate.tabId === args.tab.id) ?? null)
+  const target = conversation ? workspace(conversation.worktreeId, 'cli') : null
+  return conversation && target
     ? {
         ...target,
         kind: 'cli',
-        agent: titleRequest.agent,
-        providerSessionId: titleRequest.providerSession.id
+        agent: conversation.agent,
+        providerSessionId: conversation.providerSession.id
       }
     : null
 }

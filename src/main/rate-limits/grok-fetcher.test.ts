@@ -348,6 +348,7 @@ describe('fetchGrokRateLimits', () => {
     const result = await fetchGrokRateLimits()
     expect(result.status).toBe('error')
     expect(result.error).toBe('network down')
+    expect(result.usageMetadata?.failureKind).toBe('network')
   })
 
   it('does not request the default billing view when weekly credits are present', async () => {

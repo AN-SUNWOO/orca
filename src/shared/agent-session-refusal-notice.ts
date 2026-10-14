@@ -29,6 +29,7 @@ import {
   type AgentSessionWriteRefusal
 } from './agent-session-write-failure'
 import { agentSessionRefusalReasonWords } from './agent-session-refusal-reason-words'
+import { TUI_AGENT_DISPLAY_NAMES } from './tui-agent-display-names'
 
 export {
   agentSessionRefusalReasonWords,
@@ -88,7 +89,8 @@ function causeParts(
   }
   const saysNotDone =
     (write === 'read-history' && AGENT_SESSION_HISTORY_UNREAD_CAUSES.has(cause)) ||
-    (cause === 'questionChanged' && write === 'answer')
+    (cause === 'questionChanged' && write === 'answer') ||
+    (cause === 'cancelNotSaved' && write === 'stop')
   return saysNotDone ? [cause] : [cause, NOT_DONE[write]]
 }
 
@@ -133,6 +135,21 @@ function reasonParts(
   const words = agentSessionRefusalReasonWords(failure)
   if (!words || 'words' in words) {
     return undefined
+  }
+  if ('writes' in words) {
+    if (!words.writes.includes(write)) {
+      return undefined
+    }
+    const agent =
+      failure.code === 'agent_session_operation_invalid' ? failure.details?.agent : undefined
+    const said: AgentSessionWriteNoticePart[] = [
+      {
+        failure: { kind: words.fact },
+        surface: 'row',
+        context: agent ? { ...context, agentName: TUI_AGENT_DISPLAY_NAMES[agent] } : context
+      }
+    ]
+    return context.retryControl && words.action === 'retry' ? said : [...said, words.step]
   }
   if ('fact' in words) {
     return write === 'send' || write === 'composer-send'

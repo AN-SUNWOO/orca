@@ -21,8 +21,6 @@ const { handleMock, mockStore, prunePRRefreshMock } = vi.hoisted(() => ({
   }
 }))
 
-vi.mock('../github/pr-refresh-coordinator', () => ({ pruneRepoPRRefresh: prunePRRefreshMock }))
-
 vi.mock('electron', () => ({
   dialog: { showOpenDialog: vi.fn() },
   ipcMain: { handle: handleMock, removeHandler: vi.fn() }
@@ -51,7 +49,12 @@ const mainWindow = { isDestroyed: () => false, webContents: { send: vi.fn() } }
 async function registerHandlersWithoutNotifier(): Promise<typeof ReposChangedNotificationModule> {
   vi.resetModules()
   const repos = await import('./repos')
-  repos.registerRepoHandlers(mainWindow as never, mockStore as never, {} as never)
+  repos.registerRepoHandlers(
+    mainWindow as never,
+    mockStore as never,
+    {} as never,
+    prunePRRefreshMock
+  )
   return import('./repos/repos-changed-notification')
 }
 

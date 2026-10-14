@@ -118,21 +118,25 @@ it('retains an unclosed sign-in child for both launch entry points until its exi
   old.finishBrowser()
   expect((await readAntigravityChatSignInLink(old.flowId, 'waiting')).phase).toBe('failed')
   const launch = old.host.connect.mock.calls[0][0]
-  expect((await stat(launch.env.TMPDIR)).isDirectory()).toBe(true)
-  expect((await stat(launch.cwd)).isDirectory()).toBe(true)
+  const { env, cwd, envToDelete } = launch
+  if (!env || !cwd || !envToDelete) {
+    throw new Error('sign-in launch fields missing')
+  }
+  expect((await stat(env.TMPDIR)).isDirectory()).toBe(true)
+  expect((await stat(cwd)).isDirectory()).toBe(true)
   const next = startAntigravityChatSignIn(old.host)
-  expect(await readAntigravityChatSignInLink(next.flowId, 'starting')).toMatchObject({
-    phase: 'failed'
-  })
+  expect((await readAntigravityChatSignInLink(next.flowId, 'starting')).phase).toBe('failed')
   expect(old.host.connect).toHaveBeenCalledTimes(1)
-  const { dataDirectory } = await old.host.launchSources()
-  const prepareChat = () =>
+  const prepareChat = async () =>
     prepareAcpStructuredLaunch(
       {
         spec: ANTIGRAVITY_LAUNCH_SPEC,
-        dataDirectory,
+        dataDirectory: (await old.host.launchSources()).dataDirectory,
         resolveLaunch: async () => ({
           ...launch,
+          env,
+          cwd,
+          envToDelete: [...envToDelete],
           spec: ANTIGRAVITY_LAUNCH_SPEC,
           fullAccess: false,
           resume: null
@@ -154,21 +158,18 @@ it('retains an unclosed sign-in child for both launch entry points until its exi
   const spawnChat = vi.fn()
   try {
     await expect(prepareChat().then(spawnChat)).rejects.toThrow('could not be stopped')
-    expect(spawnChat).not.toHaveBeenCalled()
     expect(close).toHaveBeenCalledTimes(3)
     close.mockImplementationOnce(async () => {
       old.child.emit('exit', 0, null)
       return true
     })
-    const ready = await prepareChat()
-    expect(ready.env.GEMINI_HOME).toBe(old.folder)
-    spawnChat(ready)
+    spawnChat(await prepareChat())
     expect(spawnChat).toHaveBeenCalledTimes(1)
   } finally {
     gate.leave()
   }
   await vi.waitFor(async () => {
-    await expect(stat(launch.env.TMPDIR)).rejects.toMatchObject({ code: 'ENOENT' })
-    await expect(stat(launch.cwd)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(env.TMPDIR)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(cwd)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

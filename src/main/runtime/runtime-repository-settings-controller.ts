@@ -6,7 +6,6 @@ import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
 import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
 import type { RuntimeStore } from './runtime-store-contract'
 import { assertWslMoveRepoWritable } from '../persistence/moving-wsl-projects/wsl-move-scope-guard'
-import { pruneRepoPRRefresh } from '../github/pr-refresh-coordinator'
 
 type RuntimeRepositorySettingsDependencies = {
   getStore: () => RuntimeStore | null
@@ -15,6 +14,7 @@ type RuntimeRepositorySettingsDependencies = {
   invalidateResolvedWorktrees: () => void
   invalidateWorktreeScan: (repoId: string) => void
   notifyReposChanged: () => void
+  onRepoRemoved?: (repoId: string, hostId: string) => void
 }
 
 type RepositoryUpdates = Partial<
@@ -117,7 +117,11 @@ export class RuntimeRepositorySettingsController {
     const hostId = getRepoExecutionHostId(repo)
     assertWslMoveRepoWritable(store, repo)
     store.removeProjectForHost(repo.id, hostId)
-    pruneRepoPRRefresh(repo.id, hostId)
+    try {
+      this.deps.onRepoRemoved?.(repo.id, hostId)
+    } catch (error) {
+      console.error('[repos] failed to stop review refresh after project removal', error)
+    }
     this.deps.forgetTerminalTopology(repo.id)
     this.deps.invalidateResolvedWorktrees()
     this.deps.invalidateWorktreeScan(repo.id)

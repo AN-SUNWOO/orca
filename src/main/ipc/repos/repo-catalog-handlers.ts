@@ -95,7 +95,11 @@ export function registerRepoCatalogHandlers(mainWindow: BrowserWindow, store: St
         assertWslMoveProjectWritable(store, { repoId: args.repoId })
       }
       store.removeProjectForHost(args.repoId, hostId)
-      pruneRepoPRRefresh(args.repoId, hostId)
+      try {
+        pruneRepoPRRefresh(args.repoId, hostId)
+      } catch (error) {
+        console.error('[repos] failed to stop review refresh after project removal', error)
+      }
       invalidateAuthorizedRootsCache()
       notifyReposChanged(mainWindow)
     }

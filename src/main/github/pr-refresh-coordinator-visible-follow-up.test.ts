@@ -51,11 +51,17 @@ describe('pr-refresh-coordinator', () => {
     expect(getPRForBranchOutcomeMock).toHaveBeenCalledTimes(1)
   })
 
-  it('drops a removed repo while keeping another repo visible', async () => {
+  it('drops a removed repo host while keeping the same repo on another host visible', async () => {
     const { pruneRepoPRRefresh, reportVisiblePRRefreshCandidates, _getPRRefreshQueueSizeForTests } =
       await import('./pr-refresh-coordinator')
     const removed = makeCandidate({ repoId: 'removed', repoPath: '/removed', cacheKey: 'removed' })
-    const kept = makeCandidate({ repoId: 'kept', repoPath: '/kept', cacheKey: 'kept' })
+    const kept = makeCandidate({
+      repoId: 'removed',
+      repoPath: '/kept',
+      cacheKey: 'kept',
+      executionHostId: 'wsl:Ubuntu',
+      localGitOptions: { wslDistro: 'Ubuntu' }
+    })
     getPRForBranchOutcomeMock.mockResolvedValue({
       kind: 'found',
       pr: makePR({ checksStatus: 'pending' }),

@@ -1,6 +1,6 @@
 import type { WorktreeSlice } from '../../worktree-helpers'
 import type { WorktreeSliceSet } from '../listing/worktree-slice-types'
-import { isStructuredTab } from '@/components/native-chat/structured-agent-session-tabs'
+import { isStructuredTab } from '../../../../../../shared/structured-agent-session-tab'
 import {
   sleptChatWorkspaceKey,
   type SleptChatIdentity,

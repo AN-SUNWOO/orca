@@ -148,9 +148,24 @@ describe('workspace sleep flow', () => {
         )
         .map(({ tabId, sessionId }: { tabId: string; sessionId: string }) => ({ tabId, sessionId }))
     })
-    mocks.state.clearWorkspaceChatsSlept = vi.fn((worktreeId, hostId) => {
-      delete mocks.state.explicitlySleptChatsByWorkspace[`${hostId}|${worktreeId}`]
-    })
+    mocks.state.clearWorkspaceChatsSlept = vi.fn(
+      (worktreeId: string, hostId: string, chats?: { tabId: string; sessionId: string }[]) => {
+        const key = `${hostId}|${worktreeId}`
+        if (!chats) {
+          delete mocks.state.explicitlySleptChatsByWorkspace[key]
+          return
+        }
+        const retained = (mocks.state.explicitlySleptChatsByWorkspace[key] ?? []).filter(
+          (entry) =>
+            !chats.some((chat) => chat.tabId === entry.tabId && chat.sessionId === entry.sessionId)
+        )
+        if (retained.length) {
+          mocks.state.explicitlySleptChatsByWorkspace[key] = retained
+        } else {
+          delete mocks.state.explicitlySleptChatsByWorkspace[key]
+        }
+      }
+    )
     mocks.state.setActiveWorktree.mockClear()
     mocks.state.shutdownWorktreeBrowsers.mockClear().mockResolvedValue(undefined)
     mocks.state.shutdownWorktreeTerminals.mockClear().mockResolvedValue(undefined)
@@ -420,5 +435,33 @@ describe('workspace sleep flow', () => {
     expect(result[0].completed).toBe(false)
     expect(mocks.state.explicitlySleptChatsByWorkspace['local|wt-1']).toBeUndefined()
     expect(mocks.state.explicitlySleptChatsByWorkspace['ssh:other|wt-1']).toHaveLength(1)
+  })
+
+  it('clears only the failed captured chat on a repeat Sleep with a partial receipt', async () => {
+    mocks.state.unifiedTabsByWorktree = {
+      'wt-1': [chat('kept', 'session-kept', 'wt-1'), chat('failed', 'session-failed', 'wt-1')]
+    }
+    mocks.state.explicitlySleptChatsByWorkspace = {
+      'local|wt-1': [
+        { tabId: 'kept', sessionId: 'session-kept' },
+        { tabId: 'failed', sessionId: 'session-failed' }
+      ],
+      'ssh:other|wt-1': [{ tabId: 'other', sessionId: 'session-other' }]
+    }
+    mocks.call.mockResolvedValueOnce({
+      stoppedSessionIds: ['session-kept'],
+      failures: [{ sessionId: 'session-failed', reason: 'stop-unverifiable' }]
+    })
+    mocks.state.shutdownWorktreeBrowsers.mockRejectedValueOnce(new Error('browser failed'))
+
+    const result = await runSleepWorktree('wt-1', 'local')
+
+    expect(result[0].completed).toBe(false)
+    expect(mocks.state.explicitlySleptChatsByWorkspace['local|wt-1']).toEqual([
+      { tabId: 'kept', sessionId: 'session-kept' }
+    ])
+    expect(mocks.state.explicitlySleptChatsByWorkspace['ssh:other|wt-1']).toHaveLength(1)
+    expect(mocks.state.markWorkspaceChatsSlept).not.toHaveBeenCalled()
+    expect(hasWorktreeSleepIntent('wt-1', 'local')).toBe(false)
   })
 })

@@ -99,7 +99,7 @@ export type AcpLaunchInvocationDeps = {
   'resolveCommand' | 'homePath' | 'inheritedEnv' | 'dataDirectory'
 >
 
-/** The binary a launch with `env` spawns: the user's Command setting when set, else the stock
+/** The binary a launch with `env` spawns: the applicable Command setting when set, else the stock
  *  binary from PATH, then the agent's own install directories. A spec with a managed runtime runs
  *  its installed release before those, and a copy from them only beside every pinned member; the
  *  bare name when none qualifies. A create's version check resolves through here too, so it asks
@@ -118,7 +118,7 @@ export function resolveAcpLaunchCommand(
   const pathEnv = [env.PATH ?? env.Path, ...spec.installDirectories({ env, homePath })]
     .filter((entry): entry is string => Boolean(entry))
     .join(delimiter)
-  const settings = options.commandSettings ?? {}
+  const settings = spec.ignoreAgentCommandSetting ? {} : (options.commandSettings ?? {})
   const resolve = (searchPath: string) =>
     resolveStructuredAgentCommand(
       spec.agent,

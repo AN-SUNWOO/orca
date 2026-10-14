@@ -12,7 +12,7 @@ import { CLAUDE_CLI_CONVERSATIONS } from '../claude/claude-cli-conversations'
 import { CODEX_CLI_CONVERSATIONS } from '../codex/codex-cli-conversations'
 import { supportsCodexStructuredLocation } from '../codex/codex-structured-location-support'
 import { supportsClaudeStructuredLocation } from '../claude/claude-structured-location-support'
-import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
+import { supportsAcpStructuredLocation } from '../acp/acp-structured-location-support'
 import { PI_RPC_RUNTIME_METADATA } from '../pi/rpc-runtime-metadata'
 import {
   resolveStructuredClaudeAccountHomePath,
@@ -36,7 +36,7 @@ export type StructuredAgentRuntimeCatalogEntry =
 function acpMetadata(spec: AcpLaunchSpec): StructuredAgentRuntimeMetadata {
   return {
     definition: acpStructuredAgentDefinition(spec),
-    supportsLocation: (location) => supportsSupervisedProviderChildLocation(location),
+    supportsLocation: (location) => supportsAcpStructuredLocation(spec, location),
     ...(spec.supportsVersion
       ? {
           launchCheck: {

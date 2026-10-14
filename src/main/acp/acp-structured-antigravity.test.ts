@@ -80,10 +80,13 @@ it('launches on its own private folder with file sign-in and no other Google cre
     AGY_ACP_FORCE_FILE_STORAGE: '0'
   }
   const home = await ANTIGRAVITY.account.resolve({ launchEnv: user, stateDirectory })
-  const { env, envToDelete } = await resolveAcpLaunchInvocation(ANTIGRAVITY, home, {
+  const { command, env, envToDelete } = await resolveAcpLaunchInvocation(ANTIGRAVITY, home, {
     resolveEnvironment: async () => ({ ...user, PATH: '' }),
-    inheritedEnv: { GEMINI_API_KEY: 'k', ANTIGRAVITY_HARNESS_PATH: '/x' }
+    resolveCommandSettings: () => ({ agentCmdOverrides: { antigravity: '/missing/agy' } }),
+    inheritedEnv: { GEMINI_API_KEY: 'k', ANTIGRAVITY_HARNESS_PATH: '/x' },
+    dataDirectory: stateDirectory
   })
+  expect(command).toBe(ANTIGRAVITY.command)
   expect(env).toMatchObject({ GEMINI_HOME: folder, AGY_ACP_FORCE_FILE_STORAGE: '1' })
   // A key deleted at spawn beats its overlay, so the file sign-in must not be among them.
   expect(envToDelete.sort()).toEqual([

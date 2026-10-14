@@ -17,7 +17,6 @@ import {
   type StructuredAgentSessionAdapter,
   type StructuredAgentSessionSetOptionInput
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
-import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
 import { withObservedProviderExit } from '../native-chat/agent-session-wire/structured-agent-session-failure-text'
 import { acpAgentName, acquireAcpStructuredSession } from './acp-structured-acquire'
 import {
@@ -43,6 +42,7 @@ import { readAcpLiveOptions, writeAcpSessionOption } from './acp-structured-opti
 import { readAcpRecoveryHistory } from './acp-recovery-history'
 import { stopAcpChildren, acpChildStopCapabilities } from './acp-structured-child-stop'
 import { AcpConversationCopies } from './acp-conversation-copies'
+import { supportsAcpStructuredLocation } from './acp-structured-location-support'
 
 export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapter {
   /** Live children, and ones whose exit is not yet proven; a proven exit removes its entry. */
@@ -63,8 +63,10 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
     this.copies.copy(input)
 
   // The child runs on this runtime's own machine; Windows needs process start-time proof.
-  supportsLocation = (location: AgentSessionExecutionLocation): boolean =>
-    supportsSupervisedProviderChildLocation(location, this.deps.isWindowsProcessStartTimeAvailable)
+  supportsLocation = (location: AgentSessionExecutionLocation): boolean => {
+    const { spec, isWindowsProcessStartTimeAvailable } = this.deps
+    return supportsAcpStructuredLocation(spec, location, isWindowsProcessStartTimeAvailable)
+  }
 
   async acquire(input: StructuredAgentSessionAcquireInput): Promise<AgentSessionAcquisition> {
     const sessionId = input.identity.sessionId

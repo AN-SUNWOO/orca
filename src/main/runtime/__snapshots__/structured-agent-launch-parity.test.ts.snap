@@ -216,7 +216,7 @@ exports[`native-chat launch parity > antigravity worktree fresh configured 1`] =
 {
   "child": {
     "args": [],
-    "command": "<root>/custom-bin/antigravity-custom",
+    "command": "<root>/bin/agy_acp_server.par",
     "cwd": "<root>/worktree",
     "env": {
       "AGY_ACP_FORCE_FILE_STORAGE": "1",
@@ -425,7 +425,7 @@ exports[`native-chat launch parity > antigravity worktree resumed configured 1`]
 {
   "child": {
     "args": [],
-    "command": "<root>/custom-bin/antigravity-custom",
+    "command": "<root>/bin/agy_acp_server.par",
     "cwd": "<root>/worktree",
     "env": {
       "AGY_ACP_FORCE_FILE_STORAGE": "1",

@@ -1,6 +1,7 @@
 import { lstat } from 'node:fs/promises'
 import type { RemoveWorktreeResult } from '../../shared/worktree/create-types'
 import { assertWorktreeUnlockedForRemoval } from '../../shared/worktree/removal'
+import { isSubmoduleWorktreeRemovalRefusal } from '../../shared/worktree/submodule-removal'
 import { windowsLongPathGitArgs } from '../../shared/windows-long-path-git-args'
 import { removeHostTree } from '../host-tree-removal'
 import { withSpan } from '../observability/tracer'
@@ -12,6 +13,7 @@ import { invalidateWslLinkedWorktreeGitRouting } from './wsl-linked-worktree-git
 import type { RemoveWorktreeOptions } from './worktree-operation-options'
 import { getErrorCode, gitExecOptions, normalizeLocalBranchRef } from './worktree-operation-options'
 import { areWorktreePathsEqual } from './worktree-path-comparison'
+import { assertWorktreeCleanForRemoval } from './worktree-removal-preflight'
 import { withRepoRefMaintenancePaused } from './local-repo-ref-maintenance'
 import { bumpWorktreeScanGeneration, listWorktrees } from './worktree-scan-cache'
 import { invalidateSparseCheckoutState } from './worktree-sparse-checkout-cache'
@@ -80,7 +82,19 @@ async function performRemoveWorktree(
   }
   args.push(worktreePath)
   await runUnderWorktreeDeleteLimit(async () => {
-    await gitExecFileAsync(args, execOptions)
+    try {
+      await gitExecFileAsync(args, execOptions)
+    } catch (error) {
+      if (force || !isSubmoduleWorktreeRemovalRefusal(error)) {
+        throw error
+      }
+      // Why: Git refuses any initialized submodule without --force, even when clean. Re-prove no uncommitted work, then one --force. A second --force would also clear a Git lock.
+      await assertWorktreeCleanForRemoval(worktreePath, false, options)
+      await gitExecFileAsync(
+        [...longPathArgs, 'worktree', 'remove', '--force', worktreePath],
+        execOptions
+      )
+    }
     await removeCheckoutLeftByGit(worktreePath, options)
   })
 

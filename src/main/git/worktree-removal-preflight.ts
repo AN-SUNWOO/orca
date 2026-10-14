@@ -17,7 +17,14 @@ export async function assertWorktreeCleanForRemoval(
   const { ignoredUntrackedPaths = [], ...gitOptions } = options
   const useNullTerminatedStatus = ignoredUntrackedPaths.length > 0
   const { stdout } = await gitExecFileAsync(
-    ['status', '--porcelain', ...(useNullTerminatedStatus ? ['-z'] : []), '--untracked-files=all'],
+    [
+      'status',
+      '--porcelain',
+      ...(useNullTerminatedStatus ? ['-z'] : []),
+      '--untracked-files=all',
+      // Why: a user's ignore-submodules setting hides edits inside a submodule, which would look clean before --force deletes them.
+      '--ignore-submodules=none'
+    ],
     {
       ...gitExecOptions(worktreePath, gitOptions),
       timeout: gitOptions.timeout ?? WORKTREE_REMOVAL_PREFLIGHT_TIMEOUT_MS

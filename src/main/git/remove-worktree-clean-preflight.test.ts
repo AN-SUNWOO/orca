@@ -57,7 +57,7 @@ describe('assertWorktreeCleanForRemoval', () => {
     await expect(assertWorktreeCleanForRemoval('/repo-feature')).resolves.toBeUndefined()
 
     expect(gitExecFileAsyncMock).toHaveBeenCalledWith(
-      ['status', '--porcelain', '--untracked-files=all'],
+      ['status', '--porcelain', '--untracked-files=all', '--ignore-submodules=none'],
       { cwd: '/repo-feature', timeout: WORKTREE_REMOVAL_PREFLIGHT_TIMEOUT_MS }
     )
   })
@@ -81,7 +81,7 @@ describe('assertWorktreeCleanForRemoval', () => {
     ).resolves.toBeUndefined()
 
     expect(gitExecFileAsyncMock).toHaveBeenCalledWith(
-      ['status', '--porcelain', '-z', '--untracked-files=all'],
+      ['status', '--porcelain', '-z', '--untracked-files=all', '--ignore-submodules=none'],
       { cwd: '/repo-feature', timeout: WORKTREE_REMOVAL_PREFLIGHT_TIMEOUT_MS }
     )
   })
@@ -94,7 +94,7 @@ describe('assertWorktreeCleanForRemoval', () => {
     ).rejects.toThrow('git timed out.')
 
     expect(gitExecFileAsyncMock).toHaveBeenCalledWith(
-      ['status', '--porcelain', '--untracked-files=all'],
+      ['status', '--porcelain', '--untracked-files=all', '--ignore-submodules=none'],
       { cwd: '/repo-feature', timeout: 25 }
     )
   })

@@ -432,7 +432,7 @@ branch refs/heads/main
     expect(getGitCalls()).toContain('git worktree remove --force /repo-feature')
   })
 
-  it('preserves Git refusal even when parent status cannot reveal unpublished submodule commits', async () => {
+  it('force-removes a clean worktree once Git refuses it for an initialized submodule', async () => {
     mockGitCommands({
       'git worktree list --porcelain': {
         stdout: `worktree /repo
@@ -454,17 +454,29 @@ branch refs/heads/main
         error: new Error('git worktree remove failed'),
         stderr: 'fatal: working trees containing submodules cannot be moved or removed'
       },
-      'git status --porcelain --untracked-files=all': { stdout: '' }
+      'git status --porcelain --untracked-files=all --ignore-submodules=none': { stdout: '' }
     })
 
-    await expect(removeWorktree('/repo', '/repo-feature')).rejects.toThrow(
-      'git worktree remove failed'
+    await removeWorktree('/repo', '/repo-feature')
+
+    const calls = getGitCalls()
+    expectGitCallOrder(
+      calls,
+      'git worktree remove /repo-feature',
+      'git status --porcelain --untracked-files=all --ignore-submodules=none'
     )
-    expect(getGitCalls()).not.toContain('git worktree remove --force /repo-feature')
-    expect(getGitCalls()).not.toContain('git branch -d -- feature/test')
+    expectGitCallOrder(
+      calls,
+      'git status --porcelain --untracked-files=all --ignore-submodules=none',
+      'git worktree remove --force /repo-feature'
+    )
+    expect(
+      calls.filter((call) => call === 'git worktree remove --force /repo-feature')
+    ).toHaveLength(1)
+    expect(calls).toContain('git branch -d -- feature/test')
   })
 
-  it('preserves Git refusal for a dirty submodule worktree', async () => {
+  it('refuses a dirty submodule instead of force-removing it', async () => {
     mockGitCommands({
       'git worktree list --porcelain': {
         stdout: `worktree /repo
@@ -480,11 +492,13 @@ branch refs/heads/feature/test
         error: new Error('git worktree remove failed'),
         stderr: 'fatal: working trees containing submodules cannot be moved or removed'
       },
-      'git status --porcelain --untracked-files=all': { stdout: ' M sub\n' }
+      'git status --porcelain --untracked-files=all --ignore-submodules=none': {
+        stdout: ' M sub\n'
+      }
     })
 
     await expect(removeWorktree('/repo', '/repo-feature')).rejects.toThrow(
-      'git worktree remove failed'
+      'Worktree has uncommitted or untracked changes.'
     )
     expect(getGitCalls()).not.toContain('git worktree remove --force /repo-feature')
   })
@@ -536,7 +550,7 @@ branch refs/heads/feature/test
     )
     expect(getGitCalls()).not.toContain('git worktree remove --force /repo-feature')
     // An unrelated failure must not re-prove cleanliness.
-    expect(getGitCalls()).not.toContain('git status --porcelain --untracked-files=all')
+    expect(getGitCalls().filter((call) => call.startsWith('git status'))).toEqual([])
   })
 
   it('rejects a locked worktree with stable app-owned copy before invoking remove', async () => {

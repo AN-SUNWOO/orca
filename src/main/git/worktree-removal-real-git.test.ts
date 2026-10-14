@@ -2,7 +2,7 @@
 // deregisters and refuses, or that deleting a checkout leaves Node's file pool free.
 import { execFile } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
-import { link, mkdir, mkdtemp, readFile, realpath, stat, writeFile } from 'node:fs/promises'
+import { link, mkdir, mkdtemp, readFile, realpath, stat, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -93,6 +93,44 @@ describe('worktree removal against the real Git binary', () => {
     await expect(removeWorktree(repoPath, worktreePath, false)).rejects.toThrow()
     expect(existsSync(join(worktreePath, 'seed.txt'))).toBe(true)
     expect(await isRegistered(worktreePath)).toBe(true)
+  })
+
+  it('removes a clean initialized submodule and keeps a dirty one', async () => {
+    // Why: Git refuses every initialized submodule without --force, even when the tree is clean.
+    const originPath = join(scratchDir, 'origin')
+    await mkdir(originPath)
+    await git(['init', '-q'], originPath)
+    await git(['config', 'user.email', 'removal@example.invalid'], originPath)
+    await git(['config', 'user.name', 'Worktree Removal'], originPath)
+    await writeFile(join(originPath, 'file.txt'), 'vendored\n')
+    await git(['add', 'file.txt'], originPath)
+    await git(['commit', '-qm', 'origin'], originPath)
+    await git(
+      ['-c', 'protocol.file.allow=always', 'submodule', 'add', originPath, 'vendor'],
+      repoPath
+    )
+    await git(['commit', '-qm', 'add vendor'], repoPath)
+
+    const subWorktreePath = join(workspaceRoot, 'repo', 'with-sub')
+    await git(['worktree', 'add', '-q', subWorktreePath, '-b', 'with-sub'], repoPath)
+    await git(
+      ['-c', 'protocol.file.allow=always', 'submodule', 'update', '--init'],
+      subWorktreePath
+    )
+    const dirtyFile = join(subWorktreePath, 'vendor', 'extra.txt')
+    await writeFile(dirtyFile, 'keep this\n')
+
+    await expect(removeWorktree(repoPath, subWorktreePath, false)).rejects.toThrow(
+      /uncommitted or untracked/
+    )
+    expect(await readFile(dirtyFile, 'utf8')).toBe('keep this\n')
+    expect(await isRegistered(subWorktreePath)).toBe(true)
+
+    await unlink(dirtyFile)
+    await removeWorktree(repoPath, subWorktreePath, false)
+
+    expect(existsSync(subWorktreePath)).toBe(false)
+    expect(await isRegistered(subWorktreePath)).toBe(false)
   })
 
   it('does not delete a checkout through a malformed registration that names its git file', async () => {

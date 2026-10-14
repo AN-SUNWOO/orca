@@ -667,8 +667,12 @@ describe.skipIf(process.platform === 'win32')('native-chat launch parity', () =>
         expect(capture.spawns, String(outcome)).toHaveLength(1)
         expect(capture.launches).toHaveLength(1)
         const [spawn] = capture.spawns
+        const child = childOf(spawn!)
+        if (launch.agent === 'antigravity') {
+          expect(child.args).toEqual(process.platform === 'linux' ? ['--uid='] : [])
+        }
         expect({
-          child: childOf(spawn!),
+          child: launch.agent === 'antigravity' ? { ...child, args: [] } : child,
           launchPosture: postureOf(capture.launches[0]),
           pinnedLaunchDirectories: pins.map(({ directory }) => normalized(directory))
         }).toMatchSnapshot()

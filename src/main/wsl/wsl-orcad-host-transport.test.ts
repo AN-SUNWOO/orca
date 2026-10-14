@@ -1,3 +1,4 @@
+import { ORCAD_WSL_DISTRO_GUID_ENV } from '../orcad/orcad-migration-wsl-destination'
 import { EventEmitter } from 'node:events'
 import { PassThrough, Readable } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
@@ -177,5 +178,18 @@ describe('createWslOrcadHostTransport', () => {
   // Regression: `nohup … &` dies with its `wsl.exe --exec` on a distro without systemd.
   it('asks orcad launches to start in their own session', () => {
     expect(transportWith([]).transport.orcadLaunchDetach).toBe('setsid')
+  })
+
+  it('tells orcad which registration of the distro it runs in, when the registry knows', async () => {
+    const make = (id: string | null) =>
+      createWslOrcadHostTransport({
+        target: { kind: 'wsl', id: 'env-1', distro: 'Ubuntu-24.04', label: 'My Ubuntu' },
+        commandLoops: false,
+        readDistroRegistryId: async (distro) => (distro === 'Ubuntu-24.04' ? id : null)
+      })
+    await expect(make('1a2b')?.orcadLaunchEnv?.()).resolves.toEqual([
+      [ORCAD_WSL_DISTRO_GUID_ENV, '1a2b']
+    ])
+    await expect(make(null)?.orcadLaunchEnv?.()).resolves.toEqual([])
   })
 })

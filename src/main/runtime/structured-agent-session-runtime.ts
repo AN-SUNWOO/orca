@@ -99,12 +99,12 @@ export type StructuredAgentSessionRuntimeDeps = {
   claimKeyId: string
   resolveWorkspacePath: (workspaceId: string) => Promise<string>
   resolveCodexCommand?: (options?: { pathEnv?: string | null; homePath?: string }) => string
-  resolveClaudeCommand?: () => string
+  resolveClaudeCommand?: (options?: { pathEnv?: string | null; homePath?: string }) => string
   openPiConnection?: PiRpcSessionDeps['openConnection']
   /** Which version-gated flags a Claude CLI takes; absent never passes one. */
   claudeCliFlags?: ClaudeCliFlagSupport
-  /** Gives each chat a visuals folder and the skill that teaches it, and sweeps folders whose chat
-   *  is gone. Wired by the real hosts only, so a test runtime never loads the bundled skill. */
+  /** Gives each chat a scratch folder and the visuals skill that teaches it, and sweeps folders
+   *  whose chat is gone. Wired by the real hosts only, so a test runtime never loads the bundled skill. */
   nativeChatVisuals?: {
     /** Read this host's preference when a chat starts a provider process. */
     isEnabled: () => boolean

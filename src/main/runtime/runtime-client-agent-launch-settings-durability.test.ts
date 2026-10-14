@@ -110,7 +110,7 @@ describe('durable execution-host launch settings', () => {
     expect(readState().settings.agentDefaultArgs.claude).toBe('--durable-marker')
   })
 
-  it('rolls back both None fields when the database write fails', async () => {
+  it('rolls back a legacy default request when the database write fails', async () => {
     const { store, authority } = await fixture()
     const controller = new RuntimeClientSettingsController(store)
     const before = store.getSettings().defaultTuiAgent
@@ -127,7 +127,7 @@ describe('durable execution-host launch settings', () => {
     await controller.mutateAgentLaunch({ type: 'default', agent: 'blank', setupOnly: true })
     expect(controller.getAgentLaunch()).toMatchObject({
       defaultTuiAgent: 'blank',
-      newWorkspaceSetupOnly: true
+      newWorkspaceSetupOnly: false
     })
   })
 
@@ -213,7 +213,7 @@ describe('durable execution-host launch settings', () => {
     ])
   })
 
-  it('preserves a newer blank choice when a pending None write fails', async () => {
+  it('preserves a newer agent choice when a pending legacy default write fails', async () => {
     const { store, authority } = await fixture()
     const controller = new RuntimeClientSettingsController(store)
     authority.failNextWrite()
@@ -222,13 +222,13 @@ describe('durable execution-host launch settings', () => {
     const refused = expect(first).rejects.toThrow('profile_state_write_failed')
     try {
       await gate.started.promise
-      store.updateSettings({ defaultTuiAgent: 'blank', newWorkspaceSetupOnly: false })
+      store.updateSettings({ defaultTuiAgent: 'codex', newWorkspaceSetupOnly: false })
     } finally {
       gate.finish.resolve()
     }
     await refused
     expect(controller.getAgentLaunch()).toMatchObject({
-      defaultTuiAgent: 'blank',
+      defaultTuiAgent: 'codex',
       newWorkspaceSetupOnly: false
     })
     await store.flushPendingOrThrowAsync()

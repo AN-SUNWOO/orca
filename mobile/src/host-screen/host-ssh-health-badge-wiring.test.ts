@@ -69,7 +69,7 @@ async function displayedRows(args: {
     state.clientRef.current = client
     setWorktrees = state.setWorktrees
     seen.refresh = useHostRepoMetadata({ client, connState: 'connected', hostId: 'host-1', state })
-    seen.rows = useHostDisplayWorktrees('connected', state)
+    seen.rows = useHostDisplayWorktrees('connected', state, 'host-1')
     return null
   }
   await act(async () => {

@@ -1,3 +1,4 @@
+import { BROWSER_CLIENT_HOST_RUNTIME_CAPABILITY } from '../../../shared/protocol-version'
 import {
   readTerminalStreamFrameId,
   writeTerminalStreamFrameId
@@ -22,6 +23,30 @@ export function rewriteRelayedPhoneRequest(
     Object.entries(parsed).filter(([field]) => !STRIPPED_ENVELOPE_FIELDS.has(field))
   )
   return JSON.stringify(requestId === undefined ? forwarded : { ...forwarded, id: requestId })
+}
+
+// Why: the server lists client-placed browser tabs only to callers declaring this; for a
+// mobile-scoped caller it is projection-only, since hosting duty requires a runtime-scoped one.
+export function relayedPhoneCapabilities(capabilities: readonly string[]): readonly string[] {
+  return capabilities.includes(BROWSER_CLIENT_HOST_RUNTIME_CAPABILITY)
+    ? capabilities
+    : [...capabilities, BROWSER_CLIENT_HOST_RUNTIME_CAPABILITY]
+}
+
+/** A forwarded `runtime.clientCapabilities.update` frame, carrying the relayed phone's set. */
+export function declareRelayedPhoneCapabilities(frame: string): string {
+  const parsed: unknown = JSON.parse(frame)
+  const params = isRecord(parsed) ? parsed.params : undefined
+  if (!isRecord(parsed) || !isRecord(params) || !Array.isArray(params.clientCapabilities)) {
+    return frame
+  }
+  const clientCapabilities = params.clientCapabilities.filter(
+    (capability): capability is string => typeof capability === 'string'
+  )
+  return JSON.stringify({
+    ...parsed,
+    params: { ...params, clientCapabilities: relayedPhoneCapabilities(clientCapabilities) }
+  })
 }
 
 const LAUNCH_METHODS_READING_CHAT_DEFAULT = new Set(['agent.launch', 'agent.launchReplay'])

@@ -652,9 +652,9 @@ describe('a chat after startup permission backfill', () => {
       await host.handleAdapterEvent(startedEvent())
       await vi.advanceTimersByTimeAsync(50)
       await host.flushStreamedEvents(SESSION)
-      expect(store.getRecord(SESSION)?.options?.permissionMode).toBe(mode)
+      expect(store.getRecord(SESSION)?.permissionMode).toBe(mode)
       await store.backfillChatPermissionModes(() => mode === 'ask')
-      expect(store.getRecord(SESSION)?.options?.permissionMode).toBe(mode)
+      expect(store.getRecord(SESSION)?.permissionMode).toBe(mode)
     }
   )
 })

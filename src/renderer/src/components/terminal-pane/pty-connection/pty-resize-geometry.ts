@@ -211,7 +211,7 @@ export function installPtyResizeGeometry(session: ConnectPanePtySession): void {
   // Why: the settle only prevents visible artifacts, and a hidden pane or window paints none
   // (nor produces the frames the settle counts).
   session.shouldSettleStartupGridBeforeConnect = (): boolean =>
-    Boolean(session.paneStartup?.command) &&
+    Boolean(session.paneStartup?.command || session.paneStartup?.agentLaunch) &&
     session.deps.isVisibleRef.current &&
     getWindowParkVisible() &&
     !session.unservedSshTargetId &&

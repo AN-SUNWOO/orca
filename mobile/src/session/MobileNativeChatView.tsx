@@ -28,9 +28,13 @@ import {
   mobileNativeChatEmptyState,
   type MobileNativeChatPendingItem
 } from './mobile-native-chat-render-data'
+import { useMobileNativeChatPageHistory } from './use-mobile-native-chat-page-history'
 import { useMobileNativeChatPinchGesture } from './use-mobile-native-chat-pinch-gesture'
 import { useMobileNativeChatRowRenderers } from './use-mobile-native-chat-row-renderers'
-import { useMobileNativeChatTailFollow } from './use-mobile-native-chat-tail-follow'
+import {
+  mobileNativeChatRowAnchor,
+  useMobileNativeChatTailFollow
+} from './use-mobile-native-chat-tail-follow'
 import { useMobileNativeChatTurnDisclosure } from './use-mobile-native-chat-turn-disclosure'
 import {
   mobileNativeChatComposerPlaceholder,
@@ -46,6 +50,7 @@ import { NO_COMPOSER_TRAY, type ComposerTrayProps } from './use-mobile-native-ch
 import type { MobileChatPermission } from './mobile-native-chat-permission'
 import type { MobileChatQuestion } from './mobile-native-chat-question'
 import type { MobileNativeChatSessionOptionPickersProps } from './MobileNativeChatSessionOptionPickers'
+import { MobileNativeChatScrollHold } from './MobileNativeChatScrollHold'
 import { mobileNativeChatUnsentNotices } from './mobile-native-chat-unsent-notices'
 import type { MobileNativeChatStatus } from './use-mobile-native-chat-session'
 
@@ -247,7 +252,7 @@ export function MobileNativeChatView({
     endUserDrag,
     beginMomentum,
     endMomentum,
-    detachFromTail,
+    readerIsScrolling,
     recordScrollMetrics
   } = useMobileNativeChatTailFollow<NativeChatMessage>({ hasItems: data.length > 0 })
 
@@ -267,21 +272,18 @@ export function MobileNativeChatView({
     [onSend, onClearSendError, jumpToTail]
   )
 
-  const loadEarlier = useCallback(() => {
-    detachFromTail()
-    onLoadEarlier?.()
-  }, [detachFromTail, onLoadEarlier])
+  const loadEarlier = useCallback(() => onLoadEarlier?.(), [onLoadEarlier])
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset } = e.nativeEvent
       recordScrollMetrics(e.nativeEvent)
-      // Near the top — page in older history.
-      if (contentOffset.y < 60 && hasMore && !loadingEarlier) {
+      // Near the top — page in older history. Only the reader's scroll: a pin reports offsets too.
+      if (contentOffset.y < 60 && hasMore && !loadingEarlier && readerIsScrolling()) {
         loadEarlier()
       }
     },
-    [hasMore, loadingEarlier, loadEarlier, recordScrollMetrics]
+    [hasMore, loadingEarlier, loadEarlier, readerIsScrolling, recordScrollMetrics]
   )
 
   // Per-turn status rows: one live indicator while the turn runs, then a settled
@@ -313,6 +315,8 @@ export function MobileNativeChatView({
     unsentNotices,
     { toolsExpanded, fontScale, onOpenFile, structuredActivityUi, onToggleTurn: turns.onToggleTurn }
   )
+
+  const history = useMobileNativeChatPageHistory(turns.listMessages, renderItem)
 
   const liveStatus = turns.liveLine ? (
     <MobileNativeChatLiveLine
@@ -352,12 +356,13 @@ export function MobileNativeChatView({
         </View>
       ) : (
         <GestureHandlerRootView style={styles.listWrap}>
+          <MobileNativeChatScrollHold headKey={turns.listMessages[0]?.id} listRef={listRef} />
           <GestureDetector gesture={pinchGesture}>
             <FlatList
               ref={listRef}
-              data={turns.listMessages}
+              data={history.listRows}
               keyExtractor={(item) => item.id}
-              renderItem={renderItem}
+              renderItem={history.renderListRow}
               // Why: without it FlatList re-renders every mounted cell, stable `renderItem` or not.
               strictMode
               contentContainerStyle={styles.listContent}
@@ -372,7 +377,10 @@ export function MobileNativeChatView({
               scrollEventThrottle={32}
               onContentSizeChange={pinToTailAfterContentResize}
               onLayout={pinToTail}
-              ListHeaderComponent={mobileNativeChatListHeader(hasMore, loadingEarlier, loadEarlier)}
+              maintainVisibleContentPosition={mobileNativeChatRowAnchor(hasMore === true)}
+              ListHeaderComponent={history.withHistory(
+                mobileNativeChatListHeader(hasMore, loadingEarlier, loadEarlier)
+              )}
               ListFooterComponent={mobileNativeChatListFooter(
                 liveStatus,
                 turns.waitingRows,

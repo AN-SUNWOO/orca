@@ -102,7 +102,6 @@
 6 src/renderer/src/store/slices/terminal-orphan-helpers.ts
 4 src/renderer/src/store/slices/terminal-tab-title-batch.ts
 6 src/renderer/src/store/slices/terminals.ts
-5 src/renderer/src/store/slices/worktrees/session/set-active-folder-workspace.ts
 7 src/renderer/src/store/slices/worktrees/session/set-active-worktree.ts
 15 src/renderer/src/store/slices/worktrees/session/worktree-identity-rename-state.ts
 2 src/renderer/src/store/slices/worktrees/session/worktree-slice-lookups.ts

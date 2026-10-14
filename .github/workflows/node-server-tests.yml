@@ -251,15 +251,16 @@ jobs:
           retention-days: 7
           overwrite: true
       # orcad's data-root privacy check fails closed without it, so every Windows slot needs one.
+      # Older requested refs use the previous security implementation and have no addon builder.
       - name: Build the Windows security addons for the desktop template
-        if: inputs.build_template && matrix.os == 'windows-2022'
+        if: inputs.build_template && matrix.os == 'windows-2022' && hashFiles('config/scripts/build-windows-security-addon.mjs') != ''
         shell: bash
         run: |
           node config/scripts/build-windows-security-addon.mjs --arch=x64
           node config/scripts/build-windows-security-addon.mjs --arch=arm64
           node -e "require('./.build/windows-security/x64/windows-security.node').currentUserSid()"
       - name: Keep the Windows security addons for the desktop template
-        if: inputs.build_template && matrix.os == 'windows-2022'
+        if: inputs.build_template && matrix.os == 'windows-2022' && hashFiles('config/scripts/build-windows-security-addon.mjs') != ''
         uses: actions/upload-artifact@v7
         with:
           name: orcad-windows-security
@@ -515,6 +516,7 @@ jobs:
           name: orcad-windows-cli-launcher
           path: .build/windows-cli-launcher
       - name: Collect the Windows security addons
+        if: hashFiles('config/scripts/build-windows-security-addon.mjs') != ''
         uses: actions/download-artifact@v8
         with:
           name: orcad-windows-security

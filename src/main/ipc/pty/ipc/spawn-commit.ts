@@ -86,6 +86,7 @@ async function commitReservedPtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<PtySpaw
       })
       ctx.deps.runtime?.cancelPendingPtyRegistration?.(ctx.result.id, ctx.result.incarnationId)
       ctx.pendingRegistrationPtyId = null
+      ctx.exitedBeforeRegistration = true
       // The renderer drains this incarnation's buffered output and exit without publishing it live.
       return resolvePaneSpawnReservation(
         ctx.paneSpawnReservationKey,

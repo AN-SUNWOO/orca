@@ -91,7 +91,7 @@ describe("the window's runtime rule, on the host", () => {
 it("answers from main's WSL cache, which the window may not have read yet", () => {
   _setWslCachesForTests({ available: true, distros: ['Debian'] })
   expect(() => claudeRuntime(store({ project: UBUNTU }), scope(WIN, { repo: repo(WIN) }))).toThrow(
-    'requires repair before terminal spawn: wsl-distro-missing'
+    'Ubuntu is not installed in WSL'
   )
   // A `\\wsl$` path proves its distro, so a stale cache never refuses it.
   expect(claudeRuntime(store({}), scope(SHARE, { repo: repo(SHARE) })).platform).toBe('linux')

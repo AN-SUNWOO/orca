@@ -30,7 +30,11 @@
  * inherited value names another app.
  *
  * `ORCA_USER_DATA_PATH` pins this instance beside the identity, so any current CLI — the session's
- * own or a global one — dials the Orca that minted the id instead of the production default.
+ * own or a global one — dials the Orca that minted the id instead of the production default. The
+ * remote selectors a shell profile may export are set empty, which the CLI reads as unset: empty
+ * rather than deleted, because the child is spawned over Orca's own env, which may carry them.
+ * Explicit `--environment` / `--pairing-code` flags still work, and a person's terminal keeps
+ * its selectors. A login shell the agent itself starts can export them again.
  *
  * Deliberately NOT `ORCA_PANE_KEY`. Claude structured sessions run hooks, and a pane key in their
  * environment starts flowing into hook-emitted agent-status payloads and the hook-attestation,
@@ -126,6 +130,12 @@ function childIdentity(
   return { env, workerHandle: identity?.handle ?? null }
 }
 
+const REMOTE_RUNTIME_SELECTOR_ENV_KEYS = [
+  'ORCA_ENVIRONMENT',
+  'ORCA_PAIRING_CODE',
+  'ORCA_REMOTE_PAIRING'
+] as const
+
 /**
  * A host with no app environment installed — a plain-Node fork, or a unit test — has no userData
  * root to resolve, and inventing one would write a shim into the wrong directory.
@@ -139,6 +149,9 @@ function applyThisAppCli(env: Record<string, string>): void {
   const userDataPath = app.getPath('userData')
   const isPackaged = app.isPackaged()
   env.ORCA_USER_DATA_PATH = userDataPath
+  for (const key of REMOTE_RUNTIME_SELECTOR_ENV_KEYS) {
+    env[key] = ''
+  }
   const launcher = prependOrcaCliDirToChildPath(env, {
     isPackaged,
     userDataPath,

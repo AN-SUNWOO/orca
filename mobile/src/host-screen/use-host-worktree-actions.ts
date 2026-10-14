@@ -20,7 +20,12 @@ import {
   removeWorktreeRow
 } from '../worktree/worktree-host-row-identity'
 import { isWorktreePinned, type Worktree } from '../worktree/workspace-list-sections'
-import { worktreeActivate, worktreePinWrite, worktreeRemove } from './host-screen-operations'
+import {
+  worktreeActivate,
+  worktreePinWrite,
+  worktreeRemove,
+  worktreeSleep
+} from './host-screen-operations'
 import type { HostScreenState } from './use-host-screen-state'
 
 export function useHostWorktreeActions(args: {
@@ -60,6 +65,7 @@ export function useHostWorktreeActions(args: {
     setRouteActionState,
     setServerNotice,
     setServerWorkspaces,
+    setSleptIds,
     setWorktrees,
     worktrees
   } = state
@@ -151,6 +157,17 @@ export function useHostWorktreeActions(args: {
       }
     },
     [client, clientForRow, worktrees, pinnedIds, updateLocalPins]
+  )
+
+  const putWorktreeToSleep = useCallback(
+    (item: Worktree) => {
+      if (!client) {
+        return
+      }
+      setSleptIds((prev) => new Set(prev).add(getWorktreeRowIdentity(item)))
+      void worktreeSleep.request(client, { worktree: `id:${item.worktreeId}` }).catch(() => null)
+    },
+    [client, setSleptIds]
   )
 
   const handleDeleteWorktree = useCallback(
@@ -279,6 +296,7 @@ export function useHostWorktreeActions(args: {
     openNewWorktreeModal,
     openWorktreeSession,
     setShowNewWorktreeVisible,
+    putWorktreeToSleep,
     togglePin
   }
 }

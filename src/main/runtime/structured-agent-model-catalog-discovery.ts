@@ -1,5 +1,6 @@
-// Each registered agent's catalog probe, built from the SAME resolvers its session launches use:
-// a probe under another binary or env could list models the user's sessions cannot see.
+// Each registered agent's catalog probe, built from the SAME resolvers its session launches use,
+// rereading the environment on a missing program as a launch does: a probe under another binary
+// or env could list models the user's sessions cannot see.
 
 import { createAcpModelCatalogProbe } from '../acp/acp-model-catalog-probe'
 import type { AcpLaunchSpec } from '../acp/acp-launch-specs'
@@ -31,6 +32,7 @@ export function codexModelCatalogDiscovery({
         ? { prepareHome: deps.prepareCodexCatalogProbeHome }
         : {}),
       resolveEnvironment: () => environment.resolveAgentEnvironment('codex'),
+      refreshEnvironmentAfterMiss: environment.refreshAfterMissingProgram,
       ...(deps.resolveCodexCommand ? { resolveCommand: deps.resolveCodexCommand } : {})
     })
   }
@@ -46,6 +48,7 @@ export function claudeModelCatalogDiscovery({
     listingNamesConfiguredModel: false,
     probe: createClaudeModelCatalogProbe({
       resolveInheritedEnv: environment.resolveBaseEnvironment,
+      refreshEnvironmentAfterMiss: environment.refreshAfterMissingProgram,
       resolveAuthPolicy: deps.resolveClaudeAuthPolicy,
       ...(deps.resolveClaudeCommand ? { resolveCommand: deps.resolveClaudeCommand } : {}),
       ...claudeLaunchEnvOverlay(deps)
@@ -66,6 +69,7 @@ export function acpModelCatalogDiscovery(
     listingNamesConfiguredModel: discovery.listingNamesConfiguredModel,
     probe: createAcpModelCatalogProbe(spec, {
       resolveEnvironment: environment.resolveBaseEnvironment,
+      refreshEnvironmentAfterMiss: environment.refreshAfterMissingProgram,
       ...(deps.resolveAgentLaunchEnv ? { resolveLaunchEnv: deps.resolveAgentLaunchEnv } : {}),
       ...(deps.resolveAgentCommandSettings
         ? { resolveCommandSettings: deps.resolveAgentCommandSettings }

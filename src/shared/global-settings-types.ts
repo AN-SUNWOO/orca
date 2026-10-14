@@ -343,8 +343,7 @@ export type GlobalSettings = NativeChatGlobalSettings & {
    *  - 'blank': blank terminal (no agent launched)
    *  - TuiAgent: a specific agent id */
   defaultTuiAgent: TuiAgent | 'blank' | null
-  /** Refines a 'blank' default to "None": workspaces with a setup script open only the Setup tab.
-   *  Separate flag so clients that only know 'blank' degrade to a blank terminal. */
+  /** @deprecated Retained for older peers; setup-only is now a per-create choice. */
   newWorkspaceSetupOnly?: boolean
   /** Agents hidden from picker/auto-launch; detection stays a raw PATH snapshot. */
   disabledTuiAgents: TuiAgent[]

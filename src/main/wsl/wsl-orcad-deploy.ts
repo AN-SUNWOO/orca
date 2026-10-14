@@ -33,7 +33,7 @@ import { joinRemotePath } from '../ssh/ssh-remote-platform'
 import { readLocalFullVersion } from '../ssh/remote-versioned-install'
 import { createWslDistroHolder, type WslDistroHolder } from './wsl-distro-holder'
 import { wslDistroHolderKey } from './wsl-distro-holder-record'
-import { readWslDistroRegistryId } from './wsl-distro-registry-id'
+import { readWslDistroRegistryIdShared } from './wsl-distro-registry-id'
 import type { WslOrcadHostTarget } from './wsl-orcad-host-target'
 import { createWslOrcadHostTransport, type WslOrcadHostTransport } from './wsl-orcad-host-transport'
 import { readWslOrcadIncumbent, type WslOrcadIncumbent } from './wsl-orcad-incumbent'
@@ -126,7 +126,7 @@ async function launchOverTransport(
   const holder = options.holder ?? createWslDistroHolder({ userDataPath: userDataPath() })
   const held = await holder.ensureHeld(name)
   // Read alongside the deploy; a failed read only leaves the record without a GUID.
-  const distroId = (options.readRegistryId ?? readWslDistroRegistryId)(name).catch(() => null)
+  const distroId = (options.readRegistryId ?? readWslDistroRegistryIdShared)(name).catch(() => null)
   let context = await resolveOrcadRemoteContext(target, conn, signal)
   const slot = managedOrcadSlot(context, ORCAD_MANAGED_REMOTE_PORT, signal)
   const recovery = await recoverInterruptedOrcadActivation(slot)

@@ -131,7 +131,10 @@ import {
   AGENT_HOOK_RUNTIME_ENV_KEYS,
   ORCA_AGENT_SESSION_CALLER_ENV_KEYS
 } from '../ipc/pty/host-env/spawn-env-keys'
-import { NATIVE_CHAT_VISUALS_DIR_ENV } from '../native-chat/native-chat-visuals-delivery'
+import {
+  LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV,
+  NATIVE_CHAT_SCRATCH_DIR_ENV
+} from '../native-chat/native-chat-visuals-delivery'
 import type { StructuredAgentSessionAcquireInput } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import type { StructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
 import type { JournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database'
@@ -308,7 +311,8 @@ function inheritedEnvironment(): Record<string, string> {
     [ORCA_SCRUB_SAFE_LAUNCH_ENV]: 'parent-scrub-safe-launch',
     ORCA_TERMINAL_HANDLE: 'term_parent',
     ORCA_AGENT_SESSION_SPAWN_TOKEN: 'parent-spawn-token',
-    [NATIVE_CHAT_VISUALS_DIR_ENV]: '/parent/visuals',
+    [NATIVE_CHAT_SCRATCH_DIR_ENV]: '/parent/scratch',
+    [LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV]: '/parent/visuals',
     ORCA_CLI_COMMAND: '/parent/orca',
     ORCA_CLI_BIN_DIR: '/parent/bin',
     ORCA_USER_DATA_PATH: '/parent/user-data',

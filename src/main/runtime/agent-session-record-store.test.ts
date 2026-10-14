@@ -299,7 +299,7 @@ describe('acquisition path', () => {
       })
     )
     expect(store.getRecord('session-alpha')?.lease.runtimeFence).toBe(2)
-    expect(store.getRecord('session-alpha')?.options).toEqual({ permissionMode: 'ask' })
+    expect(store.getRecord('session-alpha')?.permissionMode).toBe('ask')
   })
 })
 

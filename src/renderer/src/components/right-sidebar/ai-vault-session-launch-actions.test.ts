@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   buildAiVaultResumeStartupForWorktree: vi.fn(),
   prepareAiVaultSessionForFork: vi.fn(),
   prepareAiVaultSessionForResume: vi.fn(),
+  prepareAiVaultSessionForTerminalResume: vi.fn(),
   launchAiVaultSessionInNewTab: vi.fn(),
   activateAiVaultResumeWorkspace: vi.fn(),
   toastError: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('@/lib/ai-vault-resume-command', () => ({
 vi.mock('@/lib/ai-vault-session-resume-preparation', () => ({
   prepareAiVaultSessionForFork: mocks.prepareAiVaultSessionForFork,
   prepareAiVaultSessionForResume: mocks.prepareAiVaultSessionForResume,
+  prepareAiVaultSessionForTerminalResume: mocks.prepareAiVaultSessionForTerminalResume,
   dropDeletedSshResumeCwd: async (session: unknown) => session
 }))
 vi.mock('@/lib/launch-ai-vault-session', () => ({
@@ -153,4 +155,22 @@ describe('Resume in New CLI launch', () => {
     )
     expect(mocks.launchAiVaultSessionInNewTab).not.toHaveBeenCalled()
   })
+})
+
+it('refuses the stale OMP row before creating a second terminal writer', async () => {
+  vi.clearAllMocks()
+  mocks.prepareAiVaultSessionForTerminalResume.mockRejectedValue(
+    new Error(
+      "Error invoking remote method 'aiVault:prepareSessionResume': Error: agent_session_conflict"
+    )
+  )
+  renderActions().handleResume(
+    { ...owned, agent: 'omp', structuredSession: undefined },
+    'worktree-1'
+  )
+  await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce())
+  expect(mocks.toastError).toHaveBeenCalledWith(
+    'This OMP conversation is open in a chat. Refresh Session History to open it.'
+  )
+  expect(mocks.launchAiVaultSessionInNewTab).not.toHaveBeenCalled()
 })

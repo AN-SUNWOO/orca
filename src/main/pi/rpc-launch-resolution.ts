@@ -11,6 +11,7 @@ import { requireLegacyAgentSessionAccountHome } from '../../shared/agent-session
 import type { resolveCliCommand } from '../../shared/node-cli-command-resolution'
 import { isStableCliVersionOnLine, probeAgentCliVersion } from '../agent-cli-version-probe'
 import {
+  resolveAgainAfterRefreshOnMissingProgram,
   resolveStructuredAgentCommand,
   type StructuredAgentCommandSettings
 } from '../native-chat/structured-agent-command-resolution'
@@ -98,6 +99,34 @@ async function sameDirectory(left: string, right: string): Promise<boolean> {
   return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b
 }
 
+/** The binary and environment a Pi child runs under for the account directory `accountDir`: a
+ *  chat's launch and a catalog listing both resolve here, rereading the environment once when Pi
+ *  is missing from it. */
+export function resolvePiRpcInvocation(deps: {
+  accountDir: string
+  resolveEnvironment: () => Promise<NodeJS.ProcessEnv>
+  commandSettings?: StructuredAgentCommandSettings
+  resolveCommand?: typeof resolveCliCommand
+  refreshEnvironmentAfterMiss?: (askedAt: number) => Promise<void>
+  /** Where the program starts, for a PATH entry relative to it; Orca's own when absent. */
+  resolveWorkingDirectory?: () => Promise<string> | string
+}): Promise<{ command: string; env: Record<string, string> }> {
+  return resolveAgainAfterRefreshOnMissingProgram(
+    async () => {
+      const env: Record<string, string> = {}
+      for (const [key, value] of Object.entries(await deps.resolveEnvironment())) {
+        if (value !== undefined) {
+          env[key] = value
+        }
+      }
+      env.PI_CODING_AGENT_DIR = deps.accountDir
+      return { env, command: resolvePiRpcCommand(env, deps.commandSettings, deps.resolveCommand) }
+    },
+    deps.refreshEnvironmentAfterMiss,
+    { env: ({ env }) => env, cwd: deps.resolveWorkingDirectory }
+  )
+}
+
 /** Pi's part of a launch: its account directory, session file or fork, binary and release check. */
 export function piRpcLaunchPart(
   deps: PiRpcLaunchPartDeps
@@ -109,10 +138,14 @@ export function piRpcLaunchPart(
     }
     const accountHome = requireLegacyAgentSessionAccountHome(record.accountHome)
     const cwd = await basis.launchDirectory()
-    const env: Record<string, string> = {
-      ...(await basis.environment()),
-      PI_CODING_AGENT_DIR: accountHome.path
-    }
+    const { env, command } = await resolvePiRpcInvocation({
+      accountDir: accountHome.path,
+      resolveEnvironment: basis.environment,
+      commandSettings: basis.commandSettings(),
+      resolveCommand: deps.resolveCommand,
+      refreshEnvironmentAfterMiss: basis.refreshAfterMissingProgram,
+      resolveWorkingDirectory: () => cwd
+    })
     const previous = agentSessionProviderHandleChainHead(record.providerHandleChain)
     let sessionFile: string | undefined
     let forkFile: string | undefined
@@ -135,7 +168,6 @@ export function piRpcLaunchPart(
         forkFile = source
       }
     }
-    const command = resolvePiRpcCommand(env, basis.commandSettings(), deps.resolveCommand)
     // Again at every launch: the binary on PATH may have changed since the chat was created.
     if (!(await piRpcVersionSupported({ command, cwd, env }, deps.probeVersion))) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {

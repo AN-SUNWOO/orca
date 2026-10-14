@@ -105,7 +105,7 @@ export type ClaudeStructuredLaunch = {
 
 export type ClaudeStructuredLaunchPartDeps = {
   resolveLaunchArgs: () => Promise<string[]> | string[]
-  resolveCommand?: () => string
+  resolveCommand?: ClaudeEnvDeps['resolveCommand']
   /** Required, so every caller states which login a failed sign-in names rather than inherit a
    *  guess. Build it with claudeStructuredAuthPolicyForSettings. */
   resolveAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
@@ -183,6 +183,8 @@ export function claudeStructuredLaunchPart(
       ...(deps.resolveCommand ? { resolveCommand: deps.resolveCommand } : {}),
       resolveEnv: () => basis.launchEnv(),
       resolveInheritedEnv: basis.baseEnvironment,
+      refreshEnvironmentAfterMiss: basis.refreshAfterMissingProgram,
+      resolveWorkingDirectory: () => cwd,
       resolveAuthPolicy: deps.resolveAuthPolicy
     }
     const sources = await resolveClaudeChildEnvSources(envDeps)

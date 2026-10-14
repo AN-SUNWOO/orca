@@ -19,6 +19,10 @@ vi.mock('../transport/use-worktree-resync', () => ({
 
 import { MOBILE_DESKTOP_RELAY_RUNTIME_CAPABILITY } from '../../../src/shared/mobile-desktop-relay-contract'
 import { createBridgePortPair } from '../mobile-web-shell/bridge/bridge-port-pair-test-harness'
+import {
+  recordHostDescriptor,
+  resetHostDescriptorStoreForTests
+} from '../transport/host-descriptor-store'
 import { FakeSession } from '../transport/mobile-endpoint-supervisor-test-fakes'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
@@ -99,6 +103,8 @@ type Screen = {
   notice: () => string | null
   catalogError: () => string | null
   pin: (worktreeId: string) => void
+  sleep: (worktreeId: string) => void
+  slept: () => ReadonlySet<string> | undefined
   serverWorkspaces: () => unknown
   swapClient: (next: RpcClient) => Promise<void>
   navigations: string[]
@@ -145,7 +151,7 @@ async function mountScreen(first: RpcClient, hostCapabilities: string[]): Promis
     })
     held.state = state
     held.fetch = catalog.fetchWorktrees
-    held.rows = useHostDisplayWorktrees('connected', state)
+    held.rows = useHostDisplayWorktrees('connected', state, 'host-1')
     return null
   }
   await act(async () => {
@@ -174,6 +180,13 @@ async function mountScreen(first: RpcClient, hostCapabilities: string[]): Promis
       act(() => {
         held.actions?.togglePin(held.rows.find((entry) => entry.worktreeId === worktreeId)!)
       }),
+    sleep: (worktreeId) =>
+      act(() => {
+        held.actions?.putWorktreeToSleep(
+          held.rows.find((entry) => entry.worktreeId === worktreeId)!
+        )
+      }),
+    slept: () => held.state?.sleptIds,
     serverWorkspaces: () => held.state?.serverWorkspaces,
     swapClient: async (next) => {
       client = next
@@ -204,6 +217,19 @@ describe("a desktop's server workspaces on the phone", () => {
       'VM',
       'ThinkPad'
     ])
+  })
+
+  it("names the desktop's own row for the desktop's platform once servers mix the list", async () => {
+    recordHostDescriptor('host-1', { machineName: null, platform: 'darwin' })
+    try {
+      const screen = await mountScreen(desktop(), RELAYS)
+      expect(screen.rows()[0]).toMatchObject({
+        worktreeId: 'mac-wt',
+        hostContextLabel: 'Local Mac'
+      })
+    } finally {
+      resetHostDescriptorStoreForTests()
+    }
   })
 
   it('keeps showing today’s view under an older desktop or an older shell', async () => {
@@ -337,6 +363,14 @@ describe("a desktop's server workspaces on the phone", () => {
       { envelope: { executionHost: 'runtime:vm' } }
     )
     expect(screen.rows().find((entry) => entry.worktreeId === 'runtime:vm-wt')?.isPinned).toBe(true)
+  })
+
+  it('sleeps a desktop workspace on the desktop and shows it slept at once', async () => {
+    const client = desktop()
+    const screen = await mountScreen(client, RELAYS)
+    screen.sleep('mac-wt')
+    expect(client.sendRequest).toHaveBeenCalledWith('worktree.sleep', { worktree: 'id:mac-wt' })
+    expect(screen.slept()?.size).toBe(1)
   })
 
   it('reads a replaced client\u2019s servers at once, and keeps an unchanged poll\u2019s list', async () => {

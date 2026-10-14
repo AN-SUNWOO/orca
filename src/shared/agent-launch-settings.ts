@@ -1,9 +1,6 @@
 import type { GlobalSettings } from './global-settings-types'
 import type { TuiAgent } from './tui-agent'
-import {
-  buildDefaultAgentSettingsUpdate,
-  isNewWorkspaceSetupOnlyDefault
-} from './new-workspace-setup-only'
+import { buildDefaultAgentSettingsUpdate } from './default-agent-settings'
 import {
   buildAgentAvailabilitySettingsUpdate,
   normalizeDisabledTuiAgents
@@ -51,7 +48,7 @@ export function projectAgentLaunchSettings(
 ): AgentLaunchSettings {
   return {
     defaultTuiAgent: settings.defaultTuiAgent ?? null,
-    newWorkspaceSetupOnly: isNewWorkspaceSetupOnlyDefault(settings),
+    newWorkspaceSetupOnly: false,
     disabledTuiAgents: normalizeDisabledTuiAgents(settings.disabledTuiAgents),
     agentCmdOverrides: { ...settings.agentCmdOverrides },
     agentDefaultArgs: normalizeTuiAgentArgsRecord(settings.agentDefaultArgs),
@@ -72,9 +69,7 @@ export function agentLaunchSettingsMutationUpdates(
 ): AgentLaunchSettingsSource {
   switch (mutation.type) {
     case 'default':
-      return buildDefaultAgentSettingsUpdate(
-        mutation.agent === 'blank' && mutation.setupOnly === true ? 'setup-only' : mutation.agent
-      )
+      return buildDefaultAgentSettingsUpdate(mutation.agent)
     case 'availability':
       return buildAgentAvailabilitySettingsUpdate(
         {

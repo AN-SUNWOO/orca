@@ -7,47 +7,66 @@ import type { TuiAgent } from '../../../../shared/tui-agent'
 import { AGENT_CATALOG, AgentIcon } from '@/lib/agent-catalog'
 import { AGENT_FAVICON_ASSETS } from '@/lib/agent-favicon-assets'
 import AgentCombobox from './AgentCombobox'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import type { ReactElement } from 'react'
+
+function renderPicker(element: ReactElement) {
+  return render(element, { wrapper: TooltipProvider })
+}
 
 afterEach(cleanup)
 
 describe('AgentCombobox', () => {
-  it('lets a blank selection replace the saved None default', () => {
-    const onSetDefault = vi.fn()
-    render(
+  it.each(['codex', null] as const)(
+    'clears %s without opening the picker or changing defaults',
+    (value) => {
+      const onClear = vi.fn()
+      const onSetDefault = vi.fn()
+      const onValueChange = vi.fn()
+      renderPicker(
+        <AgentCombobox
+          agents={AGENT_CATALOG}
+          value={value}
+          onValueChange={onValueChange}
+          allowBlankTerminal
+          onSetDefault={onSetDefault}
+          clearSelection={{ cleared: false, onClear }}
+        />
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Clear agent selection' }))
+      expect(onClear).toHaveBeenCalledOnce()
+      expect(onValueChange).not.toHaveBeenCalled()
+      expect(onSetDefault).not.toHaveBeenCalled()
+      expect(screen.getByRole('combobox').getAttribute('aria-expanded')).toBe('false')
+      expect(document.activeElement).toBe(screen.getByRole('combobox'))
+    }
+  )
+
+  it('keeps the cleared choice empty and lets the user choose an agent again', () => {
+    const onValueChange = vi.fn()
+    renderPicker(
       <AgentCombobox
-        agents={[]}
+        agents={AGENT_CATALOG}
         value={null}
-        onValueChange={vi.fn()}
+        onValueChange={onValueChange}
         allowBlankTerminal
-        defaultAgent="blank"
-        onSetDefault={onSetDefault}
-        setupOnly={{ selected: false, isDefault: true, onSelect: vi.fn() }}
+        onSetDefault={vi.fn()}
+        clearSelection={{ cleared: true, onClear: vi.fn() }}
       />
     )
+    expect(screen.getByRole('combobox').textContent).toBe('Select an Agent')
+    expect(screen.queryByRole('button', { name: 'Clear agent selection' })).toBeNull()
     fireEvent.contextMenu(screen.getByRole('combobox'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Set as default' }))
-    expect(onSetDefault).toHaveBeenCalledWith('blank')
+    expect(screen.queryByRole('menuitem')).toBeNull()
+    fireEvent.click(screen.getByRole('combobox'))
+    expect(screen.queryByRole('option', { name: 'None' })).toBeNull()
+    fireEvent.click(screen.getByRole('option', { name: 'Claude' }))
+    expect(onValueChange).toHaveBeenCalledWith('claude')
   })
 
-  it('shows None without a suffix and saves it through its own default action', () => {
-    const onSetDefault = vi.fn()
-    render(
-      <AgentCombobox
-        agents={[]}
-        value={null}
-        onValueChange={vi.fn()}
-        allowBlankTerminal
-        setupOnly={{ selected: true, isDefault: false, onSelect: vi.fn(), onSetDefault }}
-      />
-    )
-    expect(screen.getByRole('combobox').textContent).toBe('None')
-    fireEvent.contextMenu(screen.getByRole('combobox'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Set as default' }))
-    expect(onSetDefault).toHaveBeenCalledOnce()
-  })
   it('sets the closed trigger selection as the default agent', () => {
     const onSetDefault = vi.fn()
-    render(
+    renderPicker(
       <AgentCombobox
         agents={AGENT_CATALOG}
         value="codex"
@@ -67,7 +86,7 @@ describe('AgentCombobox', () => {
 
   it('maps the closed Blank Terminal selection to the blank default preference', () => {
     const onSetDefault = vi.fn()
-    render(
+    renderPicker(
       <AgentCombobox
         agents={AGENT_CATALOG}
         value={null}
@@ -86,7 +105,7 @@ describe('AgentCombobox', () => {
 
   it('does not offer a default action for an Agent-only empty state', () => {
     const onSetDefault = vi.fn()
-    render(
+    renderPicker(
       <AgentCombobox agents={[]} value={null} onValueChange={vi.fn()} onSetDefault={onSetDefault} />
     )
 
@@ -98,7 +117,7 @@ describe('AgentCombobox', () => {
 
   it('marks the closed trigger when its selection is already the default', () => {
     const onSetDefault = vi.fn()
-    render(
+    renderPicker(
       <AgentCombobox
         agents={AGENT_CATALOG}
         value="codex"
@@ -118,7 +137,7 @@ describe('AgentCombobox', () => {
 
   it('keeps the expanded agent-row default action available', () => {
     const onSetDefault = vi.fn()
-    render(
+    renderPicker(
       <AgentCombobox
         agents={AGENT_CATALOG}
         value="codex"
@@ -200,7 +219,7 @@ describe('AgentCombobox', () => {
   })
 
   it('hides Blank Terminal from the list unless the caller opts in', () => {
-    render(<AgentCombobox agents={AGENT_CATALOG} value="codex" onValueChange={vi.fn()} />)
+    renderPicker(<AgentCombobox agents={AGENT_CATALOG} value="codex" onValueChange={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('combobox'))
 
@@ -210,7 +229,7 @@ describe('AgentCombobox', () => {
 
   it('offers Blank Terminal and reports null when the caller opts in', () => {
     const onValueChange = vi.fn()
-    render(
+    renderPicker(
       <AgentCombobox
         agents={AGENT_CATALOG}
         value="codex"

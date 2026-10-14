@@ -119,7 +119,12 @@ export async function launchOrcadAndAwaitReadiness(
   } else {
     await execOrcadRemote(
       target,
-      orcadLaunchCommand(target.host, spec, target.conn.orcadLaunchDetach ?? 'nohup')
+      orcadLaunchCommand(
+        target.host,
+        spec,
+        target.conn.orcadLaunchDetach ?? 'nohup',
+        (await target.conn.orcadLaunchEnv?.()) ?? []
+      )
     )
   }
   const deadline = Date.now() + (target.readinessTimeoutMs ?? ORCAD_STARTUP_READINESS_TIMEOUT_MS)

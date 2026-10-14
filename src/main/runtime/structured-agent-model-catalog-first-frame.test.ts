@@ -35,7 +35,8 @@ function context(): StructuredAgentModelCatalogContext {
     deps: { stateDirectory: '/state' } as StructuredAgentModelCatalogContext['deps'],
     environment: {
       resolveBaseEnvironment: unused,
-      resolveAgentEnvironment: unused
+      resolveAgentEnvironment: unused,
+      refreshAfterMissingProgram: unused
     }
   }
 }

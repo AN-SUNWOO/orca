@@ -18,7 +18,7 @@
     "chat": {
       "permissionsTitle": "新聊天的权限",
       "permissionsDescription": "仅适用于新聊天。在终端中打开的智能体使用设置 → 智能体 → 智能体权限。",
-      "description": "选择聊天的外观和命名方式。",
+      "description": "选择聊天的外观和行为方式。",
       "names": {
         "title": "聊天名称",
         "description": "使用智能体根据首条消息为新聊天生成名称。未生成名称时，聊天仍显示为 Claude Chat 或 Codex Chat。",
@@ -35,7 +35,41 @@
       "optionLayoutAlt": "ABC 或 U.S. — Option 键发送 Alt/Esc 序列",
       "optionLayoutCompose": "此布局使用 Option 键输入 @、€、[、] 等字符",
       "optionLayoutUnknown": "未知布局 — Option 键输入字符（安全的默认设置）",
-      "optionShortcutHint": "选择“两个都”使用 Option 快捷键，选择“关”输入重音字符和符号，或选择“左边”/“右边”让两个 Option 键各司其职。"
+      "optionShortcutHint": "选择“两个都”使用 Option 快捷键，选择“关”输入重音字符和符号，或选择“左边”/“右边”让两个 Option 键各司其职。",
+      "windows": {
+        "administratorApproval": "Windows 将请求批准。请使用您常用的账户。",
+        "administratorDialogScope": "这会更改整个应用的权限。SSH 和 WSL 保留各自的权限。",
+        "administratorDocumentation": "阅读指南",
+        "administratorLabel": "管理员模式",
+        "administratorPromptCancellation": "取消 Windows 的提示后，Orca 会带着保留的终端重新打开。SSH 和 WSL 的权限仍由其主机控制。",
+        "administratorRestartConsequences": "请先保存您的工作。批准后，当前本地终端主机上的终端和智能体会关闭。已恢复的标签页会打开新的管理员 shell。",
+        "administratorRestartFailed": "Orca 无法重启。请重试，或使用手动说明。",
+        "administratorScope": "Orca 应用的权限。现有终端可能有所不同。",
+        "administratorSearchDescription": "查看 Orca 的 Windows 权限，或通过管理员批准进行重启。",
+        "administratorStatus": "管理员",
+        "cancelAdministratorRestart": "取消",
+        "checkingAdministrator": "检查中…",
+        "closeAdministratorHelp": "关闭",
+        "closeLocalSessions": "请保存您的工作，关闭所有本地终端会话，然后退出 Orca。",
+        "confirmAdministratorRestart": "以管理员身份重启？",
+        "keywordAdmin": "管理员",
+        "keywordAdministrator": "管理员",
+        "keywordElevated": "提升权限",
+        "keywordPermissions": "权限",
+        "keywordRestart": "重启",
+        "keywordUac": "uac",
+        "launchAdministrator": "在 Windows 开始菜单中，右键单击 Orca，然后选择“以管理员身份运行”。使用您常用的账户批准 Windows 提示。",
+        "launchStandard": "从 Windows 开始菜单正常打开 Orca。",
+        "manualAdministratorHelp": "手动说明",
+        "openManageSessions": "打开管理会话",
+        "restartAdministrator": "以管理员身份重启",
+        "restartingAdministrator": "正在重启…",
+        "retainedTerminalPermissions": "如果新终端仍使用之前的权限，请打开管理会话并选择重新启动守护进程。这会关闭本地终端及其正在运行的命令。",
+        "returnStandardHelp": "标准模式指南",
+        "runAdministratorHelp": "管理员指南",
+        "standardStatus": "标准用户",
+        "unknownAdministrator": "无法确定"
+      }
     },
     "appearance": {
       "language": {
@@ -157,11 +191,11 @@
       "savedEnvironment": "已保存的值 · 输入以替换",
       "newEnvironment": "值",
       "removeEnvironment": "删除",
-      "loadingHost": "正在加载代理设置…",
-      "updateHost": "请更新此服务器以编辑其代理启动设置。",
-      "readFailed": "无法读取代理设置。请检查主机连接并重试。",
-      "saveFailed": "无法保存代理设置。请检查主机连接并重试。",
-      "hostDefaults": "所选主机上新代理的默认设置。",
+      "loadingHost": "正在加载智能体设置…",
+      "updateHost": "请更新此服务器以编辑其智能体启动设置。",
+      "readFailed": "无法读取智能体设置。请检查主机连接并重试。",
+      "saveFailed": "无法保存智能体设置。请检查主机连接并重试。",
+      "hostDefaults": "所选主机上新智能体的默认设置。",
       "save": "保存"
     },
     "followSymlinkedDirectoriesKeywords": {
@@ -171,7 +205,10 @@
       "fileExplorer": "文件资源管理器"
     },
     "followSymlinkedDirectories": "跟随符号链接目录",
-    "followSymlinkedDirectoriesDescription": "在快速打开中搜索链接文件夹，并在文件资源管理器中展开本地链接文件夹。"
+    "followSymlinkedDirectoriesDescription": "在快速打开中搜索链接文件夹，并在文件资源管理器中展开本地链接文件夹。",
+    "accounts": {
+      "claudeRemoveFolder": "Orca 会从此计算机删除此账户的 Claude 文件夹及其登录信息。与系统默认共享的聊天记录会保留。如果此账户被选中，您下次启动的 Claude 将使用系统默认。"
+    }
   },
   "menu": {
     "checkForUpdates": "检查更新...",
@@ -361,6 +398,18 @@
             "07f788de83": "WebSocket"
           }
         }
+      },
+      "pairingSecurity": {
+        "hide": "隐藏",
+        "storedCodeInsecureOrigin": "此浏览器会保存一个可重复使用的配对码，因为此页面是另一台机器上的纯 http 页面。任何能读取此浏览器存储的人都可以使用它。如需更安全的配对，请通过 https、本机的 localhost 或 SSH 隧道打开 Orca，然后重新配对。",
+        "storedCodeNoEd25519": "此浏览器会保存一个可重复使用的配对码，因为它无法创建安全的登录密钥（Ed25519）。请使用最新版浏览器并重新配对，以获得更安全的配对。",
+        "sessionInsecureOrigin": "此配对仅在此标签页打开期间有效，因为此页面是另一台机器上的纯 http 页面。如需让此浏览器记住配对，请通过 https、本机的 localhost 或 SSH 隧道打开 Orca。",
+        "sessionNoEd25519": "此配对仅在此标签页打开期间有效，因为此浏览器无法创建安全的登录密钥（Ed25519）。请使用最新版浏览器以获得此浏览器能记住的配对。"
+      },
+      "runtimeAuth": {
+        "insecureOrigin": "Orca 拒绝从此页面配对：它是另一台机器上的纯 http 页面，因此网络路径上的任何人都可以替换它并取走配对码。请通过 https、本机的 localhost 或 SSH 隧道打开 Web 客户端。如需仍然允许，服务器操作员可以使用 ORCA_ALLOW_INSECURE_WEB_PAIRING=1 重新启动 Orca。",
+        "deviceDowngraded": "此 Orca 服务器不再支持此浏览器的登录密钥（可能已被降级）。请更新服务器，或重新配对此浏览器。",
+        "unauthorized": "未授权。请重新配对此 Web 客户端。"
       }
     },
     "store": {
@@ -970,7 +1019,8 @@
       },
       "file": {
         "preview": {
-          "pairedOutsideWorktree": "工作区之外的文件尚无法在配对服务器上预览。"
+          "pairedOutsideWorktree": "工作区之外的文件尚无法在配对服务器上预览。",
+          "webClientUnavailable": "文档预览在 Web 客户端中不可用。"
         }
       },
       "clipboardWriteFailure": {
@@ -1653,7 +1703,6 @@
         "f0470c7383": "高级",
         "ba64270bdb": "配置智能体",
         "ab63f25397": "打开智能体设置",
-        "01d1e8f601": "智能体",
         "0c5d6a479c": "[可选]",
         "b5a0796911": "连接",
         "dccd26d4e4": "选择项目",
@@ -1728,8 +1777,7 @@
       },
       "NewWorkspaceComposerModal": {
         "createWorktree": "创建工作树",
-        "createWorkspace": "创建工作区",
-        "fa90f739a5": "创建工作区之前选择项目、工作区名称和智能体。"
+        "createWorkspace": "创建工作区"
       },
       "PullRequestPage": {
         "2560588245": "请求评审人失败",
@@ -3355,6 +3403,18 @@
             "notStarted": "智能体无法启动。",
             "unconfirmed": "无法确认智能体已启动。",
             "workspaceGone": "其工作区已不可用。"
+          },
+          "TerminalSleepingPaneOverlay": {
+            "pausedDetail": "由于主机意外停止，自动恢复已暂停。您的会话已保存。",
+            "liveCapDetail": "此主机上已有足够多的智能体在运行。您的会话已保存。",
+            "pressureDetail": "主机负载过高。您的会话已保存。",
+            "deadlineDetail": "主机正忙于恢复其他终端。您的会话已保存。",
+            "title": "休眠中 — 点击恢复",
+            "resume": "恢复",
+            "resumeAutomaticRestores": "继续自动恢复"
+          },
+          "WslHostUnavailableBanner": {
+            "turnOn": "开启"
           }
         }
       },
@@ -3425,7 +3485,8 @@
             "465e432ef1": "无法为 {{value0}} 构建启动命令。",
             "e518f544b1": "未检测到智能体",
             "8dea9b5cdf": "没有启用智能体",
-            "needsServerUpdate": "请更新此服务器上的 Orca 以列出此工作区的智能体"
+            "needsServerUpdate": "请更新此服务器上的 Orca 以列出此工作区的智能体",
+            "hostUnreachable": "无法连接此工作区的主机以列出其智能体"
           },
           "RecentTabSwitcher": {
             "329638ff6f": "切换选项卡",
@@ -3677,7 +3738,9 @@
             "b8f4a2c1d0e3": "{{value0}} 个孤立项",
             "c7e3b1a0d9f2": "终止 {{value0}} 个孤立终端",
             "d8f4c2b1e0a3": "终止 {{value0}} 个孤立终端",
-            "e9a5d3c2b1f0": "终止 {{value0}}？"
+            "e9a5d3c2b1f0": "终止 {{value0}}？",
+            "8a0472ab54": "无法连接 {{value0}}；其资源未知。",
+            "1ea066b73f": "更新 {{value0}} 以查看其资源。"
           },
           "SshStatusSegment": {
             "3ad70e0365": "管理远程主机",
@@ -3966,6 +4029,16 @@
             },
             "zcode": {
               "mcp": "MCP"
+            },
+            "claude": {
+              "waiting": {
+                "label": "运行 Claude 时更新",
+                "message": "Claude 用量将在下次运行 Claude 时更新。"
+              },
+              "expired": {
+                "label": "登录已过期",
+                "message": "Claude 用量已过期。请在此账户中启动 Claude 以刷新。"
+              }
             }
           },
           "SshTargetStatusRow": {
@@ -3973,7 +4046,8 @@
           },
           "usagePercentageLabel": {
             "used": "已用 {{value0}}%",
-            "remaining": "剩余 {{value0}}%"
+            "remaining": "剩余 {{value0}}%",
+            "bare": "{{value0}}%"
           },
           "StatusBarUsageChangeNotices": {
             "compactTitle": "用量显示现已精简",
@@ -5783,7 +5857,8 @@
           "remotePathInvalid": "路径对此 SSH 主机无效。",
           "remotePathInvalidDetail": "请先刷新工作区，再重试。",
           "remoteLaunchFailed": "无法在 VS Code 中打开此路径。",
-          "remoteLaunchFailedDetail": "请检查此机器上配置的 VS Code 命令。"
+          "remoteLaunchFailedDetail": "请检查此机器上配置的 VS Code 命令。",
+          "wsl": "WSL"
         },
         "WorktreeTitleInlineRename": {
           "2f42ae024f": "未读：",
@@ -5934,7 +6009,9 @@
               "740e8d0d46": "使用“添加项目”作为服务器路径",
               "e344666fb8": "服务器运行时处于激活状态",
               "d0f8943f8b": "准备项目添加流程",
-              "18d3cf40e9": "检查文件夹"
+              "18d3cf40e9": "检查文件夹",
+              "wslFolder": "拖放 WSL 文件夹以添加项目",
+              "wslFolderDescription": "\\\\wsl.localhost 下的文件夹"
             }
           }
         },
@@ -5972,7 +6049,9 @@
           "451a4638db": "拖放文件夹以将其添加为项目。",
           "5ccb56c7be": "使用“添加项目”输入服务器路径。",
           "849ef13dc0": "本地文件夹放置对于服务器运行时不可用。",
-          "c0315153d1": "一次放下一个文件夹。"
+          "c0315153d1": "一次放下一个文件夹。",
+          "windowsDriveOnWslHost": "Windows 驱动器上的文件夹保留在此计算机上，而不在 {{value0}} 中。",
+          "windowsDriveOnWslHostDescription": "在 Windows 驱动器上，WSL 中的 Git 速度很慢。请将主机切换到此计算机以添加它，或从 \\\\wsl.localhost\\{{value0}} 拖放文件夹。"
         },
         "workspace": {
           "status": {
@@ -6112,7 +6191,11 @@
           "addRemoteHostTooltip": "可选择能通过 SSH 登录的机器，也可选择运行 Orca 的远程服务器。",
           "addSshHostDetail": "通过 SSH 使用现有机器。",
           "addRemoteServerDetail": "与另一台电脑上运行的 Orca 配对。",
-          "addRemoteHostDetail": "SSH 主机或 Orca 服务器"
+          "addRemoteHostDetail": "SSH 主机或 Orca 服务器",
+          "addWslHost": "添加 WSL 发行版",
+          "addWslHostDetail": "在 WSL 2 发行版内运行 Orca 服务器。实验性。",
+          "addRemoteHostDetailWithWsl": "SSH 主机、Orca 服务器或 WSL 发行版",
+          "turnOnWslHosts": "开启"
         },
         "sidebarHostOptions": {
           "3e102f111c": "所有主机",
@@ -6139,7 +6222,8 @@
           "alsoForgetLocal": "同时从 Orca 中移除这些 {{value0}}",
           "advanced": "高级",
           "alsoDeleteRemoteHint": "永久删除远程 Git worktree 及其分支。此操作不可撤销。",
-          "alsoForgetLocalHint": "仅从 Orca 中清除。远程文件、worktree 和分支不受影响。"
+          "alsoForgetLocalHint": "仅从 Orca 中清除。远程文件、worktree 和分支不受影响。",
+          "wslHostEndsTerminals": "从 Orca 中移除 {{value0}}，结束其打开的终端，并停止该发行版中的 Orca 服务器。发行版中的文件不受影响。"
         },
         "HostRenameDialog": {
           "1a2b3c4d5e": "重命名主机",
@@ -6218,7 +6302,8 @@
           "3b7e4a1c96": "隐藏外部工作树"
         },
         "useAddRepoHostSelection": {
-          "connectionFailed": "SSH 连接失败。"
+          "connectionFailed": "SSH 连接失败。",
+          "wslConnectionFailed": "无法启动 WSL 主机。"
         },
         "AddRemoteHostDialog": {
           "sshHostRequired": "必须填写主机或 SSH 配置别名。",
@@ -6424,6 +6509,49 @@
           "title": "排序更改为手动",
           "description": "手动将工作区保留在您放置它们的位置。",
           "restore": "返回{{label}}"
+        },
+        "AddWslHostDialogBody": {
+          "added": "已添加 {{value0}}。"
+        },
+        "AddWslHostFormPanel": {
+          "wsl1": "WSL 1 · 不受支持",
+          "added": "已是主机",
+          "running": "运行中",
+          "stopped": "已停止",
+          "title": "添加 WSL 发行版",
+          "description": "Orca 在发行版内运行其服务器，因此 git、文件和终端都在 Linux 中原生运行。请将其用于新项目；通过 \\\\wsl.localhost 打开的项目会照常工作。",
+          "distro": "发行版",
+          "loading": "正在查找 WSL 发行版…",
+          "placeholder": "选择发行版",
+          "none": "未找到 WSL 发行版。使用以下命令安装：wsl --install",
+          "stoppedHint": "{{value0}} 已停止。添加后会自动启动。",
+          "addingHint": "正在发行版中安装并启动 Orca 服务器。首次可能需要一分钟。",
+          "adding": "正在设置…",
+          "startAndAdd": "启动并添加",
+          "add": "添加主机",
+          "refresh": "刷新"
+        },
+        "wslHostRowStatus": {
+          "connecting": "正在启动",
+          "reconnecting": "正在重新连接",
+          "distroStopped": "发行版已停止",
+          "unverifiable": "无法验证",
+          "idle": "空闲",
+          "failed": "启动失败",
+          "kind": "WSL 发行版",
+          "turnedOff": "WSL 主机已在设置 → 实验性中关闭",
+          "turnedOffShort": "已在设置 → 实验性中关闭",
+          "serverFilesMissing": "此版本的 Orca 无法运行 WSL 主机（缺少服务器文件）。",
+          "serverFilesMissingShort": "此版本无法运行 WSL 主机"
+        },
+        "wslHostRemoval": {
+          "partial": "主机已被移除，但发行版中仍有内容在运行：{{value0}}"
+        },
+        "addRepoWslHostFolderPicker": {
+          "otherDistro": "该文件夹位于 {{value0}} 中，而不是 {{value1}}。",
+          "outsideDistro": "请选择 {{value0}} 内的文件夹。",
+          "underDistro": "此主机只能添加 \\\\wsl.localhost\\{{value0}} 下的文件夹。",
+          "windowsDrive": "Windows 驱动器上的文件夹保留在此计算机上。请选择此计算机作为主机以添加。"
         }
       },
       "shared": {
@@ -6660,7 +6788,8 @@
               "placeholder": "留空以使用 /connect 或 OPENCODE_API_KEY 保存的密钥",
               "help": "用于在状态栏中显示 OpenCode Go 使用情况。下面的会话 Cookie 仅旧版控制台 (OpenCode Black) 账号需要。"
             }
-          }
+          },
+          "remoteScopeLocalAccountsKeptHostPicker": "在此桌面上管理的账户保持不变。请在设置顶部的“主机”菜单中选择此计算机以查看它们。"
         },
         "AdvancedPane": {
           "40b29e0bf3": "重新启动",
@@ -6711,7 +6840,6 @@
           "e8da2af684": "可安装",
           "ed3e110e61": "已检测",
           "02e0143be5": "已安装",
-          "110b74b022": "无智能体（空白终端）",
           "92033495ff": "自动",
           "9b175d0f5e": "打开新工作区时预先选择的智能体。",
           "385212c7a1": "默认智能体",
@@ -6734,7 +6862,6 @@
           "959b67385b": "设置默认值",
           "24e032fa34": "默认",
           "5f986a9b92": "设置为默认值",
-          "d7625cf8b2": "默认智能体",
           "cfb3f35775": "参数",
           "6f99bf5dd0": "无默认参数",
           "8fbe1f37c1": "环境",
@@ -6750,7 +6877,7 @@
           "codexSessionSourceInfo": "关于导入 Codex 历史记录",
           "codexSessionSourceTooltip": "Orca 在隔离的主目录中运行 Codex。将此项指向您现有的 Codex 主目录以导入会话历史记录。留空则使用 ~/.codex。",
           "03e1a5081a": "on {{value0}}",
-          "25a41a9aad": "重新检测此服务器上安装的代理",
+          "25a41a9aad": "重新检测此服务器上安装的智能体",
           "remoteDetectionFailed": "无法检测已安装的智能体。请检查主机连接后重试。",
           "retryDetection": "Retry",
           "storedDefaultUndetected": "已保存为默认值，但目前未检测到",
@@ -7144,7 +7271,10 @@
           "connectionTestHost": "主持人",
           "connectionTestPort": "端口",
           "connectionTestRunning": "测试...",
-          "connectionTestAction": "测试连接"
+          "connectionTestAction": "测试连接",
+          "appStatus": "应用： ",
+          "terminalHostStatus": "终端主机： ",
+          "terminalHostRecovery": "如果终端无法读取受保护的文件，请保存其工作并在终端 → 管理会话中将其关闭。如果新终端也受到影响，请重新启动守护进程；重新启动会关闭其当前终端。"
         },
         "ExperimentalPane": {
           "9762364929": "在可能时在 macOS 上使用 APFS clone-copy；否则，将配置的文件夹或文件符号链接到创建的工作树中。",
@@ -8534,7 +8664,9 @@
           "addTitle": "添加 SSH 主机",
           "editDescription": "更新此机器的连接详情。更改将在下次连接时生效。",
           "addDescription": "添加一台可通过 SSH 登录的持久机器。",
-          "editingPrefix": "正在编辑"
+          "editingPrefix": "正在编辑",
+          "allowRemoteCliControl": "允许此主机的 orca CLI 控制 Orca",
+          "allowRemoteCliControlHelp": "关闭时，在此主机上运行的 orca 命令只能访问其自身的终端。开启后，可让它们访问此计算机上的其他主机、编排、文件和集成。"
         },
         "TasksPane": {
           "f71d8a9dd3": "任务提供者",
@@ -11071,7 +11203,7 @@
           "sourceControlAiDefaults": "方案、提示和托管评审默认值由此客户端共享；模型选择和发现则限定在智能体运行的主机内。",
           "projectOnThisHost": "此主机上的项目",
           "repositorySourceControlAi": "这些覆盖项应用于此项目设置，并继承客户端的源代码管理 AI 默认值，直至自定义。",
-          "agentLaunchDefaults": "默认代理、命令覆盖、CLI 参数和启动环境保存在所选主机上。",
+          "agentLaunchDefaults": "默认智能体、命令覆盖、CLI 参数和启动环境保存在所选主机上。",
           "clientDefaultProjectScopes": "客户端默认 + 项目范围",
           "terminalQuickCommands": "命令保存在此客户端，然后限定为全局或某项目设置，以便从所选终端上下文运行。",
           "hostOverride": "主机覆盖",
@@ -11420,7 +11552,8 @@
           "signInAgain": "重新登录以使用 Relay",
           "localTitle": "局域网",
           "retrying": "重试",
-          "relayCell": "中继单元"
+          "relayCell": "中继单元",
+          "relaySignInDetail": "将此桌面登录到 Orca，并通过 Orca 的服务器路由手机。LAN 无需账户。"
         },
         "MobilePairingSetupSection": {
           "title": "配对手机",
@@ -12204,7 +12337,7 @@
         },
         "ZcodeCliSetupSection": {
           "title": "通过 ZCode 使用 GLM",
-          "description": "登录后即可将 GLM 用作编程代理。上方的配额 API 密钥仅用于监控用量；ZCode 自行管理登录和模型选择。",
+          "description": "登录后即可将 GLM 用作编程智能体。上方的配额 API 密钥仅用于监控用量；ZCode 自行管理登录和模型选择。",
           "help": "选择对应套餐站点的浏览器登录，或使用 ZCode 的隐藏输入 API 密钥设置。登录后，启动 ZCode 并使用 /model 选择 GLM 模型。",
           "zai": "Z.AI 浏览器登录",
           "bigmodel": "BigModel 浏览器登录",
@@ -12414,6 +12547,30 @@
           "description": "此主机将按原样恢复为使用其受管服务器。较旧版本的 Orca 在此处添加或更改的内容不会被迁移；它们只会保留在这台电脑保存的设置中，直到被清理。",
           "cancel": "取消",
           "confirm": "保留服务器的版本"
+        },
+        "SettingsHostScopePicker": {
+          "label": "主机",
+          "unavailable": "{{value0}}（不可用）",
+          "description": "下方的账户、已检测的智能体和终端选项均针对此主机。",
+          "unavailableNotice": "此服务器已不再被保存，因此无法显示它的任何内容。请在设置顶部选择其他主机。"
+        },
+        "wslHostsExperimental": {
+          "toggleLabel": "切换“WSL 发行版作为主机”",
+          "title": "WSL 发行版作为主机",
+          "description": "将 WSL 2 发行版添加为主机。Orca 在发行版内运行其服务器，因此其中新项目里的 git、文件和终端都在 Linux 中原生运行。",
+          "keywordWsl": "wsl",
+          "keywordLinux": "linux",
+          "keywordDistro": "发行版"
+        },
+        "wslHosts": {
+          "title": "WSL 主机",
+          "experimental": "实验性",
+          "description": "Orca 在每个发行版内运行一个服务器。已停止的发行版只有在您打开其某个项目或在此连接它时才会启动。",
+          "add": "添加 WSL 发行版",
+          "connect": "连接",
+          "remove": "移除",
+          "turnOn": "在实验性中开启",
+          "forceUpdate": "强制更新"
         }
       },
       "right": {
@@ -12680,7 +12837,8 @@
             "740aca88ab": "工作区端口扫描失败。",
             "5be4f7f727": "端口 {{value0}} 菜单",
             "7550998473": "复制",
-            "1004af16ab": "复制 {{value0}}"
+            "1004af16ab": "复制 {{value0}}",
+            "153d3a8026": "工作区主机未知"
           },
           "Search": {
             "1abfb25a66": "输入要在文件中搜索的内容",
@@ -13253,7 +13411,8 @@
                   "title": "此处不支持 {{reviewLabelCap}}",
                   "body": "此仓库提供程序不支持从 Orca 创建 {{reviewLabel}}。"
                 }
-              }
+              },
+              "loadFailedOnMachine": "无法从 {{machine}} 加载：{{detail}}"
             }
           },
           "gitlab": {
@@ -14472,7 +14631,9 @@
           "retry": "重试中继",
           "copyDiagnostics": "复制诊断",
           "reconnectTitle": "您的 Orca 帐户会话已过期。",
-          "reconnectBody": "再次登录以使用 Orca Relay，或使用 LAN 通过 Tailscale 或同一 Wi-Fi 进行配对。"
+          "reconnectBody": "再次登录以使用 Orca Relay，或使用 LAN 通过 Tailscale 或同一 Wi-Fi 进行配对。",
+          "notEntitledTitle": "此 Orca 账户不包含 Orca Relay。",
+          "rateLimitedBody": "Orca Relay 正忙。请等待一分钟再重试，或使用 LAN 通过 Tailscale 或同一 Wi‑Fi 配对。"
         }
       },
       "gitlab": {
@@ -14879,7 +15040,8 @@
                 "9ddeb558f9": "已添加 Claude 账户。",
                 "29d0653961": "登入",
                 "945865332e": "登录",
-                "accountStatusUnknown": "账户状态未知"
+                "accountStatusUnknown": "账户状态未知",
+                "4e71d72912": "Claude 登录失败。"
               },
               "UsagePage": {
                 "64265cb295": "29% 已用 5小时",
@@ -16262,7 +16424,9 @@
                     "09a7c1df70": "编辑注释 {{value0}}",
                     "c16f932cb3": "保存",
                     "024467ceac": "取消",
-                    "449d2c2629": "注释意图"
+                    "449d2c2629": "注释意图",
+                    "38d320108c": "折叠注释",
+                    "9f209891a7": "展开注释"
                   }
                 }
               }
@@ -17580,7 +17744,8 @@
         "streamConnectionLost": "与远程服务器的连接丢失。",
         "streamConnectionUnreachable": "无法到达远程服务器。",
         "streamRestartFailed": "无法重新启动远程浏览器流。",
-        "streamCapabilityUnsupported": "所选运行时不支持远程浏览器流式传输。"
+        "streamCapabilityUnsupported": "所选运行时不支持远程浏览器流式传输。",
+        "streamBrowserUnavailable": "远程浏览器不可用。请检查其在服务器上的设置。"
       },
       "BrowserCookieImportMachineNotice": {
         "clientLabel": "此设备上的浏览器",
@@ -17646,6 +17811,10 @@
         "preloadApi": {
           "cursorAccounts": {
             "hostOnly": "Cursor 登录详情仅可在运行 Orca 的电脑上读取。"
+          },
+          "accounts": {
+            "signInHostOnly": "添加或重新登录账户仅在运行 Orca 的计算机上的桌面应用中可用。",
+            "claudeWslDefaultUnavailable": "将 WSL 账户切换回系统默认仅在桌面应用中可用。"
           }
         }
       },
@@ -17724,6 +17893,10 @@
       },
       "gitlabIpcTimeout": {
         "timedOut": "与 GitLab 对话超时。"
+      },
+      "forgeCredentialTarget": {
+        "unknownHost": "拥有此存储库的计算机尚不清楚。请重新连接它并重试。",
+        "thisComputer": "此计算机"
       }
     },
     "ssh": {
@@ -18438,7 +18611,7 @@
       "interruptedContinue": {
         "continue": "继续",
         "failed": "无法继续此聊天。请重试，或发送一条消息。",
-        "explanation": "继续后，代理会先检查其上一步是否已完成。"
+        "explanation": "继续后，智能体会先检查其上一步是否已完成。"
       },
       "rewind": {
         "unsupported": "此聊天无法返回到更早的消息。",
@@ -18463,7 +18636,10 @@
       },
       "visualUnavailable": "可视化不可用",
       "visualLoading": "正在加载可视化",
-      "visualOpenInNewTab": "在新标签页中打开"
+      "visualOpenInNewTab": "在新标签页中打开",
+      "claudeSignIn": {
+        "signingIn": "正在登录…"
+      }
     },
     "tab": {
       "bar": {
@@ -18479,6 +18655,11 @@
         "EditorFileTabContextMenu": {
           "closeOthers": "关闭其他",
           "closeTabsToLeft": "关闭左侧的选项卡"
+        },
+        "CopyTabIdMenuItem": {
+          "copied": "已复制标签页 ID",
+          "failed": "无法复制标签页 ID",
+          "copy": "复制标签页 ID"
         }
       }
     },
@@ -18845,7 +19026,18 @@
       "nativeChat": {
         "queueFollowUpsTitle": "将后续消息加入队列",
         "queueFollowUpsCopy": "Agent 工作时发送的消息会以卡片形式等待，你可以立即发送、编辑或删除。带图片的消息会立即发送。",
-        "queueFollowUpsToggleLabel": "切换后续消息队列"
+        "queueFollowUpsToggleLabel": "切换后续消息队列",
+        "inlineVisualsTitle": "内联可视化",
+        "inlineVisualsCopy": "允许智能体在其回复中显示图表、示意图和原型图。适用于新启动的聊天。",
+        "inlineVisualsToggleLabel": "切换内联可视化",
+        "behaviorTitle": "行为",
+        "resumeSearchUpdate": "更新",
+        "resumeSearchRelaunch": "重新启动",
+        "queueSearchQueue": "队列",
+        "queueSearchSteer": "立即发送",
+        "shellEnvSearchVariables": "环境变量",
+        "shellEnvSearchPath": "PATH",
+        "shellEnvSearchProxy": "代理"
       }
     },
     "agentChildRow": {
@@ -18862,6 +19054,9 @@
       "important": "重要",
       "warning": "警告",
       "caution": "注意"
+    },
+    "automations": {
+      "runTerminalUnavailable": "运行终端不可用。"
     }
   },
   "dashboardPopout": {
@@ -19052,6 +19247,9 @@
       "description": "每个配置文件的用户代理设置已被删除。在浏览器设置中选择 Cleaned 或 Native；更改在重新启动后生效。",
       "title": "浏览器身份现在是应用程序范围内的",
       "openSettings": "打开设置"
+    },
+    "request": {
+      "pairedServerWorkspace": "此工作区在配对服务器上运行。请使用该服务器的浏览器标签页。"
     }
   },
   "runtimeRpc": {
@@ -19131,7 +19329,10 @@
       "resumeInCli": "{{action}}：将 Claude 或 Codex 聊天复制到新的 CLI 会话中。原始聊天保持不变。",
       "settingsInstruction": "可在以下位置管理 Chat UI：",
       "settingsLink": "设置 → 实验性",
-      "gotIt": "知道了"
+      "gotIt": "知道了",
+      "leaveOff": "保持关闭",
+      "enableNow": "立即启用",
+      "enableError": "无法启用聊天模式。"
     },
     "voice": {
       "demoPrompt": "查看此差异以了解边缘情况，并为您发现的任何内容添加测试。",
@@ -19429,6 +19630,23 @@
         "google": "谷歌",
         "accounts": "账户"
       }
+    },
+    "claude": {
+      "added": "已添加账户。选择它即可将其用于您下次启动的 Claude。",
+      "nextLaunch": "{{value0}} → {{value1}}。您下次启动的 Claude 将使用它。正在运行的会话会保留其账户。",
+      "profileSwitching": "切换会应用于您在任何标签页中下次启动的 Claude。正在运行的会话会保留其账户。",
+      "systemDefaultNamed": "系统默认：{{value0}}",
+      "systemDefaultIsSaved": "系统默认已登录为 {{value0}}，它同时也是一个已保存的账户。较早版本的 Orca 可能已将那个登录信息复制到那里。如果它不是您自己的登录信息，请选择系统默认并运行 claude /login。",
+      "systemDefaultIsSavedDismiss": "关闭",
+      "signInRequired": "请重新登录以使用此账户",
+      "signInAgain": "重新登录",
+      "usageSignInLabel": "重新登录",
+      "usageSignInMessage": "所选 Claude 账户需要您重新登录。请打开设置 > AI 提供商账户，或选择系统默认。",
+      "signIn": "登录",
+      "moreSignInOptions": "更多登录选项",
+      "copySignInLink": "改为复制登录链接",
+      "signInLinkCopied": "已复制登录链接。请在隐私窗口中打开它以使用其他账户登录。",
+      "signInLinkCopyFailed": "无法复制链接。"
     }
   },
   "osDocumentOpen": {
@@ -19488,6 +19706,44 @@
       "learnMore": "了解更多",
       "dontShowAgain": "不再显示",
       "dismiss": "关闭"
+    },
+    "claudeOldTerminalBanner": {
+      "title": "此终端是在 Orca 的 Claude 账户更新之前打开的，因此这里的 claude 使用系统默认的登录信息。",
+      "dialogTitle": "为何这里的 claude 不使用所选账户",
+      "dialogDescription": "Orca 现在将每个 Claude 账户保存在各自的文件夹中，新终端中的 claude 会遵循您选择的账户。",
+      "dialogCause": "在此更新之前打开的终端不会如此，因此这里的 claude 使用系统默认的登录信息登录。请打开新终端以使用所选账户。"
+    },
+    "newerDaemonBanner": {
+      "failedTitle": "无法重新打开此终端",
+      "title": "此终端是在较新版本的 Orca 中打开的",
+      "resumableBody": "在此重新打开以继续工作。您的智能体会话将会恢复。",
+      "reopening": "正在重新打开…",
+      "tryAgain": "重试",
+      "reopenTerminal": "重新打开 {{count}} 个终端",
+      "reopenTerminal_one": "重新打开终端",
+      "reopenTerminal_other": "重新打开 {{count}} 个终端",
+      "reopened": "已重新打开 {{count}} 个终端",
+      "reopened_one": "已重新打开 {{count}} 个终端",
+      "reopened_other": "已重新打开 {{count}} 个终端",
+      "resumed": "已恢复 {{count}} 个智能体会话。",
+      "resumed_one": "已恢复 {{count}} 个智能体会话。",
+      "resumed_other": "已恢复 {{count}} 个智能体会话。"
+    },
+    "severedDaemonBanner": {
+      "unknownCount": "其正在运行的终端",
+      "count": "{{count}} 个正在运行的终端",
+      "unverifiable": "Orca 无法验证终端服务进程，因此未停止任何内容。",
+      "alreadyReplaced": "终端服务已被替换；未停止任何内容。",
+      "restarted": "终端服务已重新启动。",
+      "failed": "重新启动失败。",
+      "title": "终端服务在缺少其程序文件的情况下运行",
+      "body": "此计算机上的终端服务是从一个已不再挂载的 AppImage 启动的。它仍在运行 {{sessions}}，但随时可能崩溃。在您重新启动它之前，Orca 退出时新终端不会被保留。",
+      "restart": "重新启动终端守护进程",
+      "dismiss": "关闭",
+      "confirmTitle": "重新启动终端守护进程？",
+      "confirmBody": "重新启动会结束 {{sessions}} 中运行的所有进程。支持恢复的智能体之后可以恢复；shell 和其他作业则不能，必须重新启动。请在智能体空闲时执行此操作。",
+      "cancel": "取消",
+      "confirm": "重新启动并结束进程"
     }
   },
   "fileSearch": {
@@ -19566,5 +19822,91 @@
   },
   "projectField": {
     "updateFailed": "无法更新项目字段"
+  },
+  "workspaceDeletion": {
+    "preferenceSaveFailed": "无法保存删除偏好设置",
+    "alwaysForceDelete": "始终强制删除",
+    "moreActions": "更多强制删除选项",
+    "alwaysForceDeleteTooltip": "适用于今后所有工作区删除操作。"
+  },
+  "workspace": {
+    "links": {
+      "foreignReview": "此评审属于另一个存储库。请添加来自此工作区存储库的评审。",
+      "repositoryLoading": "存储库身份仍在加载。待其可用后重试。",
+      "duplicate": "此链接已附加。",
+      "title": "已链接的工作",
+      "count": "已链接 {{count}} 项",
+      "empty": "将此工作区的所有评审和任务集中在一起。",
+      "reviews": "评审",
+      "tasks": "议题和任务",
+      "openItem": "打开 {{label}}",
+      "open": "打开链接",
+      "unlinkItem": "取消链接 {{label}}",
+      "unlink": "从工作区取消链接",
+      "show": "显示 {{count}} 个已链接的评审和任务",
+      "manage": "管理链接…",
+      "details": "工作区详情",
+      "description": "为此工作区关联评审和任务，并保留笔记。",
+      "commentHelp": "支持 Markdown。按 Enter 或 {{shortcut}} 保存 · Shift+Enter 换行。",
+      "kind": {
+        "github_pr": "GitHub PR",
+        "github_issue": "GitHub 议题",
+        "linear_task": "Linear 任务",
+        "gitlab_mr": "GitLab MR",
+        "gitlab_issue": "GitLab 议题",
+        "jira_task_url": "Jira 任务（URL）",
+        "bitbucket_pr": "Bitbucket PR",
+        "azure_devops_pr": "Azure DevOps PR",
+        "gitea_pr": "Gitea PR"
+      },
+      "mrReference": "MR !{{number}}",
+      "prReference": "PR #{{number}}",
+      "issueReference": "议题 #{{number}}",
+      "foreignIssue": "此议题属于另一个存储库。请添加来自此工作区存储库的议题。",
+      "linkedResult": "已链接",
+      "addReference": "添加引用",
+      "searchLabel": "搜索引用",
+      "searchReferences": "搜索评审和任务，或粘贴链接",
+      "noReferences": "没有匹配的引用。请尝试标题、编号或 URL。",
+      "addItem": "添加 {{label}}",
+      "referenceType": "引用类型",
+      "clearSearch": "清除搜索",
+      "inlineSearchHint": "选择结果以附加。",
+      "nameHelp": "显示在侧边栏中。文件夹名称保持不变。",
+      "notes": "笔记",
+      "addNotes": "添加笔记",
+      "notesOptional": "可选 · Markdown",
+      "saveHint": "保存后更改才会生效",
+      "terminal": "终端",
+      "seenIn": "出现于 {{label}}",
+      "unavailableTab": "标签页不可用",
+      "sessions": "会话和终端",
+      "jiraModeRequired": "选择 Smart 或 Jira 以加载此议题。",
+      "linearModeRequired": "选择 Smart 或 Linear 以加载此议题。",
+      "loadingLinear": "正在加载 Linear 议题…",
+      "linearConnectRequired": "在设置中连接 Linear 以链接此议题。",
+      "linearReadFailed": "无法加载此 Linear 议题。请检查 URL 和已连接的工作区。",
+      "retrySource": "重试",
+      "lastKnownStatus": "上次已知状态",
+      "reviewTarget": "目标：{{branch}}",
+      "reviewUrlRequired": "粘贴评审 URL 以验证其存储库和提供方。",
+      "stackSummary": "已链接 {{count}} 项：{{references}}",
+      "sessionsForItem": "{{label}} 的会话和终端 · {{count}}",
+      "checksFailed": "失败",
+      "checksPending": "待处理",
+      "checksPassing": "通过",
+      "checksUnknown": "未知",
+      "checksNeutral": "中性",
+      "allReviewChecks": "评审：{{count}} · 检查：{{status}}"
+    },
+    "attachments": {
+      "updateRuntime": "更新远程运行时以更改工作区链接",
+      "updateRuntimeSafely": "更新远程运行时以安全地更改工作区链接"
+    }
+  },
+  "tabHoverCard": {
+    "browser": "浏览器",
+    "editor": "编辑器",
+    "terminal": "终端"
   }
 }

@@ -26,7 +26,6 @@ import type { WorkspaceStatus } from '../../../shared/worktree/types'
 import type { TaskSourceContext } from '../../../shared/task-source-context'
 import { translate } from '@/i18n/i18n'
 import { getWorkspaceComposerInitialFocusTarget } from '@/lib/workspace-composer-initial-focus'
-import { isNewWorkspaceSetupOnlyDefault } from '../../../shared/new-workspace-setup-only'
 import { getFolderWorkspacePrimaryActionLabel } from '@/components/sidebar/folder-workspace-composer-helpers'
 
 // Why: match App-level AddRepoDialog loading — the add flow is off the hot
@@ -185,22 +184,17 @@ function QuickTabBody({
     setQuickAgentOverride(resolvedQuickAgentSelection.quickAgentOverride)
   }
   const quickAgent = resolvedQuickAgentSelection.quickAgent
-  const [quickSetupOnlyOverride, setQuickSetupOnlyOverride] = useState<boolean | undefined>(
-    undefined
-  )
-  const quickSetupOnly =
-    quickAgent === null &&
-    (quickSetupOnlyOverride ??
-      (quickAgentOverride === undefined && isNewWorkspaceSetupOnlyDefault(settings)))
+  const [quickSelectionCleared, setQuickSelectionCleared] = useState(false)
+  const quickSetupOnly = quickAgent === null && quickSelectionCleared
 
   const handleQuickAgentChange = useCallback((agent: TuiAgent | null) => {
     setQuickAgentOverride(agent)
-    setQuickSetupOnlyOverride(false)
+    setQuickSelectionCleared(false)
   }, [])
 
   const handleQuickSetupOnlySelect = useCallback(() => {
     setQuickAgentOverride(null)
-    setQuickSetupOnlyOverride(true)
+    setQuickSelectionCleared(true)
   }, [])
 
   const handleCreate = useCallback(async (): Promise<void> => {
@@ -304,8 +298,8 @@ function QuickTabBody({
         </DialogTitle>
         <DialogDescription className="sr-only">
           {translate(
-            'auto.components.NewWorkspaceComposerModal.fa90f739a5',
-            'Choose the project, workspace name, and agent before creating the workspace.'
+            'components.newWorkspace.createDescription',
+            'Choose the project and workspace name. Select an agent if you want to start one.'
           )}
         </DialogDescription>
       </DialogHeader>

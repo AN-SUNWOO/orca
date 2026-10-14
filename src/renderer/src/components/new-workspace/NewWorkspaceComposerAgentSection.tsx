@@ -25,8 +25,6 @@ type NewWorkspaceComposerAgentSectionProps = Pick<
   handleSetDefaultAgent: (
     next: Parameters<NonNullable<React.ComponentProps<typeof AgentCombobox>['onSetDefault']>>[0]
   ) => void
-  setupOnlyIsDefault: boolean
-  handleSetSetupOnlyDefault: () => void
 }
 
 export function NewWorkspaceComposerAgentSection({
@@ -42,16 +40,14 @@ export function NewWorkspaceComposerAgentSection({
   onToggleAdvanced,
   visibleQuickAgents,
   defaultTuiAgent,
-  handleSetDefaultAgent,
-  setupOnlyIsDefault,
-  handleSetSetupOnlyDefault
+  handleSetDefaultAgent
 }: NewWorkspaceComposerAgentSectionProps): React.JSX.Element {
   return (
     <>
       <div className="min-w-0 space-y-1" data-contextual-tour-target="workspace-creation-agent">
         <div className="flex items-center justify-between gap-2">
           <label className="text-xs font-medium text-muted-foreground">
-            {translate('auto.components.NewWorkspaceComposerCard.01d1e8f601', 'Agent')}
+            {translate('components.newWorkspace.agentOptional', 'Agent [Optional]')}
           </label>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -83,13 +79,11 @@ export function NewWorkspaceComposerAgentSection({
           onOpenManageAgents={onOpenAgentSettings}
           defaultAgent={defaultTuiAgent}
           onSetDefault={handleSetDefaultAgent}
-          setupOnly={
+          clearSelection={
             onQuickSetupOnlySelect
               ? {
-                  selected: quickSetupOnly,
-                  isDefault: setupOnlyIsDefault,
-                  onSelect: onQuickSetupOnlySelect,
-                  onSetDefault: handleSetSetupOnlyDefault
+                  cleared: quickSetupOnly,
+                  onClear: onQuickSetupOnlySelect
                 }
               : undefined
           }

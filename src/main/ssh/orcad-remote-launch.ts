@@ -12,6 +12,7 @@
  * the process's whole life; redirecting means the deploy can disconnect and the supervisor
  * still owns a running service.
  */
+import type { OrcadLaunchEnvEntry } from './orcad-host-transport'
 import { ORCAD_LAUNCHER_FILENAME, ORCAD_SERVER_ENTRY_FILENAME } from '../../shared/orcad-artifacts'
 import { shellEscape } from './ssh-connection-utils'
 import {
@@ -94,7 +95,8 @@ const ORCAD_SETSID_PID_WAIT_TRIES = 100
 export function orcadLaunchCommand(
   host: RemoteHostPlatform,
   spec: OrcadLaunchSpec,
-  detach: OrcadLaunchDetach = 'nohup'
+  detach: OrcadLaunchDetach = 'nohup',
+  hostEnv: readonly OrcadLaunchEnvEntry[] = []
 ): string {
   assertPosixHost(host)
   const dir = shellEscape(spec.remoteInstallDir)
@@ -131,7 +133,7 @@ export function orcadLaunchCommand(
     `ORCA_USER_DATA=${shellEscape(spec.userDataDir)}`,
     ...orcadManagedLaunchEnv(spec).map(([name, value]) => `${name}=${shellEscape(value)}`),
     ...(detach === 'setsid'
-      ? setsidLaunchTail(entry, spec, readiness, log, pidFile)
+      ? setsidLaunchTail(entry, spec, readiness, log, pidFile, hostEnv)
       : [
           // Keep $! equal to the runtime PID rather than a waiting shell's PID.
           // Older clients identify the live PID by orcad.js; the pinned launcher loads the body in-place.
@@ -153,11 +155,13 @@ function setsidLaunchTail(
   spec: OrcadLaunchSpec,
   readiness: string,
   log: string,
-  pidFile: string
+  pidFile: string,
+  hostEnv: readonly OrcadLaunchEnvEntry[]
 ): string[] {
   return [
     // Only a setsid (WSL host) launch marks itself; SSH keeps its byte-for-byte command.
     `${ORCAD_WSL_HOST_ENV}=1`,
+    ...hostEnv.map(([name, value]) => `${assertEnvName(name)}=${shellEscape(value)}`),
     'sh -c \'orcad_detach() { if setsid -f true >/dev/null 2>&1; then setsid -f "$@"; ' +
       'else setsid "$@" & fi; }; orcad_detach "$@"\' orcad-detach',
     `sh -c 'echo $$ > "$1" && shift && exec "$@"' orcad-launch ${pidFile}`,
@@ -168,6 +172,13 @@ function setsidLaunchTail(
     'do sleep 0.05; orcad_wait=$((orcad_wait + 1)); done;',
     `cat ${pidFile}`
   ]
+}
+
+function assertEnvName(name: string): string {
+  if (!/^[A-Z_][A-Z0-9_]*$/.test(name)) {
+    throw new Error(`orcad_launch_env_name_invalid:${name}`)
+  }
+  return name
 }
 
 export function readOrcadReadinessCommand(

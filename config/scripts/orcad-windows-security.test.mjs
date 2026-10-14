@@ -1,7 +1,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { runInNewContext } from 'node:vm'
 import { afterEach, expect, it, vi } from 'vitest'
+import { parse } from 'yaml'
 import { windowsSecurityAddonOutput } from './build-windows-security-addon.mjs'
 import { stageOrcadWindowsSecurity } from './orcad-windows-security.mjs'
 
@@ -66,4 +68,36 @@ it('stages nothing for non-Windows slots', () => {
   stageOrcadWindowsSecurity(root, output, 'linux-x64-glibc', { platform: 'linux' })
   stageOrcadWindowsSecurity(root, output, 'darwin-arm64', { platform: 'darwin' })
   expect(existsSync(join(output, 'windows-security.node'))).toBe(false)
+})
+
+it.each([
+  ['older', false],
+  ['current', true]
+])('builds and collects security addons only when the %s source ships them', (_source, ships) => {
+  const workflow = parse(readFileSync('.github/workflows/node-server-tests.yml', 'utf8'))
+  const steps = [
+    ...workflow.jobs.persistence.steps.filter((step) =>
+      ['Build', 'Keep'].some((verb) => step.name?.startsWith(`${verb} the Windows security addons`))
+    ),
+    workflow.jobs.desktop_template.steps.find(
+      (step) => step.name === 'Collect the Windows security addons'
+    )
+  ]
+  expect(steps).toHaveLength(3)
+  for (const step of steps) {
+    const hashFiles = vi.fn((path) => {
+      expect(path).toBe('config/scripts/build-windows-security-addon.mjs')
+      return ships ? 'source-hash' : ''
+    })
+    expect(
+      runInNewContext(step.if ?? 'true', {
+        inputs: { build_template: true },
+        matrix: { os: 'windows-2022' },
+        hashFiles
+      }),
+      step.name
+    ).toBe(ships)
+    expect(hashFiles).toHaveBeenCalledOnce()
+    expect(step['continue-on-error']).toBeUndefined()
+  }
 })

@@ -63,8 +63,8 @@ function fakeAdapter(): StructuredAgentSessionAdapter {
 function pick(agents: StructuredAgentRegistry, record: AgentSessionRecord | null, key: string) {
   const persistOptions = vi.fn(async () => {})
   const result = recordStructuredAgentSessionOptionIntent(
-    { store: { getRecord: () => record }, agents },
-    { sessionId: RECORD.sessionId, persistOptions, publish: vi.fn() },
+    { store: { getRecord: () => record, replaceSessionOptions: vi.fn() }, agents },
+    { sessionId: RECORD.sessionId, fence: 1, persistOptions, publish: vi.fn(), now: () => 0 },
     { key, value: 'enabled' }
   )
   return { result, persistOptions }

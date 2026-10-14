@@ -16,6 +16,7 @@ import {
 import type { BrowserEvalResult, BrowserScreencastResult } from '../../shared/runtime-types'
 import { BrowserError } from '../browser/browser-error'
 import { randomUUID } from 'node:crypto'
+import { mintBrowserScreencastSubscriptionId } from './browser-screencast-subscription-id'
 import { startBrowserScreencast } from '../browser/browser-screencast-stream'
 import { rendererPublicationThrottle } from '../window/renderer-publication-throttle'
 import {
@@ -49,7 +50,7 @@ export class RuntimeBrowserCommandsWithBrowserScreencast extends RuntimeBrowserC
       target.worktreeId,
       target.browserPageId
     )
-    const subscriptionId = `browser-screencast:${browserPageId}:${randomUUID()}`
+    const subscriptionId = mintBrowserScreencastSubscriptionId(browserPageId, randomUUID())
     const viewport = normalizeScreencastViewport(params)
     const budget = normalizeScreencastFrameBudget(params)
     let resolveSubscriberDone!: () => void

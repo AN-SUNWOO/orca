@@ -364,7 +364,8 @@
       "readFailed": "Couldn’t read agent settings. Check the host connection and try again.",
       "saveFailed": "Couldn’t save agent settings. Check the host connection and try again.",
       "hostDefaults": "Defaults for new agents on the selected host.",
-      "save": "Save"
+      "save": "Save",
+      "clearDefault": "Clear default agent"
     },
     "followSymlinkedDirectoriesKeywords": {
       "symlink": "symlink",
@@ -1220,6 +1221,10 @@
             }
           }
         }
+      },
+      "aiVaultResumeRefusal": {
+        "openInChat": "This {{value0}} conversation is open in a chat. Refresh Session History to open it.",
+        "ownershipUnknown": "Orca could not confirm who owns this {{value0}} conversation. Refresh Session History and try again."
       }
     },
     "hooks": {
@@ -1878,7 +1883,6 @@
         "f0470c7383": "Advanced",
         "ba64270bdb": "Configure agents",
         "ab63f25397": "Open agent settings",
-        "01d1e8f601": "Agent",
         "0c5d6a479c": "[Optional]",
         "b5a0796911": "Connect",
         "dccd26d4e4": "Choose project",
@@ -1950,8 +1954,7 @@
       },
       "NewWorkspaceComposerModal": {
         "createWorktree": "Create worktree",
-        "createWorkspace": "Create workspace",
-        "fa90f739a5": "Choose the project, workspace name, and agent before creating the workspace."
+        "createWorkspace": "Create workspace"
       },
       "PullRequestPage": {
         "2560588245": "Failed to request reviewer",
@@ -3660,7 +3663,8 @@
             "sessionQueued": "Session queued",
             "openSupportedWorkspace": "Open a workspace before resuming a session.",
             "sessionHostMismatchUnsupported": "This session belongs to a different host. Drop it onto a workspace on the same host.",
-            "localSessionSshWorkspaceUnsupported": "This session's history is stored on this machine, so it can't resume in an SSH workspace. Drop it onto a local workspace instead."
+            "localSessionSshWorkspaceUnsupported": "This session's history is stored on this machine, so it can't resume in an SSH workspace. Drop it onto a local workspace instead.",
+            "oldPayload": "This session was dragged from an older Orca window. Resume it from Session History instead."
           },
           "TabGroupDropOverlay": {
             "paneColumnLabel": "New split"
@@ -7088,7 +7092,6 @@
           "remoteDetectionFailed": "Couldn’t detect installed agents. Check the host connection and try again.",
           "retryDetection": "Retry",
           "02e0143be5": "Installed",
-          "110b74b022": "No agent (blank terminal)",
           "92033495ff": "Auto",
           "9b175d0f5e": "Pre-selected agent when opening a new workspace.",
           "385212c7a1": "Default Agent",
@@ -7111,7 +7114,6 @@
           "959b67385b": "Set default",
           "24e032fa34": "Default",
           "5f986a9b92": "Set as default",
-          "d7625cf8b2": "Default agent",
           "cfb3f35775": "Arguments",
           "6f99bf5dd0": "No default arguments",
           "8fbe1f37c1": "Environment",
@@ -7127,9 +7129,7 @@
           "codexSessionSourceInfo": "About importing Codex history",
           "codexSessionSourceTooltip": "Orca runs Codex in an isolated home. Point this at your existing Codex home to import that session history. Empty uses ~/.codex.",
           "storedDefaultUndetected": "Saved as your default, but not detected right now",
-          "noAgentsDetected": "No agents detected. If one is installed, the probe may have timed out.",
-          "setupOnlyHint": "Runs setup without an extra blank terminal in new-tab mode. Split mode keeps a shell pane; skipped or missing setup opens a blank terminal.",
-          "setupOnly": "None"
+          "noAgentsDetected": "No agents detected. If one is installed, the probe may have timed out."
         },
         "AppIconSelector": {
           "d5a112dc9b": "Next icon",
@@ -17258,8 +17258,7 @@
           "579c768bde": "No agents match your search.",
           "48c6a5a9b4": "Search agents...",
           "9c6b59fe58": "Set as default",
-          "1b0d6965fa": "Current default",
-          "setupOnly": "None"
+          "1b0d6965fa": "Current default"
         },
         "AgentSettingsDialog": {
           "50cdb57c03": "Manage AI agents, set a default, and customize commands.",
@@ -19246,6 +19245,13 @@
     },
     "automations": {
       "runTerminalUnavailable": "Run terminal is unavailable."
+    },
+    "agentCombobox": {
+      "clearSelection": "Clear agent selection"
+    },
+    "newWorkspace": {
+      "agentOptional": "Agent [Optional]",
+      "createDescription": "Choose the project and workspace name. Select an agent if you want to start one."
     }
   },
   "dashboardPopout": {

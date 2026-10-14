@@ -18,6 +18,7 @@ import type {
 import type { TerminalKittyKeyboardModeTracker } from '../../../../shared/terminal-kitty-keyboard-mode-tracker'
 import type { SessionOptionValue } from '../../../../shared/native-chat-session-options'
 import type { PtyPreconnectInputEntry } from './pty-preconnect-input-buffer'
+import type { AgentPaneLaunchRequest } from '../../../../shared/agent-pane-launch-request'
 
 export type PtyPaneStartup = {
   command: string
@@ -31,6 +32,8 @@ export type PtyPaneStartup = {
   resumeProviderSession?: AgentProviderSessionMetadata
   launchToken?: string
   launchAgent?: TuiAgent
+  /** The agent launch the pane's own spawn starts, instead of `command`. */
+  agentLaunch?: AgentPaneLaunchRequest
   /** Explicit CLI override for host-owned agent launches; omission uses host settings. */
   agentArgsOverride?: string | null
   draftPrompt?: string

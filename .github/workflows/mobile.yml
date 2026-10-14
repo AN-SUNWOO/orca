@@ -70,6 +70,7 @@ concurrency:
 
 jobs:
   verify:
+    name: Mobile verify
     if: github.event_name == 'pull_request'
     # Why ARM: 209s of this job is Vitest and nothing here needs x86: no Android SDK, emulator, gradle,
     # Hermes or Watchman, no docker, and no artifacts. The Gemfile.lock lists the generic `ruby`

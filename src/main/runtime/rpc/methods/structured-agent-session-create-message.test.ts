@@ -230,7 +230,7 @@ it('keeps the seeded permission mode beside explicit picks on an acquired create
     })
   ).toMatchObject({ ok: true, result: { ok: true } })
   expect(rig.adapter.acquire).toHaveBeenCalledWith(
-    expect.objectContaining({ options: { model: 'held-model', permissionMode: 'full-access' } })
+    expect.objectContaining({ options: { model: 'held-model' }, permissionMode: 'full-access' })
   )
 })
 

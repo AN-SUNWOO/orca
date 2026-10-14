@@ -242,7 +242,8 @@ describe('Windows CLI launcher', () => {
   argv: process.argv.slice(2),
   profile: process.env.ORCA_USER_DATA_PATH,
   electronRunAsNode: process.env.ELECTRON_RUN_AS_NODE ?? null,
-  nodeOptions: process.env.NODE_OPTIONS ?? null
+  nodeOptions: process.env.NODE_OPTIONS ?? null,
+  desktopMarker: process.env.ORCA_WINDOWS_PACKAGED_CLI_LAUNCHER ?? null
 }))\n`,
         'utf8'
       )
@@ -262,13 +263,15 @@ describe('Windows CLI launcher', () => {
         ELECTRON_RUN_AS_NODE: '1',
         NODE_OPTIONS: '--require C:\\missing\\preload.js',
         ORCA_USER_DATA_PATH: 'C:\\another\\owner',
+        ORCA_WINDOWS_PACKAGED_CLI_LAUNCHER: '1',
         ORCA_TEST_LAUNCHER: launcherPath
       }
       const expected = (body) => ({
         argv: ['orchestration', 'send', '--body', body, '--json'],
         profile,
         electronRunAsNode: null,
-        nodeOptions: null
+        nodeOptions: null,
+        desktopMarker: null
       })
       // Windows PowerShell 5.1 itself drops embedded double quotes, so its body has none.
       const shellBody = 'line one & %PATH% ^caret\n\nline three'

@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
 import { buildObservedSetupCommand } from './orchestration/setup-completion-signal'
 import { buildSetupRunnerCommand } from '../../shared/setup-runner-command'
-import { isNewWorkspaceSetupOnlyDefault } from '../../shared/new-workspace-setup-only'
 import type { RuntimeStore } from './runtime-store-contract'
 
 type TerminalResult = { handle: string }
@@ -121,22 +120,21 @@ export async function provisionWorktreeTerminals(
   let setupTerminalHandle: string | null = null
   let shellSkippedForSetup = false
   try {
+    const setupLaunchMode = args.setup
+      ? (host.getSettings().setupScriptLaunchMode ?? 'new-tab')
+      : 'new-tab'
+    // A cleared creation choice leaves Setup as the only surface; splits still need a shell.
+    const setupOnly =
+      args.setup !== undefined && setupLaunchMode === 'new-tab' && args.setupOnly === true
     const defaultHandles = await createWorktreeDefaultTabTerminals(
       host,
       args.worktreeSelector,
       args.worktreeId,
-      args.defaultTabs,
+      setupOnly ? undefined : args.defaultTabs,
       surfacing,
       args.hasStartupTerminal ? (args.primaryTerminalHandle ?? undefined) : undefined
     )
     let primaryHandle = args.primaryTerminalHandle ?? defaultHandles[0] ?? null
-    const settings = host.getSettings()
-    const setupLaunchMode = settings.setupScriptLaunchMode ?? 'new-tab'
-    // Why: "None" default leaves the Setup tab as the only surface; a split still needs a shell to split from.
-    const setupOnly =
-      args.setup !== undefined &&
-      setupLaunchMode === 'new-tab' &&
-      (args.setupOnly ?? isNewWorkspaceSetupOnlyDefault(settings))
     if (!args.hasStartupTerminal && !primaryHandle) {
       if (setupOnly) {
         shellSkippedForSetup = true
@@ -193,7 +191,7 @@ export async function provisionWorktreeTerminals(
     console.warn(
       `[worktree-create] Failed to create setup/default terminals for ${args.worktreePath}: ${message}`
     )
-    // Why: "None" skipped the shell on the promise of a Setup tab; without one the workspace would have no terminal.
+    // A cleared choice still needs a shell if Setup fails to spawn.
     if (shellSkippedForSetup && !setupSpawned) {
       await host
         .createTerminal(args.worktreeSelector, surfacing)

@@ -13,7 +13,8 @@ import type { AiVaultAgent, AiVaultSession } from '../../../../shared/ai-vault-t
 import {
   dropDeletedSshResumeCwd,
   prepareAiVaultSessionForFork,
-  prepareAiVaultSessionForResume
+  prepareAiVaultSessionForResume,
+  prepareAiVaultSessionForTerminalResume
 } from '@/lib/ai-vault-session-resume-preparation'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { translate } from '@/i18n/i18n'
@@ -25,6 +26,7 @@ import type { AgentSessionContinuationRequest } from '@/lib/agent-session-contin
 import { activateAiVaultStructuredSession } from '@/lib/activate-ai-vault-structured-session'
 import { adoptsCliConversations } from '../../../../shared/structured-agent-cli-conversation-adoption'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
+import { describeAiVaultResumeFailure } from '@/lib/ai-vault-resume-refusal'
 import {
   activateAiVaultResumeWorkspace,
   resumeAiVaultSessionInNewChat
@@ -86,7 +88,7 @@ export function useAiVaultSessionLaunchActions({
           )
         )
       } catch (error) {
-        notifyAiVaultSessionPreparationFailure(error)
+        notifyAiVaultSessionPreparationFailure(error, session.agent)
       }
     },
     [buildResumeCommand]
@@ -150,7 +152,9 @@ export function useAiVaultSessionLaunchActions({
           }
           showQueuedToast()
         })
-        .catch((error: unknown) => notifyAiVaultSessionPreparationFailure(error, describeFailure))
+        .catch((error: unknown) =>
+          notifyAiVaultSessionPreparationFailure(error, session.agent, describeFailure)
+        )
     },
     [activeWorktree?.id, activeWorktreeId, targetState]
   )
@@ -161,10 +165,14 @@ export function useAiVaultSessionLaunchActions({
         void activateAiVaultStructuredSession(session)
         return
       }
-      launchInTerminal(session, targetWorktreeId, (worktreeId) =>
-        prepareAiVaultSessionForResume(session)
-          .then(dropDeletedSshResumeCwd)
-          .then((preparedSession) => buildResumeStartup(preparedSession, worktreeId))
+      launchInTerminal(
+        session,
+        targetWorktreeId,
+        (worktreeId) =>
+          prepareAiVaultSessionForTerminalResume(session)
+            .then(dropDeletedSshResumeCwd)
+            .then((preparedSession) => buildResumeStartup(preparedSession, worktreeId)),
+        (message) => describeAiVaultResumeFailure(new Error(message), session.agent)
       )
     },
     [buildResumeStartup, launchInTerminal]
@@ -277,16 +285,11 @@ export function useAiVaultSessionLaunchActions({
 
 function notifyAiVaultSessionPreparationFailure(
   error: unknown,
+  agent: AiVaultAgent,
   describeFailure: (message: string) => string = (message) => message
 ): void {
-  toast.error(
-    error instanceof Error
-      ? describeFailure(error.message)
-      : translate(
-          'auto.components.right.sidebar.AiVaultPanel.prepareSessionResumeFailed',
-          'Could not prepare this session for resume.'
-        )
-  )
+  const described = error instanceof Error ? new Error(describeFailure(error.message)) : error
+  toast.error(describeAiVaultResumeFailure(described, agent))
 }
 
 function resolveAiVaultSessionLaunchTargetOrNotify(

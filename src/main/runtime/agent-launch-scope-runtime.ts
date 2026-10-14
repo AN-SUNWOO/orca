@@ -20,6 +20,11 @@ import {
   type LaunchScopeRuntimeStore
 } from '../local-project-runtime-resolution'
 import type { RuntimeStore } from './runtime-store-contract'
+import { OrchestrationError } from './orchestration/orchestration-error'
+import {
+  agentLaunchRepairRefusal,
+  PROJECT_RUNTIME_REPAIR_REQUIRED_CODE
+} from '../../shared/project-runtime-repair-message'
 import type { TerminalWorkspaceLaunchScope } from './runtime-legacy-worker-terminal-recovery-types'
 
 type AgentLaunchRuntimeStore = Omit<LaunchScopeRuntimeStore, 'getSettings'> &
@@ -80,8 +85,9 @@ export function openCodeModelCheckPlatform(
     : platform
 }
 
-/** The one runtime fact for an agent launched into this workspace. Throws, as the spawn did, when
- *  its runtime needs repair. */
+/** The one runtime fact for an agent launched into this workspace. Throws, under
+ *  `PROJECT_RUNTIME_REPAIR_REQUIRED_CODE` and in the settings page's words, when its runtime needs
+ *  repair. */
 export function resolveAgentLaunchRuntime(
   store: AgentLaunchRuntimeStore,
   scope: TerminalWorkspaceLaunchScope,
@@ -95,6 +101,14 @@ export function resolveAgentLaunchRuntime(
     }
   }
   const projectRuntime = agentLaunchProjectRuntime(store, scope, agent)
+  // Refused here, before any spawn, where the spawn would refuse it: Windows only.
+  if (process.platform === 'win32' && projectRuntime?.status === 'repair-required') {
+    // OrchestrationError because the launch record keeps a refusal's code only from that class.
+    throw new OrchestrationError(
+      PROJECT_RUNTIME_REPAIR_REQUIRED_CODE,
+      agentLaunchRepairRefusal(projectRuntime.repair)
+    )
+  }
   return {
     platform: executionRuntimePlatform(projectRuntime, scope.path, process.platform),
     pty: resolveLocalPtyOptions(store.getSettings(), projectRuntime, requestedShellOverride)

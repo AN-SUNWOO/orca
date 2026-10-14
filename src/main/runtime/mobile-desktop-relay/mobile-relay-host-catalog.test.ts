@@ -90,6 +90,7 @@ function fakeHosts(
       pairing: { v: 2, endpoint: 'ws://server', deviceToken: 'desktop', publicKeyB64: 'k' }
     }),
     call,
+    hostsBrowserPage: () => false,
     onEnvironmentRetired: (listener) => {
       state.retire = listener
       return () => {}

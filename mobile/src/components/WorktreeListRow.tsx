@@ -1,21 +1,13 @@
 import { memo } from 'react'
-import {
-  Bell,
-  ChevronDown,
-  ChevronRight,
-  GitBranch,
-  GitPullRequest,
-  Monitor,
-  Server
-} from 'lucide-react-native'
+import { Bell, ChevronDown, ChevronRight, GitBranch, GitPullRequest } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { parseExecutionHostId } from '../../../src/shared/execution-host'
 import type { MobileRenderableRepoIcon } from '../host-screen/host-screen-reply-schema'
 import { triggerMediumImpact } from '../platform/haptics'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import type { Worktree } from '../worktree/workspace-list-types'
 import { areStructurallyEqual } from '../worktree/structural-equality'
 import { AgentSpinner } from './AgentSpinner'
+import { HostKindIcon } from './HostKindIcon'
 import { MobileRepoIcon } from './MobileRepoIcon'
 import { WorktreeAgentList } from './WorktreeAgentList'
 import { WorktreeMetaGlyphs, prStateColor } from './WorktreeMetaGlyphs'
@@ -140,13 +132,7 @@ function WorktreeListRowComponent({
                 .filter(Boolean)
                 .join(', ')}
             >
-              {/* Rows from hosts that predate hostId stamping are local: a remote row always carries one. */}
-              {(parseExecutionHostId(item.hostContextHostId ?? item.hostId)?.kind ?? 'local') ===
-              'local' ? (
-                <Monitor size={10} color={colors.textMuted} />
-              ) : (
-                <Server size={10} color={colors.textMuted} />
-              )}
+              <HostKindIcon hostId={item.hostContextHostId ?? item.hostId} size={10} />
               <Text style={[styles.childBadgeText, styles.hostBadgeText]} numberOfLines={1}>
                 {item.hostContextLabel}
               </Text>

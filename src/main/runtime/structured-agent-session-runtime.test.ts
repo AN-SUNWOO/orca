@@ -273,7 +273,7 @@ describe('structured agent-session runtime install', () => {
       }
       const logged = recordingStructuredAgentSessionLogger()
       const host = await installOver(['codex'], logged.logger)
-      expect(host.deps.store.getRecord('old-codex')?.options?.permissionMode).toBe(
+      expect(host.deps.store.getRecord('old-codex')?.permissionMode).toBe(
         failWrite ? undefined : 'full-access'
       )
       expect((await host.readOptions('old-codex')).current.permissionMode).toBe(
@@ -298,8 +298,8 @@ describe('structured agent-session runtime install', () => {
         records: [oldChat('claude'), oldChat('codex')]
       })
       const host = await installOver(fullAccessAgents)
-      expect(host.deps.store.getRecord('old-claude')?.options?.permissionMode).toBe(claude)
-      expect(host.deps.store.getRecord('old-codex')?.options?.permissionMode).toBe(codex)
+      expect(host.deps.store.getRecord('old-claude')?.permissionMode).toBe(claude)
+      expect(host.deps.store.getRecord('old-codex')?.permissionMode).toBe(codex)
     }
   )
 

@@ -209,6 +209,14 @@ export function getPairedRuntimeBrowserClientRouteIdentity(
   return clientHostRouteIdentities.get(environmentId) ?? null
 }
 
+/** Whether this desktop renders `browserPageId` for `environmentId` as a client-placed page. */
+export function pairedRuntimeBrowserClientHostsPage(
+  environmentId: string,
+  browserPageId: string
+): boolean {
+  return browserClientHosts.hostsPage(environmentId, browserPageId)
+}
+
 export function closePairedRuntimeBrowserClientHostEnvironment(
   environmentId: string,
   error?: Error

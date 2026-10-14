@@ -322,9 +322,14 @@ describe('retireOutgrownStructuredAgentSessionChild', () => {
         stop: vi.fn(),
         providerStarted: vi.fn()
       })
-      const launch = (options: Record<string, string>, rows = listed) => {
-        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the launch mode reads only the record's id, agent and options.
-        const record = { sessionId: 'session', provider: 'claude', options } as AgentSessionRecord
+      const launch = ({ permissionMode, ...options }: Record<string, string>, rows = listed) => {
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the launch mode reads only the record's id, agent, options and mode.
+        const record = {
+          sessionId: 'session',
+          provider: 'claude',
+          options,
+          permissionMode
+        } as AgentSessionRecord
         return () =>
           structuredAgentSessionLaunchPermission(
             { agents: claudeAndCodexDeclared(), modelCatalog: catalog(rows) },

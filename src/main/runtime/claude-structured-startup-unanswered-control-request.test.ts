@@ -122,9 +122,11 @@ describe('a Claude start whose CLI answers initialize but not a control request'
       permissionMode: 'acceptEdits'
     })
     // The record keeps the saved choices through the start.
-    await vi.waitFor(() => expect(record(host)?.options).toEqual({ ...saved, effort: 'high' }), {
-      timeout: DEADLINE_MS * 40
-    })
+    await vi.waitFor(
+      () => expect(record(host)?.options).toEqual({ model: 'sonnet', effort: 'high' }),
+      { timeout: DEADLINE_MS * 40 }
+    )
+    expect(record(host)?.permissionMode).toBe('accept-edits')
     expect(host.deps.adapter.readOptionRestoreFailures?.(SESSION)).toEqual([])
     expect(await statusRows(host)).toEqual([])
     expect(claude.children(SESSION)).toHaveLength(1)
@@ -153,7 +155,10 @@ describe('a Claude start whose CLI answers initialize but not a control request'
     // The CLI answers again; the user sets another option on the running child.
     behavior.optionWritesHang = false
     await setOption(host, 'permissionMode', 'accept-edits')
-    expect(record(host)?.options).toMatchObject({ model: 'sonnet', permissionMode: 'accept-edits' })
+    expect(record(host)).toMatchObject({
+      options: { model: 'sonnet' },
+      permissionMode: 'accept-edits'
+    })
   })
 
   it('launches the saved model again after a turn reports another model, another option changes, and the chat is cleared', async () => {
@@ -185,11 +190,8 @@ describe('a Claude start whose CLI answers initialize but not a control request'
     behavior.optionWritesHang = false
     // The permission mode is the record's alone; the running child is not asked.
     await setOption(host, 'permissionMode', 'accept-edits')
-    expect(record(host)?.options).toEqual({
-      model: 'sonnet',
-      effort: 'high',
-      permissionMode: 'accept-edits'
-    })
+    expect(record(host)?.options).toEqual({ model: 'sonnet', effort: 'high' })
+    expect(record(host)?.permissionMode).toBe('accept-edits')
 
     const cleared = await host.conversationCommand(CALLER, {
       command: 'clear',
@@ -226,12 +228,9 @@ describe('a Claude start whose CLI answers initialize but not a control request'
     })
     expect(claude.child(SESSION).launch.options.resume).toBeUndefined()
     await vi.waitFor(() =>
-      expect(record(host)?.options).toEqual({
-        model: 'sonnet',
-        effort: 'high',
-        permissionMode: 'accept-edits'
-      })
+      expect(record(host)?.options).toEqual({ model: 'sonnet', effort: 'high' })
     )
+    expect(record(host)?.permissionMode).toBe('accept-edits')
   })
 
   it('replaces the launched saved model with the one the user then sets', async () => {

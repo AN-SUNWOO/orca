@@ -7,9 +7,10 @@ import type { AgentSessionModelCatalogResult } from '../../../shared/agent-sessi
 import { claudeAndCodexDeclared } from './structured-agent-session-adapter-router-test-support'
 import { structuredAgentSessionLaunchPermission } from './structured-agent-session-launch-permission'
 
-function record(provider: string, options: Record<string, string> | undefined): AgentSessionRecord {
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the launch mode reads only the record's id, agent and options.
-  return { sessionId: 'session-1', provider, ...(options ? { options } : {}) } as AgentSessionRecord
+function record(provider: string, saved: Record<string, string> | undefined): AgentSessionRecord {
+  const { permissionMode, ...options } = saved ?? {}
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the launch mode reads only the record's id, agent, options and mode.
+  return { sessionId: 'session-1', provider, options, permissionMode } as AgentSessionRecord
 }
 
 const listing = (

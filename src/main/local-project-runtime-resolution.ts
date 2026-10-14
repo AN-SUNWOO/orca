@@ -103,9 +103,7 @@ export function resolveLocalProjectRuntimeForRepo(
 export function resolveLocalWorkspaceRuntime(
   store: ProjectRuntimeResolutionStore,
   repo: Repo,
-  workspacePath: string | null | undefined,
-  /** TEMPORARY parity: only a launch trusts a `\\wsl$` path; the agent list checks it, as on main. */
-  trustsWslPath = false
+  workspacePath: string | null | undefined
 ): ProjectExecutionRuntimeResolution | undefined {
   if (
     getRepoExecutionHostId(repo) !== LOCAL_EXECUTION_HOST_ID ||
@@ -125,7 +123,7 @@ export function resolveLocalWorkspaceRuntime(
     store,
     { id: project?.id ?? repo.id, localWindowsRuntimePreference: preference },
     undefined,
-    !trustsWslPath || Boolean(project?.localWindowsRuntimePreference) || preference.kind !== 'wsl'
+    Boolean(project?.localWindowsRuntimePreference) || preference.kind !== 'wsl'
   )
 }
 
@@ -185,7 +183,7 @@ export function resolveLocalLaunchScopeRuntime(
         )
       : undefined)
   // A repo-less folder has no runtime: its path alone places it, and its cwd picks its shell.
-  return repo ? resolveLocalWorkspaceRuntime(store, repo, scope.path, true) : undefined
+  return repo ? resolveLocalWorkspaceRuntime(store, repo, scope.path) : undefined
 }
 
 export function resolveLocalProjectRuntimesForRepos(

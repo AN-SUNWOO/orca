@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { ArrowRight, Ban, ChevronsUpDown, Terminal } from 'lucide-react'
+import { ArrowRight, ChevronsUpDown, Terminal, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandEmpty, CommandInput, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
 import {
   agentPickerBlankTerminalMatches,
-  agentPickerSetupOnlyMatches,
   getAgentPickerCommandValue,
   searchAgentPickerEntries
 } from '@/lib/agent-picker-search'
@@ -49,22 +49,15 @@ type AgentComboboxProps = AgentComboboxSelectionProps & {
    *  field as the last keyboard-submit step. */
   onTriggerEnter?: () => void
   allowNarrowTrigger?: boolean
-  /** Adds "None": no agent and no shell, only the setup script. Kept outside `value` so other pickers stay TuiAgent | null. */
-  setupOnly?: {
-    selected: boolean
-    isDefault: boolean
-    onSelect: () => void
-    onSetDefault?: () => void
+  /** Clearing is separate from selecting Blank Terminal. */
+  clearSelection?: {
+    cleared: boolean
+    onClear: () => void
   }
 }
 
 const BLANK_VALUE = '__none__'
-const SETUP_ONLY_VALUE = '__setup_only__'
 const TRIGGER_MIN_WIDTH_CLASS = '!min-w-[260px]'
-
-function setupOnlyLabel(): string {
-  return translate('auto.components.agent.AgentCombobox.setupOnly', 'None')
-}
 
 export default function AgentCombobox({
   agents,
@@ -75,7 +68,7 @@ export default function AgentCombobox({
   triggerClassName,
   onTriggerEnter,
   allowNarrowTrigger = false,
-  setupOnly,
+  clearSelection,
   ...selection
 }: AgentComboboxProps): React.JSX.Element {
   const allowBlankTerminal = selection.allowBlankTerminal === true
@@ -93,17 +86,16 @@ export default function AgentCombobox({
     () => (value ? (agents.find((agent) => agent.id === value) ?? null) : null),
     [agents, value]
   )
-  const setupOnlySelected = setupOnly?.selected === true
-  const selectedDefaultPreference = value ?? (allowBlankTerminal ? 'blank' : null)
-  const openCommandValue = setupOnlySelected ? SETUP_ONLY_VALUE : (value ?? BLANK_VALUE)
+  const selectionCleared = clearSelection?.cleared === true
+  const selectedDefaultPreference = selectionCleared
+    ? null
+    : (value ?? (allowBlankTerminal ? 'blank' : null))
+  const openCommandValue = selectionCleared ? '' : (value ?? BLANK_VALUE)
+  const canClear = clearSelection !== undefined && !selectionCleared
   const filteredAgents = useMemo(() => searchAgentPickerEntries(agents, query), [agents, query])
   const blankMatchesQuery = useMemo(
     () => allowBlankTerminal && agentPickerBlankTerminalMatches(query),
     [allowBlankTerminal, query]
-  )
-  const setupOnlyMatchesQuery = useMemo(
-    () => setupOnly !== undefined && agentPickerSetupOnlyMatches(query),
-    [setupOnly, query]
   )
   const pickedCommandValue = getAgentPickerCommandValue({
     blankValue: BLANK_VALUE,
@@ -112,10 +104,7 @@ export default function AgentCombobox({
     filteredAgents,
     rawQuery: query
   })
-  const activeCommandValue =
-    setupOnlySelected && pickedCommandValue === BLANK_VALUE && !query
-      ? SETUP_ONLY_VALUE
-      : pickedCommandValue || (setupOnlyMatchesQuery ? SETUP_ONLY_VALUE : '')
+  const activeCommandValue = selectionCleared && !query ? '' : pickedCommandValue
   const resolvedCommandState = resolveAgentComboboxCommandState(
     commandState,
     open,
@@ -196,12 +185,6 @@ export default function AgentCombobox({
     closePicker()
   }
 
-  const handleSelectSetupOnly = useCallback(() => {
-    setupOnly?.onSelect()
-    setOpen(false)
-    setQuery('')
-  }, [setupOnly])
-
   // Why: mirror RepoCombobox's trigger-keydown handling — the button-style
   // trigger treats the current value as a confirmed selection. Plain focus does
   // not open the dropdown. Only explicit intent opens: Arrow keys open without
@@ -246,22 +229,16 @@ export default function AgentCombobox({
   return (
     // Why: min-w-0 lets full-width form rows shrink; plain flex+items-center left the
     // trigger free to overflow its dialog column and look misaligned with Project/Name.
-    <div className="min-w-0 w-full">
+    <div className="relative min-w-0 w-full">
       <Popover open={open} onOpenChange={handleOpenChange}>
         <AgentDefaultContextMenu
           isDefault={
-            setupOnlySelected
-              ? setupOnly.isDefault
-              : selectedDefaultPreference !== null &&
-                defaultAgent === selectedDefaultPreference &&
-                !(selectedDefaultPreference === 'blank' && setupOnly?.isDefault)
+            selectedDefaultPreference !== null && defaultAgent === selectedDefaultPreference
           }
           onSetDefault={
-            setupOnlySelected
-              ? setupOnly.onSetDefault
-              : onSetDefault && selectedDefaultPreference !== null
-                ? () => onSetDefault(selectedDefaultPreference)
-                : undefined
+            onSetDefault && selectedDefaultPreference !== null
+              ? () => onSetDefault(selectedDefaultPreference)
+              : undefined
           }
         >
           <PopoverTrigger asChild>
@@ -282,29 +259,36 @@ export default function AgentCombobox({
               )}
               data-agent-combobox-root="true"
             >
-              {setupOnlySelected ? (
-                <AgentIconLabel icon={<Ban className="size-3.5" />} label={setupOnlyLabel()} />
-              ) : selectedAgent ? (
-                <AgentIconLabel
-                  icon={<AgentIcon agent={selectedAgent.id} size={14} />}
-                  label={selectedAgent.label}
-                />
-              ) : (
-                <AgentIconLabel
-                  icon={<Terminal className="size-3.5" />}
-                  label={
-                    allowBlankTerminal
-                      ? translate(
-                          'auto.components.agent.AgentCombobox.986f946354',
-                          'Blank Terminal'
-                        )
-                      : translate(
-                          'components.agentSessionContinuation.selectAgent',
-                          'Select an Agent'
-                        )
-                  }
-                />
-              )}
+              <span className={cn('inline-flex min-w-0 flex-1', canClear && 'pr-8')}>
+                {selectionCleared ? (
+                  <span className="truncate text-muted-foreground">
+                    {translate(
+                      'components.agentSessionContinuation.selectAgent',
+                      'Select an Agent'
+                    )}
+                  </span>
+                ) : selectedAgent ? (
+                  <AgentIconLabel
+                    icon={<AgentIcon agent={selectedAgent.id} size={14} />}
+                    label={selectedAgent.label}
+                  />
+                ) : (
+                  <AgentIconLabel
+                    icon={<Terminal className="size-3.5" />}
+                    label={
+                      allowBlankTerminal
+                        ? translate(
+                            'auto.components.agent.AgentCombobox.986f946354',
+                            'Blank Terminal'
+                          )
+                        : translate(
+                            'components.agentSessionContinuation.selectAgent',
+                            'Select an Agent'
+                          )
+                    }
+                  />
+                )}
+              </span>
               <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
@@ -342,8 +326,8 @@ export default function AgentCombobox({
                 ? renderAgentComboboxItem({
                     key: BLANK_VALUE,
                     itemValue: BLANK_VALUE,
-                    isChecked: value === null && !setupOnlySelected,
-                    isDefault: defaultAgent === 'blank' && setupOnly?.isDefault !== true,
+                    isChecked: value === null && !selectionCleared,
+                    isDefault: defaultAgent === 'blank',
                     onSelect: handleSelectBlank,
                     onSetDefault: onSetDefault ? () => onSetDefault('blank') : undefined,
                     icon: <Terminal className="size-3.5" />,
@@ -351,18 +335,6 @@ export default function AgentCombobox({
                       'auto.components.agent.AgentCombobox.986f946354',
                       'Blank Terminal'
                     )
-                  })
-                : null}
-              {setupOnly && setupOnlyMatchesQuery
-                ? renderAgentComboboxItem({
-                    key: SETUP_ONLY_VALUE,
-                    itemValue: SETUP_ONLY_VALUE,
-                    isChecked: setupOnlySelected,
-                    isDefault: setupOnly.isDefault,
-                    onSelect: handleSelectSetupOnly,
-                    onSetDefault: setupOnly.onSetDefault,
-                    icon: <Ban className="size-3.5" />,
-                    label: setupOnlyLabel()
                   })
                 : null}
               {filteredAgents.map((agent) =>
@@ -396,6 +368,32 @@ export default function AgentCombobox({
           </Command>
         </PopoverContent>
       </Popover>
+      {canClear && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="absolute right-8 top-1/2 -translate-y-1/2"
+              aria-label={translate(
+                'components.agentCombobox.clearSelection',
+                'Clear agent selection'
+              )}
+              onClick={() => {
+                clearSelection.onClear()
+                closePicker()
+                triggerRef.current?.focus()
+              }}
+            >
+              <X />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={4}>
+            {translate('components.agentCombobox.clearSelection', 'Clear agent selection')}
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   )
 }

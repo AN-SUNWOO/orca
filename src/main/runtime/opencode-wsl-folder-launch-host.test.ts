@@ -3,6 +3,7 @@ import { OrcaRuntimeService } from './orca-runtime'
 import { RpcDispatcher } from './rpc/dispatcher'
 import { AGENT_SESSION_METHODS } from './rpc/methods/agent-session'
 import { _resetWslCachesForTests, _setWslCachesForTests } from '../wsl'
+import { PROJECT_RUNTIME_REPAIR_REQUIRED_CODE } from '../../shared/project-runtime-repair-message'
 
 vi.mock('../opencode/opencode-launch-capabilities', () => ({
   probeOpenCodeLaunchCapabilities: async () => ({
@@ -72,17 +73,17 @@ it('starts, resumes and checks models for OpenCode in a WSL folder on Windows', 
   expect(await runtime.probeOrchestrationOpenCodeModelLaunchSupport(target)).toBe(true)
 })
 
-// TEMPORARY parity: a folder whose repo's distro is gone is refused before any spawn, in the words
-// main's spawn refuses such a repo with.
-it('refuses an agent whose WSL distro is gone, as the spawn did', async () => {
+// W5d: a folder whose repo's distro is gone is refused before any spawn, in the settings' words.
+it('refuses an agent whose WSL distro is gone, under its own code', async () => {
   _setWslCachesForTests({ available: true, distros: ['Debian'] })
   const params = { clientOperationId, worktree: 'id:f', agent: 'codex' }
   const call = { id: '1', authToken: 't', method: 'terminal.createAgentSession', params }
   const response = await new RpcDispatcher({ runtime, methods: AGENT_SESSION_METHODS }).dispatch(
     call
   )
-  const message = 'Project runtime requires repair before terminal spawn: wsl-distro-missing'
-  expect(response).toMatchObject({ error: { code: 'runtime_error', message } })
+  const message =
+    'No agent was started. Ubuntu is not installed in WSL. Choose an installed distro or switch this project to Windows.'
+  expect(response).toMatchObject({ error: { code: PROJECT_RUNTIME_REPAIR_REQUIRED_CODE, message } })
 })
 
 // TEMPORARY parity: in a `\\wsl$` repo set to Windows host, OpenCode's model is checked on Windows,

@@ -44,6 +44,12 @@ export function AntigravityAccountsSection({
   const runtime = target.runtime
   const wslDistro = target.wslDistro ?? null
   const nativeChat = useAppStore((s) => s.settings?.experimentalNativeChat === true)
+  const chatHost =
+    nativeChat && ownerKind === 'local' && runtime !== 'wsl' ? window.api.platform.get() : null
+  const chatSignInAvailable =
+    chatHost !== null &&
+    (chatHost.platform === 'darwin' || chatHost.platform === 'linux') &&
+    (chatHost.arch === 'arm64' || chatHost.arch === 'x64')
 
   useEffect(() => {
     mounted.current = true
@@ -157,11 +163,11 @@ export function AntigravityAccountsSection({
       </div>
       {/* Chats sign in on the host itself, never in a WSL distro; a remote host's Google page returns
           to that host, so remote sign-in waits for callback forwarding. */}
-      {state && nativeChat && ownerKind === 'local' && runtime !== 'wsl' && (
+      {chatSignInAvailable && (
         <AntigravityChatSignInRow
           owner={owner}
           label={label}
-          saved={state.chatSignIn?.saved === true}
+          saved={state?.chatSignIn?.saved === true}
           onSettled={() => void run('List')}
         />
       )}

@@ -44,6 +44,7 @@ export function createStructuredAgentSessionConversationLifetime(host: {
   closeStatus: (sessionId: string, options: { listed: boolean }) => void
   /** The session's child records, the host's one read of them. */
   readChildWork: (sessionId: string) => readonly AgentChildWorkView[] | undefined
+  childWorkIncomplete: (sessionId: string) => boolean
 }) {
   let disposed = false
   const { sessions, serialize } = host
@@ -84,6 +85,7 @@ export function createStructuredAgentSessionConversationLifetime(host: {
     isDisposed: () => disposed,
     deliveryActive: host.deliveryActive,
     childWork: host.readChildWork,
+    childWorkIncomplete: host.childWorkIncomplete,
     hasOpenDispatch: (sessionId) => {
       const record = deps().store.getRecord(sessionId)
       return record !== null && deps().hasOpenDispatch?.(record) === true

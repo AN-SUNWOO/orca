@@ -168,7 +168,8 @@ export class StructuredAgentSessionHost {
       open: (sessionId) => this.conversationDelivery.open(sessionId),
       deliveryActive: (sessionId) => this.conversationDelivery.loop.isRunning(sessionId),
       closeStatus: (sessionId, options) => this.clientDelivery.closeSession(sessionId, options),
-      readChildWork: this.clientDelivery.readChildWork
+      readChildWork: this.clientDelivery.readChildWork,
+      childWorkIncomplete: this.clientDelivery.childWorkIncomplete
     })
     this.runtimeState.startLeaseRenewal()
     this.lifetime.idleSweep.start()

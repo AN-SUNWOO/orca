@@ -321,6 +321,7 @@ describe('the idle sweep with no child running (P2-22 ii)', () => {
       isDisposed: () => false,
       deliveryActive: () => false,
       childWork: () => undefined,
+      childWorkIncomplete: () => false,
       hasOpenDispatch: () => false,
       providerHoldsDispatch: () => false,
       stopAgent,

@@ -27,6 +27,7 @@ import { openTestAgentSessionRecordStore } from '../../runtime/agent-session-rec
 import { structuredClaudeLifecycleEvent } from '../../runtime/structured-claude-runtime-adapter'
 import { openTestJournalHostDatabase } from '../agent-session-journal/journal-host-database-test-support'
 import { StructuredAgentSessionHost } from './structured-agent-session-host'
+import { STRUCTURED_AGENT_SESSION_IDLE_MS } from './structured-agent-session-idle-sweep'
 import { claudeAndCodexAgents } from './structured-agent-session-adapter-router-test-support'
 import { recordingStructuredAgentSessionLogger } from './structured-agent-session-logger-test-support'
 import {
@@ -181,7 +182,7 @@ it("keeps a background helper's row working past its spawn result and its turn's
   )
 })
 
-it("ends the agent from the strip's Stop when the store had no room for its helper, never under a running turn", async () => {
+it("keeps a chat with an untracked helper past idle cleanup until the strip's Stop ends it", async () => {
   // Another session holds every child record the store has room for.
   const busy = makeStructuredAgentStatusSubject(
     { executionHostId: 'local', wslDistro: null, workspaceId: 'busy', workspaceKind: 'folder' },
@@ -235,6 +236,9 @@ it("ends the agent from the strip's Stop when the store had no room for its help
     ...RESUMED_BY_MESSAGE.find(({ at }) => at === 4_765)!.frame
   })
   await host.flushStreamedEvents(SESSION)
+  clock += STRUCTURED_AGENT_SESSION_IDLE_MS + 1
+  await host.collaboratorsForTests().lifetime.idleSweep.tick()
+  expect(connection.closed).toBe(false)
   await expect(stopStrip()).resolves.toMatchObject({ ok: true, value: { cancelled: true } })
   expect(connection.closed).toBe(true)
   await eventually(() => expect(strip()?.incomplete).toBeUndefined())

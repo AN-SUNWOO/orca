@@ -29,6 +29,7 @@ export type StructuredAgentSessionIdleSweepDeps = {
   deliveryActive: (sessionId: string) => boolean
   /** The session's child records, the host's one read of them. */
   childWork: (sessionId: string) => readonly AgentChildWorkView[] | undefined
+  childWorkIncomplete: (sessionId: string) => boolean
   /** An orchestration dispatch that still owns this session's worker; derived from its database. */
   hasOpenDispatch: (sessionId: string) => boolean
   /** The provider holds a send it took and has not answered; see `holdsDispatch`. */
@@ -160,6 +161,7 @@ export class StructuredAgentSessionIdleSweep {
   private owesWork(sessionId: string, session: StructuredAgentSessionHostSession): boolean {
     return (
       this.queuedOrDelivering(sessionId, session) ||
+      this.deps.childWorkIncomplete(sessionId) ||
       structuredAgentSessionChildHasOpenWork(session.journal, {
         childWork: () => this.deps.childWork(sessionId),
         hasOpenDispatch: () => this.deps.hasOpenDispatch(sessionId),

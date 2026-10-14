@@ -1,14 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { listWorktreeGraphMock, listWorktreesMock, listWorktreesStrictMock, missingPathMock } =
-  vi.hoisted(() => ({
-    listWorktreeGraphMock: vi.fn(),
-    listWorktreesMock: vi.fn(),
-    listWorktreesStrictMock: vi.fn(),
-    missingPathMock: vi.fn()
-  }))
-
-vi.mock('./local-worktree-filesystem', () => ({ isLocalWorktreePathMissing: missingPathMock }))
+const { listWorktreeGraphMock, listWorktreesMock, listWorktreesStrictMock } = vi.hoisted(() => ({
+  listWorktreeGraphMock: vi.fn(),
+  listWorktreesMock: vi.fn(),
+  listWorktreesStrictMock: vi.fn()
+}))
 
 vi.mock('./git/worktree', () => ({
   listWorktreeGraph: listWorktreeGraphMock,
@@ -32,7 +28,6 @@ describe('repo-worktrees', () => {
     listWorktreeGraphMock.mockReset()
     listWorktreesMock.mockReset()
     listWorktreesStrictMock.mockReset()
-    missingPathMock.mockReset().mockResolvedValue(false)
   })
 
   it('creates a stable synthetic worktree for folder repos', () => {

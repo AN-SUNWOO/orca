@@ -12,7 +12,6 @@ import { getRepoExecutionHostId, LOCAL_EXECUTION_HOST_ID } from '../shared/execu
 import { resolveGitRouteForHost } from './providers/execution-host-provider-dispatch'
 import { areWorktreePathsEqual } from './ipc/worktree-logic'
 import { WorktreeCatalogUnavailableError } from '../shared/worktree/worktree-catalog-availability'
-import { isLocalWorktreePathMissing } from './local-worktree-filesystem'
 
 type LocalRepoWorktreeListOptions = {
   wslDistro?: string
@@ -62,12 +61,7 @@ export async function listRepoWorktreesForDetectedScan(
   repo: Repo,
   options?: LocalRepoWorktreeListOptions
 ): Promise<GitWorktreeInfo[]> {
-  return listRoutedRepoWorktrees(repo, options, async (repoPath, localOptions) => {
-    if (await isLocalWorktreePathMissing(repoPath, localOptions)) {
-      return []
-    }
-    return listWorktreesSharedStrictAllowingTrueEmpty(repoPath, localOptions)
-  })
+  return listRoutedRepoWorktrees(repo, options, listWorktreesSharedStrictAllowingTrueEmpty)
 }
 
 async function listRoutedRepoWorktrees(

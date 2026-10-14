@@ -16,6 +16,7 @@ import { Badge } from '../ui/badge'
 import { ManagedRuntimeInstallRow } from '../managed-runtime/ManagedRuntimeInstallRow'
 import { useAppStore } from '../../store'
 import { getChatProvidersSearchEntry } from './chat-providers-search'
+import { AntigravityChatSignInRow } from './AntigravityChatSignInRow'
 
 export function AntigravityAccountsSection({
   owner,
@@ -160,6 +161,16 @@ export function AntigravityAccountsSection({
           })}
         </p>
       </div>
+      {/* Chats sign in on the host itself, never in a WSL distro; a remote host's Google page returns
+          to that host, so remote sign-in waits for callback forwarding. */}
+      {state && nativeChat && ownerKind === 'local' && runtime !== 'wsl' && (
+        <AntigravityChatSignInRow
+          owner={owner}
+          label={label}
+          saved={state.chatSignIn?.saved === true}
+          onSettled={() => void run('List')}
+        />
+      )}
       <p className="text-xs text-muted-foreground">
         {translate(
           'accounts.antigravity.signIn',

@@ -142,7 +142,7 @@ export function createStructuredAgentSessionHostRestore(
       !deps.store.readOnly &&
       (deps.store.listRecords().some((record) => record.lease.unreconciled) ||
         latchedTargets().length > 0),
-    reconcile: async () => {
+    reconcile: async (disposed) => {
       try {
         const refusal = await reconcileLeases(null, BACKGROUND_WRITE)
         if (refusal) {
@@ -151,6 +151,9 @@ export function createStructuredAgentSessionHostRestore(
         }
         // The restore's own decision, wherever its reconcile or its write met a lock.
         for (const sessionId of latchedTargets()) {
+          if (disposed()) {
+            break
+          }
           await resolveRecovery(sessionId, recoveryWrites)
         }
         latchedTargets() // a decided target leaves at once

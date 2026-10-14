@@ -204,8 +204,8 @@ export class StructuredAgentSessionRetry {
     }
     if (this.context.reconcileOwed()) {
       // Store-wide: once a round, for every chat, never once per chat. No chat is visited while it
-      // owes anything.
-      const reconciled = await this.context.reconcile()
+      // owes anything. Tracked like a visit, so a quit waits for it before it closes the database.
+      const reconciled = await this.context.track(this.context.reconcile(() => this.disposed))
       end(reconciled)
       this.stopped = reconciled !== 'settled'
     }

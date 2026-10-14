@@ -179,4 +179,51 @@ describe('hasSleepableWorkspaceActivity', () => {
       )
     ).toBe(false)
   })
+
+  it('offers Sleep for the selected host of a duplicate chat-only folder', () => {
+    const chat: Tab = {
+      id: 'chat-folder',
+      entityId: 'session-folder',
+      groupId: 'group-1',
+      worktreeId: 'folder:folder-1',
+      contentType: 'agent-session',
+      agentSessionAgent: 'claude',
+      executionHostId: 'runtime:env-1',
+      label: 'Claude',
+      customLabel: null,
+      color: null,
+      sortOrder: 0,
+      createdAt: 0
+    }
+    expect(
+      hasSleepableWorkspaceActivity(
+        { id: 'folder:folder-1', hostId: 'runtime:env-1' },
+        {
+          tabsByWorktree: {},
+          ptyIdsByTabId: {},
+          browserTabsByWorktree: {},
+          unifiedTabsByWorktree: { 'folder:folder-1': [chat] },
+          chatOwnerState: {
+            folderWorkspaces: [
+              {
+                id: 'folder-1',
+                projectGroupId: 'local-group',
+                connectionId: null,
+                executionHostId: 'local'
+              },
+              {
+                id: 'folder-1',
+                projectGroupId: 'remote-group',
+                connectionId: null,
+                executionHostId: 'runtime:env-1'
+              }
+            ],
+            projectGroups: [
+              { id: 'remote-group', connectionId: null, executionHostId: 'runtime:env-1' }
+            ]
+          }
+        }
+      )
+    ).toBe(true)
+  })
 })

@@ -1,5 +1,6 @@
 import type * as React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { toRuntimeExecutionHostId } from '../../../../shared/execution-host'
 import { flushAsyncTicks } from './pty-connection-test-async'
 import {
   createMockTransport,
@@ -185,9 +186,9 @@ describe('deliberate sleep keeps mounted panes cold', () => {
     expect(transport.connect).not.toHaveBeenCalled()
   })
 
-  it('connects a waiting pane once the workspace is woken', async () => {
+  it('connects a pane mounted after wake only when issued teardown settles', async () => {
     const { connectPanePty } = await import('./pty-connection')
-    const { clearWorktreeSleepIntent, markWorktreeSleepIntent } =
+    const { beginWorktreeSleepTeardown, clearWorktreeSleepIntent, markWorktreeSleepIntent } =
       await import('@/lib/worktree-sleep-intent')
     const transport = createMockTransport()
     transportFactoryQueue.push(transport)
@@ -197,6 +198,8 @@ describe('deliberate sleep keeps mounted panes cold', () => {
       tabsByWorktree: { 'wt-1': [{ id: 'tab-woken', ptyId: 'wt-1@@dead' }] }
     }
     markWorktreeSleepIntent('wt-1')
+    const finish = beginWorktreeSleepTeardown('wt-1', 'local')
+    clearWorktreeSleepIntent('wt-1')
     const deps = createDeps({
       tabId: 'tab-woken',
       restoredLeafId: LEAF_1,
@@ -208,9 +211,31 @@ describe('deliberate sleep keeps mounted panes cold', () => {
     await flushAsyncTicks()
     expect(transport.connect).not.toHaveBeenCalled()
 
-    clearWorktreeSleepIntent('wt-1')
+    finish()
     await flushAsyncTicks()
 
+    expect(transport.connect).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits for both same-id host teardowns before connecting an unqualified pane', async () => {
+    const { connectPanePty } = await import('./pty-connection')
+    const { beginWorktreeSleepTeardown } = await import('@/lib/worktree-sleep-intent')
+    const transport = createMockTransport()
+    transportFactoryQueue.push(transport)
+    const finishA = beginWorktreeSleepTeardown('wt-1', toRuntimeExecutionHostId('host-a'))
+    const finishB = beginWorktreeSleepTeardown('wt-1', toRuntimeExecutionHostId('host-b'))
+    const deps = createDeps({ tabId: 'tab-overlap', isVisibleRef: { current: false } })
+
+    connectPanePty(createPane(1) as never, createManager(1) as never, deps as never)
+    await flushAsyncTicks()
+    expect(transport.connect).not.toHaveBeenCalled()
+
+    finishA()
+    await flushAsyncTicks()
+    expect(transport.connect).not.toHaveBeenCalled()
+
+    finishB()
+    await flushAsyncTicks()
     expect(transport.connect).toHaveBeenCalledTimes(1)
   })
 
@@ -327,10 +352,12 @@ describe('deliberate sleep keeps mounted panes cold', () => {
 
   it('still connects a slept pane that carries a queued startup', async () => {
     const { connectPanePty } = await import('./pty-connection')
-    const { markWorktreeSleepIntent } = await import('@/lib/worktree-sleep-intent')
+    const { beginWorktreeSleepTeardown, markWorktreeSleepIntent } =
+      await import('@/lib/worktree-sleep-intent')
     const transport = createMockTransport()
     transportFactoryQueue.push(transport)
     markWorktreeSleepIntent('wt-1')
+    const finish = beginWorktreeSleepTeardown('wt-1', 'local')
     const deps = createDeps({
       tabId: 'tab-slept-startup',
       isVisibleRef: { current: false },
@@ -338,6 +365,10 @@ describe('deliberate sleep keeps mounted panes cold', () => {
     })
 
     connectPanePty(createPane(1) as never, createManager(1) as never, deps as never)
+    await flushAsyncTicks()
+
+    expect(transport.connect).not.toHaveBeenCalled()
+    finish()
     await flushAsyncTicks()
 
     expect(transport.connect).toHaveBeenCalledTimes(1)

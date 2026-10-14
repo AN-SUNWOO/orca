@@ -43,7 +43,6 @@ export async function sleepStructuredAgentSessionWorkspace(
         .then((result) => ({ sessionId, result }))
     )
   )
-  await Promise.all([...candidates].map((sessionId) => host.tasks.waitForCurrent(sessionId)))
   const stoppedSessionIds = outcomes.flatMap((outcome) => {
     if (outcome.status !== 'fulfilled' || !outcome.value.result?.stopped) {
       return []

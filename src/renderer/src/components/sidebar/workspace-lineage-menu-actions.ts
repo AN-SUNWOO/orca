@@ -7,10 +7,17 @@ import type { WorktreeRuntimeOwnerState } from '@/lib/worktree-runtime-owner-sta
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
 import { isStructuredTab } from '@/components/native-chat/structured-agent-session-tabs'
 import type { WorkspaceSleepTarget } from './sleep-worktree-flow'
-import { LOCAL_EXECUTION_HOST_ID, parseExecutionHostId } from '../../../../shared/execution-host'
+import {
+  LOCAL_EXECUTION_HOST_ID,
+  parseExecutionHostId,
+  toRuntimeExecutionHostId
+} from '../../../../shared/execution-host'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import { resolveWorktreeOperationRouteResult } from '@/lib/worktree-operation-route'
-import { findIndexedFolderWorkspaceOwner } from '@/lib/worktree-runtime-owner-index'
+import {
+  findIndexedFolderWorkspaceOwner,
+  findIndexedProjectGroupOwner
+} from '@/lib/worktree-runtime-owner-index'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
 
 type WorkspaceActivityMaps = {
@@ -43,30 +50,45 @@ export function hasSleepableWorkspaceActivity(
   const explicitHost =
     typeof target === 'string'
       ? undefined
-      : (target.executionHostId ?? (scope?.type === 'folder' ? undefined : target.hostId))
+      : (target.executionHostId ??
+        (scope?.type === 'folder' && target.runtimeOwnerEnvironmentId?.trim()
+          ? toRuntimeExecutionHostId(target.runtimeOwnerEnvironmentId.trim())
+          : target.hostId))
   const route = resolveWorktreeOperationRouteResult(chatOwnerState, worktreeId)
   const folder =
     scope?.type === 'folder'
-      ? findIndexedFolderWorkspaceOwner(chatOwnerState.folderWorkspaces, scope.folderWorkspaceId)
+      ? findIndexedFolderWorkspaceOwner(
+          chatOwnerState.folderWorkspaces,
+          scope.folderWorkspaceId,
+          parseExecutionHostId(explicitHost)?.id
+        )
       : null
   const group = folder
-    ? chatOwnerState.projectGroups?.find((candidate) => candidate.id === folder.projectGroupId)
+    ? ((explicitHost
+        ? findIndexedProjectGroupOwner(
+            chatOwnerState.projectGroups,
+            folder.projectGroupId,
+            parseExecutionHostId(explicitHost)?.id
+          )
+        : null) ??
+      findIndexedProjectGroupOwner(chatOwnerState.projectGroups, folder.projectGroupId))
     : null
   const selectedHost =
-    explicitHost ??
-    (scope?.type === 'folder'
+    scope?.type === 'folder'
       ? folder
-        ? getFolderWorkspaceHostId(
-            folder,
-            group ?? { connectionId: null, executionHostId: null },
-            parseExecutionHostId(
-              chatOwnerState.restoredRuntimeHostIdByWorkspaceSessionKey?.[worktreeId]
-            )?.id ?? LOCAL_EXECUTION_HOST_ID
-          )
+        ? target && typeof target !== 'string' && target.executionHostId
+          ? target.executionHostId
+          : getFolderWorkspaceHostId(
+              folder,
+              group ?? { connectionId: null, executionHostId: null },
+              parseExecutionHostId(
+                chatOwnerState.restoredRuntimeHostIdByWorkspaceSessionKey?.[worktreeId]
+              )?.id ?? LOCAL_EXECUTION_HOST_ID
+            )
         : null
       : route.kind === 'resolved'
-        ? route.route.executionHostId
-        : null)
+        ? (explicitHost ?? route.route.executionHostId)
+        : (explicitHost ?? null)
   const hostId = parseExecutionHostId(selectedHost)?.id
   return (
     tabs.some((tab) => tabHasLivePty(ptyIdsByTabId, tab.id)) ||

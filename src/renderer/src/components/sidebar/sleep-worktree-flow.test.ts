@@ -6,10 +6,11 @@ type SleepTestState = {
   folderWorkspaces: {
     id: string
     projectGroupId: string
-    connectionId: null
-    executionHostId: null
+    connectionId: string | null
+    executionHostId: string | null
   }[]
-  projectGroups: { id: string; connectionId: null; executionHostId: string }[]
+  projectGroups: { id: string; connectionId: string | null; executionHostId: string | null }[]
+  worktreesByRepo?: Record<string, { id: string; repoId: string; hostId: string }[]>
   setActiveWorktree: ReturnType<typeof vi.fn>
   shutdownWorktreeBrowsers: ReturnType<typeof vi.fn>
   shutdownWorktreeTerminals: ReturnType<typeof vi.fn>
@@ -75,6 +76,7 @@ describe('workspace sleep flow', () => {
     mocks.state.activeWorkspaceExecutionHostId = null
     mocks.state.folderWorkspaces = []
     mocks.state.projectGroups = []
+    mocks.state.worktreesByRepo = undefined
     mocks.state.setActiveWorktree.mockClear()
     mocks.state.shutdownWorktreeBrowsers.mockClear().mockResolvedValue(undefined)
     mocks.state.shutdownWorktreeTerminals.mockClear().mockResolvedValue(undefined)
@@ -169,5 +171,78 @@ describe('workspace sleep flow', () => {
     const result = await runSleepWorktrees([{ id: 'folder:folder-1', hostId: 'local' }])
     expect(result[0].executionHostId).toBe('runtime:env-1')
     expect(mocks.target).toHaveBeenCalledWith('runtime:env-1')
+  })
+
+  it('uses the selected folder owner when two hosts publish the same folder id', async () => {
+    mocks.state.folderWorkspaces = [
+      {
+        id: 'folder-1',
+        projectGroupId: 'local-group',
+        connectionId: null,
+        executionHostId: 'local'
+      },
+      {
+        id: 'folder-1',
+        projectGroupId: 'remote-group',
+        connectionId: null,
+        executionHostId: 'runtime:env-1'
+      }
+    ]
+    mocks.state.projectGroups = [
+      { id: 'local-group', connectionId: null, executionHostId: 'local' },
+      { id: 'remote-group', connectionId: null, executionHostId: 'runtime:env-1' }
+    ]
+
+    const result = await runSleepWorktrees([{ id: 'folder:folder-1', hostId: 'runtime:env-1' }])
+    expect(result[0].executionHostId).toBe('runtime:env-1')
+    expect(mocks.target).toHaveBeenCalledWith('runtime:env-1')
+  })
+
+  it('clears a matching legacy selection before terminal shutdown', async () => {
+    mocks.state.activeWorktreeId = 'wt-1'
+    mocks.state.activeWorkspaceExecutionHostId = null
+    mocks.state.worktreesByRepo = {
+      'repo-1': [{ id: 'wt-1', repoId: 'repo-1', hostId: 'local' }]
+    }
+    mocks.state.shutdownWorktreeTerminals.mockImplementationOnce(async () => {
+      expect(mocks.state.activeWorktreeId).toBeNull()
+    })
+
+    await runSleepWorktree('wt-1', 'local')
+    expect(mocks.state.setActiveWorktree).toHaveBeenCalledWith(null)
+  })
+
+  it('invalidates an early completion when the workspace wakes during a slow sibling', async () => {
+    const slow = deferred<{ stoppedSessionIds: string[] }>()
+    mocks.call
+      .mockResolvedValueOnce({ stoppedSessionIds: ['first'] })
+      .mockReturnValueOnce(slow.promise)
+    const sleep = runSleepWorktrees([
+      { id: 'wt-1', executionHostId: 'local' },
+      { id: 'wt-2', executionHostId: 'local' }
+    ])
+    await vi.waitFor(() =>
+      expect(mocks.state.shutdownWorktreeTerminals).toHaveBeenCalledWith('wt-1', {
+        keepIdentifiers: true
+      })
+    )
+    clearWorktreeSleepIntent('wt-1', 'local')
+    mocks.state.activeWorktreeId = 'wt-2'
+    slow.resolve({ stoppedSessionIds: ['second'] })
+
+    expect(await sleep).toEqual([
+      {
+        workspaceId: 'wt-1',
+        executionHostId: 'local',
+        stoppedSessionIds: ['first'],
+        completed: false
+      },
+      {
+        workspaceId: 'wt-2',
+        executionHostId: 'local',
+        stoppedSessionIds: ['second'],
+        completed: true
+      }
+    ])
   })
 })

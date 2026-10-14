@@ -13,16 +13,19 @@ function matchingKeys(worktreeId: string, hostId?: ExecutionHostId): string[] {
 }
 
 function notifyCleared(key: string, worktreeId: string): void {
-  for (const listener of [...(listeners.get(key) ?? []), ...(listeners.get(worktreeId) ?? [])]) {
+  const keyListeners = [...(listeners.get(key) ?? [])]
+  listeners.delete(key)
+  const allHostsCleared = !matchingKeys(worktreeId).length && !hasWorktreeSleepTeardown(worktreeId)
+  const worktreeListeners = allHostsCleared ? [...(listeners.get(worktreeId) ?? [])] : []
+  if (allHostsCleared) {
+    listeners.delete(worktreeId)
+  }
+  for (const listener of [...keyListeners, ...worktreeListeners]) {
     try {
       listener()
     } catch (error) {
       console.error('[sleep-intent] wake listener failed', { worktreeId, error })
     }
-  }
-  listeners.delete(key)
-  if (!matchingKeys(worktreeId).length) {
-    listeners.delete(worktreeId)
   }
 }
 
@@ -115,6 +118,18 @@ export function hasWorktreeSleepIntent(
   hostId?: ExecutionHostId
 ): boolean {
   return worktreeId !== null && matchingKeys(worktreeId, hostId).some((key) => intents.has(key))
+}
+
+export function hasWorktreeSleepTeardown(
+  worktreeId: string | null,
+  hostId?: ExecutionHostId
+): boolean {
+  if (worktreeId === null) {
+    return false
+  }
+  return hostId
+    ? teardownCounts.has(keyFor(worktreeId, hostId))
+    : [...teardownCounts.keys()].some((key) => key.endsWith(`\0${worktreeId}`))
 }
 
 export function onWorktreeSleepIntentCleared(

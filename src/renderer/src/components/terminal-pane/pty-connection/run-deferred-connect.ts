@@ -7,6 +7,7 @@ import { createCodexBackfillErrorDetector } from '../codex-backfill-error-detect
 import {
   clearWorktreeSleepIntent,
   hasWorktreeSleepIntent,
+  hasWorktreeSleepTeardown,
   onWorktreeSleepIntentCleared
 } from '@/lib/worktree-sleep-intent'
 
@@ -47,7 +48,10 @@ export function installRunDeferredConnect(session: ConnectPanePtySession): void 
     // Why: a deliberately slept workspace keeps its panes mounted, so connecting
     // would reattach the retained session id and respawn the shell (#10205).
     // Wait for the wake instead; a queued startup is an explicit launch.
-    if (hasWorktreeSleepIntent(session.deps.worktreeId, executionHostId) && !session.paneStartup) {
+    if (
+      (hasWorktreeSleepIntent(session.deps.worktreeId, executionHostId) && !session.paneStartup) ||
+      hasWorktreeSleepTeardown(session.deps.worktreeId, executionHostId)
+    ) {
       session.cancelScheduledConnectFrame()
       if (session.connectFallbackTimer !== null) {
         clearTimeout(session.connectFallbackTimer)
@@ -56,7 +60,7 @@ export function installRunDeferredConnect(session: ConnectPanePtySession): void 
       if (!wakeWaitStarted) {
         wakeWaitStarted = true
         recordPtyConnectDiagnostic(
-          `pane=${session.pane.id} tab=${session.deps.tabId} -> WAIT FOR WAKE (deliberate sleep)`
+          `pane=${session.pane.id} tab=${session.deps.tabId} -> WAIT FOR SLEEP TEARDOWN OR WAKE`
         )
         const unsubscribe = onWorktreeSleepIntentCleared(
           session.deps.worktreeId,

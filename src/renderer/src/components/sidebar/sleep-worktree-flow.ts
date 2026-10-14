@@ -1,7 +1,6 @@
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import {
-  beginWorktreeSleepTeardown,
   clearWorktreeSleepIntent,
   isCurrentWorktreeSleepIntent,
   markWorktreeSleepIntent,
@@ -19,7 +18,10 @@ import {
 } from '../../../../shared/execution-host'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import { resolveWorktreeOperationRouteResult } from '@/lib/worktree-operation-route'
-import { findIndexedFolderWorkspaceOwner } from '@/lib/worktree-runtime-owner-index'
+import {
+  findIndexedFolderWorkspaceOwner,
+  findIndexedProjectGroupOwner
+} from '@/lib/worktree-runtime-owner-index'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
 import type { AppState } from '@/store/types'
 
@@ -104,11 +106,24 @@ function resolveSleepTarget(
   }
   const scope = parseWorkspaceKey(workspaceId)
   if (scope?.type === 'folder') {
-    const folder = findIndexedFolderWorkspaceOwner(state.folderWorkspaces, scope.folderWorkspaceId)
+    const selectedHost =
+      typeof target === 'string'
+        ? undefined
+        : target.runtimeOwnerEnvironmentId?.trim()
+          ? toRuntimeExecutionHostId(target.runtimeOwnerEnvironmentId.trim())
+          : parseExecutionHostId(target.hostId)?.id
+    const folder = findIndexedFolderWorkspaceOwner(
+      state.folderWorkspaces,
+      scope.folderWorkspaceId,
+      selectedHost
+    )
     if (!folder) {
       return null
     }
-    const group = state.projectGroups.find((candidate) => candidate.id === folder.projectGroupId)
+    const group =
+      (selectedHost
+        ? findIndexedProjectGroupOwner(state.projectGroups, folder.projectGroupId, selectedHost)
+        : null) ?? findIndexedProjectGroupOwner(state.projectGroups, folder.projectGroupId)
     const executionHostId = getFolderWorkspaceHostId(
       folder,
       group ?? { connectionId: null, executionHostId: null },
@@ -159,9 +174,6 @@ export async function runSleepWorktrees(
     ...target,
     token: markWorktreeSleepIntent(target.workspaceId, target.executionHostId)
   }))
-  const finishTeardowns = marked.map((target) =>
-    beginWorktreeSleepTeardown(target.workspaceId, target.executionHostId)
-  )
   const nativeCalls = marked.map(({ workspaceId, executionHostId }) => {
     const nativeTarget = structuredAgentSessionTargetForHost(executionHostId)
     return nativeTarget
@@ -175,10 +187,15 @@ export async function runSleepWorktrees(
         )
       : Promise.resolve({ ok: true as const, value: { stoppedSessionIds: [] } })
   })
+  const activeRoute = state.activeWorktreeId
+    ? resolveWorktreeOperationRouteResult(state, state.activeWorktreeId)
+    : null
+  const activeHost =
+    state.activeWorkspaceExecutionHostId ??
+    (activeRoute?.kind === 'resolved' ? activeRoute.route.executionHostId : null)
   const selected = marked.find(
     (target) =>
-      state.activeWorktreeId === target.workspaceId &&
-      state.activeWorkspaceExecutionHostId === target.executionHostId
+      state.activeWorktreeId === target.workspaceId && activeHost === target.executionHostId
   )
   if (selected) {
     const restoreSidebarPosition = preserveSidebarWorktreePosition(selected.workspaceId)
@@ -186,73 +203,71 @@ export async function runSleepWorktrees(
     restoreSidebarPosition()
   }
   const results = await Promise.all(
-    marked.map((target, index) =>
-      withWorktreeSleepTeardown(
-        target.workspaceId,
-        async (): Promise<WorkspaceSleepResult> => {
-          const { workspaceId, executionHostId, token } = target
-          const current = (): boolean =>
-            isCurrentWorktreeSleepIntent(workspaceId, executionHostId, token)
-          let stoppedSessionIds: string[] = []
-          let nativeCompleted = true
-          let panelsCompleted = true
-          let terminalsStopped = false
-          const native = await nativeCalls[index]
-          if (native.ok) {
-            stoppedSessionIds = native.value.stoppedSessionIds
-          } else {
-            console.error('[sleep-worktree] native chat stop failed', {
-              workspaceId,
-              error: native.error
-            })
-            nativeCompleted = false
-            errors.push(describeChatStopFailure())
-          }
-          if (current()) {
-            try {
-              await state.shutdownWorktreeBrowsers(workspaceId)
-            } catch (error) {
-              console.error('[sleep-worktree] browser shutdown failed', { workspaceId, error })
-              panelsCompleted = false
-              errors.push(describeSleepFailure(error))
-            }
-          } else {
-            panelsCompleted = false
-          }
-          if (current() && panelsCompleted) {
-            try {
-              await state.shutdownWorktreeTerminals(workspaceId, { keepIdentifiers: true })
-              terminalsStopped = true
-            } catch (error) {
-              console.error('[sleep-worktree] terminal shutdown failed', { workspaceId, error })
-              panelsCompleted = false
-              errors.push(describeSleepFailure(error))
-            }
-          }
-          if (
-            current() &&
-            terminalsStopped &&
-            typeof window !== 'undefined' &&
-            window.api?.ephemeralVm?.suspendWorkspace
-          ) {
-            try {
-              await window.api.ephemeralVm.suspendWorkspace({ workspaceId, executionHostId })
-            } catch (error) {
-              console.error('[sleep-worktree] host suspension failed', { workspaceId, error })
-              panelsCompleted = false
-              errors.push(describeSleepFailure(error))
-            }
-          }
-          const completed = nativeCompleted && panelsCompleted && terminalsStopped && current()
-          if (!completed && !terminalsStopped && current()) {
-            clearWorktreeSleepIntent(workspaceId, executionHostId)
-          }
-          return { workspaceId, executionHostId, stoppedSessionIds, completed }
-        },
-        target.executionHostId
-      )
-    )
-  ).finally(() => finishTeardowns.forEach((finish) => finish()))
+    marked.map(async (target, index): Promise<WorkspaceSleepResult> => {
+      const { workspaceId, executionHostId, token } = target
+      const current = (): boolean =>
+        isCurrentWorktreeSleepIntent(workspaceId, executionHostId, token)
+      let stoppedSessionIds: string[] = []
+      let nativeCompleted = true
+      let panelsCompleted = true
+      let terminalsStopped = false
+      const native = await nativeCalls[index]
+      if (native.ok) {
+        stoppedSessionIds = native.value.stoppedSessionIds
+      } else {
+        console.error('[sleep-worktree] native chat stop failed', {
+          workspaceId,
+          error: native.error
+        })
+        nativeCompleted = false
+        errors.push(describeChatStopFailure())
+      }
+      if (current()) {
+        try {
+          await state.shutdownWorktreeBrowsers(workspaceId)
+        } catch (error) {
+          console.error('[sleep-worktree] browser shutdown failed', { workspaceId, error })
+          panelsCompleted = false
+          errors.push(describeSleepFailure(error))
+        }
+      } else {
+        panelsCompleted = false
+      }
+      if (current() && panelsCompleted) {
+        try {
+          await withWorktreeSleepTeardown(
+            workspaceId,
+            () => state.shutdownWorktreeTerminals(workspaceId, { keepIdentifiers: true }),
+            executionHostId
+          )
+          terminalsStopped = true
+        } catch (error) {
+          console.error('[sleep-worktree] terminal shutdown failed', { workspaceId, error })
+          panelsCompleted = false
+          errors.push(describeSleepFailure(error))
+        }
+      }
+      if (
+        current() &&
+        terminalsStopped &&
+        typeof window !== 'undefined' &&
+        window.api?.ephemeralVm?.suspendWorkspace
+      ) {
+        try {
+          await window.api.ephemeralVm.suspendWorkspace({ workspaceId, executionHostId })
+        } catch (error) {
+          console.error('[sleep-worktree] host suspension failed', { workspaceId, error })
+          panelsCompleted = false
+          errors.push(describeSleepFailure(error))
+        }
+      }
+      const completed = nativeCompleted && panelsCompleted && terminalsStopped && current()
+      if (!completed && !terminalsStopped && current()) {
+        clearWorktreeSleepIntent(workspaceId, executionHostId)
+      }
+      return { workspaceId, executionHostId, stoppedSessionIds, completed }
+    })
+  )
   if (errors.length > 0) {
     toast.error(
       resolved.length === 1
@@ -267,5 +282,10 @@ export async function runSleepWorktrees(
       { description: [...new Set(errors)].join('\n') }
     )
   }
-  return results
+  return results.map((result, index) => ({
+    ...result,
+    completed:
+      result.completed &&
+      isCurrentWorktreeSleepIntent(result.workspaceId, result.executionHostId, marked[index].token)
+  }))
 }

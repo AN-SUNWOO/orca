@@ -269,6 +269,26 @@ describe('a chat that closes', () => {
     expect(store.getRecord(SESSION)).not.toBeNull()
   })
 
+  it('does not count a send admitted after the stop as a stopped chat', async () => {
+    await attach()
+    await vi.waitFor(() => expect(host['conversationDelivery'].loop.isRunning(SESSION)).toBe(false))
+    const close = host['lifetime'].closeForWorkspaceSleep
+    let newerSend: ReturnType<typeof host.send> | null = null
+    vi.spyOn(host['lifetime'], 'closeForWorkspaceSleep').mockImplementation(async (...args) => {
+      const result = await close(...args)
+      const body = hostTestMessage('newer send')
+      newerSend = host.send(CALLER, {
+        envelope: envelope('agentSession.send', { body }),
+        body
+      })
+      return result
+    })
+
+    expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [] })
+    expect(newerSend).not.toBeNull()
+    expect(await newerSend).toMatchObject({ ok: true })
+  })
+
   it('stops the provider child it started', async () => {
     await attach()
 

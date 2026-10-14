@@ -27,6 +27,10 @@ import { AGENT_SESSION_NOT_ATTACHED } from './structured-agent-session-mutation-
 import { deferredStructuredAgentSessionLogger } from './structured-agent-session-logger'
 import { sameProviderChild } from './structured-agent-session-provider-child'
 import type { ExecutionHostId } from '../../../shared/execution-host'
+import {
+  agentSessionLeaseIsReleased,
+  agentSessionLeaseOwnerVerdict
+} from '../../../shared/agent-session-lease-adjudication'
 import { structuredSessionNeverStarted } from '../../runtime/agent-session-record-founding'
 import { stopAgentSessionProviderRoot } from './structured-agent-session-provider-exit-proof'
 import type { StructuredAgentSessionExpiredStartup } from './structured-agent-session-startup-attempt'
@@ -162,17 +166,17 @@ export function createStructuredAgentSessionConversationLifetime(host: {
             !sessions.get(sessionId)?.child &&
             ended?.rootGone === true &&
             sameProviderChild(ended, child)
-          const durableStopped =
-            (child || owned) &&
-            after?.lease.runtimeFence === fence &&
-            after.lease.claimStatus === 'released' &&
-            !!after.lease.deathEvidence
-          return (
-            childStopped ||
-            (owned && ownedStopped) ||
-            (!child && !owned && !!after && structuredSessionNeverStarted(after)) ||
-            durableStopped
-          )
+          // A released reservation may still have an unproven root after restart; only
+          // exit evidence or a never-started record proves an unheld chat is stopped.
+          const alreadyStopped =
+            !!after &&
+            after.lease.runtimeFence === fence &&
+            agentSessionLeaseIsReleased(after.lease) &&
+            (agentSessionLeaseOwnerVerdict(after.lease) === 'exited' ||
+              structuredSessionNeverStarted(after)) &&
+            !sessions.get(sessionId)?.child &&
+            deps().adapter.hasOwnedAcquisition?.(sessionId) !== true
+          return childStopped || ownedStopped || alreadyStopped
         },
         (error) =>
           deps().logger.warn('closing a stopped workspace chat handle failed', {

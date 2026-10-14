@@ -409,7 +409,7 @@ describe('a chat that closes', () => {
 })
 
 describe('a session with a turn in flight', () => {
-  it('is not stopped while the turn runs, and is once it ends and idles', async () => {
+  it('keeps a running turn and sleeps only proven ended chats after idle eviction or restart', async () => {
     await attach()
     emitTurnLifecycle('running', 1)
     await host.flushStreamedEvents(SESSION)
@@ -425,6 +425,18 @@ describe('a session with a turn in flight', () => {
     clock += IDLE_MS
 
     await waitForEviction()
+    expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [SESSION] })
+    await abandonStructuredAgentSessionHost(host)
+    await reboot()
+    await host.restoreReadableSessions()
+    expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [SESSION] })
+    const getRecord = store.getRecord.bind(store)
+    vi.spyOn(store, 'getRecord').mockImplementation((id) => {
+      const record = getRecord(id)
+      return record && { ...record, lease: { ...record.lease, deathEvidence: null } }
+    })
+    const receipt = await host.sleepWorkspace('workspace-1')
+    expect(receipt).toMatchObject({ failures: [{ reason: 'stop-unverifiable' }] })
   })
 
   // Codex settles an admitted send only on its echo, which may never come; the stop retires it.

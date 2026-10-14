@@ -18,6 +18,8 @@ export type AcpAgentConnectionOptions = Omit<AcpSessionRuntimeOptions, 'peer'> &
   onOutput?: () => void
   /** A stderr line where the agent waits for browser sign-in: ends the connection signed out. */
   signInPrompt?: (line: string) => boolean
+  /** Receives that line instead, and the connection stays open for the sign-in to finish. */
+  signInLink?: (line: string) => void
 }
 
 /** The execution host owns the child and protocol lifetime; the adapter owns turns and Stop. */
@@ -42,7 +44,7 @@ export class AcpAgentConnection extends AcpSessionRuntime {
   ) {
     // Validate before spawning so invalid limits cannot leave an unowned child.
     const peer = resolveAcpPeerOptions({ ...options.peer, closeOnInputEnd: false })
-    const { signInPrompt } = options
+    const { signInPrompt, signInLink } = options
     let signedOut = (): void => {}
     const managed = spawnManagedProviderProcess(launch, {
       spawnImpl,
@@ -52,7 +54,9 @@ export class AcpAgentConnection extends AcpSessionRuntime {
         ? {
             onStderrLine: (line: string) => {
               const prompted = signInPrompt(line)
-              if (prompted) {
+              if (prompted && signInLink) {
+                signInLink(line)
+              } else if (prompted) {
                 signedOut()
               }
               return prompted

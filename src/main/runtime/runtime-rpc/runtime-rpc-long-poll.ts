@@ -69,7 +69,11 @@ export function classifyRuntimeLongPoll(request: RpcRequest): RuntimeLongPollCla
   if (request.method === 'browser.clientHost.attach') {
     return 'browser-host'
   }
-  if (request.method === 'terminal.wait') {
+  // Waits up to 25 s for the chat sign-in to change; a disconnect ends only that wait.
+  if (
+    request.method === 'terminal.wait' ||
+    request.method === 'accounts.antigravityChatSignInLink'
+  ) {
     return 'wait'
   }
   // Agent-prompt submission waits for the PTY's lifecycle transition (up to

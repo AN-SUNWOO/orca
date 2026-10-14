@@ -74,7 +74,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
           )
         )
       }
-      return await this.start(input, attempt)
+      return await this.start({ ...input, signal: attempt.signal }, attempt)
     } finally {
       this.starts.end(attempt)
       gate?.leave()

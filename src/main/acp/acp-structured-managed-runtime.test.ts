@@ -7,6 +7,7 @@ import { closeProviderTimelineRigs } from '../native-chat/agent-session-timeline
 import type { StructuredAgentCommandSettings } from '../native-chat/structured-agent-command-resolution'
 import { createAcpStructuredLaunchResolver } from '../runtime/structured-agent-launch-composition.test-support'
 import { GROK, openAcpAdapterRig } from './acp-structured-adapter.test-support'
+import { AcpLaunchGate } from './acp-launch-gate'
 
 afterEach(() => closeProviderTimelineRigs())
 
@@ -68,4 +69,31 @@ it('installs the managed runtime when no copy or applicable Command setting is f
   ).toBe(join(localBin, command))
   expect(materialize).toHaveBeenCalledTimes(1)
   await rm(dataDirectory, { recursive: true, force: true })
+})
+
+it('aborts a managed runtime install when account work starts', async () => {
+  const gate = new AcpLaunchGate('account changing')
+  const materialize = vi.fn(
+    (_dataDirectory: string, signal?: AbortSignal) =>
+      new Promise<void>((_resolve, reject) =>
+        signal?.addEventListener('abort', () => reject(new Error('aborted')), { once: true })
+      )
+  )
+  const spec = {
+    ...GROK,
+    launchGate: gate,
+    managedRuntime: { folder: () => '', materialize }
+  }
+  const rig = await openAcpAdapterRig({
+    spec,
+    launch: { command: spec.command },
+    deps: { dataDirectory: tmpdir() }
+  })
+  const starting = rig.acquire().catch((error: unknown) => error)
+  await vi.waitFor(() => expect(materialize).toHaveBeenCalledOnce())
+  await gate.run(
+    async () => expect(rig.spawned).toEqual([]),
+    async () => {}
+  )
+  expect(await starting).toBeInstanceOf(Error)
 })

@@ -68,7 +68,7 @@ describe('TooManyChangesBanner', () => {
       unresolvedConflictCount: 0,
       conflictOperation: 'unknown' as const,
       sourceControlAiActionsVisible: false,
-      isRemoteOperationActive: false,
+      isRecoveryBusy: false,
       isAbortingOperation: false,
       onAbortOperation: vi.fn(),
       onResolveWithAi: vi.fn(),

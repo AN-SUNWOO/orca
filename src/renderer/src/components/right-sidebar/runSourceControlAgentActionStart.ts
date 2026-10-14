@@ -1,7 +1,7 @@
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
-import { useAppStore } from '@/store'
+import type { RuntimeGitContext } from '@/runtime/runtime-git-client-context'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { Repo } from '../../../../shared/repo-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { sourceControlActionRecipeMatchesTarget } from './source-control-action-recipe-match'
 import { resolveSourceControlAgentSaveTarget } from './source-control-agent-action-dialog-support'
+import { admitSourceControlRecovery } from './source-control-recovery-admission'
 
 type RunSourceControlAgentActionStartArgs = {
   selectedAgent: TuiAgent
@@ -33,6 +34,7 @@ type RunSourceControlAgentActionStartArgs = {
   promptDelivery: 'auto-submit' | 'draft' | 'submit-after-ready'
   launchPlatform?: NodeJS.Platform
   launchSource: LaunchSource
+  recoveryContext?: RuntimeGitContext | null
   onStart?: (args: {
     agent: TuiAgent
     commandInput: string
@@ -73,6 +75,7 @@ export async function runSourceControlAgentActionStart({
   promptDelivery,
   launchPlatform,
   launchSource,
+  recoveryContext,
   onStart,
   onSaveAgentDefault,
   onLaunchAccepted,
@@ -81,13 +84,7 @@ export async function runSourceControlAgentActionStart({
   onClose
 }: RunSourceControlAgentActionStartArgs): Promise<boolean> {
   // Detection and delivery planning can outlive the state that opened the composer.
-  if (actionId === 'resolveConflicts' && useAppStore.getState().isRemoteOperationActive) {
-    toast.error(
-      translate(
-        'auto.components.right.sidebar.run.source.control.agent.action.start.git.operation.running',
-        'Wait for the running Git operation to finish.'
-      )
-    )
+  if (recoveryContext && !(await admitSourceControlRecovery(recoveryContext))) {
     return false
   }
   let launched = false

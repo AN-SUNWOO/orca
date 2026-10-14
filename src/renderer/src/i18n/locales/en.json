@@ -14356,6 +14356,23 @@
             "sourceMissing": "Transcript is no longer available",
             "metadataMatch": "Match in session metadata",
             "sourceActionsUnavailable": "The transcript source is unavailable."
+          },
+          "run": {
+            "source": {
+              "control": {
+                "agent": {
+                  "action": {
+                    "start": {
+                      "git": {
+                        "operation": {
+                          "running": "Wait for the running Git operation to finish."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },

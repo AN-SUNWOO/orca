@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import type { RuntimeGitContext } from '@/runtime/runtime-git-client-context'
 import type { LaunchSource } from '../../../../shared/telemetry-events'
 import type {
   SourceControlActionRecipe,
@@ -35,6 +36,7 @@ type UseSourceControlAgentActionStartArgs = {
    * drop the Linux-only `orca-ide` rename to match the real launch. */
   isRemote?: boolean
   launchSource: LaunchSource
+  recoveryContext?: RuntimeGitContext | null
   connectionUnavailable: boolean
   refreshDetectedAgents: () => Promise<TuiAgent[]>
   onStart?: (args: {
@@ -88,6 +90,7 @@ export function useSourceControlAgentActionStart({
   launchPlatform,
   isRemote,
   launchSource,
+  recoveryContext,
   connectionUnavailable,
   refreshDetectedAgents,
   onStart,
@@ -167,6 +170,7 @@ export function useSourceControlAgentActionStart({
           promptDelivery,
           launchPlatform,
           launchSource,
+          recoveryContext,
           onStart,
           onSaveAgentDefault,
           onLaunchAccepted,
@@ -191,6 +195,7 @@ export function useSourceControlAgentActionStart({
       connectionUnavailable,
       groupId,
       launchSource,
+      recoveryContext,
       launchPlatform,
       onClose,
       onLaunchAborted,

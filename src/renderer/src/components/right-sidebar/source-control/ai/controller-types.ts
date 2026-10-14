@@ -8,10 +8,7 @@ import type { GlobalSettings } from '../../../../../../shared/global-settings-ty
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { RuntimeClientTarget } from '../../../../../../shared/runtime-client-target'
 
-export type SourceControlAiStoreSnapshot = Pick<
-  AppState,
-  'settings' | 'repos' | 'isRemoteOperationActive'
-> &
+export type SourceControlAiStoreSnapshot = Pick<AppState, 'settings' | 'repos'> &
   WorktreeAgentInventoryState
 
 export type SourceControlAiControllerParams = {

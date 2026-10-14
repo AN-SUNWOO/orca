@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import type * as RuntimeGitStatusClientModule from '@/runtime/runtime-git-status-client'
 import path from 'node:path'
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +9,11 @@ import { getDefaultSettings } from '../../../../../../shared/constants'
 import type { GitConflictOperation } from '../../../../../../shared/git-status-types'
 import { useSourceControlAi } from './use-ai'
 import type { SourceControlAiControllerParams } from './controller-types'
+const mutationInFlight = vi.hoisted(() => vi.fn())
+vi.mock('@/runtime/runtime-git-status-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof RuntimeGitStatusClientModule>()),
+  getRuntimeGitMutationInFlight: mutationInFlight
+}))
 
 const initialState = useAppStore.getState()
 
@@ -39,6 +45,7 @@ function controllerParams(
 
 describe('AI operation recovery composer', () => {
   beforeEach(() => {
+    mutationInFlight.mockReset().mockResolvedValue({ inFlight: false })
     useAppStore.setState({ isRemoteOperationActive: false })
   })
 
@@ -49,49 +56,61 @@ describe('AI operation recovery composer', () => {
 
   it.each<GitConflictOperation>(['merge', 'rebase', 'cherry-pick'])(
     'opens for a paused %s with no unmerged paths',
-    (conflictOperation) => {
+    async (conflictOperation) => {
       const { result } = renderHook(() =>
         useSourceControlAi(controllerParams({ conflictOperation }))
       )
-      act(() => result.current.handleResolveConflictsWithAI())
+      await act(() => result.current.handleResolveConflictsWithAI())
       expect(result.current.resolveConflictsComposerOpen).toBe(true)
       expect(result.current.resolveConflictsPrompt).toContain(`- Operation: ${conflictOperation}`)
     }
   )
 
-  it('keeps conflict resolution available without a known operation', () => {
+  it('keeps conflict resolution available without a known operation', async () => {
     const { result } = renderHook(() =>
       useSourceControlAi(
         controllerParams({ conflictOperation: 'unknown', unresolvedConflicts: [{ path: 'a.ts' }] })
       )
     )
-    act(() => result.current.handleResolveConflictsWithAI())
+    await act(() => result.current.handleResolveConflictsWithAI())
     expect(result.current.resolveConflictsComposerOpen).toBe(true)
   })
 
-  it('does not open when there is no operation or unresolved conflict', () => {
+  it('does not open when there is no operation or unresolved conflict', async () => {
     const { result } = renderHook(() =>
       useSourceControlAi(controllerParams({ conflictOperation: 'unknown' }))
     )
-    act(() => result.current.handleResolveConflictsWithAI())
+    await act(() => result.current.handleResolveConflictsWithAI())
     expect(result.current.resolveConflictsComposerOpen).toBe(false)
   })
 
   it.each([0, 1])(
-    'reads live busy state through a retained callback with %i unmerged paths',
-    (unresolvedCount) => {
+    'reads execution-host busy state through a retained callback with %i unmerged paths',
+    async (unresolvedCount) => {
       const unresolvedConflicts = unresolvedCount ? [{ path: 'a.ts' }] : []
       const { result } = renderHook(() =>
         useSourceControlAi(controllerParams({ unresolvedConflicts }))
       )
       const openComposer = result.current.handleResolveConflictsWithAI
-      useAppStore.getState().beginRemoteOperation('rebase')
-      act(() => openComposer())
+      mutationInFlight.mockResolvedValue({ inFlight: true })
+      await act(() => openComposer())
       expect(result.current.resolveConflictsComposerOpen).toBe(false)
 
-      useAppStore.getState().endRemoteOperation()
-      act(() => openComposer())
+      mutationInFlight.mockResolvedValue({ inFlight: false })
+      await act(() => openComposer())
       expect(result.current.resolveConflictsComposerOpen).toBe(true)
     }
   )
+  it('opens while an unrelated workspace fetch is pending', async () => {
+    const { result } = renderHook(() => useSourceControlAi(controllerParams()))
+    useAppStore.getState().beginRemoteOperation('fetch')
+    await act(() => result.current.handleResolveConflictsWithAI())
+    expect(result.current.resolveConflictsComposerOpen).toBe(true)
+    expect(mutationInFlight).toHaveBeenCalledWith({
+      target: { kind: 'local' },
+      worktreeId: 'wt-1',
+      worktreePath: path.resolve('tmp', 'wt-1'),
+      connectionId: undefined
+    })
+  })
 })

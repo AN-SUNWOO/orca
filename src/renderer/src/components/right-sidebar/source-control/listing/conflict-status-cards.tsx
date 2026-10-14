@@ -10,7 +10,7 @@ export function ConflictSummaryCard({
   unresolvedCount,
   sourceControlAiActionsVisible,
   isResolvingWithAI,
-  isRemoteOperationActive = false,
+  isRecoveryBusy = false,
   isAbortingOperation = false,
   onAbortOperation,
   onResolveWithAI,
@@ -20,7 +20,7 @@ export function ConflictSummaryCard({
   unresolvedCount: number
   sourceControlAiActionsVisible: boolean
   isResolvingWithAI: boolean
-  isRemoteOperationActive?: boolean
+  isRecoveryBusy?: boolean
   isAbortingOperation?: boolean
   onAbortOperation?: (operation: GitConflictOperation) => void
   onResolveWithAI: () => void
@@ -74,7 +74,7 @@ export function ConflictSummaryCard({
             variant="default"
             size="sm"
             className="h-7 w-full text-xs"
-            disabled={isResolvingWithAI || isAbortingOperation || isRemoteOperationActive}
+            disabled={isResolvingWithAI || isAbortingOperation || isRecoveryBusy}
             onClick={onResolveWithAI}
           >
             {isResolvingWithAI ? (
@@ -119,14 +119,14 @@ export function ConflictSummaryCard({
 // Why: separate from ConflictSummaryCard because a rebase/merge/cherry-pick can be in progress with no conflicts (between steps, or resolved but pre-continue).
 export function OperationBanner({
   conflictOperation,
-  isRemoteOperationActive = false,
+  isRecoveryBusy = false,
   isAbortingOperation = false,
   onAbortOperation,
   sourceControlAiActionsVisible = false,
   onResolveWithAI
 }: {
   conflictOperation: GitConflictOperation
-  isRemoteOperationActive?: boolean
+  isRecoveryBusy?: boolean
   isAbortingOperation?: boolean
   onAbortOperation?: (operation: GitConflictOperation) => void
   sourceControlAiActionsVisible?: boolean
@@ -169,7 +169,7 @@ export function OperationBanner({
             variant="default"
             size="sm"
             className="h-7 w-full text-xs"
-            disabled={isAbortingOperation || isRemoteOperationActive}
+            disabled={isAbortingOperation || isRecoveryBusy}
             onClick={onResolveWithAI}
           >
             <Sparkles className="size-3.5" />

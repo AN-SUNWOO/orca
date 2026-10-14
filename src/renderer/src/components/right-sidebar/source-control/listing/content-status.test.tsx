@@ -10,7 +10,7 @@ function statusProps(): React.ComponentProps<typeof SourceControlContentStatus> 
     unresolvedConflictCount: 0,
     conflictOperation: 'rebase',
     sourceControlAiActionsVisible: true,
-    isRemoteOperationActive: false,
+    isRecoveryBusy: false,
     isAbortingOperation: false,
     onAbortOperation: vi.fn(),
     onResolveWithAi: vi.fn(),
@@ -46,14 +46,14 @@ describe('SourceControlContentStatus recovery', () => {
   it.each([0, 1])(
     'blocks recovery while Git runs with %i unmerged paths',
     (unresolvedConflictCount) => {
-      const props = { ...statusProps(), unresolvedConflictCount, isRemoteOperationActive: true }
+      const props = { ...statusProps(), unresolvedConflictCount, isRecoveryBusy: true }
       const view = render(<SourceControlContentStatus {...props} />)
       const button = view.getByRole('button', { name: 'Resolve with AI' })
       expect(button.hasAttribute('disabled')).toBe(true)
       fireEvent.click(button)
       expect(props.onResolveWithAi).not.toHaveBeenCalled()
 
-      view.rerender(<SourceControlContentStatus {...props} isRemoteOperationActive={false} />)
+      view.rerender(<SourceControlContentStatus {...props} isRecoveryBusy={false} />)
       expect(button.hasAttribute('disabled')).toBe(false)
       fireEvent.click(button)
       expect(props.onResolveWithAi).toHaveBeenCalledTimes(1)

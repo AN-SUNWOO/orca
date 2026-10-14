@@ -40,6 +40,7 @@ export function useSourceControlAgentActionDialog({
   promptDelivery = 'submit-after-ready',
   launchPlatform,
   launchSource,
+  recoveryContext,
   savedAgentId,
   onSaveAgentDefault,
   onLaunchAccepted,
@@ -48,7 +49,6 @@ export function useSourceControlAgentActionDialog({
   onStart
 }: SourceControlAgentActionDialogProps): UseSourceControlAgentActionDialogResult {
   const settings = useAppStore((state) => state.settings)
-  const isRemoteOperationActive = useAppStore((state) => state.isRemoteOperationActive)
   const repo = useRepoById(repoId ?? null)
   const launchAgentScope = useMemo(
     () => resolveSourceControlLaunchAgentScope({ settings, repo, actionId }),
@@ -208,6 +208,7 @@ export function useSourceControlAgentActionDialog({
       // label aligned with the real remote launch (no `orca-ide` rename).
       isRemote: typeof connectionId === 'string',
       launchSource,
+      recoveryContext,
       connectionUnavailable,
       refreshDetectedAgents,
       onStart,
@@ -223,7 +224,6 @@ export function useSourceControlAgentActionDialog({
     !selectedAgentUnavailable &&
     !connectionUnavailable &&
     !detecting &&
-    !(actionId === 'resolveConflicts' && isRemoteOperationActive) &&
     !isStarting
 
   const handleOpenChange = useCallback(

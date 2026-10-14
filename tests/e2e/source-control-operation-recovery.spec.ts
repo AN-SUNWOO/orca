@@ -18,7 +18,7 @@ function gitInWorktree(worktreePath: string, args: string[]): string {
   return result.stdout.trim()
 }
 
-test('gates staged rebase recovery on the running-operation state', async ({
+test('offers Resolve with AI for a paused rebase with no unmerged files', async ({
   orcaPage,
   electronApp,
   testRepoPath,
@@ -86,15 +86,11 @@ test('gates staged rebase recovery on the running-operation state', async ({
       },
       ensureDetectedAgents: async () => []
     })
-    state.beginRemoteOperation('rebase')
+    state.beginRemoteOperation('fetch')
   })
 
   const resolve = orcaPage.getByRole('button', { name: 'Resolve with AI', exact: true })
   await expect(orcaPage.getByText('Rebase in progress', { exact: true })).toBeVisible()
-  await expect(resolve).toBeDisabled()
-  await orcaPage.screenshot({ path: testInfo.outputPath('rebase-running.png') })
-
-  await orcaPage.evaluate(() => window.__store?.getState().endRemoteOperation())
   await expect(resolve).toBeEnabled()
   await resolve.click()
   await expect(orcaPage.getByRole('dialog')).toContainText('Resolve Conflicts With AI')

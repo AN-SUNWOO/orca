@@ -25,6 +25,7 @@ import { acquireGitAdmission } from './git-subprocess-admission'
 import { GitCommandTimeoutError, gitCommandTimeoutMs } from './git-command-timeout'
 import { classifyGitCommand } from '../../../shared/git-command-classification'
 import { createAbortError } from './abort-error'
+import { trackGitWorktreeMutation } from '../git-worktree-mutation-state'
 
 /**
  * Async git command execution. Drop-in replacement for
@@ -171,8 +172,9 @@ export function gitExecFileAsync(
   args: string[],
   options: GitExecOptions
 ): Promise<{ stdout: string; stderr: string }> {
+  const releaseMutation = trackGitWorktreeMutation(args, options)
   const command = resolveGitFetchHeadCommand(args, options.cwd)
-  return command.needsLock
+  const result = command.needsLock
     ? runWithGitFetchHeadLock(
         command.cwd,
         options.signal,
@@ -180,6 +182,7 @@ export function gitExecFileAsync(
         command.gitDir
       )
     : gitExecFileAsyncUnlocked(args, options)
+  return result.finally(releaseMutation)
 }
 
 /**

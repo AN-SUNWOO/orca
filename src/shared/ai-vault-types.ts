@@ -46,6 +46,10 @@ export function isAiVaultScanCancelledError(error: unknown): boolean {
 }
 
 export type AiVaultAgent = (typeof AI_VAULT_AGENTS)[number]
+
+export function isAiVaultAgent(value: unknown): value is AiVaultAgent {
+  return AI_VAULT_AGENTS.some((agent) => agent === value)
+}
 export type AiVaultScope = 'workspace' | 'project' | 'all'
 export type AiVaultSort = 'updated' | 'created'
 export const AI_VAULT_SEARCH_SORTS = ['relevance', 'newest'] as const

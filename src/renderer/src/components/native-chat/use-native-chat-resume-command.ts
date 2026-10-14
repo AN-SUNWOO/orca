@@ -2,11 +2,14 @@ import { useCallback, type Dispatch, type RefObject, type SetStateAction } from 
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { SlashCommandSuggestion } from '../../../../shared/native-chat-slash-commands'
+import type { AgentType } from '../../../../shared/agent-status-types'
+import { isAiVaultAgent } from '../../../../shared/ai-vault-types'
 import { selectAiVaultPanelWorkspace } from '../right-sidebar/ai-vault-panel-workspace'
 import { openAgentSessionHistoryModal } from '../right-sidebar/agent-session-history-modal'
 import type { ComposerAutocomplete, NativeChatPickerItem } from './native-chat-composer-state'
 import { findNativeChatTabOwnerWorktreeId } from './native-chat-file-link'
 import type { NativeChatComposerInput } from './native-chat-composer-input'
+import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 
 const RESUME = 'resume'
 
@@ -50,9 +53,11 @@ export type NativeChatResumeCommand = {
 
 /** In a structured chat, `/resume [search]` opens its Session History and never reaches the agent. */
 export function useNativeChatResumeCommand(args: {
-  structured: boolean
+  /** Present only in a structured chat. */
+  structuredTransport: Pick<NativeChatStructuredComposerTransport, 'worktreeId'> | undefined
+  /** The chat's recorded provider. */
+  agent: AgentType
   terminalTabId: string
-  structuredWorktreeId: string | undefined
   /** A skill row the user picked keeps going to the agent, even one named `resume`. */
   isPickedSkill: (draft: string) => boolean
   clearSkillOrigin: () => void
@@ -62,8 +67,10 @@ export function useNativeChatResumeCommand(args: {
   setActiveSuggestion: Dispatch<SetStateAction<number>>
   setNotice: (notice: string | null) => void
 }): NativeChatResumeCommand {
-  const { structured, terminalTabId, structuredWorktreeId, isPickedSkill, clearSkillOrigin } = args
+  const { structuredTransport, agent, terminalTabId, isPickedSkill, clearSkillOrigin } = args
   const { textareaRef, setDraft, setCaret, setActiveSuggestion, setNotice } = args
+  const structured = structuredTransport !== undefined
+  const structuredWorktreeId = structuredTransport?.worktreeId
 
   const open = useCallback(
     (search: string): void => {
@@ -90,7 +97,11 @@ export function useNativeChatResumeCommand(args: {
       }
       // The dialog hands focus back to what had it, and a Send click leaves that on the button.
       textareaRef.current?.focus()
-      openAgentSessionHistoryModal({ workspace, initialQuery: search })
+      openAgentSessionHistoryModal({
+        workspace,
+        initialQuery: search,
+        ...(isAiVaultAgent(agent) ? { agent } : {})
+      })
       // Attachments stay armed for the next real prompt.
       setDraft('')
       setCaret(0)
@@ -98,6 +109,7 @@ export function useNativeChatResumeCommand(args: {
       setNotice(null)
     },
     [
+      agent,
       setActiveSuggestion,
       setCaret,
       setDraft,

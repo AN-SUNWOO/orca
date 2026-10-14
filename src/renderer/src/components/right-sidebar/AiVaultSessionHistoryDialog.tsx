@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import { translate } from '@/i18n/i18n'
+import { AI_VAULT_AGENTS } from '../../../../shared/ai-vault-types'
 import AiVaultPanel, { type AiVaultPanelHandle } from './AiVaultPanel'
 import { readAgentSessionHistoryModalRequest } from './agent-session-history-modal'
 
@@ -82,6 +83,8 @@ export default function AiVaultSessionHistoryDialog(): React.JSX.Element | null 
             ref={panelRef}
             workspace={request.workspace}
             initialQuery={request.initialQuery}
+            // An agent the filter doesn't list leaves every agent shown rather than none.
+            initialAgents={request.agent ? [request.agent] : AI_VAULT_AGENTS}
             onSessionOpened={closeModal}
             headerAction={
               <DialogClose asChild>

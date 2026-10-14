@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import {
   AI_VAULT_AGENTS,
   type AiVaultAgent,
@@ -53,7 +53,34 @@ function updateOptions(update: AiVaultViewOptionsUpdate): void {
   }
 }
 
-export function usePersistedAiVaultViewOptions(): {
+function withAgentEnabled(
+  disabledAgents: AiVaultAgent[],
+  agent: AiVaultAgent,
+  enabled: boolean
+): AiVaultAgent[] {
+  if (enabled === !disabledAgents.includes(agent)) {
+    return disabledAgents
+  }
+  // Why: allow zero enabled agents so Clear + re-check one agent is a two-step filter.
+  return enabled ? disabledAgents.filter((entry) => entry !== agent) : [...disabledAgents, agent]
+}
+
+function withAllAgentsEnabled(disabledAgents: AiVaultAgent[], enabled: boolean): AiVaultAgent[] {
+  const next = enabled ? [] : [...AI_VAULT_AGENTS]
+  const unchanged =
+    next.length === disabledAgents.length && next.every((agent) => disabledAgents.includes(agent))
+  return unchanged ? disabledAgents : next
+}
+
+function updateDisabledAgents(update: (disabledAgents: AiVaultAgent[]) => AiVaultAgent[]): void {
+  updateOptions((current) => {
+    const disabledAgents = update(current.disabledAgents)
+    return disabledAgents === current.disabledAgents ? current : { ...current, disabledAgents }
+  })
+}
+
+/** `localAgents` gives the panel its own agent filter, starting with those agents; it is never saved. */
+export function usePersistedAiVaultViewOptions(localAgents?: readonly AiVaultAgent[]): {
   agents: AiVaultAgent[]
   sort: AiVaultSort
   searchSort: AiVaultSearchSort
@@ -106,40 +133,38 @@ export function usePersistedAiVaultViewOptions(): {
       ),
     []
   )
-  const setAgentEnabled = useCallback((agent: AiVaultAgent, enabled: boolean) => {
-    updateOptions((current) => {
-      const isDisabled = current.disabledAgents.includes(agent)
-      if (enabled === !isDisabled) {
-        return current
-      }
-      // Why: allow zero enabled agents so Clear + re-check one agent is a two-step filter.
-      const disabledAgents = enabled
-        ? current.disabledAgents.filter((entry) => entry !== agent)
-        : [...current.disabledAgents, agent]
-      return { ...current, disabledAgents }
-    })
-  }, [])
-  const setAllAgentsEnabled = useCallback((enabled: boolean) => {
-    updateOptions((current) => {
-      const disabledAgents = enabled ? [] : [...AI_VAULT_AGENTS]
-      if (
-        disabledAgents.length === current.disabledAgents.length &&
-        disabledAgents.every((agent) => current.disabledAgents.includes(agent))
-      ) {
-        return current
-      }
-      return { ...current, disabledAgents }
-    })
-  }, [])
-  const resetViewOptions = useCallback(
-    () => updateOptions(() => createDefaultAiVaultViewOptions()),
-    []
+  const [localDisabledAgents, setLocalDisabledAgents] = useState(() =>
+    localAgents ? AI_VAULT_AGENTS.filter((agent) => !localAgents.includes(agent)) : null
   )
+  const local = localDisabledAgents !== null
+  const updateAgents = useCallback(
+    (update: (disabledAgents: AiVaultAgent[]) => AiVaultAgent[]) =>
+      local
+        ? setLocalDisabledAgents((current) => current && update(current))
+        : updateDisabledAgents(update),
+    [local]
+  )
+  const setAgentEnabled = useCallback(
+    (agent: AiVaultAgent, enabled: boolean) =>
+      updateAgents((disabled) => withAgentEnabled(disabled, agent, enabled)),
+    [updateAgents]
+  )
+  const setAllAgentsEnabled = useCallback(
+    (enabled: boolean) => updateAgents((disabled) => withAllAgentsEnabled(disabled, enabled)),
+    [updateAgents]
+  )
+  const resetViewOptions = useCallback(() => {
+    updateOptions((current) => ({
+      ...createDefaultAiVaultViewOptions(),
+      ...(local ? { disabledAgents: current.disabledAgents } : {})
+    }))
+    if (local) {
+      setLocalDisabledAgents([])
+    }
+  }, [local])
 
-  const agents = useMemo(
-    () => enabledAiVaultAgents(options.disabledAgents),
-    [options.disabledAgents]
-  )
+  const disabledAgents = localDisabledAgents ?? options.disabledAgents
+  const agents = useMemo(() => enabledAiVaultAgents(disabledAgents), [disabledAgents])
   return {
     agents,
     sort: options.sort,

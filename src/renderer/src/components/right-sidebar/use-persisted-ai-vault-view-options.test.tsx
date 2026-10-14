@@ -38,14 +38,18 @@ describe('usePersistedAiVaultViewOptions', () => {
     expect(restored.result.current.sessionLimit).toBe('unlimited')
   })
 
-  it("keeps two mounted panels from undoing each other's changes", () => {
+  it("shares view options between panels but keeps a dialog's agent filter to itself", () => {
     const sidebar = renderHook(() => usePersistedAiVaultViewOptions())
-    const dialog = renderHook(() => usePersistedAiVaultViewOptions())
+    const dialog = renderHook(() => usePersistedAiVaultViewOptions(['claude']))
+    expect(dialog.result.current.agents).toEqual(['claude'])
 
-    act(() => dialog.result.current.setAgentEnabled('codex', false))
+    act(() => sidebar.result.current.setAgentEnabled('codex', false))
+    act(() => dialog.result.current.setSort('created'))
+    act(() => dialog.result.current.setAllAgentsEnabled(true))
+    expect(dialog.result.current.agents).toEqual(AI_VAULT_AGENTS)
     expect(sidebar.result.current.agents).not.toContain('codex')
+    expect(sidebar.result.current.sort).toBe('created')
 
-    act(() => sidebar.result.current.setSort('created'))
     dialog.unmount()
     sidebar.unmount()
     const restored = renderHook(() => usePersistedAiVaultViewOptions())

@@ -46,7 +46,7 @@ import { useAiVaultPanelSearch } from './use-ai-vault-search'
 import { aiVaultSearchScopeIdentity } from './ai-vault-search-scope-identity'
 import { AiVaultPanelSearch } from './AiVaultPanelSearch'
 import { useAiVaultPanelSessionResume } from './use-ai-vault-panel-session-resume'
-import type { AiVaultScope } from '../../../../shared/ai-vault-types'
+import type { AiVaultAgent, AiVaultScope } from '../../../../shared/ai-vault-types'
 import type { AiVaultPanelWorkspace } from './ai-vault-panel-workspace'
 import { useAiVaultPanelWorkspace } from './use-ai-vault-panel-workspace'
 import type { AiVaultSessionListKeyboard } from './use-ai-vault-session-keyboard-navigation'
@@ -64,6 +64,8 @@ export type AiVaultPanelProps = {
   workspace?: AiVaultPanelWorkspace
   /** Read once, at mount. */
   initialQuery?: string
+  /** Read once, at mount; set, the panel filters agents on its own and never saves the filter. */
+  initialAgents?: readonly AiVaultAgent[]
   headerAction?: ReactNode
   /** Fires when a switch to an open session or a hand-off succeeds, which may leave the visible tab
    *  as it was; its presence also turns on arrow/Enter row keys. */
@@ -74,6 +76,7 @@ export default function AiVaultPanel({
   ref,
   workspace,
   initialQuery = '',
+  initialAgents,
   headerAction,
   onSessionOpened
 }: AiVaultPanelProps): React.JSX.Element {
@@ -118,7 +121,7 @@ export default function AiVaultPanel({
     setAgentEnabled,
     setAllAgentsEnabled,
     resetViewOptions
-  } = usePersistedAiVaultViewOptions()
+  } = usePersistedAiVaultViewOptions(initialAgents)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
   const { executionHostScope, onExecutionHostScopeChange, hostScopeOptions } =
     useAiVaultPanelHostScope(activeWorktreeId ?? null, resumeTargetState)

@@ -138,9 +138,9 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       handleDraftOrCaretChange
     } = picker
     const resumeCommand = useNativeChatResumeCommand({
-      structured: Boolean(structuredTransport),
+      structuredTransport,
+      agent,
       terminalTabId,
-      structuredWorktreeId: structuredTransport?.worktreeId,
       isPickedSkill: picker.isPickedSkill,
       clearSkillOrigin,
       textareaRef,

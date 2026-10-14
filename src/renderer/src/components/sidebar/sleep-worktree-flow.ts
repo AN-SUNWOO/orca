@@ -240,6 +240,7 @@ export async function sleepWorktreesReportingFailures(
     state.setActiveWorktree(null)
     restoreSidebarPosition()
   }
+  const nativeStopFailed = marked.map(() => false)
   const attempts = await Promise.all(
     marked.map(async (target, index): Promise<WorkspaceSleepResult> => {
       const { workspaceId, executionHostId, token } = target
@@ -261,6 +262,7 @@ export async function sleepWorktreesReportingFailures(
           errors.push(describeChatStopFailure())
         }
       } else {
+        nativeStopFailed[index] = true
         console.error('[sleep-worktree] native chat stop failed', {
           workspaceId,
           error: native.error
@@ -315,14 +317,25 @@ export async function sleepWorktreesReportingFailures(
     })
   )
   const results = attempts.map((result, index) => {
-    const completed =
-      result.completed &&
-      isCurrentWorktreeSleepIntent(result.workspaceId, result.executionHostId, marked[index].token)
-    if (completed && options.recordExplicitChatSleep) {
+    const current = isCurrentWorktreeSleepIntent(
+      result.workspaceId,
+      result.executionHostId,
+      marked[index].token
+    )
+    const completed = result.completed && current
+    if (!options.recordExplicitChatSleep) {
+      return { ...result, completed }
+    }
+    if (current && nativeStopFailed[index]) {
+      useAppStore.getState().clearWorkspaceChatsSlept(result.workspaceId, result.executionHostId)
+    }
+    if (completed) {
       const stopped = new Set(result.stoppedSessionIds)
       const chats = capturedChats[index].filter((chat) => stopped.has(chat.sessionId))
       if (chats.length > 0) {
-        useAppStore.getState().setWorkspaceChatsSleptAt(result.workspaceId, chats, Date.now())
+        useAppStore
+          .getState()
+          .markWorkspaceChatsSlept(result.workspaceId, result.executionHostId, chats)
       }
     }
     return { ...result, completed }

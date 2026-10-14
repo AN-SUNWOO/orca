@@ -210,34 +210,38 @@ describe('StructuredAgentSessionStatusBridge', () => {
   })
 
   it('keeps a new Sleep mark through cached status, then clears it for newly observed work', async () => {
+    mocks.store?.setState({
+      unifiedTabsByWorktree: { 'wt-1': [{ ...structuredTab, executionHostId: 'local' }] }
+    })
     render(<StructuredAgentSessionStatusBridge />)
     await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())
     act(() => feed().emit({ type: 'status', session: summary() }))
     act(() =>
       mocks.store
         ?.getState()
-        .setWorkspaceChatsSleptAt(
-          'wt-1',
-          [{ tabId: structuredTab.id, sessionId: structuredTab.entityId }],
-          10
-        )
+        .markWorkspaceChatsSlept('wt-1', 'local', [
+          { tabId: structuredTab.id, sessionId: structuredTab.entityId }
+        ])
     )
-    expect(mocks.store?.getState().unifiedTabsByWorktree['wt-1'][0].sleptAt).toBe(10)
+    expect(mocks.store?.getState().explicitlySleptChatsByWorkspace['local|wt-1']).toHaveLength(1)
 
     act(() => feed().emit({ type: 'status', session: summary({ updatedAt: 2 }) }))
-    expect(mocks.store?.getState().unifiedTabsByWorktree['wt-1'][0].sleptAt).toBeUndefined()
+    expect(mocks.store?.getState().explicitlySleptChatsByWorkspace['local|wt-1']).toBeUndefined()
     act(() => feed().emit({ type: 'end' }))
-    expect(mocks.store?.getState().unifiedTabsByWorktree['wt-1'][0].sleptAt).toBeUndefined()
+    expect(mocks.store?.getState().explicitlySleptChatsByWorkspace['local|wt-1']).toBeUndefined()
   })
 
   it('clears a marked chat when the first confirmed live summary is still working', async () => {
     mocks.store?.setState({
-      unifiedTabsByWorktree: { 'wt-1': [{ ...structuredTab, sleptAt: 10 }] }
+      unifiedTabsByWorktree: { 'wt-1': [{ ...structuredTab, executionHostId: 'local' }] },
+      explicitlySleptChatsByWorkspace: {
+        'local|wt-1': [{ tabId: structuredTab.id, sessionId: structuredTab.entityId }]
+      }
     })
     render(<StructuredAgentSessionStatusBridge />)
     await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())
     act(() => feed().emit({ type: 'snapshot', sessions: [summary()] }))
-    expect(mocks.store?.getState().unifiedTabsByWorktree['wt-1'][0].sleptAt).toBeUndefined()
+    expect(mocks.store?.getState().explicitlySleptChatsByWorkspace['local|wt-1']).toBeUndefined()
   })
 
   it('maps each host status onto the sidebar agent state', async () => {

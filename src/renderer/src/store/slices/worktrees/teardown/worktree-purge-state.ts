@@ -9,6 +9,7 @@ import { removeDeleteStatesForWorktreeIds } from './worktree-delete-state'
 import { removeWorktreeVisitEntriesForTargets } from '@/lib/worktree-visit-recency'
 import { forgetAmbiguousOwnerWarnings } from '../listing/worktree-owner-settings'
 import { forgetWorktreeSleepIntent } from '@/lib/worktree-sleep-intent'
+import { withoutSleptChatsForWorkspaces } from '../../../../../../shared/workspace-chat-sleep'
 import { settleAgentLaunchPaneStart } from '@/lib/agent-launch-pane-start'
 import {
   getStructuredAgentSessionLaunchOwner,
@@ -211,6 +212,10 @@ export function buildWorktreePurgeState(
     pendingReconnectTabByWorktree: omitByWorktree(s.pendingReconnectTabByWorktree),
     rightSidebarTabByWorktree: pruneRightSidebarTabByWorktree(),
     rightSidebarExplorerViewByWorktree: omitByWorktree(s.rightSidebarExplorerViewByWorktree ?? {}),
+    explicitlySleptChatsByWorkspace: withoutSleptChatsForWorkspaces(
+      s.explicitlySleptChatsByWorkspace,
+      normalizedTargets
+    ),
     // Git status caches
     gitStatusByWorktree: omitByWorktree(s.gitStatusByWorktree),
     // Why: keyed by worktreeId; re-keyed on rename but missed by both removal paths (upstream-status entry).

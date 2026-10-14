@@ -150,7 +150,6 @@ const ENTRY_FIELDS = {
   sortOrder: TAB_ORDER,
   isPreview: tab('isPreview'),
   agentSessionAgent: tab('agentSessionAgent'),
-  sleptAt: tab('sleptAt'),
   lastFocusedAt: own('view', 'lastFocusedAt')
 } as const
 

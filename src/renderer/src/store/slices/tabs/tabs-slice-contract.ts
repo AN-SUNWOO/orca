@@ -8,7 +8,6 @@ import type {
 } from '../../../../../shared/tab-types'
 import type { WorkspaceSessionState } from '../../../../../shared/workspace-session-state-types'
 import type { WorkspaceSessionHydrationOptions } from '@/lib/workspace-session-hydration-keys'
-import type { ExecutionHostId } from '../../../../../shared/execution-host'
 
 export type TabSplitDirection = 'left' | 'right' | 'up' | 'down'
 
@@ -122,12 +121,6 @@ export type TabsSlice = {
     opts?: { recordInteraction?: boolean }
   ) => void
   setUnifiedTabColor: (tabId: string, color: string | null) => void
-  /** Sleep's mark on captured chat tabs: a time once their agents stop, undefined on wake. */
-  setWorkspaceChatsSleptAt: (
-    worktreeId: string,
-    chats: readonly { tabId: string; sessionId: string; executionHostId?: ExecutionHostId }[],
-    sleptAt: number | undefined
-  ) => void
   pinTab: (tabId: string) => void
   unpinTab: (tabId: string) => void
   closeOtherTabs: (tabId: string) => string[]

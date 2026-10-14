@@ -9,7 +9,7 @@ import {
   useIsSleepingWorktree,
   resetWorktreeSleepStateCacheForTests
 } from './use-worktree-sleep-state'
-import { withSelectedHostChatsAwake } from '@/store/slices/tabs/tabs-chat-sleep-actions'
+import { withoutSelectedSleptChats } from '@/store/slices/worktrees/session/workspace-chat-sleep'
 
 const LEAF_ID = '11111111-1111-4111-8111-111111111111'
 
@@ -17,6 +17,7 @@ type MockState = {
   tabsByWorktree: Record<string, TerminalTab[]>
   browserTabsByWorktree: Record<string, { id: string }[]>
   unifiedTabsByWorktree: Record<string, Tab[]>
+  explicitlySleptChatsByWorkspace: Record<string, { tabId: string; sessionId: string }[]>
   ptyIdsByTabId: Record<string, string[]>
   agentStatusEpoch: number
   agentStatusByPaneKey: Record<string, AgentStatusEntry>
@@ -66,7 +67,6 @@ function makeUnifiedTab(args: {
   worktreeId: string
   contentType: Tab['contentType']
   agentSessionAgent?: Tab['agentSessionAgent']
-  sleptAt?: number
 }): Tab {
   return {
     id: args.id,
@@ -79,8 +79,7 @@ function makeUnifiedTab(args: {
     color: null,
     sortOrder: 0,
     createdAt: 0,
-    ...(args.agentSessionAgent ? { agentSessionAgent: args.agentSessionAgent } : {}),
-    ...(args.sleptAt !== undefined ? { sleptAt: args.sleptAt } : {})
+    ...(args.agentSessionAgent ? { agentSessionAgent: args.agentSessionAgent } : {})
   }
 }
 
@@ -99,6 +98,7 @@ describe('useIsSleepingWorktree', () => {
       tabsByWorktree: {},
       browserTabsByWorktree: {},
       unifiedTabsByWorktree: {},
+      explicitlySleptChatsByWorkspace: {},
       ptyIdsByTabId: {},
       agentStatusEpoch: 0,
       agentStatusByPaneKey: {},
@@ -169,13 +169,16 @@ describe('useIsSleepingWorktree', () => {
       id: 'chat-1',
       worktreeId,
       contentType: 'agent-session',
-      agentSessionAgent: 'claude',
-      sleptAt: 1_500
+      agentSessionAgent: 'claude'
     })
+    chat.executionHostId = 'local'
     const doneRow = makeAgentStatusEntry({ paneKey, state: 'done', worktreeId })
     mockState = {
       ...mockState,
       unifiedTabsByWorktree: { [worktreeId]: [chat] },
+      explicitlySleptChatsByWorkspace: {
+        [`local|${worktreeId}`]: [{ tabId: chat.id, sessionId: chat.entityId }]
+      },
       agentStatusByPaneKey: { [paneKey]: doneRow }
     }
     expect(renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} />)).toBe('<span>true</span>')
@@ -189,14 +192,13 @@ describe('useIsSleepingWorktree', () => {
     }
     expect(renderToStaticMarkup(<SleepProbe worktreeId={worktreeId} />)).toBe('<span>false</span>')
 
-    const tabs = {
-      [worktreeId]: [
-        { ...chat, executionHostId: 'local' as const },
-        { ...chat, id: 'remote', executionHostId: 'ssh:remote' as const }
-      ]
+    const intents = {
+      ...mockState.explicitlySleptChatsByWorkspace,
+      [`ssh:remote|${worktreeId}`]: [{ tabId: 'remote', sessionId: chat.entityId }]
     }
-    const awakened = withSelectedHostChatsAwake(tabs, worktreeId, 'ssh:remote')
-    expect(awakened[worktreeId].map((tab) => tab.sleptAt)).toEqual([1_500, undefined])
+    expect(withoutSelectedSleptChats(intents, worktreeId, 'ssh:remote')).toEqual({
+      [`local|${worktreeId}`]: [{ tabId: chat.id, sessionId: chat.entityId }]
+    })
   })
 
   it('does not treat a non-chat unified tab as activity', () => {

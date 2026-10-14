@@ -102,7 +102,7 @@ export function localDesktopSession(): WorkspaceSessionState {
         {
           id: 'agent-session-1',
           kind: 'agent-session',
-          entry: { label: 'Codex', agentSessionAgent: 'codex', sleptAt: 1_700_000_500_000 }
+          entry: { label: 'Codex', agentSessionAgent: 'codex' }
         },
         {
           id: 'tab-unbound',

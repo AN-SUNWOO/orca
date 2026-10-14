@@ -103,7 +103,7 @@ export function saveTabBarEntry(
     color: tab.color,
     sortOrder: placement.sortOrder,
     createdAt: tab.createdAt,
-    ...pickStoredFields(tab, ['isPreview', 'agentSessionAgent', 'sleptAt']),
+    ...pickStoredFields(tab, ['isPreview', 'agentSessionAgent']),
     ...(lastFocusedAt !== undefined ? { lastFocusedAt } : {})
   }
 }

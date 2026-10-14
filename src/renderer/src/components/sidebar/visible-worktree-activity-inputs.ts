@@ -3,6 +3,10 @@ import type { Tab } from '../../../../shared/tab-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { getStructuredAgentSessionTabs } from '@/components/native-chat/structured-agent-session-tabs'
 import { createWorktreeTabBucketProjection } from '@/lib/worktree-tab-bucket-projection'
+import {
+  isChatExplicitlySlept,
+  type ExplicitlySleptChatsByWorkspace
+} from '../../../../shared/workspace-chat-sleep'
 
 export type TerminalActivityTab = Pick<TerminalTab, 'id'>
 export type BrowserActivityTab = Pick<BrowserWorkspace, 'id'>
@@ -37,7 +41,11 @@ export function getVisibleWorktreeBrowserActivityTabs(
 }
 
 export const EMPTY_STRUCTURED_CHAT_WORKTREE_IDS: ReadonlySet<string> = new Set()
-const structuredChatWorktreeIds = new WeakMap<Record<string, Tab[]>, ReadonlySet<string>>()
+const EMPTY_SLEPT_CHATS: ExplicitlySleptChatsByWorkspace = {}
+const structuredChatWorktreeIds = new WeakMap<
+  Record<string, Tab[]>,
+  WeakMap<ExplicitlySleptChatsByWorkspace, ReadonlySet<string>>
+>()
 
 /**
  * Workspace ids holding a structured chat that Sleep has not put to rest.
@@ -48,31 +56,37 @@ const structuredChatWorktreeIds = new WeakMap<Record<string, Tab[]>, ReadonlySet
  * keeps it awake through the live-agent term.
  */
 export function getWorktreeIdsWithStructuredChat(
-  unifiedTabsByWorktree: Record<string, Tab[]> | null | undefined
+  unifiedTabsByWorktree: Record<string, Tab[]> | null | undefined,
+  explicitlySleptChatsByWorkspace: ExplicitlySleptChatsByWorkspace = EMPTY_SLEPT_CHATS
 ): ReadonlySet<string> {
   if (!unifiedTabsByWorktree) {
     return EMPTY_STRUCTURED_CHAT_WORKTREE_IDS
   }
   // Keyed on the snapshot, like the tab projection it reads: zustand re-runs every mounted card's
   // selector on each store write, and this is a whole-store scan.
-  const cached = structuredChatWorktreeIds.get(unifiedTabsByWorktree)
+  const cached = structuredChatWorktreeIds
+    .get(unifiedTabsByWorktree)
+    ?.get(explicitlySleptChatsByWorkspace)
   if (cached) {
     return cached
   }
   const worktreeIds = new Set(
     getStructuredAgentSessionTabs(unifiedTabsByWorktree)
-      .filter((tab) => tab.sleptAt === undefined)
+      .filter((tab) => !isChatExplicitlySlept(explicitlySleptChatsByWorkspace, tab))
       .map((tab) => tab.worktreeId)
   )
-  structuredChatWorktreeIds.set(unifiedTabsByWorktree, worktreeIds)
+  const byIntent = structuredChatWorktreeIds.get(unifiedTabsByWorktree) ?? new WeakMap()
+  byIntent.set(explicitlySleptChatsByWorkspace, worktreeIds)
+  structuredChatWorktreeIds.set(unifiedTabsByWorktree, byIntent)
   return worktreeIds
 }
 
 export function getStructuredChatWorktreeIds(
   showSleepingWorkspaces: boolean,
-  unifiedTabsByWorktree: Record<string, Tab[]> | null | undefined
+  unifiedTabsByWorktree: Record<string, Tab[]> | null | undefined,
+  explicitlySleptChatsByWorkspace: ExplicitlySleptChatsByWorkspace = EMPTY_SLEPT_CHATS
 ): ReadonlySet<string> {
   return showSleepingWorkspaces
     ? EMPTY_STRUCTURED_CHAT_WORKTREE_IDS
-    : getWorktreeIdsWithStructuredChat(unifiedTabsByWorktree)
+    : getWorktreeIdsWithStructuredChat(unifiedTabsByWorktree, explicitlySleptChatsByWorkspace)
 }

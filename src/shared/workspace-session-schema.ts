@@ -33,6 +33,7 @@ import { clientHostedBrowserCloseIntentSchema } from './client-hosted-browser-cl
 import { persistedClientHostedBrowserPageSchema } from './client-hosted-browser-page-record'
 import { persistedOpenFileSchema } from './workspace-session-editor-schema'
 import { sleepingAgentSessionsByPaneKeySchema } from './workspace-session-sleeping-agents'
+import { workspaceChatSleepSessionFieldSchema } from './workspace-chat-sleep-schema'
 import {
   tabContentTypeSchema,
   workspaceVisibleTabTypeSchema
@@ -160,7 +161,6 @@ const tabSchema = z.object({
   createdAt: z.number(),
   // Why: corrupt optional recency must not discard the whole persisted tab.
   lastFocusedAt: z.number().finite().nonnegative().optional().catch(undefined),
-  sleptAt: z.number().finite().nonnegative().optional().catch(undefined),
   isPreview: z.boolean().optional(),
   isPinned: z.boolean().optional(),
   // Why: persist the per-tab native-chat view mode so 'chat' survives reload /
@@ -310,6 +310,7 @@ export const workspaceSessionStateSchema: z.ZodType<WorkspaceSessionState> = z.o
     'sleepingAgentSessionsByPaneKey',
     sleepingAgentSessionsByPaneKeySchema
   ),
+  ...workspaceChatSleepSessionFieldSchema,
   terminalPtyIncarnationsByPaneKey: salvagedOptional(
     'terminalPtyIncarnationsByPaneKey',
     salvagingRecord(z.string(), z.string().min(1).max(128))

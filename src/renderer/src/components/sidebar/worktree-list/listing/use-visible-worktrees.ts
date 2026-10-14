@@ -72,7 +72,11 @@ export function useVisibleSidebarWorktrees(args: {
     !showSleepingWorkspaces ? getVisibleWorktreeBrowserActivityTabs(s.browserTabsByWorktree) : null
   )
   const worktreeIdsWithStructuredChat = useAppStore((s) =>
-    getStructuredChatWorktreeIds(showSleepingWorkspaces, s.unifiedTabsByWorktree)
+    getStructuredChatWorktreeIds(
+      showSleepingWorkspaces,
+      s.unifiedTabsByWorktree,
+      s.explicitlySleptChatsByWorkspace
+    )
   )
 
   const recomputedVisibleWorktrees = useMemo(() => {

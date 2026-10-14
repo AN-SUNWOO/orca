@@ -334,14 +334,8 @@ function StructuredAgentSessionOwnedStatusProjection({
       return
     }
     const store = useAppStore.getState()
-    const current = store.unifiedTabsByWorktree[worktreeId]?.find(
-      (candidate) =>
-        candidate.id === tabId &&
-        candidate.entityId === sessionId &&
-        candidate.executionHostId === executionHostId
-    )
-    if (current?.sleptAt !== undefined) {
-      store.setWorkspaceChatsSleptAt(worktreeId, [{ tabId, sessionId, executionHostId }], undefined)
+    if (executionHostId) {
+      store.clearWorkspaceChatsSlept(worktreeId, executionHostId, [{ tabId, sessionId }])
     }
   }, [summary, observation, tabId, sessionId, executionHostId, worktreeId])
   const launchFailed =

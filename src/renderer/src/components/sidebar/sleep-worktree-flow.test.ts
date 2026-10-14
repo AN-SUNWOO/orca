@@ -1,26 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => {
+  const subscribers = new Set<(next: typeof state, previous: typeof state) => void>()
   const state: {
     activeWorktreeId: string | null
+    activeWorkspaceExecutionHostId: string | null
     setActiveWorktree: ReturnType<typeof vi.fn>
     shutdownWorktreeBrowsers: ReturnType<typeof vi.fn>
     shutdownWorktreeTerminals: ReturnType<typeof vi.fn>
     suppressPtyExit: ReturnType<typeof vi.fn>
     consumeSuppressedPtyExit: ReturnType<typeof vi.fn>
     unifiedTabsByWorktree: Record<string, Record<string, unknown>[]>
+    worktreesByRepo: Record<string, { id: string; repoId: string; hostId: 'local' }[]>
+    repos: { id: string; executionHostId: 'local' }[]
     tabsByWorktree: Record<string, { id: string }[]>
     ptyIdsByTabId: Record<string, string[]>
   } = {
     activeWorktreeId: null,
+    activeWorkspaceExecutionHostId: null,
     setActiveWorktree: vi.fn((worktreeId: string | null) => {
+      const previous = { ...state }
       state.activeWorktreeId = worktreeId
+      for (const subscriber of subscribers) {
+        subscriber(state, previous)
+      }
     }),
     shutdownWorktreeBrowsers: vi.fn().mockResolvedValue(undefined),
     shutdownWorktreeTerminals: vi.fn().mockResolvedValue(undefined),
     suppressPtyExit: vi.fn(),
     consumeSuppressedPtyExit: vi.fn(),
     unifiedTabsByWorktree: {},
+    worktreesByRepo: { repo: [{ id: 'wt-1', repoId: 'repo', hostId: 'local' }] },
+    repos: [{ id: 'repo', executionHostId: 'local' }],
     tabsByWorktree: {} as Record<string, { id: string }[]>,
     ptyIdsByTabId: {} as Record<string, string[]>
   }
@@ -29,9 +40,16 @@ const mocks = vi.hoisted(() => {
   const markWorktreeSleepIntent = vi.fn()
   const clearWorktreeSleepIntent = vi.fn()
   const sleepChat = vi.fn().mockResolvedValue(undefined)
+  const preflightChat = vi.fn().mockResolvedValue(undefined)
   return {
     clearWorktreeSleepIntent,
     sleepChat,
+    preflightChat,
+    subscribers,
+    subscribe: (subscriber: (next: typeof state, previous: typeof state) => void) => {
+      subscribers.add(subscriber)
+      return () => subscribers.delete(subscriber)
+    },
     markWorktreeSleepIntent,
     state,
     suspendWorkspace,
@@ -41,7 +59,8 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@/store', () => ({
   useAppStore: {
-    getState: () => mocks.state
+    getState: () => mocks.state,
+    subscribe: mocks.subscribe
   }
 }))
 
@@ -57,7 +76,10 @@ vi.mock('@/runtime/structured-agent-session-owner', () => ({
 }))
 vi.mock('@/runtime/structured-agent-session-close', () => ({
   AGENT_SESSION_SLEEP_UNSUPPORTED: 'agent_session_sleep_unsupported',
-  sleepStructuredAgentSession: mocks.sleepChat
+  assertStructuredAgentSessionSleepSupported: mocks.preflightChat
+}))
+vi.mock('@/runtime/structured-agent-session-client', () => ({
+  callStructuredAgentSession: mocks.sleepChat
 }))
 
 import { runSleepWorktree, runSleepWorktrees } from './sleep-worktree-flow'
@@ -83,10 +105,15 @@ describe('runSleepWorktree', () => {
     mocks.clearWorktreeSleepIntent.mockClear()
     mocks.toastError.mockClear()
     mocks.state.activeWorktreeId = null
+    mocks.state.activeWorkspaceExecutionHostId = null
+    mocks.subscribers.clear()
     mocks.state.tabsByWorktree = {}
     mocks.state.ptyIdsByTabId = {}
     mocks.state.unifiedTabsByWorktree = {}
+    mocks.state.worktreesByRepo = { repo: [{ id: 'wt-1', repoId: 'repo', hostId: 'local' }] }
+    mocks.state.repos = [{ id: 'repo', executionHostId: 'local' }]
     mocks.sleepChat.mockClear().mockResolvedValue(undefined)
+    mocks.preflightChat.mockClear().mockResolvedValue(undefined)
   })
 
   const chatTab = {
@@ -102,22 +129,45 @@ describe('runSleepWorktree', () => {
 
     await runSleepWorktree('wt-1')
 
-    expect(mocks.sleepChat).toHaveBeenCalledWith({ kind: 'local' }, 'session-1')
+    expect(mocks.sleepChat).toHaveBeenCalledWith({ kind: 'local' }, 'agentSession.sleep', {
+      sessionId: 'session-1'
+    })
     expect(mocks.toastError).not.toHaveBeenCalled()
   })
 
   it('keeps the workspace awake when its host cannot stop chats', async () => {
     mocks.state.unifiedTabsByWorktree = { 'wt-1': [chatTab] }
-    mocks.sleepChat.mockRejectedValue(new Error('agent_session_sleep_unsupported'))
+    mocks.preflightChat.mockRejectedValue(new Error('agent_session_sleep_unsupported'))
 
     await runSleepWorktree('wt-1')
 
     expect(mocks.clearWorktreeSleepIntent).toHaveBeenCalledWith('wt-1')
+    expect(mocks.state.shutdownWorktreeBrowsers).not.toHaveBeenCalled()
+    expect(mocks.state.shutdownWorktreeTerminals).not.toHaveBeenCalled()
     expect(mocks.toastError).toHaveBeenCalledWith(
       'Failed to sleep workspace',
       expect.objectContaining({
         description:
           "This workspace's host can't stop its chats yet. The workspace was kept open; update the host and try again."
+      })
+    )
+  })
+
+  it('reports prior teardown when a chat stop fails after preflight', async () => {
+    mocks.state.unifiedTabsByWorktree = { 'wt-1': [chatTab] }
+    mocks.sleepChat.mockRejectedValue(new Error('connection lost'))
+
+    await runSleepWorktree('wt-1')
+
+    expect(mocks.state.shutdownWorktreeBrowsers).toHaveBeenCalledWith('wt-1')
+    expect(mocks.state.shutdownWorktreeTerminals).toHaveBeenCalledWith('wt-1', {
+      keepIdentifiers: true
+    })
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'Failed to sleep workspace',
+      expect.objectContaining({
+        description:
+          'The host could not confirm the chat stopped. Other panels may have closed; check the connection and try again.'
       })
     )
   })
@@ -259,7 +309,7 @@ describe('runSleepWorktree', () => {
     )
 
     const run = runSleepWorktrees(['wt-1', 'wt-2'])
-    await Promise.resolve()
+    await vi.waitFor(() => expect(mocks.state.shutdownWorktreeBrowsers).toHaveBeenCalled())
     // Why: the user clicked wt-2 while wt-1 was tearing down; sleeping it anyway
     // must not leave the active workspace marked with no clear pending.
     mocks.state.activeWorktreeId = 'wt-2'
@@ -267,6 +317,32 @@ describe('runSleepWorktree', () => {
     await run
 
     expect(mocks.clearWorktreeSleepIntent).toHaveBeenLastCalledWith('wt-2')
+  })
+
+  it('does not stop a chat after its workspace is reopened during browser teardown', async () => {
+    mocks.state.activeWorktreeId = 'wt-1'
+    mocks.state.unifiedTabsByWorktree = { 'wt-1': [chatTab] }
+    let releaseBrowser: () => void = () => {}
+    mocks.state.shutdownWorktreeBrowsers.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseBrowser = resolve
+        })
+    )
+
+    const run = runSleepWorktree('wt-1')
+    await vi.waitFor(() => expect(mocks.state.shutdownWorktreeBrowsers).toHaveBeenCalled())
+    const previous = { ...mocks.state }
+    mocks.state.activeWorktreeId = 'wt-1'
+    for (const subscriber of mocks.subscribers) {
+      subscriber(mocks.state, previous)
+    }
+    releaseBrowser()
+    await run
+
+    expect(mocks.sleepChat).not.toHaveBeenCalled()
+    expect(mocks.state.shutdownWorktreeTerminals).not.toHaveBeenCalled()
+    expect(mocks.clearWorktreeSleepIntent).toHaveBeenCalledWith('wt-1')
   })
 
   it('marks each worktree only when its own teardown starts', async () => {
@@ -279,7 +355,7 @@ describe('runSleepWorktree', () => {
     )
 
     const run = runSleepWorktrees(['wt-1', 'wt-2'])
-    await Promise.resolve()
+    await vi.waitFor(() => expect(mocks.state.shutdownWorktreeBrowsers).toHaveBeenCalled())
 
     // Why: wt-2 is still awake while wt-1 tears down; marking it early would
     // hold its panes cold and swallow its activity.

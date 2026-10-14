@@ -6291,7 +6291,8 @@
               },
               "retry": "The workspace was kept open. Try again; if the problem continues, check the host connection.",
               "chat": {
-                "unsupported": "This workspace's host can't stop its chats yet. The workspace was kept open; update the host and try again."
+                "unsupported": "This workspace's host can't stop its chats yet. The workspace was kept open; update the host and try again.",
+                "partial": "The host could not confirm the chat stopped. Other panels may have closed; check the connection and try again."
               }
             }
           }

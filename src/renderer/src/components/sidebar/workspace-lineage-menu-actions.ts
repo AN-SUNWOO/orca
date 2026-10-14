@@ -3,14 +3,16 @@ import { tabHasLivePty } from '@/lib/tab-has-live-pty'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import type { Tab } from '../../../../shared/tab-types'
+import type { WorktreeRuntimeOwnerState } from '@/lib/worktree-runtime-owner-state'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
-import { getWorktreeIdsWithStructuredChat } from './visible-worktree-activity-inputs'
+import { resolveWorkspaceChatSleeps, type WorkspaceSleepTarget } from './sleep-workspace-chats'
 
 type WorkspaceActivityMaps = {
   tabsByWorktree: Record<string, { id: string }[]>
   ptyIdsByTabId: Record<string, string[]>
   browserTabsByWorktree: Record<string, { id: string }[]>
   unifiedTabsByWorktree: Record<string, Tab[]>
+  chatOwnerState: WorktreeRuntimeOwnerState
 }
 
 export type WorkspaceLineageMenuActions = {
@@ -20,19 +22,23 @@ export type WorkspaceLineageMenuActions = {
 }
 
 export function hasSleepableWorkspaceActivity(
-  worktreeId: string,
+  target: WorkspaceSleepTarget,
   {
     tabsByWorktree,
     ptyIdsByTabId,
     browserTabsByWorktree,
-    unifiedTabsByWorktree
+    unifiedTabsByWorktree,
+    chatOwnerState
   }: WorkspaceActivityMaps
 ): boolean {
+  const worktreeId = typeof target === 'string' ? target : target.id
   const tabs = tabsByWorktree[worktreeId] ?? []
   return (
     tabs.some((tab) => tabHasLivePty(ptyIdsByTabId, tab.id)) ||
     (browserTabsByWorktree[worktreeId] ?? []).length > 0 ||
-    getWorktreeIdsWithStructuredChat(unifiedTabsByWorktree).has(worktreeId)
+    resolveWorkspaceChatSleeps({ ...chatOwnerState, unifiedTabsByWorktree }, target).some(
+      (chat) => chat.target !== null
+    )
   )
 }
 
@@ -48,7 +54,7 @@ export function getWorkspaceLineageMenuActions(args: {
     descendants,
     targets,
     sleepableTargets: targets.filter((target) =>
-      hasSleepableWorkspaceActivity(target.id, args.activity)
+      hasSleepableWorkspaceActivity(target, args.activity)
     )
   }
 }
@@ -63,7 +69,13 @@ export function useWorkspaceLineageMenuActions(
   args: Parameters<typeof getWorkspaceLineageMenuActions>[0] & { enabled: boolean }
 ): WorkspaceLineageMenuActions {
   const { enabled, parent, worktrees, lineageById, activity } = args
-  const { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree, unifiedTabsByWorktree } = activity
+  const {
+    tabsByWorktree,
+    ptyIdsByTabId,
+    browserTabsByWorktree,
+    unifiedTabsByWorktree,
+    chatOwnerState
+  } = activity
   return useMemo(
     () =>
       enabled
@@ -75,7 +87,8 @@ export function useWorkspaceLineageMenuActions(
               tabsByWorktree,
               ptyIdsByTabId,
               browserTabsByWorktree,
-              unifiedTabsByWorktree
+              unifiedTabsByWorktree,
+              chatOwnerState
             }
           })
         : EMPTY_LINEAGE_MENU_ACTIONS,
@@ -87,6 +100,7 @@ export function useWorkspaceLineageMenuActions(
       ptyIdsByTabId,
       tabsByWorktree,
       unifiedTabsByWorktree,
+      chatOwnerState,
       worktrees
     ]
   )

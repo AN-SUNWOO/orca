@@ -21,10 +21,9 @@ export async function closeStructuredAgentSession(
   return 'closed'
 }
 
-/** Stops a chat's agent and keeps its tab, for Sleep; throws unless the host proved the stop. */
-export async function sleepStructuredAgentSession(
-  target: RuntimeClientTarget,
-  sessionId: string
+/** Refuse Sleep before teardown when a paired host cannot stop native chats. */
+export async function assertStructuredAgentSessionSleepSupported(
+  target: RuntimeClientTarget
 ): Promise<void> {
   if (
     target.kind === 'environment' &&
@@ -35,7 +34,6 @@ export async function sleepStructuredAgentSession(
   ) {
     throw new Error(AGENT_SESSION_SLEEP_UNSUPPORTED)
   }
-  await callStructuredAgentSession(target, 'agentSession.sleep', { sessionId })
 }
 
 export const AGENT_SESSION_SLEEP_UNSUPPORTED = 'agent_session_sleep_unsupported'

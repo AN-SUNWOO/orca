@@ -30,7 +30,8 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@/store', () => ({
   useAppStore: {
-    getState: () => mocks.state
+    getState: () => mocks.state,
+    subscribe: () => () => {}
   }
 }))
 

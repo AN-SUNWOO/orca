@@ -68,7 +68,8 @@ describe('workspace lineage menu actions', () => {
         browserTabsByWorktree: {
           [grandchild.id]: [{ id: 'grandchild-browser' }]
         },
-        unifiedTabsByWorktree: {}
+        unifiedTabsByWorktree: {},
+        chatOwnerState: {}
       }
     })
 
@@ -94,7 +95,8 @@ describe('workspace lineage menu actions', () => {
         tabsByWorktree: { [child.id]: [{ id: 'child-tab' }] },
         ptyIdsByTabId: { 'child-tab': ['child-pty'] },
         browserTabsByWorktree: {},
-        unifiedTabsByWorktree: {}
+        unifiedTabsByWorktree: {},
+        chatOwnerState: {}
       }
     })
 
@@ -110,7 +112,8 @@ describe('hasSleepableWorkspaceActivity', () => {
         tabsByWorktree: { 'wt-1': [{ id: 'tab-1' }] },
         ptyIdsByTabId: { 'tab-1': [] },
         browserTabsByWorktree: {},
-        unifiedTabsByWorktree: {}
+        unifiedTabsByWorktree: {},
+        chatOwnerState: {}
       })
     ).toBe(false)
   })
@@ -121,7 +124,8 @@ describe('hasSleepableWorkspaceActivity', () => {
         tabsByWorktree: { 'wt-1': [{ id: 'tab-1' }] },
         ptyIdsByTabId: { 'tab-1': ['pty-1'] },
         browserTabsByWorktree: {},
-        unifiedTabsByWorktree: {}
+        unifiedTabsByWorktree: {},
+        chatOwnerState: {}
       })
     ).toBe(true)
     expect(
@@ -129,7 +133,8 @@ describe('hasSleepableWorkspaceActivity', () => {
         tabsByWorktree: {},
         ptyIdsByTabId: {},
         browserTabsByWorktree: { 'wt-1': [{ id: 'browser-1' }] },
-        unifiedTabsByWorktree: {}
+        unifiedTabsByWorktree: {},
+        chatOwnerState: {}
       })
     ).toBe(true)
   })
@@ -153,8 +158,25 @@ describe('hasSleepableWorkspaceActivity', () => {
         tabsByWorktree: {},
         ptyIdsByTabId: {},
         browserTabsByWorktree: {},
-        unifiedTabsByWorktree: { 'wt-1': [chat] }
+        unifiedTabsByWorktree: { 'wt-1': [chat] },
+        chatOwnerState: {
+          worktreesByRepo: {
+            'repo-1': [{ id: 'wt-1', repoId: 'repo-1', hostId: 'local' }]
+          }
+        }
       })
     ).toBe(true)
+    expect(
+      hasSleepableWorkspaceActivity(
+        { id: 'wt-1', repoId: 'repo-1', hostId: 'local' },
+        {
+          tabsByWorktree: {},
+          ptyIdsByTabId: {},
+          browserTabsByWorktree: {},
+          unifiedTabsByWorktree: { 'wt-1': [{ ...chat, executionHostId: 'runtime:remote' }] },
+          chatOwnerState: {}
+        }
+      )
+    ).toBe(false)
   })
 })

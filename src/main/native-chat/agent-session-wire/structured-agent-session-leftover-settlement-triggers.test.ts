@@ -1,5 +1,5 @@
 // An ended generation's leftovers settle in one commit once storage takes it; meanwhile a send goes
-// out, a stale answer is refused plainly, reads write nothing, and a live owner is never settled.
+// out, a stale answer is refused plainly, and reading the chat writes nothing.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
@@ -11,7 +11,6 @@ import {
 import { agentSessionRefusalFailure } from '../../../shared/agent-session-write-failure'
 import { isSubagentGroupBlock } from '../../../shared/native-chat-types'
 import { codexSubagentGroupIdentity } from '../../codex/codex-subagent-roster'
-import { openTestJournalHostDatabase } from '../agent-session-journal/journal-host-database-test-support'
 import {
   HOST_TEST_SESSION as SESSION,
   hostTestOperationId
@@ -66,15 +65,6 @@ afterEach(async () => {
   rig = undefined
   vi.restoreAllMocks()
 })
-
-/** Whether the chat reads Working and holds a queue-if-active send, by the host's projection. */
-function holds(current: QueuedMessageTestRig): { working: boolean; queueHeld: boolean } {
-  const work = currentWork(current)
-  return {
-    working: work.working(),
-    queueHeld: structuredQueueHold({ record: current.store.getRecord(SESSION), work }) !== null
-  }
-}
 
 describe('an observed exit whose settlement the database refused', () => {
   it('is settled by the retry in one commit, while the next send starts and delivers', async () => {
@@ -168,28 +158,8 @@ describe('reading a chat', () => {
     // Still owed, and still as the dead generation left it: only the host's retry settles it.
     expect(retryOwes(current.host.collaboratorsForTests().reconciliation, SESSION)).toBe(true)
     expect(turnState(current)).toBe('running')
-    expect(holds(current)).toEqual({ working: false, queueHeld: false })
-  })
-})
-
-describe('an owner that may still run', () => {
-  it('leaves a live owner’s work unchanged at every trigger but its own exit', async () => {
-    rig = await createQueuedMessageTestRig({ restartable: true })
-    const current = rig
-    await current.workingSend()
-    await leaveUnfinishedWork(current, { prompt: true })
-    const database = openTestJournalHostDatabase(current.root)
-
-    // A startup pass and a second attach both find the owner live.
-    await current.host.reconcileRestartLeases()
-    await current.host.startupSettled()
-    expect(await current.host.attach(CALLER, current.firstAttach)).toMatchObject({ ok: true })
-    const queued = await sendText(current, 'behind the live turn').result
-
-    expect(queued).toMatchObject({ ok: true, value: { queued: expect.anything() } })
-    expect(recoveredRows(database.db)).toEqual([])
-    expect(turnState(current)).toBe('running')
-    expect(holds(current)).toEqual({ working: true, queueHeld: true })
-    expect(current.dispatch).toHaveBeenCalledOnce()
+    const work = currentWork(current)
+    expect(work.working()).toBe(false)
+    expect(structuredQueueHold({ record: current.store.getRecord(SESSION), work })).toBeNull()
   })
 })

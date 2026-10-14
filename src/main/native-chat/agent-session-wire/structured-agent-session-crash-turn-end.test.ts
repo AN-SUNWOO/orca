@@ -51,6 +51,7 @@ import { recordingStructuredAgentSessionLogger } from './structured-agent-sessio
 import { claudeProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
 import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-test-support'
 import { retryIdle } from './structured-agent-session-retry.test-fixture'
+import { startUpHost } from './structured-agent-session-leftover-settlement.test-fixture'
 
 const PROVIDER_SESSION = 'provider-session-alpha-1'
 /** The tool call's row: the last thing the provider wrote before the crash. */
@@ -310,13 +311,6 @@ function reconciled(): Promise<void> {
   return retryIdle(host.collaboratorsForTests().reconciliation, SESSION)
 }
 
-/** Startup: the reconcile, then the scan it begins. */
-async function startUp(): Promise<void> {
-  await host.reconcileRestartLeases()
-  await host.startupSettled()
-  await reconciled()
-}
-
 // On desktop the chat on screen at relaunch opens before the startup reconcile has probed its owner.
 // The open writes nothing; the startup after the reconcile settles the turn by its proof.
 describe('a turn a read reached before the reconcile proved its owner dead', () => {
@@ -330,7 +324,7 @@ describe('a turn a read reached before the reconcile proved its owner dead', () 
     })
     expect(await settledTurn()).toEqual(RUNNING_TURN)
 
-    await startUp()
+    await startUpHost(host)
 
     // A paired or phone client learns of the revision through the ordinary journal publish.
     await vi.waitFor(() =>
@@ -360,7 +354,7 @@ describe('a turn a read reached before the reconcile proved its owner dead', () 
     // Nothing written yet, but the runtime that held the turn was replaced: it reads interrupted.
     expect(outcomes()).toEqual(['interruption'])
 
-    await startUp()
+    await startUpHost(host)
 
     // The sidebar's red Failed until seen; the turn folds as "Worked for 27s" beside its notice row.
     await vi.waitFor(() => expect(outcomes().at(-1)).toBe('interruption'))
@@ -396,7 +390,7 @@ describe('a turn a read reached before the reconcile proved its owner dead', () 
     openHost({ probeOwner: async () => ({ outcome: 'pid-absent' }) })
     expect(await settledTurn()).toEqual(RUNNING_TURN)
 
-    await startUp()
+    await startUpHost(host)
 
     const { items } = await host.journalSnapshot(SESSION)
     const turnItemId = items.find((item) => item.body.kind === 'turn')?.itemId
@@ -413,11 +407,11 @@ describe('a turn a read reached before the reconcile proved its owner dead', () 
   it('revises nothing twice, whoever re-runs the settle', async () => {
     openHost({ probeOwner: async () => ({ outcome: 'pid-absent' }) })
     await host.history({ sessionId: SESSION, direction: 'tail' })
-    await startUp()
+    await startUpHost(host)
     const settled = await host.journalSnapshot(SESSION)
 
     // A second startup pass and the restore's share find nothing left to do.
-    await startUp()
+    await startUpHost(host)
     await host.restoreReadableSessions()
 
     expect(await host.journalSnapshot(SESSION)).toEqual(settled)
@@ -524,7 +518,7 @@ describe('a turn a read reached before the reconcile proved its owner dead', () 
       .spyOn(journal, 'appendPlannedLifecycleBatch')
       .mockRejectedValue(new Error('disk full'))
 
-    await startUp()
+    await startUpHost(host)
 
     expect(new Set(log.scopes())).toEqual(new Set(['reconciliation']))
     expect(await settledTurn()).toEqual(RUNNING_TURN)

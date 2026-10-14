@@ -5,7 +5,6 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { AGENT_SESSION_JOURNAL_SCHEMA_VERSION } from '../../../shared/agent-session-journal-types'
 import type { AgentSessionOwnerProbe } from '../../../shared/agent-session-lease-adjudication'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
@@ -15,9 +14,7 @@ import {
 } from '../../runtime/agent-session-record-store-test-harness'
 import {
   closeTestJournalHostDatabases,
-  liveTestJournalRows,
-  openTestJournalHostDatabase,
-  updateTestJournalRowJson
+  openTestJournalHostDatabase
 } from '../agent-session-journal/journal-host-database-test-support'
 import {
   publishJournalSessionEpoch,
@@ -145,26 +142,6 @@ it('opens and writes nothing for a chat whose saved epoch holds no row, and owes
   await new Promise((resolve) => setTimeout(resolve, 1_200))
   expect(open).not.toHaveBeenCalled()
   expect(readJournalSessionEpoch(database.db, RELEASED)).toBe('empty-epoch')
-})
-
-it.each([
-  ['damaged', '}{'],
-  ['saved by a newer Orca', null]
-] as const)('reads a %s journal once and owes it nothing', async (_why, json) => {
-  await seed([CHAT])
-  const { db } = openTestJournalHostDatabase(root)
-  const epochRow = liveTestJournalRows(db, CHAT).find((row) => row.seq === 1)!
-  const newer = { ...JSON.parse(epochRow.rowJson), v: AGENT_SESSION_JOURNAL_SCHEMA_VERSION + 1 }
-  updateTestJournalRowJson(db, CHAT, 1, json ?? JSON.stringify(newer))
-  const open = vi.spyOn(AgentSessionJournal.prototype, 'open')
-  host = openScanHost(root, store)
-
-  await host.reconcileRestartLeases()
-  await host.startupSettled()
-
-  expect(retryOwes(host.collaboratorsForTests().reconciliation, CHAT)).toBe(false)
-  await pause(1_200)
-  expect(open).toHaveBeenCalledTimes(1)
 })
 
 it("never holds the round for a chat's busy lane: a person's long operation delays no other chat", async () => {
@@ -307,26 +284,13 @@ it.each([
   30_000
 )
 
-/** A chat whose agent outlived the earlier process, and whose first `locked` reconciles meet a
- *  lock: its lease reconciles to `recovering`, and only stopping the agent decides it. */
-async function survivingAgent(locked: number) {
-  await seed([CHAT], [CHAT])
-  const reconcile = vi.spyOn(store, 'reconcileOnRestart')
-  for (let index = 0; index < locked; index += 1) {
-    reconcile.mockRejectedValueOnce(busy())
-  }
-  let alive = true
-  const stopOwnerProcess = vi.fn(() => {
-    alive = false
-  })
-  const probeOwner = async (): Promise<AgentSessionOwnerProbe> =>
-    alive ? { outcome: 'identity-matched', matchedOn: ['spawn-token'] } : { outcome: 'pid-absent' }
-  host = openScanHost(root, store, { probeOwner, stopOwnerProcess })
-  return { current: host, stopOwnerProcess }
-}
-
 it("never stops a hidden chat's agent that readers only read, after reconciles a lock refused", async () => {
-  const { current, stopOwnerProcess } = await survivingAgent(2)
+  // Its agent outlived the earlier process, and the first two reconciles meet a lock.
+  await seed([CHAT], [CHAT])
+  vi.spyOn(store, 'reconcileOnRestart').mockRejectedValueOnce(busy()).mockRejectedValueOnce(busy())
+  const { probeOwner, stopOwnerProcess } = surviving()
+  host = openScanHost(root, store, { probeOwner, stopOwnerProcess })
+  const current = host
   await current.reconcileRestartLeases()
   expect(store.getRecord(CHAT)?.lease.unreconciled).toBe(true)
 

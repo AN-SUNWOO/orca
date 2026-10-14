@@ -240,6 +240,7 @@ export function MobileNativeChatView({
   )
   const {
     listRef,
+    listInputProps,
     following,
     showJumpToTail,
     pinToTail,
@@ -370,7 +371,7 @@ export function MobileNativeChatView({
           />
           <GestureDetector gesture={pinchGesture}>
             <FlatList
-              ref={listRef}
+              {...listInputProps}
               data={history.listRows}
               keyExtractor={(item) => item.id}
               renderItem={history.renderListRow}

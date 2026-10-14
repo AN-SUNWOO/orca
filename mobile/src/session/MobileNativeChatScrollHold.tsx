@@ -40,20 +40,40 @@ function messageRows(content: RowElement, { loadEarlier, footer }: Props): RowEl
   return [...Array.from(header?.children ?? []).slice(loadEarlier ? 1 : 0), ...cells]
 }
 
-/** The first message row on screen: output landing below it never moves it. */
-function firstRowOnScreen(scroller: Scroller, props: Props): Held | null {
+/** Keep every visible candidate: a head trim can remove more than the first one. */
+function rowsOnScreen(scroller: Scroller, props: Props): Held[] {
   const content = scroller.firstElementChild
   if (!content) {
-    return null
+    return []
   }
   const view = scroller.getBoundingClientRect()
-  for (const row of messageRows(content, props)) {
-    const box = row.getBoundingClientRect()
-    if (box.top < view.bottom && box.bottom > view.top) {
-      return { row, top: box.top }
+  const rows = messageRows(content, props)
+  let low = 0
+  let high = rows.length
+  let firstBox: Box | undefined
+  // Normal-flow vertical cells and spacers have ordered bottoms, including zero-height rows.
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    const box = rows[middle].getBoundingClientRect()
+    if (box.bottom <= view.top) {
+      low = middle + 1
+    } else {
+      high = middle
+      firstBox = box
     }
   }
-  return null
+  const held: Held[] = []
+  for (let index = low; index < rows.length; index++) {
+    const row = rows[index]
+    const box = index === low && firstBox ? firstBox : row.getBoundingClientRect()
+    if (box.top >= view.bottom) {
+      break
+    }
+    if (box.bottom > view.top) {
+      held.push({ row, top: box.top })
+    }
+  }
+  return held
 }
 
 /** Keeps the page's view on the same rows when rows above it change, by putting a row that was on
@@ -61,22 +81,23 @@ function firstRowOnScreen(scroller: Scroller, props: Props): Held | null {
  *  the new ones are in the document. A native list holds its own place
  *  (`maintainVisibleContentPosition`). */
 export class MobileNativeChatScrollHold extends Component<Props> {
-  getSnapshotBeforeUpdate(previous: Props): Held | null {
+  getSnapshotBeforeUpdate(previous: Props): Held[] | null {
     if (Platform.OS !== 'web' || !this.props.holding || previous.headKey === this.props.headKey) {
       return null
     }
     const scroller = this.props.listRef.current?.getScrollableNode()
-    return scroller ? firstRowOnScreen(scroller, this.props) : null
+    return scroller ? rowsOnScreen(scroller, previous) : null
   }
 
-  componentDidUpdate(_previous: Props, _state: unknown, held: Held | null): void {
+  componentDidUpdate(_previous: Props, _state: unknown, held: Held[] | null): void {
     const scroller = Platform.OS === 'web' ? this.props.listRef.current?.getScrollableNode() : null
     if (!scroller) {
       return
     }
     scroller.style.overflowAnchor = this.props.holding ? 'auto' : 'none'
-    if (held?.row.isConnected) {
-      scroller.scrollTop += held.row.getBoundingClientRect().top - held.top
+    const survivor = held?.find(({ row }) => row.isConnected)
+    if (survivor) {
+      scroller.scrollTop += survivor.row.getBoundingClientRect().top - survivor.top
     }
   }
 

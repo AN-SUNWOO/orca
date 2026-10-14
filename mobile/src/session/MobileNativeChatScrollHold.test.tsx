@@ -103,6 +103,48 @@ describe('MobileNativeChatScrollHold', () => {
     expect(node.scrollTop).toBe(2_040)
   })
 
+  it('classifies the old layout when the final page removes its control and adds a footer', () => {
+    const control = row([0])
+    const message = row([50, 2_050])
+    const { node, listRef } = scrollerOver([control], [message])
+    const previous = { listRef, headKey: 'a', holding: true, loadEarlier: true, footer: false }
+    const hold = new MobileNativeChatScrollHold({
+      ...previous,
+      headKey: 'older',
+      loadEarlier: false,
+      footer: true
+    })
+    const snapshot = hold.getSnapshotBeforeUpdate(previous)
+    control.isConnected = false
+    hold.componentDidUpdate(previous, null, snapshot)
+    expect(node.scrollTop).toBe(2_040)
+  })
+
+  it('holds the first surviving visible row after a multi-row trim, with bounded measurements', () => {
+    let shift = 0
+    let measurements = 0
+    const rows = Array.from({ length: 2_000 }, (_, index) => ({
+      isConnected: true,
+      children: [],
+      getBoundingClientRect: () => {
+        measurements++
+        const top = (index - 1_990) * 100 + shift
+        return { top, bottom: top + 100 }
+      }
+    }))
+    const { node, listRef } = scrollerOver([], rows)
+    node.scrollTop = 199_000
+    const previous = { listRef, headKey: 'a', holding: true, loadEarlier: false, footer: false }
+    const hold = new MobileNativeChatScrollHold({ ...previous, headKey: 'trimmed' })
+    const snapshot = hold.getSnapshotBeforeUpdate(previous)
+    expect(snapshot?.map(({ row }) => row)).toEqual(rows.slice(1_990, 1_996))
+    expect(measurements).toBeLessThan(25)
+    rows[1_990].isConnected = rows[1_991].isConnected = false
+    shift = -200
+    hold.componentDidUpdate(previous, null, snapshot)
+    expect(node.scrollTop).toBe(198_800)
+  })
+
   // At the 2,000-row ceiling every new message drops the first row; a hold then read as the reader.
   it('leaves a following view to tail-follow, with the browser’s own anchoring off too', async () => {
     const { node, listRef } = scrollerOver([], [row([300, 2_300])])

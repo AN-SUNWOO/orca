@@ -12,6 +12,8 @@ import type {
 import type { ProviderRateLimits, RateLimitState } from '../../../../shared/rate-limit-types'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
+import { useAppStore } from '../../store'
+import { AntigravityChatSignInRow } from './AntigravityChatSignInRow'
 
 export function AntigravityAccountsSection({
   owner,
@@ -41,6 +43,7 @@ export function AntigravityAccountsSection({
   const environmentId = owner.kind === 'environment' ? owner.environmentId : null
   const runtime = target.runtime
   const wslDistro = target.wslDistro ?? null
+  const nativeChat = useAppStore((s) => s.settings?.experimentalNativeChat === true)
 
   useEffect(() => {
     mounted.current = true
@@ -152,6 +155,16 @@ export function AntigravityAccountsSection({
           })}
         </p>
       </div>
+      {/* Chats sign in on the host itself, never in a WSL distro; a remote host's Google page returns
+          to that host, so remote sign-in waits for callback forwarding. */}
+      {state && nativeChat && ownerKind === 'local' && runtime !== 'wsl' && (
+        <AntigravityChatSignInRow
+          owner={owner}
+          label={label}
+          saved={state.chatSignIn?.saved === true}
+          onSettled={() => void run('List')}
+        />
+      )}
       <p className="text-xs text-muted-foreground">
         {translate(
           'accounts.antigravity.signIn',

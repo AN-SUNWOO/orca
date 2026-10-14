@@ -1,17 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { listWorktreeGraphMock, listWorktreesMock, listWorktreesStrictMock, statMock } = vi.hoisted(
-  () => ({
+const { listWorktreeGraphMock, listWorktreesMock, listWorktreesStrictMock, missingPathMock } =
+  vi.hoisted(() => ({
     listWorktreeGraphMock: vi.fn(),
     listWorktreesMock: vi.fn(),
     listWorktreesStrictMock: vi.fn(),
-    statMock: vi.fn()
-  })
-)
+    missingPathMock: vi.fn()
+  }))
 
-vi.mock('./local-worktree-filesystem', () => ({
-  getLocalWorktreePathAccess: () => ({ statPath: statMock })
-}))
+vi.mock('./local-worktree-filesystem', () => ({ isLocalWorktreePathMissing: missingPathMock }))
 
 vi.mock('./git/worktree', () => ({
   listWorktreeGraph: listWorktreeGraphMock,
@@ -30,32 +27,12 @@ import {
 } from './repo-worktrees'
 import { WorktreeCatalogUnavailableError } from '../shared/worktree/worktree-catalog-availability'
 
-const testGitRepo = {
-  id: 'repo-1',
-  path: '/workspace/repo',
-  displayName: 'repo',
-  badgeColor: '#000',
-  addedAt: 0,
-  kind: 'git' as const
-}
-
 describe('repo-worktrees', () => {
   beforeEach(() => {
     listWorktreeGraphMock.mockReset()
     listWorktreesMock.mockReset()
     listWorktreesStrictMock.mockReset()
-    statMock.mockReset().mockResolvedValue({})
-  })
-
-  it('skips Git on each missing-folder scan and resumes when the folder returns', async () => {
-    statMock.mockRejectedValueOnce(Object.assign(new Error('missing'), { code: 'ENOENT' }))
-    statMock.mockRejectedValueOnce(Object.assign(new Error('missing'), { code: 'ENOENT' }))
-    expect(await listRepoWorktreesForDetectedScan(testGitRepo)).toEqual([])
-    expect(await listRepoWorktreesForDetectedScan(testGitRepo)).toEqual([])
-    expect(listWorktreesStrictMock).not.toHaveBeenCalled()
-    listWorktreesStrictMock.mockResolvedValueOnce([])
-    await listRepoWorktreesForDetectedScan(testGitRepo)
-    expect(listWorktreesStrictMock).toHaveBeenCalledOnce()
+    missingPathMock.mockReset().mockResolvedValue(false)
   })
 
   it('creates a stable synthetic worktree for folder repos', () => {
@@ -128,7 +105,17 @@ describe('repo-worktrees', () => {
     ])
     const signal = new AbortController().signal
 
-    const result = await listRepoWorktrees(testGitRepo, { signal })
+    const result = await listRepoWorktrees(
+      {
+        id: 'repo-1',
+        path: '/workspace/repo',
+        displayName: 'repo',
+        badgeColor: '#000',
+        addedAt: 0,
+        kind: 'git'
+      },
+      { signal }
+    )
 
     expect(listWorktreesMock).toHaveBeenCalledWith('/workspace/repo', { signal })
     expect(result).toHaveLength(1)
@@ -140,7 +127,14 @@ describe('repo-worktrees', () => {
       { path: '/workspace/repo', head: 'abc', branch: '', isBare: false, isMainWorktree: true }
     ])
 
-    const result = await listRepoWorktreeGraph(testGitRepo)
+    const result = await listRepoWorktreeGraph({
+      id: 'repo-1',
+      path: '/workspace/repo',
+      displayName: 'repo',
+      badgeColor: '#000',
+      addedAt: 0,
+      kind: 'git'
+    })
 
     expect(listWorktreeGraphMock).toHaveBeenCalledWith('/workspace/repo')
     expect(listWorktreesMock).not.toHaveBeenCalled()
@@ -176,10 +170,17 @@ describe('repo-worktrees', () => {
     ])
     const signal = new AbortController().signal
 
-    const result = await listLocalRepoWorktreesStrict(testGitRepo, {
-      signal,
-      wslDistro: 'Ubuntu'
-    })
+    const result = await listLocalRepoWorktreesStrict(
+      {
+        id: 'repo-1',
+        path: '/workspace/repo',
+        displayName: 'repo',
+        badgeColor: '#000',
+        addedAt: 0,
+        kind: 'git'
+      },
+      { signal, wslDistro: 'Ubuntu' }
+    )
 
     expect(listWorktreesStrictMock).toHaveBeenCalledWith('/workspace/repo', {
       signal,

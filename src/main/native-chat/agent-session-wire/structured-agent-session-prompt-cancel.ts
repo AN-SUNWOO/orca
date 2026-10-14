@@ -10,7 +10,6 @@ import { AgentSessionPromptUnavailableError } from './structured-agent-session-a
 import type { StructuredAgentSessionChatStopRun } from './structured-agent-session-chat-stop'
 import {
   answerCancelOfSettledPrompt,
-  dismissEndedGenerationPrompt,
   isEndedGenerationPrompt,
   validatePendingPrompt,
   type PendingPromptValidation
@@ -92,7 +91,7 @@ async function cancelEndedGenerationPrompt(
     expectedRevision: pending.item.revision
   })
   if (still.ok) {
-    const dismissed = await dismissEndedGenerationPrompt(ctx, still)
+    const dismissed = await dismissPrompt(ctx, still, null)
     if (!dismissed.ok) {
       return dismissed
     }
@@ -112,11 +111,12 @@ function raisedByLiveTurn(ctx: AgentSessionTurnContext, pending: PendingPrompt):
 }
 
 /** Records the card as cancelled by the caller, after every row the provider already sent (each
- *  landed at its call); `answer` also declines the provider's request. */
+ *  landed at its call); `answer` also declines the provider's request. Null: no live provider holds
+ *  the card (an ended generation's), so only the journal records it. */
 async function dismissPrompt(
   ctx: AgentSessionTurnContext,
   pending: PendingPrompt,
-  answer: boolean
+  answer: boolean | null
 ): Promise<TurnOutcome<null>> {
   const { item, prompt } = pending
   const identity = parseAgentJournalItemKey(item.itemId)
@@ -151,13 +151,15 @@ async function dismissPrompt(
     committed = true
   }
   try {
-    await ctx.adapter.dismissPrompt?.({
-      sessionId: ctx.sessionId,
-      itemId: item.itemId,
-      fence: ctx.fence,
-      answer,
-      commit
-    })
+    if (answer !== null) {
+      await ctx.adapter.dismissPrompt?.({
+        sessionId: ctx.sessionId,
+        itemId: item.itemId,
+        fence: ctx.fence,
+        answer,
+        commit
+      })
+    }
   } catch (error) {
     if (!committed && !(error instanceof AgentSessionPromptUnavailableError)) {
       return dismissalNotSaved(ctx, error)

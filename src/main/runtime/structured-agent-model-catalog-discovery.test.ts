@@ -64,10 +64,10 @@ describe('the model catalog contract on every registration', () => {
       (registration) => registration.modelCatalog(context()).kind === 'probe'
     ).map((registration) => registration.definition.agent)
     expect(Object.keys(probes).sort()).toEqual([...listing].sort())
-    // Every agent registered today but OMP lists its models without a session.
+    // Every agent registered today but OMP and Antigravity lists its models without a session.
     expect(listing.sort()).toEqual(
       STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map((registration) => registration.definition.agent)
-        .filter((agent) => agent !== 'omp')
+        .filter((agent) => agent !== 'omp' && agent !== 'antigravity')
         .sort()
     )
   })

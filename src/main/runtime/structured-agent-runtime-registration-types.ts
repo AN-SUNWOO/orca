@@ -57,6 +57,8 @@ export type StructuredAgentAccountHomeServices = {
   prepareCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
   readCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
   workspaceTrustSettings: () => Parameters<typeof applyStructuredCodexWorkspaceTrust>[0]['settings']
+  /** Orca's data folder on this host, where an agent's chats may keep an account of their own. */
+  stateDirectory: string
 }
 
 /** What a catalog probe is built from: the same runtime resolvers its sessions launch through. */

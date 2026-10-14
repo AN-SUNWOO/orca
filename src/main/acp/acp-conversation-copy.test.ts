@@ -109,6 +109,7 @@ describe('copying a chat conversation for the CLI', () => {
       copyAcpConversation(
         {
           spec,
+          dataDirectory: '/orca-data',
           readLaunch: async () => ({
             spec,
             command: 'fake',

@@ -1,11 +1,11 @@
 // Making a reservation real for an ACP agent: open its connection (which spawns and owns the
 // process), record it before any handshake, initialize with the client's file system and terminals
-// off, then reattach the session this chat proved with `session/load` (`session/resume` only for an
-// agent that cannot load) or start a new one. A saved session the agent cannot reopen is replaced
-// by a new one, with a warning row that any later start writes if this attach never did. The
-// journal already holds a reattached chat, so whatever the agent sends while it reattaches is not
-// written, except context usage. The handshake has no time bound: the acquire's abort signal
-// (Close, Stop, quit) stops it at any point.
+// off, then reattach the session this chat proved with `session/load` (`session/resume` for an
+// agent that cannot load or prefers it) or start a new one. A saved session the agent cannot reopen
+// is replaced by a new one, with a warning row that any later start writes if this attach never
+// did. The journal already holds a reattached chat, so whatever the agent sends while it reattaches
+// is not written, except context usage. The handshake has no time bound: the acquire's abort
+// signal (Close, Stop, quit) stops it at any point.
 
 import type { AgentSessionProviderHandleLink } from '../../shared/agent-session-provider-handle'
 import {
@@ -221,7 +221,7 @@ export async function acquireAcpStructuredSession(input: {
       advertised: (initialized.authMethods ?? []).map((method) => method.id),
       env: launch.env
     })
-    const auth = authMethodId === undefined ? {} : { authMethodId }
+    const setup = { authMethodId, resumePreference: spec.resumePreference }
     const resume = launch.resume
     let started: Awaited<ReturnType<AcpStructuredConnection['start']>> | null = null
     let liveLane: AcpStructuredLane | null = null
@@ -234,7 +234,7 @@ export async function acquireAcpStructuredSession(input: {
           cwd: launch.cwd,
           mcpServers: [],
           sessionId: resume.sessionId,
-          ...auth
+          ...setup
         })
         slot.reattaching = false
         attaching.translator.finishLoad()
@@ -251,7 +251,7 @@ export async function acquireAcpStructuredSession(input: {
     if (!started || !liveLane) {
       liveLane?.dispose()
       slot.lane = null
-      started = await connection.start({ cwd: launch.cwd, mcpServers: [], ...auth })
+      started = await connection.start({ cwd: launch.cwd, mcpServers: [], ...setup })
       liveLane = makeLane(started.sessionId)
     }
     childStops = await probeAcpChildStops(connection, spec.dialect)

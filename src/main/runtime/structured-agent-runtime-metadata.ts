@@ -52,7 +52,8 @@ function acpMetadata(spec: AcpLaunchSpec): StructuredAgentRuntimeMetadata {
           }
         }
       : {}),
-    resolveAccountHome: ({ launchEnv }) => spec.account.resolve({ launchEnv }),
+    resolveAccountHome: ({ launchEnv }, { stateDirectory }) =>
+      spec.account.resolve({ launchEnv, stateDirectory }),
     modelCatalog: (context) => acpModelCatalogDiscovery(spec, context),
     transcriptImport: spec.transcriptImport,
     sessionHistory: spec.sessionHistory

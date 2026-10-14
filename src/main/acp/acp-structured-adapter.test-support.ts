@@ -25,6 +25,7 @@ import { AcpStructuredSessionAdapter } from './acp-structured-session-adapter'
 import type { AcpStructuredSessionAdapterDeps } from './acp-structured-session-adapter-deps'
 
 export const GROK = acpLaunchSpecFor('grok')!
+const RIG_ENV = { PATH: '/usr/bin', ORCA_PANE_KEY: 'tab-1:pane-1', ORCA_AGENT_HOOK_PORT: '1234' }
 export const PROVIDER_SESSION = 'acp-session-1'
 export const PID = 4242
 
@@ -174,6 +175,10 @@ export async function openAcpAdapterRig(
   const lifecycle: StructuredAgentSessionLifecycleEvent[] = []
   const settled: AcpAdapterRig['settled'] = []
   const spec = options.spec ?? GROK
+  // A start readies the account folder its row pins; here a scratch one.
+  const { prepare, resolve, environment } = spec.account
+  const scratch = { launchEnv: {}, stateDirectory: tmpdir() }
+  const account = prepare ? environment(await resolve(scratch), {}) : {}
   const resolveLaunch: AcpStructuredSessionAdapterDeps['resolveLaunch'] =
     options.deps?.resolveLaunch ??
     (async () => ({
@@ -181,7 +186,7 @@ export async function openAcpAdapterRig(
       command: `/opt/bin/${spec.command}`,
       args: spec.args({ fullAccess: false, pluginDir: null }),
       cwd: '/workspace/project',
-      env: { PATH: '/usr/bin', ORCA_PANE_KEY: 'tab-1:pane-1', ORCA_AGENT_HOOK_PORT: '1234' },
+      env: { ...RIG_ENV, ...account },
       envToDelete: [],
       fullAccess: false,
       resume: null,
@@ -216,6 +221,10 @@ export async function openAcpAdapterRig(
       agent.on('session/load', (frame) =>
         agent.reply(frame, { configOptions: GROK_CONFIG_OPTIONS })
       )
+      // A row that enforces its permission mode sets it at every start; the agent confirms it.
+      if (spec.permissionModeConfig) {
+        agent.confirmConfigOptions(GROK_CONFIG_OPTIONS)
+      }
       options.script?.(agent)
       return child
     },

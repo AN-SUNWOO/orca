@@ -28,7 +28,8 @@ describe('structured agent metadata without adapter implementations', () => {
       'claude',
       'grok',
       'opencode',
-      'omp'
+      'omp',
+      'antigravity'
     ])
     expect(
       STRUCTURED_AGENT_RUNTIME_METADATA.every((metadata) => !('createAdapter' in metadata))

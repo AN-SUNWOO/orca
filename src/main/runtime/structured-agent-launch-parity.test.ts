@@ -154,7 +154,7 @@ import {
   structuredWorkerProcessIncarnation
 } from './structured-worker-identity'
 
-const AGENTS = ['claude', 'codex', 'grok', 'opencode', 'omp', 'pi'] as const
+const AGENTS = ['claude', 'codex', 'grok', 'opencode', 'omp', 'pi', 'antigravity'] as const
 type Agent = (typeof AGENTS)[number]
 
 /** What each fake binary prints for `--version`: a release every launch gate accepts. */
@@ -164,8 +164,11 @@ const VERSIONS: Record<Agent, string> = {
   grok: '1.0.50',
   opencode: '2.0.20',
   omp: '17.1.0',
-  pi: '1.1.0'
+  pi: '1.1.0',
+  antigravity: '1.3.0'
 }
+/** An agent whose binary is not named after it. */
+const BINARIES: Partial<Record<Agent, string>> = { antigravity: 'agy_acp_server.par' }
 
 type LaunchCase = {
   agent: Agent
@@ -237,7 +240,7 @@ async function installFakeBinaries(bin: string): Promise<void> {
   await mkdir(join(root, 'custom-bin'), { recursive: true })
   for (const agent of AGENTS) {
     await writeExecutable(
-      join(bin, agent),
+      join(bin, BINARIES[agent] ?? agent),
       `if [ "$1" = "--version" ]; then echo "${VERSIONS[agent]}"; exit 0; fi\nexit 1`
     )
     // What a Command setting names instead of the agent's own binary.
@@ -274,7 +277,8 @@ function configuredSettings(): Partial<GlobalSettings> {
       grok: '',
       opencode: '',
       omp: '',
-      pi: ''
+      pi: '',
+      antigravity: ''
     },
     agentDefaultEnv: Object.fromEntries(
       AGENTS.map((agent) => [
@@ -345,6 +349,8 @@ function accountHomeFor(agent: Agent): AgentSessionAccountHome {
       return { variable: 'PI_CODING_AGENT_DIR', path: directory('omp') }
     case 'pi':
       return { variable: 'PI_CODING_AGENT_DIR', path: directory('pi') }
+    case 'antigravity':
+      return { variable: 'GEMINI_HOME', path: directory('antigravity') }
   }
 }
 
@@ -367,6 +373,7 @@ async function resumedHandleFor(
     case 'grok':
     case 'opencode':
     case 'omp':
+    case 'antigravity':
       return { transport: 'acp', agent, nativeId: `acp-session-${sessionId}` }
   }
 }
@@ -492,6 +499,7 @@ function normalized(value: string): string {
     .join('<node>')
     .split(process.cwd())
     .join('<repo>')
+    .replace(/(acp-temp[\\/]\w+[\\/]run-)\w+/, '$1<random>')
 }
 
 /** Keys whose value is the installed SDK's own, which a dependency bump changes. */

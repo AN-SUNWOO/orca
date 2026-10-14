@@ -6,7 +6,12 @@ import type { AcpDialect } from './acp-dialects/acp-dialect'
 import { GROK_ACP_DIALECT } from './acp-dialects/grok-dialect'
 import { OMP_ACP_DIALECT } from './acp-dialects/omp-dialect'
 import { OPENCODE_ACP_DIALECT } from './acp-dialects/opencode-dialect'
-import { directoryAccountBinding, type AcpAccountBinding } from './acp-account-binding'
+import { ANTIGRAVITY_ACP_DIALECT } from './acp-dialects/antigravity-dialect'
+import {
+  directoryAccountBinding,
+  hostFolderAccountBinding,
+  type AcpAccountBinding
+} from './acp-account-binding'
 import { openCodeAcpAccountBinding } from '../opencode/opencode-structured-account-home'
 import { scrubOpenCodeAcpEnvironment } from '../opencode/opencode-acp-environment'
 import { openCodeStoredUserMessagesReader } from '../opencode/opencode-acp-stored-messages'
@@ -39,6 +44,10 @@ import { OPENCODE_SESSION_HISTORY } from '../opencode/opencode-session-history'
 import { OPENCODE_TRANSCRIPT_IMPORT } from '../opencode/opencode-transcript-import'
 import { OMP_SESSION_HISTORY } from '../omp/omp-session-history'
 import { OMP_TRANSCRIPT_IMPORT } from '../omp/omp-transcript-import'
+import {
+  ANTIGRAVITY_ACP_COMMAND,
+  ANTIGRAVITY_ACP_RUNTIME
+} from '../antigravity/antigravity-acp-runtime'
 
 /** How an agent lists its models without a session: from its `initialize` answer (plus extension
  *  requests), from a listing command, or not at all. Never `authenticate` or `session/new`. */
@@ -116,6 +125,8 @@ export type AcpLaunchSpec = {
   sessionHistory: StructuredAgentSessionHistory
   /** Each process gets its own temp folder: the agent's temp files collide across processes. */
   privateTempDirectory?: true
+  /** Reopens a chat's session with `session/resume` even when the agent can also load it. */
+  resumePreference?: 'resume'
 }
 
 const GROK_LAUNCH_SPEC: AcpLaunchSpec = {
@@ -222,10 +233,74 @@ const OMP_LAUNCH_SPEC: AcpLaunchSpec = {
   sessionHistory: OMP_SESSION_HISTORY
 }
 
+// Applied after the scrub: the server's sign-in stays in its own folder's file rather than the
+// keychain slot every server on the machine shares, and it never opens a browser itself.
+const ANTIGRAVITY_ACP_ENV = { AGY_ACP_FORCE_FILE_STORAGE: '1', BROWSER: 'true' }
+
+/** Drops what would sign the server in some other way or run another harness than its own. */
+function scrubAntigravityAcpEnvironment(
+  env: Record<string, string>,
+  inherited: NodeJS.ProcessEnv
+): string[] {
+  const removed = [...new Set([...Object.keys(env), ...Object.keys(inherited)])].filter(
+    (key) =>
+      !Object.hasOwn(ANTIGRAVITY_ACP_ENV, key) &&
+      (key === 'GEMINI_API_KEY' ||
+        key === 'ANTIGRAVITY_HARNESS_PATH' ||
+        key.startsWith('GOOGLE_') ||
+        key.startsWith('AGY_ACP_'))
+  )
+  for (const key of removed) {
+    delete env[key]
+  }
+  return removed
+}
+
+// `agy` keeps its own conversations apart from the ACP server's, so its arguments resume none.
+const ANTIGRAVITY_SESSION_HISTORY: StructuredAgentSessionHistory = {
+  rowAgents: ['antigravity'],
+  rowSessionId: (link) => link.handle.nativeId,
+  parseResumeArgs: () => null
+}
+
+// Google's Antigravity ACP server, which Orca installs (the `agy` CLI has no ACP mode). Its chats
+// sign in to a folder of their own on each host; an `agy` login is not theirs.
+const ANTIGRAVITY_LAUNCH_SPEC: AcpLaunchSpec = {
+  agent: 'antigravity',
+  command: ANTIGRAVITY_ACP_COMMAND,
+  // The registry's Linux launch: without `--uid=` the server, started as root, drops to nobody.
+  args: () => (process.platform === 'linux' ? ['--uid='] : []),
+  env: ANTIGRAVITY_ACP_ENV,
+  scrubEnvironment: scrubAntigravityAcpEnvironment,
+  dialect: ANTIGRAVITY_ACP_DIALECT,
+  loginCommand: agentSessionSignInFor('antigravity')?.loginCommand ?? [],
+  // Signs in with the Google account the folder saved; without one, the server prints a sign-in link.
+  authMethod: ({ advertised }) =>
+    advertised.includes('oauth-personal') ? 'oauth-personal' : undefined,
+  signInPrompt: (line) =>
+    line.trimStart().startsWith('Open the following link to authenticate the ACP server:'),
+  account: hostFolderAccountBinding('GEMINI_HOME', 'antigravity-chat', ['antigravity-acp']),
+  installDirectories: () => [],
+  managedRuntime: ANTIGRAVITY_ACP_RUNTIME,
+  // Its yolo mode still asks the person questions and administrative reviews.
+  permissionModeConfig: { configId: 'mode', values: { ask: 'default', 'full-access': 'yolo' } },
+  imagePrompts: true,
+  modelDiscovery: {
+    kind: 'unavailable',
+    reason: 'the Antigravity server lists its models only in a signed-in session'
+  },
+  transcriptImport: null,
+  sessionHistory: ANTIGRAVITY_SESSION_HISTORY,
+  privateTempDirectory: true,
+  // `session/load` replays the whole conversation, which the chat already holds.
+  resumePreference: 'resume'
+}
+
 export const ACP_LAUNCH_SPECS: readonly AcpLaunchSpec[] = [
   GROK_LAUNCH_SPEC,
   OPENCODE_LAUNCH_SPEC,
-  OMP_LAUNCH_SPEC
+  OMP_LAUNCH_SPEC,
+  ANTIGRAVITY_LAUNCH_SPEC
 ]
 
 export function acpLaunchSpecFor(agent: string): AcpLaunchSpec | null {

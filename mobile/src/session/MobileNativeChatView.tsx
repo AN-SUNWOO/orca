@@ -240,6 +240,7 @@ export function MobileNativeChatView({
   )
   const {
     listRef,
+    following,
     showJumpToTail,
     pinToTail,
     pinToTailAfterContentResize,
@@ -250,7 +251,7 @@ export function MobileNativeChatView({
     endMomentum,
     readerIsScrolling,
     recordScrollMetrics
-  } = useMobileNativeChatTailFollow<NativeChatMessage>({ hasItems: data.length > 0 })
+  } = useMobileNativeChatTailFollow({ items: data, scopeKey: sendSurfaceId })
 
   const handleSend = useCallback(
     async (text: string): Promise<boolean> => {
@@ -321,7 +322,7 @@ export function MobileNativeChatView({
     [toolsExpanded, fontScale, onOpenFile, structuredActivityUi, turns, unsentNotices]
   )
 
-  const history = useMobileNativeChatPageHistory(turns.listMessages, renderItem)
+  const history = useMobileNativeChatPageHistory(turns.listMessages, renderItem, sendSurfaceId)
 
   const liveStatus = turns.liveLine ? (
     <MobileNativeChatLiveLine
@@ -331,6 +332,8 @@ export function MobileNativeChatView({
       onOpenFile={onOpenFile}
     />
   ) : null
+
+  const listFooter = mobileNativeChatListFooter(liveStatus, turns.waitingRows, renderItem)
 
   const emptyState = mobileNativeChatEmptyState(status, agent ?? null, error)
   const showLoading = status === 'loading' && messages.length === 0
@@ -361,7 +364,10 @@ export function MobileNativeChatView({
         </View>
       ) : (
         <GestureHandlerRootView style={styles.listWrap}>
-          <MobileNativeChatScrollHold headKey={turns.listMessages[0]?.id} listRef={listRef} />
+          <MobileNativeChatScrollHold
+            {...{ listRef, headKey: turns.listMessages[0]?.id, holding: !following }}
+            {...{ loadEarlier: hasMore === true, footer: listFooter !== null }}
+          />
           <GestureDetector gesture={pinchGesture}>
             <FlatList
               ref={listRef}
@@ -384,11 +390,7 @@ export function MobileNativeChatView({
               ListHeaderComponent={history.withHistory(
                 mobileNativeChatListHeader(hasMore, loadingEarlier, loadEarlier)
               )}
-              ListFooterComponent={mobileNativeChatListFooter(
-                liveStatus,
-                turns.waitingRows,
-                renderItem
-              )}
+              ListFooterComponent={listFooter}
               ListEmptyComponent={emptyStateView}
             />
           </GestureDetector>

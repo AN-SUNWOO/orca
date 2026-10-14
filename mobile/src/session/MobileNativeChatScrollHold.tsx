@@ -11,6 +11,7 @@ type RowElement = {
 }
 type Scroller = {
   scrollTop: number
+  style: { overflowAnchor: string }
   getBoundingClientRect: () => Box
   firstElementChild: RowElement | null
 }
@@ -20,25 +21,36 @@ type Held = { row: RowElement; top: number }
 type Props = {
   /** The first row's key: a change in it is rows changing above the reader. */
   headKey: string | undefined
+  /** Off while following: then tail-follow alone places the view, and a hold, this one or the
+   *  browser's own scroll anchoring, would read as the reader moving up. */
+  holding: boolean
+  /** The header leads with the "Load earlier" control, which stays put as history lands under it. */
+  loadEarlier: boolean
+  /** A footer cell (live status, waiting messages) ends the list; output above it moves it. */
+  footer: boolean
   listRef: RefObject<{ getScrollableNode: () => Scroller | null | undefined } | null>
 }
 
-/** The lowest row on screen. Why the lowest: the "Load earlier" control stays at the top while
- *  history lands under it, so the topmost element does not move with the rows. */
-function lowestRowOnScreen(scroller: Scroller): Held | null {
+/** The message rows in drawing order. With no header the first cell's own element stands for it. */
+function messageRows(content: RowElement, { loadEarlier, footer }: Props): RowElement[] {
+  const [header, ...cells] = Array.from(content.children)
+  if (footer) {
+    cells.pop()
+  }
+  return [...Array.from(header?.children ?? []).slice(loadEarlier ? 1 : 0), ...cells]
+}
+
+/** The first message row on screen: output landing below it never moves it. */
+function firstRowOnScreen(scroller: Scroller, props: Props): Held | null {
   const content = scroller.firstElementChild
   if (!content) {
     return null
   }
   const view = scroller.getBoundingClientRect()
-  // The list's own rows, then the rows of the header block that precedes them.
-  const header = content.children[0]
-  for (const rows of [content.children, header?.children ?? []]) {
-    for (let at = rows.length - 1; at >= 0; at -= 1) {
-      const box = rows[at].getBoundingClientRect()
-      if (box.top < view.bottom && box.bottom > view.top && rows[at] !== header) {
-        return { row: rows[at], top: box.top }
-      }
+  for (const row of messageRows(content, props)) {
+    const box = row.getBoundingClientRect()
+    if (box.top < view.bottom && box.bottom > view.top) {
+      return { row, top: box.top }
     }
   }
   return null
@@ -50,16 +62,20 @@ function lowestRowOnScreen(scroller: Scroller): Held | null {
  *  (`maintainVisibleContentPosition`). */
 export class MobileNativeChatScrollHold extends Component<Props> {
   getSnapshotBeforeUpdate(previous: Props): Held | null {
-    if (Platform.OS !== 'web' || previous.headKey === this.props.headKey) {
+    if (Platform.OS !== 'web' || !this.props.holding || previous.headKey === this.props.headKey) {
       return null
     }
     const scroller = this.props.listRef.current?.getScrollableNode()
-    return scroller ? lowestRowOnScreen(scroller) : null
+    return scroller ? firstRowOnScreen(scroller, this.props) : null
   }
 
   componentDidUpdate(_previous: Props, _state: unknown, held: Held | null): void {
-    const scroller = held?.row.isConnected ? this.props.listRef.current?.getScrollableNode() : null
-    if (held && scroller) {
+    const scroller = Platform.OS === 'web' ? this.props.listRef.current?.getScrollableNode() : null
+    if (!scroller) {
+      return
+    }
+    scroller.style.overflowAnchor = this.props.holding ? 'auto' : 'none'
+    if (held?.row.isConnected) {
       scroller.scrollTop += held.row.getBoundingClientRect().top - held.top
     }
   }

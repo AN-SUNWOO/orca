@@ -27,17 +27,18 @@ function row(tops: number[], children: Row[] = []): Row {
 }
 
 /** A 600 tall view, 40 from the top of its content, over the given header block and list rows. */
-function scrollerOver(headerRows: Row[], listRows: Row[]) {
+function scrollerOver(headerRows: Row[], listRows: Row[], footer?: Row) {
   const header = row([-40], headerRows)
   const heights = [1_000, 3_500]
   const node = {
     scrollTop: 40,
+    style: { overflowAnchor: 'auto' },
     // Grows by 2,500 where 2,000 lands above the reader: live output lands below in the same update.
     get scrollHeight(): number {
       return heights.length > 1 ? (heights.shift() ?? 0) : heights[0]
     },
     getBoundingClientRect: () => ({ top: 0, bottom: 600 }),
-    firstElementChild: row([-40], [header, ...listRows])
+    firstElementChild: row([-40], [header, ...listRows, ...(footer ? [footer] : [])])
   }
   return { node, listRef: { current: { getScrollableNode: () => node } } }
 }
@@ -45,8 +46,18 @@ function scrollerOver(headerRows: Row[], listRows: Row[]) {
 describe('MobileNativeChatScrollHold', () => {
   let renderer: ReactTestRenderer | null = null
 
-  async function show(headKey: string, listRef: ReturnType<typeof scrollerOver>['listRef']) {
-    const element = createElement(MobileNativeChatScrollHold, { headKey, listRef })
+  async function show(
+    headKey: string,
+    listRef: ReturnType<typeof scrollerOver>['listRef'],
+    { holding = true, loadEarlier = false, footer = false } = {}
+  ) {
+    const element = createElement(MobileNativeChatScrollHold, {
+      headKey,
+      holding,
+      loadEarlier,
+      footer,
+      listRef
+    })
     await act(async () => {
       if (renderer) {
         renderer.update(element)
@@ -75,11 +86,32 @@ describe('MobileNativeChatScrollHold', () => {
   it('holds a reader who is inside the loaded history, above the list’s own rows', async () => {
     const control = row([-40])
     const { node, listRef } = scrollerOver([control, row([200, 2_200])], [row([900, 2_900])])
-    await show('a', listRef)
+    await show('a', listRef, { loadEarlier: true })
 
-    await show('older', listRef)
+    await show('older', listRef, { loadEarlier: true })
 
     expect(node.scrollTop).toBe(2_040)
+  })
+
+  it('holds by the reader’s row, not the live status line that output below pushes down', async () => {
+    const liveLine = row([500, 2_800])
+    const { node, listRef } = scrollerOver([], [row([100, 2_100])], liveLine)
+    await show('a', listRef, { footer: true })
+
+    await show('older', listRef, { footer: true })
+
+    expect(node.scrollTop).toBe(2_040)
+  })
+
+  // At the 2,000-row ceiling every new message drops the first row; a hold then read as the reader.
+  it('leaves a following view to tail-follow, with the browser’s own anchoring off too', async () => {
+    const { node, listRef } = scrollerOver([], [row([300, 2_300])])
+    await show('a', listRef, { holding: false })
+
+    await show('trimmed', listRef, { holding: false })
+
+    expect(node.scrollTop).toBe(40)
+    expect(node.style.overflowAnchor).toBe('none')
   })
 
   it('leaves the view alone when the row it was holding is gone', async () => {

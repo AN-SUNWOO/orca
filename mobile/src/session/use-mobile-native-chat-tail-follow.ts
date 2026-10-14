@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import {
   Platform,
   type FlatList,
@@ -17,6 +17,10 @@ function listReportsGestures(): boolean {
 
 /** Offset change, in points, below which the page treats the view as not having moved. */
 const PAGE_MOVE_SLOP = 1
+
+/** Quiet time after which the page takes a scroll as let go: RN Web's last event comes 100 ms
+ *  after the view stops. */
+const PAGE_SETTLE_MS = 150
 
 /** Holds the first visible row in place when rows above it change. The header is not a row. */
 const ANCHOR_BELOW_HEADER = { minIndexForVisible: 1 } as const
@@ -38,6 +42,8 @@ function isAtTail(event: NativeScrollEvent): boolean {
 export type MobileNativeChatTailFollow<TItem> = {
   /** Attach to the transcript list; the hook scrolls through this ref alone. */
   listRef: RefObject<FlatList<TItem> | null>
+  /** Whether the view keeps to the newest message. */
+  following: boolean
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
   /** Passive maintenance: re-pin after the viewport resizes. */
@@ -69,10 +75,13 @@ export type MobileNativeChatTailFollow<TItem> = {
  *  move intent; metrics only decide where a *released* gesture leaves us.
  */
 export function useMobileNativeChatTailFollow<TItem>(args: {
-  /** Guards `scrollToEnd` against an empty list. */
-  hasItems: boolean
+  /** The list's rows; an empty list is never scrolled. */
+  items: readonly TItem[]
+  /** The chat shown; another one opens following, whatever the reader did in this one. */
+  scopeKey: string
 }): MobileNativeChatTailFollow<TItem> {
-  const { hasItems } = args
+  const { scopeKey } = args
+  const hasItems = args.items.length > 0
   const listRef = useRef<FlatList<TItem> | null>(null)
   const [following, setFollowingFlag] = useState(true)
   const [atTail, setAtTailFlag] = useState(true)
@@ -85,6 +94,8 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const pageOffsetRef = useRef(0)
   const pageContentHeightRef = useRef(0)
   const pageReaderMovedUpRef = useRef(false)
+  const pageSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scopeKeyRef = useRef(scopeKey)
 
   // Single writer, so the event-time ref and the render flag cannot disagree.
   const setFollowing = useCallback((next: boolean) => {
@@ -131,7 +142,19 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       cancelAnimationFrame(userScrollSettleFrameRef.current)
       userScrollSettleFrameRef.current = null
     }
+    if (pageSettleTimerRef.current !== null) {
+      clearTimeout(pageSettleTimerRef.current)
+      pageSettleTimerRef.current = null
+    }
   }, [])
+
+  const jumpToTail = useCallback(() => {
+    clearUserScrollSettle()
+    userScrollActiveRef.current = false
+    setAtTail(true)
+    setFollowing(true)
+    pinToTail()
+  }, [clearUserScrollSettle, pinToTail, setAtTail, setFollowing])
 
   const recordScrollMetrics = useCallback(
     (event: NativeScrollEvent) => {
@@ -151,17 +174,14 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       } else if (moved > PAGE_MOVE_SLOP && endsAtTail) {
         setFollowing(true)
       }
+      clearUserScrollSettle()
+      if (!followingRef.current && endsAtTail) {
+        // Stopped within the slop: back to the end, as a native release there does.
+        pageSettleTimerRef.current = setTimeout(jumpToTail, PAGE_SETTLE_MS)
+      }
     },
-    [setAtTail, setFollowing]
+    [clearUserScrollSettle, jumpToTail, setAtTail, setFollowing]
   )
-
-  const jumpToTail = useCallback(() => {
-    clearUserScrollSettle()
-    userScrollActiveRef.current = false
-    setAtTail(true)
-    setFollowing(true)
-    pinToTail()
-  }, [clearUserScrollSettle, pinToTail, setAtTail, setFollowing])
 
   const beginUserScroll = useCallback(() => {
     clearUserScrollSettle()
@@ -217,10 +237,21 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     []
   )
 
+  // Before paint, so the next chat never shows where the reader left the last one.
+  useLayoutEffect(() => {
+    if (scopeKeyRef.current !== scopeKey) {
+      scopeKeyRef.current = scopeKey
+      pageOffsetRef.current = 0
+      pageReaderMovedUpRef.current = false
+      jumpToTail()
+    }
+  }, [scopeKey, jumpToTail])
+
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
 
   return {
     listRef,
+    following,
     showJumpToTail: !following && !atTail,
     pinToTail,
     pinToTailAfterContentResize,

@@ -13,7 +13,11 @@ vi.mock('react-native', async () => {
   return {
     ActivityIndicator: 'ActivityIndicator',
     FlatList: React.forwardRef((props, ref) => {
-      React.useImperativeHandle(ref, () => ({ scrollToEnd, scrollToOffset }), [])
+      React.useImperativeHandle(
+        ref,
+        () => ({ scrollToEnd, scrollToOffset, getScrollableNode: () => null }),
+        []
+      )
       return React.createElement('FlatList', props)
     }),
     Platform: platform,
@@ -219,6 +223,10 @@ describe('MobileNativeChatView', () => {
     return (list().props.data as { id: string }[]).map((row) => row.id)
   }
 
+  function jumpToLatest(): ReactTestInstance[] {
+    return renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
+  }
+
   function list(): ReactTestInstance {
     return renderer!.root.find((node) => node.type === 'FlatList')
   }
@@ -411,9 +419,7 @@ describe('MobileNativeChatView', () => {
 
     expect(scrollToOffset).toHaveBeenCalledOnce()
     expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_300 })
-    expect(
-      renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-    ).toHaveLength(0)
+    expect(jumpToLatest()).toHaveLength(0)
   })
 
   it('keeps tail-follow paused across the drag-to-momentum handoff', async () => {
@@ -424,9 +430,7 @@ describe('MobileNativeChatView', () => {
       scrollToEnd.mockClear()
 
       act(() => list().props.onScrollBeginDrag?.({}))
-      expect(
-        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-      ).toHaveLength(0)
+      expect(jumpToLatest()).toHaveLength(0)
 
       act(() => {
         list().props.onScroll({
@@ -505,9 +509,7 @@ describe('MobileNativeChatView', () => {
 
     expect(scrollToEnd).not.toHaveBeenCalled()
     expect(scrollToOffset).not.toHaveBeenCalled()
-    expect(
-      renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-    ).toHaveLength(1)
+    expect(jumpToLatest()).toHaveLength(1)
   })
 
   it('uses finger-release metrics when no momentum event follows', async () => {
@@ -574,9 +576,7 @@ describe('MobileNativeChatView', () => {
 
       expect(scrollToEnd).toHaveBeenCalledOnce()
       expect(scrollToEnd).toHaveBeenLastCalledWith({ animated: false })
-      expect(
-        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-      ).toHaveLength(0)
+      expect(jumpToLatest()).toHaveLength(0)
     } finally {
       vi.useRealTimers()
     }
@@ -620,9 +620,7 @@ describe('MobileNativeChatView', () => {
 
       expect(onLoadEarlier).toHaveBeenCalledOnce()
       expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 950 })
-      expect(
-        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-      ).toHaveLength(0)
+      expect(jumpToLatest()).toHaveLength(0)
     } finally {
       vi.useRealTimers()
     }
@@ -692,9 +690,7 @@ describe('MobileNativeChatView', () => {
         list().props.onContentSizeChange(320, 1_200)
       })
       expect(scrollToOffset).not.toHaveBeenCalled()
-      expect(
-        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-      ).toHaveLength(1)
+      expect(jumpToLatest()).toHaveLength(1)
 
       act(() => {
         list().props.onScroll(scrolledTo(700, 1_200))
@@ -718,6 +714,39 @@ describe('MobileNativeChatView', () => {
       })
 
       expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_600 })
+    })
+
+    it('takes a reader who stops near the end back to it, as a native release does', async () => {
+      await render({ folded: [assistantTurn('a1', 'Latest')] })
+      act(() => {
+        list().props.onContentSizeChange(320, 1_000)
+        list().props.onScroll(scrolledTo(500, 1_000))
+      })
+
+      // A nudge up during a live turn; the output that lands next sends no scroll event.
+      act(() => {
+        list().props.onScroll(scrolledTo(460, 1_000))
+        list().props.onContentSizeChange(320, 1_750)
+      })
+      await act(() => new Promise((settled) => setTimeout(settled, 200)))
+
+      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_750 })
+    })
+
+    it('opens another chat at its newest message, whatever the reader did in the last one', async () => {
+      await render({ folded: [assistantTurn('a1', 'Chat A')], sendSurfaceId: 'tab-a' })
+      act(() => {
+        list().props.onContentSizeChange(320, 1_000)
+        list().props.onScroll(scrolledTo(500, 1_000))
+        list().props.onScroll(scrolledTo(100, 1_000))
+      })
+      expect(jumpToLatest()).toHaveLength(1)
+
+      await update({ folded: [assistantTurn('b1', 'Chat B')], sendSurfaceId: 'tab-b' })
+      act(() => list().props.onContentSizeChange(320, 800))
+
+      expect(jumpToLatest()).toHaveLength(0)
+      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 800 })
     })
 
     it('pins a resized viewport to the measured end, never the list estimate', async () => {

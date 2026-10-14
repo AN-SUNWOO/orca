@@ -178,6 +178,8 @@ export function paramsFor(method: string): unknown {
     }
     case 'agentSession.history':
       return { sessionId: SESSION, direction: 'tail' }
+    case 'agentSession.sleepWorkspace':
+      return { workspaceId: WORKSPACE }
     case 'agentSession.acknowledgeAttention':
       return { ...ATTENTION_READ, observedCursor: { ...ATTENTION_READ.observedCursor } }
     case 'agentSession.modelCatalog':

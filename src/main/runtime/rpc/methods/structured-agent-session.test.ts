@@ -47,7 +47,7 @@ it('stops a workspace through its host without a dedicated sleep capability', as
   const response = await call(
     'agentSession.sleepWorkspace',
     { workspaceId: 'workspace-1' },
-    { clientKind: 'runtime', clientCapabilities: [] }
+    { clientKind: 'runtime', clientCapabilities: [STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY] }
   )
   expect(response).toMatchObject({ ok: true, result: { stoppedSessionIds: [SESSION] } })
   expect(hostCalls.sleepWorkspace).toHaveBeenCalledWith('workspace-1')
@@ -346,7 +346,7 @@ describe('capability gating', () => {
     }
   )
 
-  it.each(CLEANUP_METHODS)(
+  it.each(CLEANUP_METHODS.filter(({ method }) => method !== 'agentSession.sleepWorkspace'))(
     'does not install a host for cleanup-only method $method',
     async ({ method, params }) => {
       const ensureHost = vi.fn()

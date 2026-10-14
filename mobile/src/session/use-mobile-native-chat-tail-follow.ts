@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Platform,
   type FlatList,
@@ -6,9 +6,17 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent
 } from 'react-native'
-
-/** Distance from the bottom, in points, still treated as "at the tail". */
-const AT_TAIL_SLOP = 80
+import {
+  AT_TAIL_SLOP,
+  distanceFromTail,
+  isAtTail,
+  isPageScrollKey,
+  type MobileNativeChatTailFollow,
+  type PageContactEvent,
+  type PageContactDisposition
+} from './mobile-native-chat-scroll-policy'
+export { mobileNativeChatRowAnchor } from './mobile-native-chat-scroll-policy'
+export type { MobileNativeChatTailFollow } from './mobile-native-chat-scroll-policy'
 
 /** RN Web's ScrollView reports no drag or momentum, so on the page the offsets themselves have to
  *  say what the reader did. It ignores `maintainVisibleContentPosition` too. */
@@ -21,55 +29,6 @@ const PAGE_MOVE_SLOP = 1
 
 /** After release, allow momentum to quiet; RN Web's final scroll event trails it by 100 ms. */
 const PAGE_SETTLE_MS = 150
-
-/** Holds the first visible row in place when rows above it change. The header is not a row. */
-const ANCHOR_BELOW_HEADER = { minIndexForVisible: 1 } as const
-const ANCHOR_AT_FIRST_ROW = { minIndexForVisible: 0 } as const
-export function mobileNativeChatRowAnchor(hasHeader: boolean): { minIndexForVisible: number } {
-  return hasHeader ? ANCHOR_BELOW_HEADER : ANCHOR_AT_FIRST_ROW
-}
-
-function distanceFromTail(event: NativeScrollEvent): number {
-  const { contentOffset, contentSize, layoutMeasurement } = event
-  return contentSize.height - (contentOffset.y + layoutMeasurement.height)
-}
-
-function isAtTail(event: NativeScrollEvent): boolean {
-  return distanceFromTail(event) <= AT_TAIL_SLOP
-}
-
-type PageTouch = { identifier: string | number }
-type PageContactEvent = {
-  nativeEvent: { touches: ArrayLike<PageTouch>; changedTouches: ArrayLike<PageTouch> }
-}
-
-export type MobileNativeChatTailFollow<TItem> = {
-  /** Attach to the transcript list; the hook scrolls through this ref alone. */
-  listRef: RefObject<FlatList<TItem> | null>
-  listInputProps: {
-    ref: (list: FlatList<TItem> | null) => void
-    onTouchStart: (event: PageContactEvent) => void
-    onTouchEnd: (event: PageContactEvent) => void
-    onTouchCancel: () => void
-  }
-  /** Whether the view keeps to the newest message. */
-  following: boolean
-  /** Render flag for the jump-to-latest control. */
-  showJumpToTail: boolean
-  /** Passive maintenance: re-pin after the viewport resizes. */
-  pinToTail: (event?: LayoutChangeEvent) => void
-  /** Content-size maintenance using the list's authoritative measured height. */
-  pinToTailAfterContentResize: (_width: number, height: number) => void
-  /** Explicit jump — send, or the jump-to-latest control. Resumes following. */
-  jumpToTail: () => void
-  beginUserScroll: () => void
-  endUserDrag: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
-  beginMomentum: () => void
-  endMomentum: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
-  /** Whether a scroll near the top is the reader's own, and so may page in older history. */
-  readerIsScrolling: () => boolean
-  recordScrollMetrics: (event: NativeScrollEvent) => void
-}
 
 /** Sole owner of transcript scroll position.
  *
@@ -104,7 +63,8 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const pageOffsetRef = useRef(0)
   const pageContentHeightRef = useRef(0)
   const pageViewportHeightRef = useRef(0)
-  const pageContactRef = useRef<'idle' | 'active' | 'released'>('idle')
+  const [cancelledContact, setCancelledContact] = useState(false)
+  const pageContactRef = useRef<PageContactDisposition>('idle')
   const pageTouchIdsRef = useRef(new Set<string | number>())
   const pageReaderMovedUpRef = useRef(false)
   const pageSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -146,10 +106,9 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const pinToTailAfterContentResize = useCallback(
     (_width: number, height: number) => {
       pageContentHeightRef.current = height
-      if (!followingRef.current || !hasItems) {
-        return
+      if (followingRef.current && hasItems) {
+        listRef.current?.scrollToOffset({ animated: false, offset: height })
       }
-      listRef.current?.scrollToOffset({ animated: false, offset: height })
     },
     [hasItems]
   )
@@ -165,13 +124,18 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     }
   }, [])
 
+  const setPageContact = useCallback((next: PageContactDisposition) => {
+    pageContactRef.current = next
+    setCancelledContact(next === 'cancelled')
+  }, [])
+
   const retireListInput = useCallback(() => {
     clearUserScrollSettle()
-    pageContactRef.current = 'idle'
+    setPageContact('idle')
     pageTouchIdsRef.current.clear()
     pageReaderMovedUpRef.current = false
     userScrollActiveRef.current = false
-  }, [clearUserScrollSettle])
+  }, [clearUserScrollSettle, setPageContact])
 
   const jumpToTail = useCallback(() => {
     retireListInput()
@@ -182,7 +146,11 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
 
   const settlePageScroll = useCallback(() => {
     clearUserScrollSettle()
-    if (followingRef.current || pageContactRef.current === 'active') {
+    if (
+      followingRef.current ||
+      pageContactRef.current === 'active' ||
+      pageContactRef.current === 'cancelled'
+    ) {
       return
     }
     pageSettleTimerRef.current = setTimeout(() => {
@@ -192,13 +160,13 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
           ? pageContentHeightRef.current - pageOffsetRef.current - pageViewportHeightRef.current <=
             AT_TAIL_SLOP
           : atTailRef.current
-      pageContactRef.current = 'idle'
+      setPageContact('idle')
       setAtTail(nearTail)
       if (nearTail) {
         jumpToTail()
       }
     }, PAGE_SETTLE_MS)
-  }, [clearUserScrollSettle, jumpToTail, setAtTail])
+  }, [clearUserScrollSettle, jumpToTail, setAtTail, setPageContact])
 
   const attachList = useCallback(
     (list: FlatList<TItem> | null) => {
@@ -214,37 +182,52 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     (event: PageContactEvent) => {
       if (!listReportsGestures()) {
         clearUserScrollSettle()
-        pageContactRef.current = 'active'
+        setPageContact('active')
         for (const touch of Array.from(event.nativeEvent.changedTouches)) {
           pageTouchIdsRef.current.add(touch.identifier)
         }
       }
     },
-    [clearUserScrollSettle]
+    [clearUserScrollSettle, setPageContact]
   )
 
   const endPageContact = useCallback(
     (event: PageContactEvent) => {
-      if (listReportsGestures() || pageContactRef.current !== 'active') {
+      if (
+        listReportsGestures() ||
+        pageContactRef.current === 'idle' ||
+        pageContactRef.current === 'released'
+      ) {
+        return
+      }
+      if (pageContactRef.current === 'cancelled' && event.nativeEvent.touches.length > 0) {
         return
       }
       for (const touch of Array.from(event.nativeEvent.changedTouches)) {
         pageTouchIdsRef.current.delete(touch.identifier)
       }
       if (pageTouchIdsRef.current.size === 0) {
-        pageContactRef.current = 'released'
+        setPageContact('released')
         settlePageScroll()
       }
     },
-    [settlePageScroll]
+    [settlePageScroll, setPageContact]
   )
 
   const cancelPageContact = useCallback(() => {
     if (!listReportsGestures()) {
-      // A cancel is not release; only a later scroll event can arm touchless settlement.
+      // Cancellation can precede physical lift; keep the existing jump action available.
       retireListInput()
+      setPageContact('cancelled')
     }
-  }, [retireListInput])
+  }, [retireListInput, setPageContact])
+
+  const resumePageInput = useCallback(() => {
+    if (pageContactRef.current === 'cancelled') {
+      setPageContact('released')
+      settlePageScroll()
+    }
+  }, [settlePageScroll, setPageContact])
 
   const recordScrollMetrics = useCallback(
     (event: NativeScrollEvent) => {
@@ -342,10 +325,22 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       ref: attachList,
       onTouchStart: beginPageContact,
       onTouchEnd: endPageContact,
-      onTouchCancel: cancelPageContact
+      onTouchCancel: cancelPageContact,
+      ...(Platform.OS === 'web' && {
+        onWheel: (event) => {
+          if (event.deltaY !== 0 && !event.ctrlKey && !event.defaultPrevented) {
+            resumePageInput()
+          }
+        },
+        onKeyDown: (event) => {
+          if (isPageScrollKey(event)) {
+            resumePageInput()
+          }
+        }
+      })
     },
     following,
-    showJumpToTail: !following && !atTail,
+    showJumpToTail: !following && (!atTail || cancelledContact),
     pinToTail,
     pinToTailAfterContentResize,
     jumpToTail,

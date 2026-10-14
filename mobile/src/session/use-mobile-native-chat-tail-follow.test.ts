@@ -72,17 +72,21 @@ it('settles released contact using current geometry, without stranding cancellat
       follow.listInputProps.onTouchCancel()
       vi.advanceTimersByTime(500)
     })
-    expect(follow!.following).toBe(false) // With no further notifications, cancellation alone cannot settle.
+    expect(follow!.following).toBe(false)
+    expect(follow!.showJumpToTail).toBe(true)
     act(() => {
-      start()
-      // RN Web can have queued this final notification before touch cancellation.
-      setTimeout(() => scroll(1_210, 1_750), 100)
-      follow.listInputProps.onTouchCancel()
-      vi.advanceTimersByTime(200)
+      follow.pinToTailAfterContentResize(320, 1_755)
+      // RN Web can have queued this final notification before cancellation.
+      setTimeout(() => scroll(1_210, 1_755), 100)
+      vi.advanceTimersByTime(500)
     })
     expect(follow!.following).toBe(false)
-    act(() => vi.advanceTimersByTime(100))
-    expect(follow!.following).toBe(true) // Accepted post-cancel fallback, even without a physical release.
+    expect(follow!.showJumpToTail).toBe(true)
+    act(() => {
+      follow.listInputProps.onWheel?.({ deltaY: 20, ctrlKey: false })
+      vi.advanceTimersByTime(200)
+    })
+    expect(follow!.following).toBe(true)
     act(() => follow.pinToTailAfterContentResize(320, 1_900))
     expect(follow!.following).toBe(true)
   } finally {

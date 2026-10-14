@@ -154,7 +154,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
     const lost = this.sessions.get(input.sessionId)
     if (lost && lost.journalClosed !== null) {
       // The connection broke and the exit is not yet proven: the message never left Orca.
-      return this.rejected(lost, 'providerExited')
+      return this.rejected(lost)
     }
     const session = this.live(input.sessionId)
     const prompt = await acpDispatchPrompt(input.body, session)
@@ -163,7 +163,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
     }
     if (this.sessions.get(input.sessionId) !== session || session.journalClosed !== null) {
       // The child ended while its attachments were read: nothing left Orca.
-      return this.rejected(session, 'providerExited')
+      return this.rejected(session)
     }
     await input.beforeDispatch?.()
     session.turns.dispatch({
@@ -336,13 +336,11 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
   }
 
   /** Only for a send refused before its prompt was written. */
-  private rejected(
-    session: AcpStructuredSession,
-    kind: 'providerExited'
-  ): AgentSessionDispatchOutcome {
+  private rejected(session: AcpStructuredSession): AgentSessionDispatchOutcome {
+    const fact = agentSessionFailureFact('providerExited', { neverReachedAgent: true })
     return {
       state: 'rejected',
-      ...agentSessionFailureWords(agentSessionFailureFact(kind, { neverReachedAgent: true }), {
+      ...agentSessionFailureWords(fact, {
         surface: 'rejection',
         agentName: acpAgentName(session.spec.agent)
       })

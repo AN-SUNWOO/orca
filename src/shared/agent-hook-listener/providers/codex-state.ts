@@ -13,6 +13,7 @@ import {
   type CodexSubagentRoster
 } from '../../codex-subagent-roster'
 import {
+  codexTranscriptTurnEnd,
   createCodexSubagentTranscriptState,
   hasTrackedCodexTranscriptSubagents,
   type CodexSubagentTranscriptState
@@ -60,10 +61,31 @@ export function setCodexMainAgentTurnState(
     state: next.state,
     ...(continued.outcome ? { outcome: continued.outcome } : {}),
     stateStartedAt: continued.stateStartedAt,
-    model: next.model
+    model: next.model,
+    ...(next.turnId ? { turnId: next.turnId } : {})
   }
   state.codexLeadStateByPaneKey.set(paneKey, record)
   return record
+}
+
+export function settleCodexLeadTurnFromTranscript(state: HookListenerState, paneKey: string): void {
+  const lead = state.codexLeadStateByPaneKey.get(paneKey)
+  if (!lead?.turnId || lead.state === 'done') {
+    return
+  }
+  const end = codexTranscriptTurnEnd(
+    state.codexSubagentTranscriptByPaneKey.get(paneKey),
+    lead.turnId
+  )
+  if (!end) {
+    return
+  }
+  setCodexMainAgentTurnState(state, paneKey, {
+    state: 'done',
+    ...(end === 'failed' ? { outcome: 'failure' as const } : {}),
+    model: lead.model,
+    turnId: lead.turnId
+  })
 }
 
 /** Interrupt is Codex's own cancel verdict. A root Stop that lands on an already finished turn
@@ -205,6 +227,14 @@ export function reconcileRemoteCodexState(
     if (eventName === 'SubagentStop') {
       finishCodexSubagent(roster, agentId)
     }
+    const lead = state.codexLeadStateByPaneKey.get(paneKey)
+    if (payload.mainAgent?.state === 'done' && lead && lead.state !== 'done') {
+      setCodexMainAgentTurnState(state, paneKey, {
+        state: 'done',
+        ...(payload.mainAgent.outcome ? { outcome: payload.mainAgent.outcome } : {}),
+        model: lead.model
+      })
+    }
   } else {
     const leadState = codexLeadStateForHookEvent(eventName, payload.state)
     if (eventName === 'SessionStart' || (eventName === 'Stop' && !payload.subagents)) {
@@ -212,9 +242,12 @@ export function reconcileRemoteCodexState(
     }
     if (leadState) {
       const previousLead = state.codexLeadStateByPaneKey.get(paneKey)
+      const outcome =
+        codexLeadOutcomeForEvent(eventName, previousLead, leadState).outcome ??
+        (leadState === 'done' ? payload.mainAgent?.outcome : undefined)
       setCodexMainAgentTurnState(state, paneKey, {
         state: leadState,
-        ...codexLeadOutcomeForEvent(eventName, previousLead, leadState),
+        ...(outcome ? { outcome } : {}),
         model: payload.model ?? previousLead?.model
       })
     }

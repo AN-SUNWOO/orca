@@ -14,7 +14,10 @@ import {
   finishCodexSubagent,
   upsertCodexSubagent
 } from '../../codex-subagent-roster'
-import { reconcileCodexSubagentTranscript } from '../../codex-subagent-transcript'
+import {
+  codexTranscriptTurnEnd,
+  reconcileCodexSubagentTranscript
+} from '../../codex-subagent-transcript'
 import {
   codexTurnApprovalsAreAutoReviewed,
   reconcileCodexSubagentReviewer
@@ -31,7 +34,8 @@ import {
   getOrCreateCodexSubagentTranscriptState,
   hasCodexTranscriptSubagents,
   resolveCodexPaneStatus,
-  setCodexMainAgentTurnState
+  setCodexMainAgentTurnState,
+  settleCodexLeadTurnFromTranscript
 } from './codex-state'
 
 export function buildCodexStatusPayload(
@@ -107,6 +111,11 @@ export function normalizeCodexSubagentLifecycleEvent(
   } else {
     finishCodexSubagent(roster, agentId)
   }
+  const transcript = state.codexSubagentTranscriptByPaneKey.get(paneKey)
+  if (transcript?.parent.filePath) {
+    reconcileCodexSubagentTranscript(transcript, roster, transcript.parent.filePath)
+  }
+  settleCodexLeadTurnFromTranscript(state, paneKey)
   return buildCodexChildDrivenStatusPayload(state, eventName, paneKey, hookPayload)
 }
 
@@ -234,29 +243,42 @@ export function normalizeCodexEvent(
       },
       Date.now()
     )
+    const transcript = state.codexSubagentTranscriptByPaneKey.get(paneKey)
+    if (transcript?.parent.filePath) {
+      reconcileCodexSubagentTranscript(
+        transcript,
+        getOrCreateCodexSubagentRoster(state, paneKey),
+        transcript.parent.filePath
+      )
+    }
+    settleCodexLeadTurnFromTranscript(state, paneKey)
     return buildCodexChildDrivenStatusPayload(state, eventName, paneKey, hookPayload)
   }
 
-  if (eventName === 'Stop' && !hasCodexTranscriptSubagents(state, paneKey)) {
+  const turnId = readString(hookPayload, 'turn_id')
+  const turnEnd =
+    stateName !== 'done' && turnId
+      ? codexTranscriptTurnEnd(state.codexSubagentTranscriptByPaneKey.get(paneKey), turnId)
+      : undefined
+  if ((eventName === 'Stop' || turnEnd) && !hasCodexTranscriptSubagents(state, paneKey)) {
     // Why: Codex CLI 0.144 can omit child Stop hooks; later child activity safely recreates any agent still running.
     state.codexSubagentRosterByPaneKey.delete(paneKey)
   }
   // Why: resolved after the transcript reconcile above, so this turn's reviewer is read from the
   // rollout during the very PermissionRequest being classified, not from a prior event.
-  const ownedState = resolveCodexApprovalOwnedState(
-    state,
-    eventName,
-    paneKey,
-    transcriptPath,
-    stateName
-  )
+  const ownedState = turnEnd
+    ? 'done'
+    : resolveCodexApprovalOwnedState(state, eventName, paneKey, transcriptPath, stateName)
   const previousLead = state.codexLeadStateByPaneKey.get(paneKey)
   const record = setCodexMainAgentTurnState(state, paneKey, {
     state: ownedState,
-    ...codexLeadOutcomeForEvent(eventName, previousLead, ownedState),
+    ...(turnEnd === 'failed'
+      ? { outcome: 'failure' as const }
+      : codexLeadOutcomeForEvent(eventName, previousLead, ownedState)),
     model:
       normalizeOptionalField(hookPayload['model'], AGENT_MODEL_MAX_LENGTH) ??
-      (eventName === 'SessionStart' ? undefined : previousLead?.model)
+      (eventName === 'SessionStart' ? undefined : previousLead?.model),
+    turnId
   })
   return buildCodexStatusPayload(state, eventName, promptText, paneKey, hookPayload, {
     ...resolveCodexPaneStatus(state, paneKey, record),

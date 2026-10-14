@@ -13,6 +13,7 @@ import { createWorktreeWithStartupAgent } from '../../../agent-launch/startup-ag
 import { defineMethod } from '../core'
 import { buildManagedWorktreeCreateArgs } from './worktree-create-args'
 import { resolvePairedCallerHostId } from './paired-caller-host-id'
+import { WORKTREE_SLEEP_METHOD } from './worktree-sleep-method'
 import { resolveRuntimeNavigationTarget } from '../../../../shared/runtime-navigation'
 import { resolveRpcWorkspaceCreatorProvenance } from '../workspace-creator-context'
 import {
@@ -26,7 +27,6 @@ import {
   WorktreeResolveMrBase,
   WorktreeResolvePrBase,
   WorktreeSelector,
-  WorktreeSleep,
   WorktreeSet,
   WorktreeSortOrder,
   WorktreeTeardownMissingTerminalsParams
@@ -65,16 +65,7 @@ export const WORKTREE_METHODS = [
       worktree: await runtime.showManagedWorktree(params.worktree)
     })
   }),
-  defineMethod({
-    name: 'worktree.sleep',
-    permission: 'workspace',
-    params: WorktreeSleep,
-    handler: async (params, { runtime }) =>
-      runtime.sleepManagedWorktree(
-        params.worktree,
-        resolvePairedCallerHostId(() => runtime.listRepos(), params.worktree, params.hostId)
-      )
-  }),
+  WORKTREE_SLEEP_METHOD,
   defineMethod({
     name: 'worktree.activate',
     permission: 'workspace',

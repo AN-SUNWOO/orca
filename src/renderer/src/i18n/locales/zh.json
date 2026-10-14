@@ -18000,7 +18000,7 @@
         "signInThenSend": "请登录，然后重新发送您的消息。",
         "historyTooLarge": "此对话的历史记录过大，无法在此恢复。",
         "managedAccountEnvOverride": "此次 Claude 启动设置了自己的 Anthropic 登录变量。请移除这些变量以使用受管理的 Claude 账户。",
-        "accountSwitchInProgress": "正在切换 Claude 账户。请在切换完成后重试。",
+        "accountSwitchInProgress": "正在此主机上更改 {{agent}} 的设置。请在完成后重试。",
         "managedAccountUnsupported": "当 WSL 中添加了 Claude 账户时，Claude 聊天需要 Windows Claude 账户。",
         "launchFolderMissing": "此聊天运行所在的文件夹已不存在。请恢复该文件夹以继续此聊天。",
         "historyInOtherAccount": "此聊天的历史记录位于另一个 Claude 账户中。请切换回该账户以继续此聊天。",

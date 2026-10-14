@@ -154,7 +154,7 @@ describe('a create that fails before any process spawns', () => {
       'an account switch in progress',
       'A Claude account switch is in progress. Try again after it finishes.',
       'accountSwitchInProgress',
-      'A Claude account switch is in progress. Try again after it finishes.'
+      "Claude's setup is changing on this host. Try again after it finishes."
     ],
     [
       'a Claude account added in WSL',

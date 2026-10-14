@@ -26,6 +26,7 @@ import {
   hostTestAttachParams,
   hostTestOperationId
 } from '../native-chat/agent-session-wire/structured-agent-session-host-test-data'
+import { deferred } from './acp-scripted-agent.test-support'
 import { resolveAcpLaunchInvocation } from './acp-structured-launch-resolution'
 import { readAcpFixture, type AcpFixtureFrame } from './acp-timeline-fixture.test-support'
 
@@ -163,4 +164,23 @@ it('runs the chat permission mode picked mid-chat as the server mode on the next
     expect.objectContaining({ configId: 'mode', value: 'auto_edit' }),
     expect.objectContaining({ configId: 'mode', value: 'yolo' })
   ])
+})
+
+it('refuses a new start while its sign-in changes, and stops one already starting', async () => {
+  const gate = ANTIGRAVITY.launchGate!
+  const rig = await openAcpAdapterRig({
+    spec: ANTIGRAVITY,
+    script: (agent) => agent.on('session/new', () => {})
+  })
+  const starting = rig.acquire().catch((error: unknown) => error)
+  await rig.frame('session/new')
+  const signIn = deferred<void>()
+  const operation = gate.run(
+    async () => {},
+    () => signIn.promise
+  )
+  expect(String(await starting)).toContain('closed while starting')
+  await expect(rig.acquire()).rejects.toMatchObject({ reason: 'accountSwitchInProgress' })
+  signIn.resolve()
+  await operation
 })

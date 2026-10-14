@@ -201,7 +201,8 @@ const FAILURE_SENTENCES = {
   historyTooLarge: (_context, _fact, _surface, say) =>
     joinSentences([say('historyTooLarge'), say('startNewChat')]),
   managedAccountEnvOverride: (_context, _fact, _surface, say) => say('managedAccountEnvOverride'),
-  accountSwitchInProgress: (_context, _fact, _surface, say) => say('accountSwitchInProgress'),
+  accountSwitchInProgress: (context, _fact, _surface, say) =>
+    say('accountSwitchInProgress', agent(say, context)),
   launchFolderMissing: (_context, _fact, _surface, say) => say('launchFolderMissing'),
   historyInOtherAccount: (_context, _fact, _surface, say) => say('historyInOtherAccount'),
   claudeAccountFolderMissing: (_context, _fact, _surface, say) => say('claudeAccountFolderMissing'),

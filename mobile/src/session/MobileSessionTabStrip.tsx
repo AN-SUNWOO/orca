@@ -53,7 +53,13 @@ export function MobileSessionTabStrip({
       }
       tabStripRef.current = view
     },
-    [tabStripRef, tabStripOffsetRef, tabStripViewportWidthRef, tabStripContentWidthRef, tabLayoutsRef]
+    [
+      tabStripRef,
+      tabStripOffsetRef,
+      tabStripViewportWidthRef,
+      tabStripContentWidthRef,
+      tabLayoutsRef
+    ]
   )
   return (
     <View ref={tabBarKeepsKeyboard} style={inTopBar ? styles.tabBarInTopBar : styles.tabBar}>

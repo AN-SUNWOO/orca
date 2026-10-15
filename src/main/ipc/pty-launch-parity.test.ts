@@ -427,7 +427,7 @@ describe('launch facts outside the tables', () => {
     expect(lanes.reveal.mock.calls[0]?.[1]).not.toHaveProperty('presentation')
   })
 
-  // R1 (createAgentSession on the host planner) keeps this refusal when no launch can be built.
+  // createAgentSession on the host planner keeps this refusal when no launch can be built.
   it('row 7: a paired agent session with no buildable launch refuses before any spawn', async () => {
     setMainPlatform('linux')
     const lanes = startParityLanes(suite, { workspace: POSIX_REPO })

@@ -68,7 +68,7 @@ const PAIRED_TAB_CASES: [string, Record<string, unknown>, HostProviderFacts][] =
   ]
 ]
 
-// R1 moves createAgentSession onto the host planner. main today types every prompt on the line,
+// createAgentSession plans with the host planner. main today types every prompt on the line,
 // even one too long for that planner's carry rule, and starts a stdin-prompt agent clean.
 const LONG_PROMPT = 'review the change on this branch and list what breaks. '.repeat(10).trim()
 const POWERSHELL = { shellOverride: 'powershell.exe', terminalWindowsWslDistro: null }
@@ -81,7 +81,12 @@ type PairedPlanCase = {
   provider: HostProviderFacts
 }
 const PAIRED_PLAN_CASES: PairedPlanCase[] = [
-  { name: 'claude, no prompt', os: 'linux', agent: 'claude', provider: { command: POSIX_CLAUDE, ...ZSH } },
+  {
+    name: 'claude, no prompt',
+    os: 'linux',
+    agent: 'claude',
+    provider: { command: POSIX_CLAUDE, ...ZSH }
+  },
   {
     name: 'claude short prompt, macOS',
     os: 'darwin',

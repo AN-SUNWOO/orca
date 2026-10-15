@@ -38,7 +38,9 @@ import { resolveWslSessionContext } from '../daemon/wsl-session-context'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
 
 /** No launch command could be built for a requested `startupAgent`. */
-export class AgentLaunchUnbuildableError extends Error {}
+export class AgentLaunchUnbuildableError extends Error {
+  override name = 'AgentLaunchUnbuildableError'
+}
 
 type AgentTerminalPlanHost = {
   store: RuntimeStore | null | undefined
@@ -193,7 +195,7 @@ async function buildRuntimeAgentTerminalStartupOptions(
     hostIdentity: host.hostIdentity,
     signal: opts.signal
   }
-  // A draft rides the agent's draft flag or env, never the carry rule's typed-line budget.
+  // A draft is built as is: the carry rule judges only a prompt that would be submitted.
   const { plan: startupPlan, promptCarried } =
     opts.startupPromptDelivery === 'draft' || forceLine
       ? {
@@ -201,7 +203,7 @@ async function buildRuntimeAgentTerminalStartupOptions(
             ...scope,
             promptDelivery: opts.startupPromptDelivery
           }),
-          promptCarried: true
+          promptCarried: agentPromptRidesLaunchCommand(agent)
         }
       : await planExecutionHostStartupWithPromptCandidate({
           ...scope,
@@ -220,7 +222,9 @@ async function buildRuntimeAgentTerminalStartupOptions(
     // Why: an explicit agent that yields no plan would otherwise spawn a bare
     // shell that never reaches agent readiness.
     if (opts.startupAgent) {
-      throw new AgentLaunchUnbuildableError(`Could not build launch command for ${opts.startupAgent}.`)
+      throw new AgentLaunchUnbuildableError(
+        `Could not build launch command for ${opts.startupAgent}.`
+      )
     }
     return opts
   }

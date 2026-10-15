@@ -104,8 +104,7 @@ export function useAiVaultSessionLaunchActions({
       session: AiVaultSession,
       targetWorktreeId: string | undefined,
       prepareStartup: (worktreeId: string) => Promise<AiVaultResumeStartup>,
-      describeFailure: (message: string) => string = (message) => message,
-      targetGroupId?: string
+      describeFailure: (message: string) => string = (message) => message
     ): void => {
       const targetId = resolveAiVaultSessionLaunchTargetOrNotify({
         sessionFilePath: session.filePath,
@@ -122,7 +121,6 @@ export function useAiVaultSessionLaunchActions({
           const launchResult = launchAiVaultSessionInNewTab({
             agent: session.agent,
             worktreeId: targetId.worktreeId,
-            ...(targetGroupId ? { targetGroupId } : {}),
             ...startup
           })
           if (launchResult.tabId === null) {
@@ -178,7 +176,7 @@ export function useAiVaultSessionLaunchActions({
 
   // Native chat keeps the conversation it owns; the terminal gets a copy (see the fork builder).
   const handleResumeInNewCli = useCallback(
-    (session: AiVaultSession, targetWorktreeId: string, targetGroupId?: string): void => {
+    (session: AiVaultSession, targetWorktreeId: string): void => {
       const prepareStartup = async (worktreeId: string): Promise<AiVaultResumeStartup> => {
         assertAiVaultCopiedSessionLaunchAllowed({
           state: useAppStore.getState(),
@@ -215,13 +213,7 @@ export function useAiVaultSessionLaunchActions({
         }
         return startup
       }
-      launchInTerminal(
-        session,
-        targetWorktreeId,
-        prepareStartup,
-        describeAiVaultCliForkFailure,
-        targetGroupId
-      )
+      launchInTerminal(session, targetWorktreeId, prepareStartup, describeAiVaultCliForkFailure)
     },
     [agentCmdOverrides, launchInTerminal]
   )

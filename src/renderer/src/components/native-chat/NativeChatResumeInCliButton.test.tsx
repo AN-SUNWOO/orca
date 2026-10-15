@@ -56,7 +56,6 @@ it.each([true, false])('finishes Resume after source chat closes (pane survives=
       <NativeChatResumeInCliButton
         tabId="chat-tab"
         worktreeId="worktree-1"
-        groupId="chat-group"
         nativeChat={{ sessionId: 'chat-1', agent: 'claude' }}
       />
     </TooltipProvider>
@@ -74,7 +73,6 @@ it.each([true, false])('finishes Resume after source chat closes (pane survives=
   await waitFor(() => expect(mocks.resume).toHaveBeenCalledOnce())
   expect(mocks.resume).toHaveBeenCalledWith(
     { id: 'saved-row' },
-    'worktree-1',
-    'chat-group'
+    'worktree-1'
   )
 })

@@ -51,7 +51,6 @@ export function NativeChatPaneHeader({
           <NativeChatResumeInCliButton
             tabId={tabId}
             worktreeId={worktreeId}
-            groupId={groupId}
             nativeChat={nativeChat}
           />
         ) : null}

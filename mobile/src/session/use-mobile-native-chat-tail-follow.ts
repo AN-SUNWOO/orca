@@ -40,8 +40,9 @@ function restsAtPageEnd(offset: number, contentHeight: number, viewportHeight: n
   return offset >= 0 && Math.abs(end - offset) <= PAGE_END_SLOP
 }
 
-/** A reader's touch on the page's list, from its first finger down to its last finger up. */
-type PageTouch = { startY: number; wasFollowing: boolean }
+/** A reader's touch on the page's list, from its first finger down to its last finger up. A second
+ *  finger makes it the text pinch. */
+type PageTouch = { startY: number; wasFollowing: boolean; pinch: boolean }
 
 /** Holds the first visible row in place when rows above it change. The header is not a row. */
 const ANCHOR_BELOW_HEADER = { minIndexForVisible: 1 } as const
@@ -214,18 +215,21 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
    *  a held finger or in the momentum after it. */
   const notePageTouchStart = useCallback(
     ({ nativeEvent: { touches, changedTouches } }: GestureResponderEvent) => {
-      if (!pageTouchRef.current || touches.length === 1) {
+      const touch = pageTouchRef.current
+      if (!touch || touches.length === 1) {
         const startY = changedTouches[0]?.pageY ?? 0
-        pageTouchRef.current = { startY, wasFollowing: followingRef.current }
+        pageTouchRef.current = { startY, wasFollowing: followingRef.current, pinch: false }
+      } else {
+        touch.pinch = true
       }
       setFollowing(false)
     },
     [setFollowing]
   )
 
-  /** Page: a touch that never panned (a tap, a resting thumb) gives following back and catches
-   *  up; a pan up the screen that rests at the end resumes there. A pan down never does: its first
-   *  scroll event can trail the lift. A lost end leaves following off. */
+  /** Page: a touch that never panned (a tap, a resting thumb, a pinch) gives following back and
+   *  catches up; a pan up the screen that rests at the end resumes there. A pan down never does:
+   *  its first scroll event can trail the lift. A lost end leaves following off. */
   const notePageTouchEnd = useCallback(
     ({ nativeEvent: { touches, changedTouches } }: GestureResponderEvent) => {
       const touch = pageTouchRef.current
@@ -236,7 +240,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       const towardEnd = touch.startY - (changedTouches[0]?.pageY ?? touch.startY)
       const offset = pageOffsetRef.current
       if (
-        (touch.wasFollowing && Math.abs(towardEnd) < PAGE_PAN_SLOP) ||
+        (touch.wasFollowing && (touch.pinch || Math.abs(towardEnd) < PAGE_PAN_SLOP)) ||
         (towardEnd >= PAGE_PAN_SLOP &&
           restsAtPageEnd(offset, pageContentHeightRef.current, pageViewportHeightRef.current))
       ) {

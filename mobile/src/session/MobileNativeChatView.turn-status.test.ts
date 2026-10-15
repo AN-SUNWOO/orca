@@ -3,6 +3,7 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileNativeChatView } from './MobileNativeChatView'
+import { styles } from './mobile-native-chat-view-styles'
 
 const scrollToEnd = vi.hoisted(() => vi.fn())
 const scrollToOffset = vi.hoisted(() => vi.fn())
@@ -191,11 +192,9 @@ describe('MobileNativeChatView', () => {
         : null
     }
 
-    /** The bridge lane's three dots ride the list footer, at the transcript's tail. */
+    /** The bridge cue stays outside the scrolling transcript. */
     function workingIndicators(): unknown[] {
-      const list = renderer!.root.find((node) => String(node.type) === 'FlatList')
-      const footer = list.props.ListFooterComponent
-      return String(footer?.type) === 'WorkingIndicator' ? [footer] : []
+      return renderer!.root.findAll((node) => String(node.type) === 'WorkingIndicator')
     }
 
     it('puts the clock bar under the prompt, activity at the tail, and drops the three dots', async () => {
@@ -328,6 +327,10 @@ describe('MobileNativeChatView', () => {
       expect(props.activeTurnIsWorking).toBe(false)
       expect(footerProps()).toBeNull()
       expect(workingIndicators()).toHaveLength(1)
+      expect(renderer!.root.findByType('WorkingIndicator').parent?.props.pointerEvents).toBe('none')
+      const list = renderer!.root.find((node) => String(node.type) === 'FlatList')
+      expect(list.props.ListFooterComponent).toBeNull()
+      expect(list.props.contentContainerStyle).toBe(styles.listContentUnderFloatingControls)
     })
 
     it('settles the finished turn to a tappable duration', async () => {

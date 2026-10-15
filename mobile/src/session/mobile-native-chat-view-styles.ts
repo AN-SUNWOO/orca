@@ -43,6 +43,9 @@ export const styles = StyleSheet.create({
     fontSize: typography.metaSize,
     fontWeight: '600'
   },
+  workingPill: {
+    paddingHorizontal: 0
+  },
   pressed: {
     opacity: 0.6
   },
@@ -54,8 +57,8 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     flexGrow: 1
   },
-  // The last row can scroll clear of the floating Tools pill.
-  listContentUnderFloatingTools: {
+  // The last row can scroll clear of the floating status and Tools pills.
+  listContentUnderFloatingControls: {
     paddingTop: spacing.sm,
     paddingBottom: FLOATING_CONTROLS_BOTTOM + TOOLS_PILL_HEIGHT + spacing.sm,
     flexGrow: 1

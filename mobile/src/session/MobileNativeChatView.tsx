@@ -39,7 +39,6 @@ import {
 } from './use-mobile-native-chat-input-lease'
 import { MobileNativeChatLiveLine } from './MobileNativeChatLiveLine'
 import { MobileNativeChatFloatingControls } from './MobileNativeChatFloatingControls'
-import { MobileAgentWorkingIndicator } from './MobileAgentWorkingIndicator'
 import type { PendingNativeChatImage } from './mobile-native-chat-image-attachment'
 import { MobileNativeChatComposer } from './MobileNativeChatComposer'
 import { mobileNativeChatToolCallCount } from './mobile-native-chat-composer-layout'
@@ -323,10 +322,8 @@ export function MobileNativeChatView({
       fontScale={fontScale}
       onOpenFile={onOpenFile}
     />
-  ) : agentWorking && !structuredActivityUi ? (
-    // Bridge lane: its working dots sit at the transcript's tail, as the structured live line does.
-    <MobileAgentWorkingIndicator />
   ) : null
+  const bridgeWorking = agentWorking === true && !structuredActivityUi
   const toolCallCount = useMemo(() => mobileNativeChatToolCallCount(folded), [folded])
   const toggleTools = useCallback(() => setToolsExpanded((v) => !v), [])
 
@@ -366,7 +363,9 @@ export function MobileNativeChatView({
               keyExtractor={(item) => item.id}
               renderItem={history.renderListRow}
               contentContainerStyle={
-                toolCallCount > 0 ? styles.listContentUnderFloatingTools : styles.listContent
+                toolCallCount > 0 || bridgeWorking
+                  ? styles.listContentUnderFloatingControls
+                  : styles.listContent
               }
               // Let link/file taps land while the composer keyboard is up
               // instead of being swallowed by the dismiss gesture.
@@ -393,6 +392,7 @@ export function MobileNativeChatView({
           </GestureDetector>
           <MobileNativeChatFloatingControls
             toolCallCount={toolCallCount}
+            bridgeWorking={bridgeWorking}
             toolsExpanded={toolsExpanded}
             onToggleTools={toggleTools}
             showJumpToTail={showJumpToTail}

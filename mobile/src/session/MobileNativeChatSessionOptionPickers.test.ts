@@ -1,8 +1,11 @@
-import { createElement } from 'react'
+import { createElement, useState } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
-import { MobileNativeChatSessionOptionPickers } from './MobileNativeChatSessionOptionPickers'
+import {
+  MobileNativeChatSessionOptionPickers,
+  type MobileNativeChatPickerPresentation
+} from './MobileNativeChatSessionOptionPickers'
 import type { MobileNativeChatSessionOptionsController } from './use-mobile-native-chat-session-options'
 
 vi.mock('react-native', () => ({
@@ -85,10 +88,20 @@ describe('MobileNativeChatSessionOptionPickers', () => {
       invokeAction,
       recordCommand: vi.fn()
     }
-    act(() => {
-      renderer = create(
-        createElement(MobileNativeChatSessionOptionPickers, { controller, isWorking })
+    function Pickers() {
+      const [presentation, setPresentation] = useState<MobileNativeChatPickerPresentation | null>(
+        null
       )
+      return createElement(MobileNativeChatSessionOptionPickers, {
+        controller,
+        isWorking,
+        presentation,
+        onDrawerOpen: (page) => setPresentation({ page, refocus: false }),
+        onNavigate: (page) => setPresentation((current) => current && { ...current, page })
+      })
+    }
+    act(() => {
+      renderer = create(createElement(Pickers))
     })
   }
 

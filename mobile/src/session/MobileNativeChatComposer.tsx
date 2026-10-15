@@ -25,6 +25,7 @@ import {
 } from './MobileNativeChatComposerSuggestions'
 import {
   MobileNativeChatSessionOptionPickers,
+  type MobileNativeChatPickerPresentation,
   type MobileNativeChatSessionOptionPickersProps
 } from './MobileNativeChatSessionOptionPickers'
 import type { PendingNativeChatImage } from './mobile-native-chat-image-attachment'
@@ -113,8 +114,13 @@ export function MobileNativeChatComposer({
   const fallbackInputRef = useRef<TextInput>(null)
   const fieldRef = inputRef ?? fallbackInputRef
   const [focused, setFocused] = useState(false)
-  // A picker drawer dismisses the keyboard; hold the pickers row and give the keyboard back after.
-  const [pickerHold, setPickerHold] = useState<{ refocus: boolean } | null>(null)
+  const [picker, setPicker] = useState<MobileNativeChatPickerPresentation | null>(null)
+  const request = sessionOptions?.controller.optionPickerRequest
+  const [lastRequest, setLastRequest] = useState(request)
+  if (request && lastRequest !== request) {
+    setLastRequest(request)
+    setPicker({ page: request.id, refocus: false })
+  }
   // Transiently drives the native caret after a mid-text autocomplete insert,
   // then released on the next selection change so manual caret placement still
   // works (a permanently controlled `selection` breaks it in React Native).
@@ -144,11 +150,13 @@ export function MobileNativeChatComposer({
     !isAttaching &&
     !sessionOptionDispatching
   const composerContent = { draft: value, attachmentCount: attachments.length }
-  const pickerOpen = pickerHold !== null && sessionOptions != null
+  const pickerOpen = picker !== null && sessionOptions != null
   const expanded = mobileNativeChatComposerExpanded({ focused, pickerOpen, ...composerContent })
   const showsStop = mobileNativeChatComposerShowsStop({
     canStop: stop !== null,
     sendBlocked: sendDisabled,
+    canSend,
+    editing: isAttaching || micActive,
     ...composerContent
   })
 
@@ -332,12 +340,14 @@ export function MobileNativeChatComposer({
                 {...sessionOptions}
                 sendInFlight={sending || isAttaching}
                 pillsHidden={!expanded}
-                onDrawerOpen={() => setPickerHold({ refocus: focused })}
+                presentation={picker}
+                onNavigate={(page) => setPicker((current) => current && { ...current, page })}
+                onDrawerOpen={(page) => setPicker({ page, refocus: focused })}
                 onDrawerAfterClose={() => {
-                  if (pickerHold?.refocus) {
+                  if (picker?.refocus) {
                     fieldRef.current?.focus()
                   }
-                  setPickerHold(null)
+                  setPicker(null)
                 }}
               />
             ) : null}

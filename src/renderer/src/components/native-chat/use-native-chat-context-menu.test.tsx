@@ -81,10 +81,6 @@ vi.mock('@/lib/image-blob-png', async (importOriginal) => ({
 
 vi.mock('./NativeChatSelectionQuote', () => ({ NativeChatSelectionQuote: () => null }))
 
-vi.mock('@/components/tab-bar/TabWorkspaceLayoutMenuSection', () => ({
-  TabWorkspaceLayoutMenuSection: () => 'Move Tab to Split'
-}))
-
 function childrenText(children: ReactNode): string {
   return React.Children.toArray(children)
     .map((child) => {
@@ -113,7 +109,7 @@ function Harness({
     composerRef: createRef(),
     onSwitchToTerminal,
     showTerminalPaneActions: !structured,
-    workspaceLayout: structured ? { unifiedTabId: 'chat-tab', groupId: 'group-1' } : undefined,
+    chatPaneActions: structured ? emptyNativeChatContextMenuActions : undefined,
     resolveOrcaSessionId: orcaSessionId === undefined ? undefined : async () => orcaSessionId,
     actions: {
       ...emptyNativeChatContextMenuActions,
@@ -413,10 +409,14 @@ describe('useNativeChatContextMenu', () => {
     ).toBe(false)
   })
 
-  it('reuses workspace layout actions without terminal-only pane commands', () => {
+  it('offers chat splits for a lone chat, leaving tab movement and resume in the tab menu', () => {
     const markup = renderToStaticMarkup(<Harness structured />)
 
-    expect(markup).toContain('Move Tab to Split')
+    expect(markup).toContain('Split Chat Right')
+    expect(markup).toContain('Split Chat Down')
+    expect(markup).not.toContain('Move Tab to Split')
+    expect(markup).not.toContain('Resume in New CLI')
+    expect(markup).not.toContain('Close Pane')
     expect(markup).not.toContain('Split Terminal Right')
     expect(markup).not.toContain('Fork Agent Session')
   })

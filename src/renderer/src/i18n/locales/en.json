@@ -18162,6 +18162,7 @@
     },
     "native-chat": {
       "splitRight": "Split Chat Right",
+      "splitDown": "Split Chat Down",
       "reasoning": "Reasoning",
       "failureWords": {
         "theAgent": "The agent",

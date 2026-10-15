@@ -45,6 +45,14 @@ vi.mock('@/components/tab-bar/TabWorkspaceLayoutMenuSection', () => ({
 vi.mock('@/components/tab-bar/tab-move-to-pane-column', () => ({
   canMoveTabToNewPaneColumn: () => false
 }))
+vi.mock('./use-structured-chat-pane-actions', () => ({
+  useStructuredChatPaneActions: () => ({
+    onSplitRight: vi.fn(), onSplitDown: vi.fn(), canClosePane: false, onClosePane: vi.fn()
+  })
+}))
+vi.mock('./use-native-chat-tab-owner', () => ({
+  useNativeChatTabOwnerWorktreeId: () => 'worktree-1'
+}))
 vi.mock('@/store', () => ({
   useAppStore: (select: (state: { keybindings: object }) => unknown) => select({ keybindings: {} })
 }))

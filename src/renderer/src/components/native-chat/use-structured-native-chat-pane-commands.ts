@@ -14,6 +14,8 @@ import {
 } from './use-native-chat-context-menu'
 import { matchNativeChatSplitShortcut } from './native-chat-split-shortcut'
 import { runNativeChatSplitTarget } from './native-chat-layout-actions'
+import { useStructuredChatPaneActions } from './use-structured-chat-pane-actions'
+import { useNativeChatTabOwnerWorktreeId } from './use-native-chat-tab-owner'
 
 export function useStructuredNativeChatPaneCommands({
   tabId,
@@ -37,6 +39,8 @@ export function useStructuredNativeChatPaneCommands({
   target: RuntimeClientTarget
 }) {
   const keybindings = useAppStore((state) => state.keybindings)
+  const worktreeId = useNativeChatTabOwnerWorktreeId(tabId)
+  const chatPaneActions = useStructuredChatPaneActions(tabId, worktreeId ?? '', groupId ?? '')
   const resolveOrcaSessionId = useMemo(
     () =>
       isOrcaSessionId(sessionId)
@@ -64,17 +68,7 @@ export function useStructuredNativeChatPaneCommands({
       right: formatShortcutLabel('terminal.splitRight', keybindings),
       down: formatShortcutLabel('terminal.splitDown', keybindings)
     },
-    workspaceLayout:
-      groupId && terminalPaneActions === undefined
-        ? {
-            unifiedTabId: tabId,
-            groupId,
-            shortcutLabels: {
-              right: formatShortcutLabel('terminal.splitRight', keybindings),
-              down: formatShortcutLabel('terminal.splitDown', keybindings)
-            }
-          }
-        : undefined
+    chatPaneActions: groupId && terminalPaneActions === undefined ? chatPaneActions : undefined
   })
   const onKeyDownCapture = useCallback<KeyboardEventHandler<HTMLDivElement>>(
     (event) => {

@@ -124,7 +124,7 @@ export async function prepareLegacyTranscriptImport(input: {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 
-  let decoded: { messages: NativeChatMessage[]; identities: AgentJournalItemIdentity[] }
+  let decoded: Awaited<ReturnType<typeof decodeWithIdentities>>
   try {
     decoded = await decodeWithIdentities({
       filePath,

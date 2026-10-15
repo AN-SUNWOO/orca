@@ -5,7 +5,7 @@ import type { Worktree } from '../../../../shared/worktree/types'
 import type { Tab } from '../../../../shared/tab-types'
 import type { WorktreeRuntimeOwnerState } from '@/lib/worktree-runtime-owner-state'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
-import { isStructuredTab } from '@/components/native-chat/structured-agent-session-tabs'
+import { isStructuredTab } from '../../../../shared/structured-agent-session-tab'
 import type { WorkspaceSleepTarget } from './sleep-worktree-flow'
 import {
   LOCAL_EXECUTION_HOST_ID,

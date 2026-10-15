@@ -2,6 +2,7 @@ import type { Ref } from 'react'
 import { ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native'
 
 declare module 'react-native/Libraries/StyleSheet/StyleSheetTypes' {
+  // oxlint-disable-next-line typescript/consistent-type-definitions -- declaration merging needs an interface.
   interface ViewStyle {
     overflowAnchor?: 'auto' | 'none' // RN Web passes it through to CSS
   }

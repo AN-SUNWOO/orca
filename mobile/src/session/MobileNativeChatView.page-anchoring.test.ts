@@ -12,8 +12,11 @@ vi.mock('react-native', async () => {
   return {
     ActivityIndicator: 'ActivityIndicator',
     FlatList: React.forwardRef((props, ref) => {
-      const list = { scrollToEnd: vi.fn(), scrollToOffset, getScrollableNode: () => pageScroller }
-      React.useImperativeHandle(ref, () => list, [])
+      React.useImperativeHandle(
+        ref,
+        () => ({ scrollToEnd: vi.fn(), scrollToOffset, getScrollableNode: () => pageScroller }),
+        []
+      )
       return React.createElement('FlatList', props)
     }),
     Platform: { OS: 'web' },
@@ -75,6 +78,7 @@ const view = (folded: NativeChatMessage[]) =>
     onSend: vi.fn().mockResolvedValue(true),
     sendSurfaceId: 'tab-a',
     getSendCompletionGeneration: () => 0,
+    getComposerEditGeneration: () => 0,
     pending: [],
     composerText: '',
     onComposerTextChange: vi.fn()

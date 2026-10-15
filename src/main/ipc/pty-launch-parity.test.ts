@@ -427,6 +427,30 @@ describe('launch facts outside the tables', () => {
     expect(lanes.reveal.mock.calls[0]?.[1]).not.toHaveProperty('presentation')
   })
 
+  // R1 (createAgentSession on the host planner) keeps this refusal when no launch can be built.
+  it('row 7: a paired agent session with no buildable launch refuses before any spawn', async () => {
+    setMainPlatform('linux')
+    const lanes = startParityLanes(suite, { workspace: POSIX_REPO })
+    const aiderDraft: HostLaunchCase = {
+      ...WORKER,
+      row: '7',
+      call: {
+        kind: 'rpc',
+        method: 'terminal.createAgentSession',
+        params: {
+          worktree: `id:${launchWorkspaceId(POSIX_REPO)}`,
+          agent: 'aider',
+          prompt: 'fix it',
+          promptDelivery: 'draft'
+        }
+      }
+    }
+    await expect(runHostCall(lanes, aiderDraft)).rejects.toMatchObject({
+      message: 'agent_session_identity_required'
+    })
+    expect(lanes.provider).not.toHaveBeenCalled()
+  })
+
   // C5c (pane identity built once in main): main rewrites stale pane keys from the request's tab and
   // leaf; workspace keys pass.
   it('window lane: the provider gets the pane keys main derives, not the stale ones sent', async () => {

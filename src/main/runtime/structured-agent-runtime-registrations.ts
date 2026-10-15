@@ -3,6 +3,7 @@
 import { withSupportedCodexCli } from '../codex/codex-cli-installation-error'
 import { codexStructuredLaunchPart } from '../codex/codex-structured-launch-resolution'
 import { claudeStructuredLaunchPart } from '../claude/claude-structured-launch-resolution'
+import { createClaudeCommandCatalogProbe } from '../claude/claude-command-catalog-probe'
 import { supportsCodexStructuredLocation } from '../codex/codex-structured-location-support'
 import { supportsClaudeStructuredLocation } from '../claude/claude-structured-location-support'
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
@@ -54,6 +55,7 @@ import type { AgentModelCatalogDiscovery } from '../native-chat/agent-model-cata
 import {
   acpModelCatalogDiscovery,
   claudeLaunchEnvOverlay,
+  claudeListingDeps,
   claudeModelCatalogDiscovery,
   codexModelCatalogDiscovery
 } from './structured-agent-model-catalog-discovery'
@@ -195,6 +197,7 @@ function createClaudeAdapter(
     ...(deps.claudeCliFlags ? { claudeCliFlags: deps.claudeCliFlags } : {}),
     ...(overlay ? { resolveClaudeLaunchEnv: overlay } : {}),
     resolveClaudeInheritedEnv: context.environment.resolveBaseEnvironment,
+    atRestCommandProbe: createClaudeCommandCatalogProbe(claudeListingDeps(context)),
     onLifecycleEvent: context.deliverLifecycle,
     logger: deps.logger,
     onChildWorkEvidence: (sessionId, evidence) =>

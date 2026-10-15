@@ -14,6 +14,8 @@ import {
   CLAUDE_AT_REST_COMMANDS_TTL_MS,
   ClaudeAtRestCommandCatalog
 } from '../../claude/claude-at-rest-commands'
+import { createClaudeCommandCatalogProbe } from '../../claude/claude-command-catalog-probe'
+import type { runAgentModelCatalogListing } from '../agent-model-catalog/agent-model-catalog-probe-runner'
 import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import { openTestAgentSessionRecordStore } from '../../runtime/agent-session-record-store-test-harness'
 import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
@@ -30,6 +32,8 @@ import {
 import { openTestJournalHostDatabase } from '../agent-session-journal/journal-host-database-test-support'
 import { claudeProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
 import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-test-support'
+
+type ListingCall = Parameters<typeof runAgentModelCatalogListing>
 
 const caller = { callerKey: 'desktop' }
 const CLAUDE_SESSION = '819cf9f8-e43c-4ad7-b50f-54aa158a726a'
@@ -301,6 +305,64 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
         expect.arrayContaining(['deploy', 'frontend:test'])
       )
     )
+  })
+
+  it('as Claude itself lists it in the chat’s folder, and from the folders when it can’t', async () => {
+    const asked: ListingCall[] = []
+    let answer = `${JSON.stringify({
+      type: 'control_response',
+      response: {
+        subtype: 'success',
+        request_id: 'orca-command-discovery',
+        response: {
+          commands: [
+            { name: 'goal', description: 'Set a goal', argumentHint: '', builtin: true },
+            { name: 'review-pr', description: 'A skill (project)', argumentHint: '' }
+          ]
+        }
+      }
+    })}\n`
+    const probe = createClaudeCommandCatalogProbe({
+      resolveCommand: () => 'claude',
+      resolveInheritedEnv: async () => ({ PATH: '/bin' }),
+      resolveAuthPolicy: () => ({ account: 'system' }),
+      runListing: async (...call) => {
+        asked.push(call)
+        return answer
+      }
+    })
+    const catalog = new ClaudeAtRestCommandCatalog({
+      resolveWorkspacePath: async () => workspace,
+      now: () => clock,
+      probe
+    })
+    await host.flushAllStreamedEvents()
+    await openHost(catalog)
+    const menu = await menuOf(SESSION)
+    expect(menu?.find((entry) => entry.name === 'goal')).toMatchObject({
+      kind: 'command',
+      description: 'Set a goal'
+    })
+    expect(asked[0]?.[0]).toMatchObject({ cwd: workspace })
+    expect(asked[0]?.[1].inheritedEnv?.CLAUDE_CONFIG_DIR).toBe(account)
+    // A CLI that answers no list leaves the menu what the folders hold.
+    answer = '{"type":"control_response","response":{"subtype":"error"}}\n'
+    clock += CLAUDE_AT_REST_COMMANDS_TTL_MS
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      host.readCommands(SESSION)
+      await vi.waitFor(() =>
+        expect(namesOf(catalog.read(store.getRecord(SESSION)!) ?? null, 'command')).toEqual([
+          'model',
+          'effort',
+          'clear',
+          'compact',
+          'deploy'
+        ])
+      )
+    } finally {
+      warned.mockRestore()
+    }
   })
 
   it('from the folders of the host that runs it, never another host’s', async () => {

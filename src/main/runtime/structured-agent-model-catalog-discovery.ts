@@ -4,7 +4,10 @@
 
 import { createAcpModelCatalogProbe } from '../acp/acp-model-catalog-probe'
 import type { AcpLaunchSpec } from '../acp/acp-launch-specs'
-import { createClaudeModelCatalogProbe } from '../claude/claude-model-catalog-probe'
+import {
+  createClaudeModelCatalogProbe,
+  type ClaudeModelCatalogProbeDeps
+} from '../claude/claude-model-catalog-probe'
 import { createCodexModelCatalogProbe } from '../codex/codex-model-catalog-probe'
 import type { AgentModelCatalogDiscovery } from '../native-chat/agent-model-catalog/agent-model-catalog-discovery'
 import type { StructuredAgentModelCatalogContext } from './structured-agent-runtime-registrations'
@@ -38,21 +41,28 @@ export function codexModelCatalogDiscovery({
   }
 }
 
-export function claudeModelCatalogDiscovery({
+/** What every sessionless Claude listing (models, `/` commands) resolves its binary and env from. */
+export function claudeListingDeps({
   deps,
   environment
-}: StructuredAgentModelCatalogContext): AgentModelCatalogDiscovery {
+}: StructuredAgentModelCatalogContext): ClaudeModelCatalogProbeDeps {
+  return {
+    resolveInheritedEnv: environment.resolveBaseEnvironment,
+    refreshEnvironmentAfterMiss: environment.refreshAfterMissingProgram,
+    resolveAuthPolicy: deps.resolveClaudeAuthPolicy,
+    ...(deps.resolveClaudeCommand ? { resolveCommand: deps.resolveClaudeCommand } : {}),
+    ...claudeLaunchEnvOverlay(deps)
+  }
+}
+
+export function claudeModelCatalogDiscovery(
+  context: StructuredAgentModelCatalogContext
+): AgentModelCatalogDiscovery {
   return {
     kind: 'probe',
     // Claude's settings or env can pick a model other than the one its listing recommends.
     listingNamesConfiguredModel: false,
-    probe: createClaudeModelCatalogProbe({
-      resolveInheritedEnv: environment.resolveBaseEnvironment,
-      refreshEnvironmentAfterMiss: environment.refreshAfterMissingProgram,
-      resolveAuthPolicy: deps.resolveClaudeAuthPolicy,
-      ...(deps.resolveClaudeCommand ? { resolveCommand: deps.resolveClaudeCommand } : {}),
-      ...claudeLaunchEnvOverlay(deps)
-    })
+    probe: createClaudeModelCatalogProbe(claudeListingDeps(context))
   }
 }
 

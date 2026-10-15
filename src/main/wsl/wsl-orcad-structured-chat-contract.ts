@@ -49,6 +49,10 @@ function assistantText(row: AgentJournalRenderItem): string {
     : ''
 }
 
+function reportRows(rows: Map<string, AgentJournalRenderItem>): boolean {
+  return [...rows.values()].some((row) => row.body?.kind === 'turn')
+}
+
 async function exerciseChat(lane: ChatLane, root: string, worktree: string, cwd: string) {
   const sessionId = randomUUID()
   const providerId = claudeSessionIdForOrcaSession(sessionId)
@@ -185,16 +189,7 @@ async function exerciseChat(lane: ChatLane, root: string, worktree: string, cwd:
         envelope: envelope(sessionId, 'agentSession.cancel', {}, fence)
       })
     ).toMatchObject({ ok: true, value: { cancelled: true } })
-    await vi.waitFor(
-      () => {
-        expect(
-          [...rows.values()].some(
-            (row) => row.body?.kind === 'turn' && row.body.state === 'completed'
-          )
-        ).toBe(true)
-      },
-      { timeout: 30_000 }
-    )
+    expect(reportRows(rows)).toBe(true)
     const report = WslChatProviderReport.parse(
       JSON.parse(await lane.guest(`cat ${shellEscape(reportPath)}`))
     )

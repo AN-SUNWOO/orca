@@ -176,7 +176,8 @@ async function buildRuntimeAgentTerminalStartupOptions(
   const isRemote = Boolean(workspace.connectionId)
   const forceLine = opts.startupPromptCarry === 'force-line'
   // A prompt this launch command cannot carry has nowhere to go from here — the create returns
-  // options, not a live PTY — so refuse rather than spawn the agent and drop the text.
+  // options, not a live PTY — so refuse rather than spawn the agent and drop the text. `force-line`
+  // keeps createAgentSession's clean launch instead.
   if (opts.startupPrompt && !forceLine && !agentPromptRidesLaunchCommand(agent)) {
     throw new Error(`Agent ${agent} does not take a startup prompt on its launch command.`)
   }

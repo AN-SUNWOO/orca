@@ -84,7 +84,7 @@ describe('the host journal database open', () => {
         ])
       )
       expect(db.pragma('journal_mode', { simple: true })).toBe('wal')
-      expect(journalPragmaNumber(db, 'synchronous')).toBe(2)
+      expect(journalPragmaNumber(db, 'synchronous')).toBe(1)
       expect(journalPragmaNumber(db, 'checkpoint_fullfsync')).toBe(1)
       expect(journalPragmaNumber(db, 'busy_timeout')).toBe(JOURNAL_BUSY_TIMEOUT_MS)
       expect(journalPragmaNumber(db, 'foreign_keys')).toBe(1)

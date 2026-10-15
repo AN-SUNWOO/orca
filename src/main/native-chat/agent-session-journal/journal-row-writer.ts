@@ -77,7 +77,7 @@ export class JournalRowWriter {
       assertJournalFence(row.fence, this.deps.highestFence())
       try {
         // One INSERT: the chat's epoch pointer moves only when the epoch does.
-        this.deps.database().transaction((db) => {
+        this.transaction([row], receipt, (db) => {
           insertJournalRow(db, this.deps.sessionId, row, savedAt)
           hook?.(db, row)
           receipt?.write(db, row)
@@ -124,7 +124,7 @@ export class JournalRowWriter {
       assertJournalFence(row.fence, this.deps.highestFence())
     }
     try {
-      this.deps.database().transaction((db) => {
+      this.transaction(rows, receipt, (db) => {
         for (const row of rows) {
           insertJournalRow(db, this.deps.sessionId, row, ts)
           this.runBookkeeping(db, row)
@@ -173,6 +173,20 @@ export class JournalRowWriter {
         kind: row.kind,
         error: error instanceof Error ? error.message : String(error)
       })
+    }
+  }
+
+  private transaction(
+    rows: readonly JournalRow[],
+    receipt: JournalOperationReceipt | undefined,
+    run: (db: Database.Database) => void
+  ): void {
+    const database = this.deps.database()
+    // Receipts also precede provider effects, including replies to permission requests.
+    if (receipt || rows.some((row) => row.kind === 'submission' || row.kind === 'dispatch')) {
+      database.durableTransaction(run)
+    } else {
+      database.transaction(run)
     }
   }
 }

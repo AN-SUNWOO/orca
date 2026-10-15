@@ -41,7 +41,7 @@ export function publishNewEpoch(input: {
   }
 
   const { sessionId } = input.identity
-  input.database.transaction((db) => {
+  input.database.durableTransaction((db) => {
     const retired = readJournalSessionEpoch(db, sessionId)
     if (retired !== null) {
       deleteJournalEpochRows(db, sessionId, retired)

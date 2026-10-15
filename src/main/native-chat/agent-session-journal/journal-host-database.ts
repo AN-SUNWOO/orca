@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import type Database from '../../sqlite/sync-database'
 import {
   openJournalDatabase,
+  runDurableJournalTransaction,
   runJournalTransaction,
   type OpenJournalDatabase
 } from './journal-database'
@@ -67,6 +68,12 @@ export class JournalHostDatabase {
     })
   }
 
+  durableTransaction<T>(run: (db: Database.Database) => T): T {
+    return runDurableJournalTransaction(this.db, run, () => {
+      this.stranded = true
+    })
+  }
+
   /** Last, after every store has drained. A close that fails keeps the handle, so the retried
    *  teardown closes this same connection. */
   close(): void {
@@ -87,6 +94,7 @@ export class JournalHostDatabase {
         throw journalOpenRefusalError(error)
       }
     }
+    connection.pragma('synchronous = NORMAL')
     this.stranded = false
   }
 }

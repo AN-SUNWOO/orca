@@ -85,6 +85,42 @@ afterEach(async () => {
 })
 
 describe('the shared connection', () => {
+  it('fully syncs sends, batched dispatches and command receipts, but not streamed revisions', async () => {
+    const journal = await journals.open({ identity: IDENTITY, stateDirectory: root })
+    const db = openTestJournalHostDatabase(root).db
+    const commits: number[] = []
+    const exec = db.exec.bind(db)
+    vi.spyOn(db, 'exec').mockImplementation((sql) => {
+      if (sql === 'COMMIT') {
+        commits.push(Number(db.pragma('synchronous', { simple: true })))
+      }
+      exec(sql)
+    })
+    await journal.appendSubmission(SUBMISSION)
+    await journal.resolveDispatch({ clientMessageId: 'msg-1', state: 'pending', fence: 1 })
+    await journal.appendLifecycleBatch({
+      settlementId: 'dispatch-settlement',
+      fence: 1,
+      mutations: [],
+      dispatches: [{ clientMessageId: 'msg-1', state: 'unknown', reason: 'lost contact', fence: 1 }]
+    })
+    const options = { fence: 1, turnScope: AGENT_JOURNAL_THREAD_SCOPE }
+    await journal.appendItem(item(1), text('streaming'), options)
+    await journal.appendItem(item(1), text('answered'), options, {
+      write: () => undefined,
+      committed: () => undefined
+    })
+    expect(commits).toEqual([2, 2, 2, 1, 2])
+    expect(db.pragma('synchronous', { simple: true })).toBe(1)
+    const stopFailing = failCommits(db)
+    await expect(
+      journal.appendSubmission({ ...SUBMISSION, clientMessageId: 'failed' })
+    ).rejects.toThrow()
+    stopFailing()
+    expect(db.isTransaction).toBe(false)
+    expect(db.pragma('synchronous', { simple: true })).toBe(1)
+  })
+
   // T8: another connection holding the write lock makes an append wait, not fail.
   it('waits out another writer instead of failing the append', async () => {
     const journal = await journals.open({ identity: IDENTITY, stateDirectory: root })
@@ -186,7 +222,7 @@ setTimeout(() => { db.exec('COMMIT'); db.close() }, 200)`,
 
     // Its caller gets the COMMIT's own error.
     expect(() =>
-      database.transaction((db) =>
+      database.durableTransaction((db) =>
         db
           .prepare(
             'INSERT INTO journal_rows (session_id, epoch, seq, ts, row_json) VALUES (?, ?, ?, ?, ?)'
@@ -209,6 +245,7 @@ setTimeout(() => { db.exec('COMMIT'); db.close() }, 200)`,
 
     rollbackFails = false
     expect(database.db.isTransaction).toBe(false)
+    expect(connection.pragma('synchronous', { simple: true })).toBe(1)
     stopFailing()
     await expect(
       other.appendItem(item(1), text('served'), { fence: 1, turnScope: AGENT_JOURNAL_THREAD_SCOPE })

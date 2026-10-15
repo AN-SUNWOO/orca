@@ -20,8 +20,6 @@ import { ensureAgentSessionAttachmentClaimTables } from '../agent-session-attach
 export const JOURNAL_BUSY_TIMEOUT_MS = 5000
 /** Bounds the WAL a checkpoint leaves behind; SQLite truncates it back to this after a reset. */
 export const JOURNAL_SIZE_LIMIT_BYTES = 32 * 1024 * 1024
-/** Every commit is fsynced before its caller continues. */
-const JOURNAL_SYNCHRONOUS = 'FULL'
 
 export type OpenJournalDatabase = {
   db: Database.Database
@@ -103,13 +101,27 @@ function configureJournalPragmas(db: Database.Database, stored: number): void {
   db.pragma('journal_mode = WAL')
   db.pragma(`busy_timeout = ${JOURNAL_BUSY_TIMEOUT_MS}`)
   db.pragma('foreign_keys = ON')
-  // Why FULL rather than the house NORMAL: NORMAL in WAL mode does not fsync at commit, and the
-  // write-ahead submission row must be on disk before the adapter dispatches anything. FULL alone
-  // does not survive power loss on macOS, whose fsync leaves the drive cache unflushed; checkpoint
-  // fullfsync makes each checkpoint use F_FULLFSYNC (a no-op elsewhere).
-  db.pragma(`synchronous = ${JOURNAL_SYNCHRONOUS}`)
+  // Streamed revisions need no per-commit fsync; side-effect boundaries opt into FULL.
+  db.pragma('synchronous = NORMAL')
   db.pragma('checkpoint_fullfsync = ON')
   db.pragma(`journal_size_limit = ${JOURNAL_SIZE_LIMIT_BYTES}`)
+}
+
+/** FULL flushes this commit and all earlier WAL writes before an external side effect. */
+export function runDurableJournalTransaction<T>(
+  db: Database.Database,
+  run: (db: Database.Database) => T,
+  onStranded: () => void
+): T {
+  db.pragma('synchronous = FULL')
+  try {
+    return runJournalTransaction(db, run, onStranded)
+  } finally {
+    // A stranded transaction cannot change pragmas; its recovery restores NORMAL.
+    if (!db.isTransaction) {
+      db.pragma('synchronous = NORMAL')
+    }
+  }
 }
 
 /**

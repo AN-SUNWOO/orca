@@ -178,7 +178,7 @@ export class AgentSessionStoreTransactions {
   /** A receipt no journal write carries (a command that changed nothing), in its own transaction. */
   commitReceipt(receipt: JournalOperationReceipt): Promise<void> {
     const run = this.queue.then(() => {
-      this.journalDatabase.transaction((db) => receipt.write(db))
+      this.journalDatabase.durableTransaction((db) => receipt.write(db))
       receipt.committed()
     })
     this.queue = run.catch(() => {})
@@ -193,7 +193,7 @@ export class AgentSessionStoreTransactions {
     const staged = this.stage(apply)
     const writes = staged.writes
     if (writes && !readOnly) {
-      this.journalDatabase.transaction((db) => writeAgentSessionStoreRows(db, writes))
+      this.journalDatabase.durableTransaction((db) => writeAgentSessionStoreRows(db, writes))
     }
     staged.adopt()
     return staged.result

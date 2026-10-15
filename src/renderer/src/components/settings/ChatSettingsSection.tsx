@@ -2,6 +2,7 @@ import { translate } from '@/i18n/i18n'
 import { AppearanceChatSection } from './AppearanceChatSection'
 import { ChatBehaviorSetting } from './ChatBehaviorSetting'
 import { ChatNamingSetting } from './ChatNamingSetting'
+import { ChatProvidersSetting } from './ChatProvidersSetting'
 import { NativeChatInlineVisualsSetting } from './NativeChatInlineVisualsSetting'
 import { SettingsSection } from './SettingsSection'
 import { SettingsSubsectionHeader } from './SettingsFormControls'
@@ -96,6 +97,9 @@ export function ChatSettingsSection({
                 matchesSettingsSearch(query, [{ title }]) || hasUnsavedChatPromptChanges
               }
             />
+          ) : null}
+          {showDesktopOnlySettings ? (
+            <ChatProvidersSetting forceVisible={matchesSettingsSearch(query, [{ title }])} />
           ) : null}
         </div>
       ) : null}

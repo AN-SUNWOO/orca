@@ -39,10 +39,41 @@ function chatSignInLine(flow: Flow | null, saved: boolean, openFailed: boolean, 
   }
 }
 
+function signInButtonLabel(flow: Flow | null, saved: boolean, error: string | null): string {
+  if (
+    error ||
+    flow?.phase === 'failed' ||
+    flow?.phase === 'cancelled' ||
+    flow?.phase === 'expired'
+  ) {
+    return translate('accounts.antigravity.chatRetry', 'Retry sign-in')
+  }
+  return flow?.phase === 'signedIn' || (!flow && saved)
+    ? translate('accounts.antigravity.chatChangeAccount', 'Change account')
+    : translate('accounts.antigravity.chatSignIn', 'Sign in')
+}
+
+/** Chats sign in on the host itself, never in a WSL distro; a remote host's Google page returns to
+ *  that host, so remote sign-in waits for callback forwarding. */
+export function hostOffersAntigravityChatSignIn(
+  owner: RuntimeClientTarget,
+  runtime: 'host' | 'wsl'
+): boolean {
+  if (owner.kind !== 'local' || runtime === 'wsl') {
+    return false
+  }
+  const host = window.api?.platform?.get?.()
+  return (
+    (host?.platform === 'darwin' || host?.platform === 'linux') &&
+    (host.arch === 'arm64' || host.arch === 'x64')
+  )
+}
+
 /** This execution host's sign-in for Antigravity chats, run by the host's own server. */
 export function AntigravityChatSignInRow(props: {
   owner: RuntimeClientTarget
   label: string
+  description: string
   saved: boolean
   onSettled: () => void
 }): React.JSX.Element {
@@ -112,6 +143,7 @@ export function AntigravityChatSignInRow(props: {
         <p className="text-xs font-medium">
           {translate('accounts.antigravity.chatTitle', 'Antigravity chats')}
         </p>
+        <p className="text-xs text-muted-foreground">{props.description}</p>
         <p role="status" className="text-xs text-muted-foreground">
           {chatSignInLine(flow, props.saved, openFailed, label)}
         </p>
@@ -157,7 +189,7 @@ export function AntigravityChatSignInRow(props: {
         </div>
       ) : (
         <Button size="xs" variant="outline" onClick={() => void signIn()}>
-          {translate('accounts.antigravity.chatSignIn', 'Sign in')}
+          {signInButtonLabel(flow, props.saved, error)}
         </Button>
       )}
     </div>

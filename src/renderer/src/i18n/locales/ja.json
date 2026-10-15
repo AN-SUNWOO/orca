@@ -29,6 +29,10 @@
         "saveFailed": "チャット名の設定を保存できませんでした。",
         "searchAgent": "Agent",
         "searchTemplate": "コマンドテンプレート"
+      },
+      "providers": {
+        "title": "プロバイダー",
+        "antigravityDescription": "チャットはターミナルの agy アカウントとは別の、独自の Antigravity サインインを使用します。このデバイスで一度サインインしてください。"
       }
     },
     "terminal": {
@@ -19622,7 +19626,10 @@
     },
     "antigravity": {
       "chatTitle": "Antigravity チャット",
+      "chatDescription": "チャットは上の agy アカウントとは別の、独自の Antigravity サインインを使用します。このデバイスで一度サインインしてください。",
       "chatSignIn": "サインイン",
+      "chatChangeAccount": "アカウントを変更",
+      "chatRetry": "サインインを再試行",
       "chatCancel": "キャンセル",
       "chatCopyLink": "サインインリンクをコピー",
       "chatCopyFailed": "リンクをコピーできませんでした。",

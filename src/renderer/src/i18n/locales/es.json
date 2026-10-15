@@ -29,6 +29,10 @@
         "saveFailed": "No se pudo guardar la configuración de nombres de chats.",
         "searchAgent": "agente",
         "searchTemplate": "plantilla de comandos"
+      },
+      "providers": {
+        "title": "Proveedores",
+        "antigravityDescription": "Los chats usan su propio inicio de sesión de Antigravity, independiente de tu cuenta de agy en la terminal. Inicia sesión una vez en este dispositivo."
       }
     },
     "terminal": {
@@ -19482,7 +19486,10 @@
     },
     "antigravity": {
       "chatTitle": "Chats de Antigravity",
+      "chatDescription": "Los chats usan su propio inicio de sesión de Antigravity, independiente de tu cuenta de agy de arriba. Inicia sesión una vez en este dispositivo.",
       "chatSignIn": "Iniciar sesión",
+      "chatChangeAccount": "Cambiar de cuenta",
+      "chatRetry": "Reintentar inicio de sesión",
       "chatCancel": "Cancelar",
       "chatCopyLink": "Copiar enlace de inicio de sesión",
       "chatCopyFailed": "No se pudo copiar el enlace.",

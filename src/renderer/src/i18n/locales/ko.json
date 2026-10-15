@@ -29,6 +29,10 @@
         "saveFailed": "채팅 이름 설정을 저장하지 못했습니다.",
         "searchAgent": "에이전트",
         "searchTemplate": "명령 템플릿"
+      },
+      "providers": {
+        "title": "공급자",
+        "antigravityDescription": "채팅은 터미널 agy 계정과 별개인 자체 Antigravity 로그인을 사용합니다. 이 기기에서 한 번 로그인하세요."
       }
     },
     "terminal": {
@@ -19622,7 +19626,10 @@
     },
     "antigravity": {
       "chatTitle": "Antigravity 채팅",
+      "chatDescription": "채팅은 위의 agy 계정과 별개인 자체 Antigravity 로그인을 사용합니다. 이 기기에서 한 번 로그인하세요.",
       "chatSignIn": "로그인",
+      "chatChangeAccount": "계정 변경",
+      "chatRetry": "로그인 다시 시도",
       "chatCancel": "취소",
       "chatCopyLink": "로그인 링크 복사",
       "chatCopyFailed": "링크를 복사할 수 없습니다.",

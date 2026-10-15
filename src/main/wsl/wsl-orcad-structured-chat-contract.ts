@@ -99,7 +99,9 @@ async function exerciseChat(lane: ChatLane, root: string, worktree: string, cwd:
           }
         },
         onError(error) {
-          if (!dropping) errors.push(error)
+          if (!dropping) {
+            errors.push(error)
+          }
         }
       },
       { clientCapabilities: ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES }
@@ -164,7 +166,9 @@ async function exerciseChat(lane: ChatLane, root: string, worktree: string, cwd:
       { timeout: 30_000 }
     )
     const approval = [...rows.values()].find((row) => row.body?.kind === 'approval')
-    if (!approval) throw new Error('Missing streamed approval')
+    if (!approval) {
+      throw new Error('Missing streamed approval')
+    }
     const answer = {
       itemId: approval.itemId,
       expectedRevision: approval.revision,
@@ -236,7 +240,9 @@ async function exerciseChat(lane: ChatLane, root: string, worktree: string, cwd:
       blocks: [{ type: 'text', text: 'Continue after Stop.' }]
     }
     subscription = await subscribe()
-    if (history.page.fence === undefined) throw new Error('Missing host fence')
+    if (history.page.fence === undefined) {
+      throw new Error('Missing host fence')
+    }
     expect(
       await lane.rpc('agentSession.send', {
         body: resumedBody,

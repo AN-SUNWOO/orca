@@ -559,7 +559,9 @@ async function survivePhase(): Promise<void> {
     await rpc(connection, 'status.get')
     receipt[`${name}.detachedSession`] = await proveDetachedSession(connection, name)
     receipt[`${name}.census`] = await requestOrcadTerminalCensus(pairedConnection(connection), 0)
-    if (connection.pid === null) throw new Error('Missing guest runtime PID')
+    if (connection.pid === null) {
+      throw new Error('Missing guest runtime PID')
+    }
     receipt[`${name}.chat`] = await proveWslStructuredChat({
       rpc: (method, params) => rpc(connection, method, params),
       guest: (command) => guest(name, command),

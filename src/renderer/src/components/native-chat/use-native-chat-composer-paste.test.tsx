@@ -540,11 +540,6 @@ describe('composer paste intake regressions', () => {
     async (change) => {
       let finishText = (_text: string): void => {}
       let finishImage = (_path: string): void => {}
-      mocks.readClipboardText.mockReturnValue(
-        new Promise<string>((resolve) => {
-          finishText = resolve
-        })
-      )
       mocks.saveClipboardImageAsTempFile.mockReturnValue(
         new Promise<string>((resolve) => {
           finishImage = resolve
@@ -562,8 +557,15 @@ describe('composer paste intake regressions', () => {
         insertTypedText,
         store
       })
+      // An image still saving, then a second paste whose text read is still in flight.
       await act(async () => probe.latest().pasteFromClipboard())
       expect(store.chips).toHaveLength(1)
+      mocks.readClipboardText.mockReturnValue(
+        new Promise<string>((resolve) => {
+          finishText = resolve
+        })
+      )
+      await act(async () => probe.latest().pasteFromClipboard())
       if (change === 'unmount') {
         await act(async () => {
           root?.unmount()

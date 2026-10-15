@@ -1,4 +1,5 @@
-import { createElement as h, Fragment, useMemo, type ReactElement } from 'react'
+import { createElement as h, Fragment, useMemo, useRef, type ReactElement } from 'react'
+import type { ReactNode } from 'react'
 import {
   act,
   create,
@@ -14,17 +15,35 @@ import {
   type MobileNativeChatRowKeys
 } from './mobile-native-chat-row-keys'
 import { MobileNativeChatScrollHold, mobileNativeChatRowId } from './MobileNativeChatScrollHold'
+import { MobileNativeChatPageList } from './MobileNativeChatPageList'
 import { ToolRun } from './MobileNativeChatToolRun'
-import { useMobileNativeChatPageHistory } from './use-mobile-native-chat-page-history'
+import type { MobileNativeChatListHandle } from './use-mobile-native-chat-tail-follow'
 
 const platform = vi.hoisted(() => ({ OS: 'web' }))
+// The page's scroll node of the chat being shown.
+const shown = vi.hoisted(() => ({ scroller: null as unknown }))
 
-vi.mock('react-native', () => ({
-  Platform: platform,
-  Text: 'span',
-  View: 'div',
-  Pressable: 'button'
-}))
+vi.mock('react-native', async () => {
+  const React = await import('react')
+  return {
+    Platform: platform,
+    Text: 'span',
+    View: 'div',
+    Pressable: 'button',
+    ScrollView: React.forwardRef((props: { children?: ReactNode }, ref) => {
+      React.useImperativeHandle(ref, () => ({ getScrollableNode: () => shown.scroller }), [])
+      return React.createElement('div', null, props.children)
+    })
+  }
+})
+vi.mock('./mobile-native-chat-view-styles', () => ({ styles: {} }))
+vi.stubGlobal(
+  'ResizeObserver',
+  class {
+    observe(): void {}
+    disconnect(): void {}
+  }
+)
 vi.mock('lucide-react-native', () => ({
   ChevronDown: () => null,
   SquareChevronRight: () => null,
@@ -135,35 +154,30 @@ function Row({ message, rowKey }: { message: NativeChatMessage; rowKey: string }
   return h('div', { testID: mobileNativeChatRowId(rowKey) }, words, run)
 }
 
-type Scroller = ReturnType<typeof page>
-
 let shownKeys!: MobileNativeChatRowKeys
 
-function Chat(props: {
-  messages: NativeChatMessage[]
-  following: boolean
-  live: boolean
-  listRef: { current: { getScrollableNode: () => Scroller } }
-}): ReactElement {
+function Chat(props: { messages: NativeChatMessage[]; following: boolean; live: boolean }) {
   const folded = useMemo(() => foldMobileNativeChatMessages(props.messages), [props.messages])
   const keys = useMobileNativeChatRowKeys(folded, props.messages, 'chat')
   shownKeys = keys
-  const renderRow = ({ item }: { item: NativeChatMessage }) =>
+  const listRef = useRef<MobileNativeChatListHandle>(null)
+  const renderItem = ({ item }: { item: NativeChatMessage }) =>
     h(Row, { message: item, rowKey: keys.keyOf(item) })
-  const history = useMobileNativeChatPageHistory(folded, renderRow, keys)
   return h(
     Fragment,
     null,
-    h(MobileNativeChatScrollHold, {
-      rowKeys: keys,
-      isFollowing: () => props.following,
-      listRef: props.listRef
-    }),
-    h('div', { testID: 'header' }, history.withHistory(h('span', null, 'Load earlier'))),
-    history.listRows.map((item, index) =>
-      h(Fragment, { key: keys.keyOf(item) }, history.renderListRow({ item, index }))
-    ),
-    props.live ? h('span', null, 'Working') : null
+    h(MobileNativeChatScrollHold, { rowKeys: keys, isFollowing: () => props.following, listRef }),
+    h(MobileNativeChatPageList, {
+      ref: listRef,
+      rows: folded,
+      keyOf: keys.keyOf,
+      renderItem,
+      header: h('span', { testID: 'load-earlier' }, 'Load earlier'),
+      footer: props.live ? h('span', null, 'Working') : null,
+      emptyStateView: null,
+      onScroll: () => {},
+      pinToTail: () => {}
+    })
   )
 }
 
@@ -173,10 +187,10 @@ function mount(messages: NativeChatMessage[], options = { following: false, live
     renderer = create(h('div'))
   })
   const scroller = page(() => renderer.toJSON())
-  const listRef = { current: { getScrollableNode: () => scroller } }
   const show = (next: NativeChatMessage[]): number => {
+    shown.scroller = scroller
     const before = scroller.writes
-    act(() => renderer.update(h(Chat, { ...options, messages: next, listRef })))
+    act(() => renderer.update(h(Chat, { ...options, messages: next })))
     return scroller.writes - before
   }
   show(messages)
@@ -184,7 +198,11 @@ function mount(messages: NativeChatMessage[], options = { following: false, live
   const press = (id: string) => act(() => find(id).findAllByType('button')[0]!.props.onPress())
   const drawn = (id: string) => renderer.root.findAll((n) => n.props.testID === id).length
   const lines = (id: string) => find(id).findAllByType('span').length
-  return { scroller, show, press, drawn, lines, find }
+  const order = () =>
+    renderer.root
+      .findAll((n) => typeof n.type === 'string' && /^(load|chat-row:)/.test(n.props.testID))
+      .map((n) => n.props.testID)
+  return { scroller, show, press, drawn, lines, find, order }
 }
 
 it('keeps the line a reader was on, its run open, when older messages join the run from an old host', () => {
@@ -210,22 +228,24 @@ it('keeps the line a reader was on, its run open, when older messages join the r
       expect(chat0.scroller.top(line)).toBe(top)
     }
 
-    // The run keeps its row, so the earlier turn sits above it and the run stays open.
-    expect(
-      chat0
-        .find('header')
-        .findAll((n) => String(n.props.testID).startsWith('chat-row:'))
-        .map((n) => n.props.testID)
-    ).toEqual(['u0', 'x0', 'u1'].map(mobileNativeChatRowId))
+    // The run keeps its row, so the earlier turn sits above it in the one list and it stays open.
+    const rows = ['u0', 'x0', 'u1', 'a32'].map(mobileNativeChatRowId)
+    expect(chat0.order()).toEqual(['load-earlier', ...rows])
     expect(chat0.lines('chat-member:call:c34')).toBe(opened)
     expect(chat0.drawn('chat-member:call:c1')).toBe(1)
     // The result row the window opened on is now drawn by the run.
     expect(shownKeys.current('r21')).toBe('a32')
 
     // A reply and a send land after the run: what the reader had loaded stays drawn.
-    chat0.show([...oldHostTail(), say('done', 'assistant', 'Done'), say('ask', 'user', 'next')])
+    const reply = [say('done', 'assistant', 'Done'), say('ask', 'user', 'next')]
+    chat0.show([...oldHostTail(), ...reply])
     expect(chat0.drawn(mobileNativeChatRowId('a32'))).toBe(1)
     expect(chat0.drawn('chat-member:call:c34')).toBe(1)
+    // The cap trims the window's first row, then a reply lands: the run is still open, drawn once.
+    chat0.show([...oldHostTail().slice(1), ...reply])
+    chat0.show([...oldHostTail().slice(1), ...reply, say('more', 'assistant', 'More')])
+    expect(chat0.drawn(mobileNativeChatRowId('a32'))).toBe(1)
+    expect(chat0.lines('chat-member:call:c34')).toBe(opened)
   }
 
   // The rows after the run stay put: collapsed, its header holds where it was, not in the result

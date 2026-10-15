@@ -7,16 +7,28 @@ import { MobileNativeChatView } from './MobileNativeChatView'
 const scrollToEnd = vi.hoisted(() => vi.fn())
 const scrollToOffset = vi.hoisted(() => vi.fn())
 const platform = vi.hoisted(() => ({ OS: 'ios' }))
-const pageScroller = vi.hoisted(() => ({ scrollTop: 0, scrollHeight: 0 }))
+// The page list's scroll node. It has no rows for the place-hold to read: a hold that read one
+// would throw.
+const pageScroller = vi.hoisted(() => ({ scrollTop: 0, scrollHeight: 0, clientHeight: 500 }))
+const resized = vi.hoisted(() => new Set<() => void>())
+const drawn = vi.hoisted(() => [] as string[])
 
 vi.mock('react-native', async () => {
   const React = await import('react')
   return {
     ActivityIndicator: 'ActivityIndicator',
     FlatList: React.forwardRef((props, ref) => {
-      const handle = { scrollToEnd, scrollToOffset, getScrollableNode: () => pageScroller }
-      React.useImperativeHandle(ref, () => handle, [])
+      React.useImperativeHandle(ref, () => ({ scrollToEnd, scrollToOffset }), [])
       return React.createElement('FlatList', props)
+    }),
+    ScrollView: React.forwardRef((props, ref) => {
+      const toEnd = () => {
+        pageScroller.scrollTop = pageScroller.scrollHeight - pageScroller.clientHeight
+      }
+      const node = () => pageScroller
+      const handle = { scrollToEnd: toEnd, getScrollableNode: node, getInnerViewNode: node }
+      React.useImperativeHandle(ref, () => handle, [])
+      return React.createElement('ScrollView', props)
     }),
     Platform: platform,
     Pressable: 'Pressable',
@@ -50,7 +62,15 @@ vi.mock('lucide-react-native', () => ({
   Square: 'Square'
 }))
 
-vi.mock('./MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
+// Memoized like the real row, recording each row it draws.
+vi.mock('./MobileNativeChatMessage', async () => {
+  const React = await import('react')
+  const Message = (props: { message: NativeChatMessage }) => {
+    drawn.push(props.message.id)
+    return React.createElement('ChatMessage', props)
+  }
+  return { MobileNativeChatMessage: React.memo(Message) }
+})
 vi.mock('./MobileNativeChatLiveLine', () => ({ MobileNativeChatLiveLine: 'LiveStatus' }))
 vi.mock('./MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
 vi.mock('./MobileNativeChatPermission', () => ({ MobileNativeChatPermission: 'ChatPermission' }))
@@ -141,6 +161,8 @@ describe('MobileNativeChatView', () => {
     scrollToEnd.mockReset()
     scrollToOffset.mockReset()
     pageScroller.scrollHeight = 0
+    pageScroller.scrollTop = 0
+    drawn.length = 0
     vi.unstubAllGlobals()
   })
 
@@ -662,88 +684,101 @@ describe('MobileNativeChatView', () => {
     expect(list().props.maintainVisibleContentPosition).toEqual({ minIndexForVisible: 0 })
   })
 
-  describe('on the page, where the list reports no drag or momentum', () => {
+  describe('on the page, where every loaded row is drawn in one list', () => {
+    // Called with `new`, which returns the object it returns.
+    function FakeResizeObserver(onResize: () => void) {
+      return { observe: () => resized.add(onResize), disconnect: () => resized.delete(onResize) }
+    }
+
     beforeEach(() => {
       platform.OS = 'web'
+      vi.stubGlobal('ResizeObserver', FakeResizeObserver)
+      pageScroller.scrollHeight = 1_000
     })
 
     afterEach(() => {
       platform.OS = 'ios'
     })
 
-    function scrolledTo(y: number, contentHeight: number) {
-      return {
-        nativeEvent: {
-          contentOffset: { y },
-          contentSize: { height: contentHeight },
-          layoutMeasurement: { height: 500 }
-        }
-      }
+    const pageList = () => renderer!.root.find((node) => node.type === 'ScrollView')
+    const atEnd = () => pageScroller.scrollHeight - pageScroller.clientHeight
+    const label = (text: string) => renderer!.root.findAllByProps({ children: text })
+    const jumpControls = () =>
+      renderer!.root.findAllByProps({ accessibilityLabel: 'Scroll to latest' })
+
+    function grow(height: number): void {
+      act(() => {
+        pageScroller.scrollHeight = height
+        resized.forEach((onResize) => onResize())
+      })
     }
+
+    /** RN Web reports no drag: the offsets are all the owner sees. */
+    function scrollTo(y: number): void {
+      act(() => {
+        pageScroller.scrollTop = y
+        pageList().props.onScroll({
+          nativeEvent: {
+            contentOffset: { y },
+            contentSize: { height: pageScroller.scrollHeight },
+            layoutMeasurement: { height: pageScroller.clientHeight }
+          }
+        })
+      })
+    }
+
+    // No frame or timer runs here: every write is from a commit's layout effects or the observer.
+    it('opens at the end before any frame, holds it while streaming, and opens the next chat there', async () => {
+      vi.useFakeTimers()
+      try {
+        const chat = [assistantTurn('a1', 'One'), assistantTurn('a2', 'Two')]
+        await render({ folded: chat })
+        expect(pageScroller.scrollTop).toBe(atEnd())
+
+        drawn.length = 0
+        for (const [n, text] of ['Stre', 'Streaming', 'Streaming on'].entries()) {
+          await update({ folded: chat, streaming: text })
+          grow(1_100 + n * 50)
+          expect(pageScroller.scrollTop).toBe(atEnd())
+        }
+        // The loaded rows keep equal props, so only the streaming row draws again.
+        expect(new Set(drawn)).toEqual(new Set(['streaming']))
+        drawn.length = 0
+        await update({ folded: [...chat, assistantTurn('a3', 'Three')] })
+        grow(1_300)
+        expect(pageScroller.scrollTop).toBe(atEnd())
+        expect(drawn).toEqual(['a3'])
+
+        // Parked in this chat with Tools on, the next one still opens at its end, following.
+        scrollTo(atEnd())
+        scrollTo(300)
+        act(() => label('Tools')[0].parent!.props.onPress())
+        expect(jumpControls()).toHaveLength(1)
+        pageScroller.scrollHeight = 2_500
+        await update({ folded: [assistantTurn('b1', 'Chat B')], sendSurfaceId: 'tab-b' })
+        expect(pageScroller.scrollTop).toBe(atEnd())
+        expect(jumpControls()).toHaveLength(0)
+        expect(label('Collapse')).toHaveLength(1)
+        grow(2_600)
+        expect(pageScroller.scrollTop).toBe(atEnd())
+      } finally {
+        vi.useRealTimers()
+      }
+    })
 
     it('stops following when the reader scrolls up, and resumes at the end', async () => {
       await render({ folded: [assistantTurn('a1', 'Latest')] })
-      act(() => {
-        list().props.onContentSizeChange(320, 1_000)
-        list().props.onScroll(scrolledTo(500, 1_000))
-      })
-      scrollToOffset.mockClear()
+      scrollTo(atEnd())
 
       // No drag event arrives on the page: the move up is all there is to go on.
-      act(() => {
-        list().props.onScroll(scrolledTo(300, 1_000))
-        list().props.onContentSizeChange(320, 1_200)
-      })
-      expect(scrollToOffset).not.toHaveBeenCalled()
-      expect(
-        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-      ).toHaveLength(1)
-
-      act(() => {
-        list().props.onScroll(scrolledTo(700, 1_200))
-        list().props.onContentSizeChange(320, 1_400)
-      })
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_400 })
-    })
-
-    it('does not take its own pin, landing short of a grown end, for the reader', async () => {
-      await render({ folded: [assistantTurn('a1', 'Latest')] })
-      act(() => {
-        list().props.onContentSizeChange(320, 1_000)
-        list().props.onScroll(scrolledTo(500, 1_000))
-      })
-      scrollToOffset.mockClear()
-
-      // The pin reached the end it was sent to; the reply had grown 400 past it by then.
-      act(() => {
-        list().props.onScroll(scrolledTo(700, 1_600))
-        list().props.onContentSizeChange(320, 1_600)
-      })
-
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_600 })
-    })
-
-    // The view stays mounted across chats, so the reader's place in one must not carry over.
-    it('opens another chat at its own live end, following, keeping the Tools toggle', async () => {
-      await render({ folded: [assistantTurn('a1', 'Chat A')] })
-      act(() => {
-        list().props.onContentSizeChange(320, 1_000)
-        list().props.onScroll(scrolledTo(500, 1_000))
-        list().props.onScroll(scrolledTo(300, 1_000))
-      })
-      const label = (text: string) => renderer!.root.findAllByProps({ children: text })
-      const jumpControls = () =>
-        renderer!.root.findAllByProps({ accessibilityLabel: 'Scroll to latest' })
-      act(() => label('Tools')[0].parent!.props.onPress())
+      scrollTo(300)
+      grow(1_200)
+      expect(pageScroller.scrollTop).toBe(300)
       expect(jumpControls()).toHaveLength(1)
-      pageScroller.scrollHeight = 2_500
 
-      await update({ folded: [assistantTurn('b1', 'Chat B')], sendSurfaceId: 'tab-b' })
-
-      expect(scrollToEnd).not.toHaveBeenCalled()
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 2_500 })
-      expect(jumpControls()).toHaveLength(0)
-      expect(label('Collapse')).toHaveLength(1)
+      scrollTo(700)
+      grow(1_400)
+      expect(pageScroller.scrollTop).toBe(atEnd())
     })
 
     it('loads older history from the Load earlier control, not from reaching the top', async () => {
@@ -751,13 +786,11 @@ describe('MobileNativeChatView', () => {
       await render({ folded: [assistantTurn('a1', 'Latest')], hasMore: true, onLoadEarlier })
 
       // Down to the top and into iOS's bounce past it.
-      act(() => {
-        list().props.onScroll(scrolledTo(40, 540))
-        list().props.onScroll(scrolledTo(-15, 540))
-      })
+      scrollTo(40)
+      scrollTo(-15)
       expect(onLoadEarlier).not.toHaveBeenCalled()
 
-      act(() => list().props.ListHeaderComponent.props.onPress())
+      act(() => pageList().props.children[0].props.onPress())
       expect(onLoadEarlier).toHaveBeenCalledOnce()
     })
   })

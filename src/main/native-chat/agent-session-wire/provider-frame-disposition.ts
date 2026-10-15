@@ -232,6 +232,12 @@ const PROVIDER_FRAME_CATALOGS: ReadonlyMap<
           ? 'error-surface'
           : 'suppressed-benign'
       }
+      if (kind === 'message:auth_status') {
+        const error = isProviderRecord(payload) ? payload.error : undefined
+        return typeof error === 'string' && error.trim().length > 0
+          ? 'error-surface'
+          : 'status-chrome'
+      }
       return CLAUDE_FRAME_CLASSIFICATIONS[kind]
     }
   ]

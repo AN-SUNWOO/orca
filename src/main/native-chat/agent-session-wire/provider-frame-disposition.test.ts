@@ -55,6 +55,24 @@ describe('provider frame classification catalog', () => {
     ).toBe('error-surface')
   })
 
+  it('surfaces a Claude authentication error from its declared field', () => {
+    const failure = unhandledProviderFrameJournalItem('claude', 'message:auth_status', {
+      type: 'auth_status',
+      isAuthenticating: false,
+      output: [],
+      error: 'Login timed out'
+    })
+    expect(failure?.classification).toBe('error-surface')
+    expect(failure?.body.text).toBe('Login timed out')
+    expect(
+      unhandledProviderFrameJournalItem('claude', 'message:auth_status', {
+        type: 'auth_status',
+        isAuthenticating: true,
+        output: []
+      })
+    ).toBeNull()
+  })
+
   it('keeps command queue bookkeeping off the transcript', () => {
     expect(
       classifyProviderFrame('claude', 'message:command_lifecycle', {

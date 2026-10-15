@@ -377,6 +377,11 @@ import {
 } from './linear-params'
 import { CreateProject } from './linear-project-create-params'
 import {
+  ManagedRuntimeAgentParams,
+  ManagedRuntimeCancelParams,
+  ManagedRuntimeStatusParams
+} from './managed-runtime-install-params'
+import {
   ManagedServerRecover,
   ManagedServerSelector,
   ManagedServerUpdate
@@ -1073,6 +1078,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'linear.teamStates': TeamId,
   'linear.testConnection': WorkspaceSelection,
   'linear.updateIssue': IssueUpdateOfLinearParams,
+  'managedRuntime.cancel': ManagedRuntimeCancelParams,
+  'managedRuntime.install': ManagedRuntimeAgentParams,
+  'managedRuntime.status': ManagedRuntimeStatusParams,
   'managedServer.cancelStop': ManagedServerSelector,
   'managedServer.forget': ManagedServerSelector,
   'managedServer.recover': ManagedServerRecover,

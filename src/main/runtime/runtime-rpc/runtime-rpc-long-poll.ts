@@ -56,6 +56,16 @@ export function classifyRuntimeLongPoll(request: RpcRequest): RuntimeLongPollCla
   ) {
     return 'wait'
   }
+  // A status read naming the revision it shows waits up to 25 s for a newer one.
+  if (
+    request.method === 'managedRuntime.status' &&
+    typeof request.params === 'object' &&
+    request.params !== null &&
+    'shown' in request.params &&
+    request.params.shown !== undefined
+  ) {
+    return 'wait'
+  }
   if (request.method === 'browser.clientHost.attach') {
     return 'browser-host'
   }

@@ -182,9 +182,12 @@ export class ManagedRuntimeInstallation {
       }
       this.publish(run, { phase: 'downloading' })
     }
-    const space = await statfs(this.root)
+    // Bookkeeping only: a host that can't report free space still installs.
+    const space = await statfs(this.root).catch((error: unknown) => {
+      console.warn(`[managed-runtime] ${this.agent} free space unknown; not checked:`, error)
+    })
     const needed = pin.members.reduce((sum, m) => sum + m.bytes, pin.archiveBytes)
-    if (space.bavail * space.bsize < needed + FREE_SPACE_MARGIN_BYTES) {
+    if (space && space.bavail * space.bsize < needed + FREE_SPACE_MARGIN_BYTES) {
       const megabytes = Math.ceil((needed + FREE_SPACE_MARGIN_BYTES) / 1024 ** 2)
       throw new Error(`${label} needs ${megabytes} MB of free disk space to install.`)
     }

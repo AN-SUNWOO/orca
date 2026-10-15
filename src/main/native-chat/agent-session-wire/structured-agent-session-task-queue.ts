@@ -1,7 +1,4 @@
-import {
-  getKeyedSerializedQueueTail,
-  runKeyedSerializedOperation
-} from '../../cli/keyed-promise-queue'
+import { runKeyedSerializedOperation } from '../../cli/keyed-promise-queue'
 import type { AgentSessionExecutionLocation } from '../../../shared/agent-session-record'
 
 export class StructuredAgentSessionTaskQueue {
@@ -48,15 +45,9 @@ export class StructuredAgentSessionTaskQueue {
       .map(({ sessionId }) => sessionId)
   }
 
-  hasPending(sessionId: string): boolean {
-    return (
-      this.chains.has(sessionId) ||
-      [...this.pendingLocations.values()].some((pending) => pending.sessionId === sessionId)
-    )
-  }
-
-  waitForCurrent(sessionId: string): Promise<void> {
-    return getKeyedSerializedQueueTail(this.chains, sessionId)
+  /** A create or attach for this session that has not settled yet. */
+  hasPendingAttach(sessionId: string): boolean {
+    return [...this.pendingLocations.values()].some((pending) => pending.sessionId === sessionId)
   }
 
   async drainAttaches(): Promise<void> {

@@ -37,27 +37,17 @@ export async function sleepStructuredAgentSessionWorkspace(
     ...records.filter((record) => belongs(record.location)).map((record) => record.sessionId),
     ...host.tasks.pendingMembers(workspaceId, LOCAL_EXECUTION_HOST_ID)
   ])
-  const admitted = [...candidates].map((sessionId) => {
-    try {
-      const close = host.lifetime.closeForWorkspaceSleep(
-        sessionId,
-        workspaceId,
-        LOCAL_EXECUTION_HOST_ID
-      )
-      return { sessionId, close, tail: host.tasks.waitForCurrent(sessionId) }
-    } catch (error) {
-      return { sessionId, close: Promise.reject(error), tail: Promise.resolve() }
-    }
-  })
-  const outcomes = await Promise.all(
-    admitted.map(async ({ sessionId, close, tail }) => {
-      const [stop] = await Promise.allSettled([close, tail])
-      return { sessionId, stop }
-    })
+  const sessionIds = [...candidates]
+  // Admits every close synchronously; `async` turns a synchronous throw into a rejection.
+  const stops = await Promise.allSettled(
+    sessionIds.map(async (sessionId) =>
+      host.lifetime.closeForWorkspaceSleep(sessionId, workspaceId, LOCAL_EXECUTION_HOST_ID)
+    )
   )
   const stoppedSessionIds: string[] = []
   const failures: NonNullable<AgentSessionWorkspaceSleepResult['failures']> = []
-  for (const { sessionId, stop } of outcomes) {
+  for (const [index, stop] of stops.entries()) {
+    const sessionId = sessionIds[index]
     if (stop.status === 'rejected') {
       failures.push({ sessionId, reason: 'stop-unverifiable' })
       continue
@@ -74,10 +64,11 @@ export async function sleepStructuredAgentSessionWorkspace(
         failures.push({ sessionId, reason: 'stop-unverifiable' })
         continue
       }
+      // Judge later work by facts, not lane occupancy: the stop queues its own end report.
       const session = host.sessions.get(sessionId)
       if (
         session?.child ||
-        host.tasks.hasPending(sessionId) ||
+        host.tasks.hasPendingAttach(sessionId) ||
         host.deliveryRunning(sessionId) ||
         host.childWorkIncomplete(sessionId) ||
         session?.journal.pendingSubmissions().length ||

@@ -233,7 +233,21 @@ beforeEach(async () => {
       }
     }
   })
-  closeSession = vi.fn(async () => true)
+  // Like real adapters, the close reports its own end onto the chat's lane before it returns.
+  closeSession = vi.fn(async (sessionId: string) => {
+    const child = host['sessions'].get(sessionId)?.child
+    if (child) {
+      void host.handleAdapterEvent({
+        type: 'ended',
+        sessionId,
+        reason: 'closed',
+        cause: 'requested-close',
+        fence: child.fence,
+        acquisitionGeneration: child.generation
+      })
+    }
+    return true
+  })
   dispatch = vi.fn(async () => ({
     state: 'rejected' as const,
     ...agentSessionFailureWords(agentSessionFailureFact('providerRejected'), {
@@ -250,12 +264,13 @@ afterEach(async () => {
 })
 
 describe('a chat that closes', () => {
-  it('sleeps a workspace child and retains its conversation with a positive stop receipt', async () => {
+  it('returns the receipt for a stopped child whose provider reports its own end', async () => {
     await attach()
     await host['tasks'].drainAttaches()
+    const reported = vi.spyOn(host, 'handleAdapterEvent')
 
     expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [SESSION] })
-    expect(closeSession).toHaveBeenCalledWith(SESSION)
+    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ cause: 'requested-close' }))
     expect(store.getRecord(SESSION)).not.toBeNull()
     expect(host.hasSession(SESSION)).toBe(false)
     expect(await host.sleepWorkspace('other-workspace')).toEqual({ stoppedSessionIds: [] })
@@ -272,24 +287,21 @@ describe('a chat that closes', () => {
     expect(store.getRecord(SESSION)).not.toBeNull()
   })
 
-  it('does not count a send admitted after the stop as a stopped chat', async () => {
+  it('does not count a chat whose send was accepted after the stop as stopped', async () => {
     await attach()
     await vi.waitFor(() => expect(host['conversationDelivery'].loop.isRunning(SESSION)).toBe(false))
     const close = host['lifetime'].closeForWorkspaceSleep
-    let newerSend: ReturnType<typeof host.send> | null = null
     vi.spyOn(host['lifetime'], 'closeForWorkspaceSleep').mockImplementation(async (...args) => {
       const result = await close(...args)
       const body = hostTestMessage('newer send')
-      newerSend = host.send(CALLER, {
-        envelope: envelope('agentSession.send', { body }),
-        body
-      })
+      // The later work exists once the send is accepted, not merely once it is queued.
+      expect(
+        await host.send(CALLER, { envelope: envelope('agentSession.send', { body }), body })
+      ).toMatchObject({ ok: true })
       return result
     })
 
     expect(await host.sleepWorkspace('workspace-1')).toEqual({ stoppedSessionIds: [] })
-    expect(newerSend).not.toBeNull()
-    expect(await newerSend).toMatchObject({ ok: true })
   })
 
   it('stops the provider child it started', async () => {

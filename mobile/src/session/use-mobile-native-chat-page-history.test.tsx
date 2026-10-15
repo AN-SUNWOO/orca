@@ -125,11 +125,11 @@ describe('useMobileNativeChatPageHistory', () => {
       start = Math.max(0, end - limit)
       return { messages: chat.slice(start, end), hasMore: start > 0, beforeOffset: start }
     }
-    const answers: (() => void)[] = []
+    const answers: ((result: unknown) => void)[] = []
     const sendRequest = vi.fn<RpcClient['sendRequest']>(
       () =>
         new Promise((resolve) => {
-          answers.push(() => resolve({ id: 'page', ok: true, result: pageFrom(60) }))
+          answers.push((result) => resolve({ id: 'page', ok: true, result }))
         })
     )
     const client: RpcClient = {
@@ -160,9 +160,9 @@ describe('useMobileNativeChatPageHistory', () => {
       history = useMobileNativeChatPageHistory<Item>(folded, renderRow)
       return null
     }
-    async function answer(): Promise<void> {
+    async function answer(result: unknown = pageFrom(60)): Promise<void> {
       await act(async () => {
-        answers.shift()?.()
+        answers.shift()?.(result)
         await new Promise((resolve) => setTimeout(resolve, 0))
       })
     }
@@ -183,9 +183,16 @@ describe('useMobileNativeChatPageHistory', () => {
     expect(headerRows()).toEqual([])
     expect(listIds()).toEqual(['done', 'thanks'])
 
+    await answer({ error: 'gone' })
+
+    // A failed page ends the tap with the retry line; the next tap clears it and reads on.
+    expect(session.current?.loadingEarlier).toBe(false)
+    expect(session.current?.loadEarlierFailed).toBe(true)
+    act(() => session.current?.loadEarlier(firstPageRowId))
+    expect(session.current?.loadEarlierFailed).toBe(false)
     await answer()
 
-    expect(sendRequest).toHaveBeenCalledTimes(2)
+    expect(sendRequest).toHaveBeenCalledTimes(3)
     expect(session.current?.loadingEarlier).toBe(false)
     expect(session.current?.hasMore).toBe(true)
     expect(headerRows().map((row) => row.id)).toEqual([...ids(5, 60), 'ask', 'look'])

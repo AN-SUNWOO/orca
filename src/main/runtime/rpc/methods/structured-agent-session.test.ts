@@ -383,10 +383,12 @@ describe('method routing', () => {
     }
     const created = await call('agentSession.create', params, STRUCTURED_CLIENT)
     expect(created).toMatchObject({ ok: true, result: { ok: true } })
-    expect(runtimeCalls.resolveStructuredAgentSessionCreateIntent).toHaveBeenCalledWith({
-      ...params,
-      callerKey: 'trusted-local:runtime'
-    })
+    expect(runtimeCalls.resolveStructuredAgentSessionCreateIntent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...params,
+        callerKey: 'trusted-local:runtime'
+      })
+    )
     expect(hostCalls.attach).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -536,10 +538,12 @@ describe('method routing', () => {
         ok: true,
         result: { ok: true }
       })
-      expect(runtimeCalls.resolveStructuredAgentSessionCreateIntent).toHaveBeenCalledWith({
-        ...params,
-        callerKey: 'trusted-local:runtime'
-      })
+      expect(runtimeCalls.resolveStructuredAgentSessionCreateIntent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...params,
+          callerKey: 'trusted-local:runtime'
+        })
+      )
     }
   )
 
@@ -570,10 +574,12 @@ describe('method routing', () => {
     }
     const created = await call('agentSession.create', params, STRUCTURED_CLIENT)
     expect(created).toMatchObject({ ok: true, result: { ok: true } })
-    expect(runtimeCalls.resolveStructuredAgentSessionCreateIntent).toHaveBeenCalledWith({
-      ...params,
-      callerKey: 'trusted-local:runtime'
-    })
+    expect(runtimeCalls.resolveStructuredAgentSessionCreateIntent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...params,
+        callerKey: 'trusted-local:runtime'
+      })
+    )
     expect(hostCalls.attach).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({

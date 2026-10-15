@@ -45,7 +45,13 @@ export function useNativeChatPacedText(
     if (streaming && nativeChatTextAppended(previous, text)) {
       setGrew(true)
     }
-    pace.current = receiveNativeChatText(previous, text, streaming, reducedMotion, performance.now())
+    pace.current = receiveNativeChatText(
+      previous,
+      text,
+      streaming,
+      reducedMotion,
+      performance.now()
+    )
     setShown(pace.current.shown)
     reveals?.drawn.set(rowKey, pace.current)
   }, [text, streaming, reducedMotion, reveals, rowKey])

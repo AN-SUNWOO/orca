@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject
+} from 'react'
 import {
   Platform,
   type FlatList,
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent
 } from 'react-native'
@@ -9,14 +19,29 @@ import {
 /** Distance from the bottom, in points, still treated as "at the tail". */
 const AT_TAIL_SLOP = 80
 
-/** RN Web's ScrollView reports no drag or momentum, so on the page the offsets themselves have to
- *  say what the reader did. It ignores `maintainVisibleContentPosition` too. */
+/** RN Web's ScrollView reports no drag or momentum, so on the page the reader's touch, wheel and
+ *  keys stand in for them. It ignores `maintainVisibleContentPosition` too. */
 function listReportsGestures(): boolean {
   return Platform.OS !== 'web'
 }
 
-/** Offset change, in points, below which the page treats the view as not having moved. */
-const PAGE_MOVE_SLOP = 1
+/** Distance from the end, in points, within which the page's view is at it. */
+const PAGE_END_SLOP = 1
+
+/** Finger travel, in points, below which iOS does not take a touch as a pan of the list. */
+const PAGE_PAN_SLOP = 10
+
+/** Keys that scroll the page's list away from the end. */
+const PAGE_UP_KEYS = new Set(['ArrowUp', 'PageUp', 'Home'])
+
+/** The page's view rests at the end: not short of it, nor in iOS's bounce past it. */
+function restsAtPageEnd(offset: number, contentHeight: number, viewportHeight: number): boolean {
+  const end = Math.max(0, contentHeight - viewportHeight)
+  return offset >= 0 && Math.abs(end - offset) <= PAGE_END_SLOP
+}
+
+/** A reader's touch on the page's list, from its first finger down to its last finger up. */
+type PageTouch = { startY: number; wasFollowing: boolean }
 
 /** Holds the first visible row in place when rows above it change. The header is not a row. */
 const ANCHOR_BELOW_HEADER = { minIndexForVisible: 1 } as const
@@ -35,21 +60,32 @@ function isAtTail(event: NativeScrollEvent): boolean {
   return distanceFromTail(event) <= AT_TAIL_SLOP
 }
 
+type ListInputProps = {
+  onScrollBeginDrag: () => void
+  onScrollEndDrag: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+  onMomentumScrollBegin: () => void
+  onMomentumScrollEnd: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+  onTouchStart?: (event: GestureResponderEvent) => void
+  onTouchEnd?: (event: GestureResponderEvent) => void
+  onTouchCancel?: (event: GestureResponderEvent) => void
+  onWheel?: (event: { deltaY: number; ctrlKey: boolean }) => void
+  onKeyDown?: (event: { key: string }) => void
+}
+
 export type MobileNativeChatTailFollow<TItem> = {
   /** Attach to the transcript list; the hook scrolls through this ref alone. */
   listRef: RefObject<FlatList<TItem> | null>
+  /** The reader's input on the list: a native list's drag and momentum, the page's touch, wheel
+   *  and keys. */
+  listInputProps: ListInputProps
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
   /** Passive maintenance: re-pin after the viewport resizes. */
-  pinToTail: () => void
+  pinToTail: (event?: LayoutChangeEvent) => void
   /** Content-size maintenance using the list's authoritative measured height. */
   pinToTailAfterContentResize: (_width: number, height: number) => void
   /** Explicit jump — send, or the jump-to-latest control. Resumes following. */
   jumpToTail: () => void
-  beginUserScroll: () => void
-  endUserDrag: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
-  beginMomentum: () => void
-  endMomentum: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
   /** Whether a scroll near the top may page in older history: only a native list's own drag. The
    *  page loads it only from the "Load earlier" control, since a page landing in iOS's top bounce
    *  gets the place-hold's write while WebKit owns the scroll, and the list stops scrolling. */
@@ -67,64 +103,72 @@ export type MobileNativeChatTailFollow<TItem> = {
  *
  *  Intent (`following`) is kept separate from geometry (at-tail): a programmatic
  *  scroll reports metrics like any other, so letting metrics decide intent let
- *  the view argue with itself. Only the user's own gestures and explicit jumps
- *  move intent; metrics only decide where a *released* gesture leaves us.
+ *  the view argue with itself. Only the user's own input turns following off;
+ *  reaching the end, or an explicit jump, turns it back on.
  */
 export function useMobileNativeChatTailFollow<TItem>(args: {
   /** Guards `scrollToEnd` against an empty list. */
   hasItems: boolean
+  /** The chat shown; another one opens at its newest message, whatever the reader did here. */
+  scopeKey: string
 }): MobileNativeChatTailFollow<TItem> {
-  const { hasItems } = args
+  const { hasItems, scopeKey } = args
   const listRef = useRef<FlatList<TItem> | null>(null)
-  const [following, setFollowingFlag] = useState(true)
-  const [atTail, setAtTailFlag] = useState(true)
-  // Event handlers read intent at event time, before a re-render lands.
+  // Event handlers read intent at event time; only the control they decide is rendered.
   const followingRef = useRef(true)
   const atTailRef = useRef(true)
+  const [showJumpToTail, setShowJumpToTail] = useState(false)
   const userScrollActiveRef = useRef(false)
   const userScrollSettleFrameRef = useRef<number | null>(null)
-  // Page only: what the offsets last said, in place of the gestures RN Web does not report.
+  // Page only: the last geometry seen, and the touch in place of the drag RN Web does not report.
   const pageOffsetRef = useRef(0)
   const pageContentHeightRef = useRef(0)
+  const pageViewportHeightRef = useRef(0)
+  const pageTouchRef = useRef<PageTouch | null>(null)
+  const scopeKeyRef = useRef(scopeKey)
 
-  // Single writer, so the event-time ref and the render flag cannot disagree.
+  // Single writers, so the event-time refs and the rendered control cannot disagree.
   const setFollowing = useCallback((next: boolean) => {
-    if (followingRef.current === next) {
-      return
-    }
     followingRef.current = next
-    setFollowingFlag(next)
+    setShowJumpToTail(!next && !atTailRef.current)
   }, [])
 
   const setAtTail = useCallback((next: boolean) => {
-    if (atTailRef.current === next) {
-      return
-    }
     atTailRef.current = next
-    setAtTailFlag(next)
+    setShowJumpToTail(!followingRef.current && !next)
   }, [])
 
-  const pinToTail = useCallback(() => {
-    if (!followingRef.current || !hasItems) {
-      return
-    }
-    if (listReportsGestures()) {
-      listRef.current?.scrollToEnd({ animated: false })
-      return
-    }
-    // Why not `scrollToEnd`: its estimate can land short, and the page reads a move up as the reader's.
-    listRef.current?.scrollToOffset({ animated: false, offset: pageContentHeightRef.current })
-  }, [hasItems])
+  const pinToTail = useCallback(
+    (event?: LayoutChangeEvent) => {
+      if (event?.nativeEvent?.layout) {
+        pageViewportHeightRef.current = event.nativeEvent.layout.height
+      }
+      if (!followingRef.current || !hasItems) {
+        return
+      }
+      if (listReportsGestures()) {
+        listRef.current?.scrollToEnd({ animated: false })
+        return
+      }
+      // Why not `scrollToEnd`: its estimate can land short of the end.
+      listRef.current?.scrollToOffset({ animated: false, offset: pageContentHeightRef.current })
+    },
+    [hasItems]
+  )
 
   const pinToTailAfterContentResize = useCallback(
     (_width: number, height: number) => {
       pageContentHeightRef.current = height
+      if (!followingRef.current && !listReportsGestures()) {
+        // No scroll event says output landed below a parked view; the size does.
+        setAtTail(height - pageOffsetRef.current - pageViewportHeightRef.current <= AT_TAIL_SLOP)
+      }
       if (!followingRef.current || !hasItems) {
         return
       }
       listRef.current?.scrollToOffset({ animated: false, offset: height })
     },
-    [hasItems]
+    [hasItems, setAtTail]
   )
 
   const clearUserScrollSettle = useCallback(() => {
@@ -136,21 +180,23 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
 
   const recordScrollMetrics = useCallback(
     (event: NativeScrollEvent) => {
-      const endsAtTail = isAtTail(event)
-      setAtTail(endsAtTail)
       if (listReportsGestures()) {
+        setAtTail(isAtTail(event))
         return
       }
-      const moved = event.contentOffset.y - pageOffsetRef.current
-      pageOffsetRef.current = event.contentOffset.y
-      if (followingRef.current) {
-        // A pin only moves toward the end and a clamp lands on it: up and short of it is the reader.
-        if (moved < -PAGE_MOVE_SLOP && distanceFromTail(event) > PAGE_MOVE_SLOP) {
-          setFollowing(false)
-        }
-      } else if (moved > PAGE_MOVE_SLOP && endsAtTail) {
+      // Rows rendering, trims, holds and pins move the offset too, so no offset says the reader
+      // left: only their input does. Reaching the end with no finger on the list resumes.
+      const { contentOffset, contentSize, layoutMeasurement } = event
+      pageOffsetRef.current = contentOffset.y
+      pageViewportHeightRef.current = layoutMeasurement.height
+      if (
+        !pageTouchRef.current &&
+        restsAtPageEnd(contentOffset.y, contentSize.height, layoutMeasurement.height)
+      ) {
         setFollowing(true)
       }
+      // While following the next pin owns the end.
+      setAtTail(isAtTail(event) || followingRef.current)
     },
     [setAtTail, setFollowing]
   )
@@ -158,10 +204,65 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const jumpToTail = useCallback(() => {
     clearUserScrollSettle()
     userScrollActiveRef.current = false
+    pageTouchRef.current = null
     setAtTail(true)
     setFollowing(true)
     pinToTail()
   }, [clearUserScrollSettle, pinToTail, setAtTail, setFollowing])
+
+  /** Page: the reader's finger stops following before iOS takes it as a pan, so no pin lands under
+   *  a held finger or in the momentum after it. */
+  const notePageTouchStart = useCallback(
+    ({ nativeEvent: { touches, changedTouches } }: GestureResponderEvent) => {
+      if (!pageTouchRef.current || touches.length === 1) {
+        const startY = changedTouches[0]?.pageY ?? 0
+        pageTouchRef.current = { startY, wasFollowing: followingRef.current }
+      }
+      setFollowing(false)
+    },
+    [setFollowing]
+  )
+
+  /** Page: a touch that never panned (a tap, a resting thumb) gives following back and catches
+   *  up; a pan up the screen that rests at the end resumes there. A pan down never does: its first
+   *  scroll event can trail the lift. A lost end leaves following off. */
+  const notePageTouchEnd = useCallback(
+    ({ nativeEvent: { touches, changedTouches } }: GestureResponderEvent) => {
+      const touch = pageTouchRef.current
+      if (!touch || touches.length > 0) {
+        return
+      }
+      pageTouchRef.current = null
+      const towardEnd = touch.startY - (changedTouches[0]?.pageY ?? touch.startY)
+      const offset = pageOffsetRef.current
+      if (
+        (touch.wasFollowing && Math.abs(towardEnd) < PAGE_PAN_SLOP) ||
+        (towardEnd >= PAGE_PAN_SLOP &&
+          restsAtPageEnd(offset, pageContentHeightRef.current, pageViewportHeightRef.current))
+      ) {
+        jumpToTail()
+      }
+    },
+    [jumpToTail]
+  )
+
+  const notePageWheel = useCallback(
+    ({ deltaY, ctrlKey }: { deltaY: number; ctrlKey: boolean }) => {
+      if (deltaY < 0 && !ctrlKey && pageOffsetRef.current > 0) {
+        setFollowing(false)
+      }
+    },
+    [setFollowing]
+  )
+
+  const notePageKey = useCallback(
+    ({ key }: { key: string }) => {
+      if (PAGE_UP_KEYS.has(key) && pageOffsetRef.current > 0) {
+        setFollowing(false)
+      }
+    },
+    [setFollowing]
+  )
 
   const beginUserScroll = useCallback(() => {
     clearUserScrollSettle()
@@ -217,18 +318,49 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     []
   )
 
+  // Before paint, so the next chat never shows where the reader left the last one.
+  useLayoutEffect(() => {
+    if (scopeKeyRef.current !== scopeKey) {
+      scopeKeyRef.current = scopeKey
+      jumpToTail()
+    }
+  }, [scopeKey, jumpToTail])
+
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
+
+  const listInputProps = useMemo<ListInputProps>(
+    () => ({
+      onScrollBeginDrag: beginUserScroll,
+      onScrollEndDrag: endUserDrag,
+      onMomentumScrollBegin: beginMomentum,
+      onMomentumScrollEnd: endMomentum,
+      ...(!listReportsGestures() && {
+        onTouchStart: notePageTouchStart,
+        onTouchEnd: notePageTouchEnd,
+        onTouchCancel: notePageTouchEnd,
+        onWheel: notePageWheel,
+        onKeyDown: notePageKey
+      })
+    }),
+    [
+      beginUserScroll,
+      endUserDrag,
+      beginMomentum,
+      endMomentum,
+      notePageTouchStart,
+      notePageTouchEnd,
+      notePageWheel,
+      notePageKey
+    ]
+  )
 
   return {
     listRef,
-    showJumpToTail: !following && !atTail,
+    listInputProps,
+    showJumpToTail,
     pinToTail,
     pinToTailAfterContentResize,
     jumpToTail,
-    beginUserScroll,
-    endUserDrag,
-    beginMomentum,
-    endMomentum,
     scrollMayLoadEarlier,
     recordScrollMetrics
   }

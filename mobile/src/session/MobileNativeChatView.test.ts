@@ -678,29 +678,74 @@ describe('MobileNativeChatView', () => {
       }
     }
 
-    it('stops following when the reader scrolls up, and resumes at the end', async () => {
+    it('stops following only on reader input, never under a held finger, and resumes at the end', async () => {
       await render({ folded: [assistantTurn('a1', 'Latest')] })
+      const arrows = () =>
+        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
+      const finger = (pageY: number, down: boolean) => ({
+        nativeEvent: { touches: down ? [{ pageY }] : [], changedTouches: [{ pageY }] }
+      })
+      const pinnedTo = (offset: number) =>
+        expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset })
       act(() => {
         list().props.onContentSizeChange(320, 1_000)
         list().props.onScroll(scrolledTo(500, 1_000))
-      })
-      scrollToOffset.mockClear()
-
-      // No drag event arrives on the page: the move up is all there is to go on.
-      act(() => {
+        // A clamp, a trim or rows re-measuring move the view up; no reader did.
         list().props.onScroll(scrolledTo(300, 1_000))
         list().props.onContentSizeChange(320, 1_200)
       })
-      expect(scrollToOffset).not.toHaveBeenCalled()
-      expect(
-        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-      ).toHaveLength(1)
+      pinnedTo(1_200)
 
+      // A resting thumb: output lands below it, the view stays, and the way back shows.
+      scrollToOffset.mockClear()
       act(() => {
+        list().props.onScroll(scrolledTo(700, 1_200))
+        list().props.onTouchStart(finger(400, true))
+        // The last pin's trailing scroll event, at the end, under the finger.
         list().props.onScroll(scrolledTo(700, 1_200))
         list().props.onContentSizeChange(320, 1_400)
       })
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_400 })
+      expect(scrollToOffset).not.toHaveBeenCalled()
+      expect(arrows()).toHaveLength(1)
+
+      // It lifts without panning: following comes back and catches up.
+      act(() => list().props.onTouchEnd(finger(402, false)))
+      pinnedTo(1_400)
+      expect(arrows()).toHaveLength(0)
+
+      // A nudge: iOS sends its momentum after the lift, and none of it re-pins.
+      scrollToOffset.mockClear()
+      act(() => {
+        list().props.onScroll(scrolledTo(900, 1_400))
+        list().props.onTouchStart(finger(400, true))
+        list().props.onScroll(scrolledTo(860, 1_400))
+        list().props.onTouchEnd(finger(440, false))
+        list().props.onScroll(scrolledTo(820, 1_400))
+        list().props.onContentSizeChange(320, 1_600)
+      })
+      expect(scrollToOffset).not.toHaveBeenCalled()
+      expect(arrows()).toHaveLength(1)
+
+      // Back at the end, following resumes.
+      act(() => {
+        list().props.onScroll(scrolledTo(1_100, 1_600))
+        list().props.onContentSizeChange(320, 1_700)
+      })
+      pinnedTo(1_700)
+
+      // A wheel up is the reader's too.
+      scrollToOffset.mockClear()
+      act(() => {
+        list().props.onScroll(scrolledTo(1_200, 1_700))
+        list().props.onWheel({ deltaY: -40, ctrlKey: false })
+        list().props.onContentSizeChange(320, 1_800)
+      })
+      expect(scrollToOffset).not.toHaveBeenCalled()
+
+      // Another chat opens at its newest message.
+      await update({ folded: [assistantTurn('a1', 'Latest')], sendSurfaceId: 'tab-b' })
+      pinnedTo(1_800)
+      expect(arrows()).toHaveLength(0)
     })
 
     it('does not take its own pin, landing short of a grown end, for the reader', async () => {

@@ -240,17 +240,17 @@ export function MobileNativeChatView({
   )
   const {
     listRef,
+    listInputProps,
     showJumpToTail,
     pinToTail,
     pinToTailAfterContentResize,
     jumpToTail,
-    beginUserScroll,
-    endUserDrag,
-    beginMomentum,
-    endMomentum,
     scrollMayLoadEarlier,
     recordScrollMetrics
-  } = useMobileNativeChatTailFollow<NativeChatMessage>({ hasItems: data.length > 0 })
+  } = useMobileNativeChatTailFollow<NativeChatMessage>({
+    hasItems: data.length > 0,
+    scopeKey: sendSurfaceId
+  })
 
   const handleSend = useCallback(
     async (text: string): Promise<boolean> => {
@@ -373,10 +373,7 @@ export function MobileNativeChatView({
               // instead of being swallowed by the dismiss gesture.
               keyboardShouldPersistTaps="handled"
               onScroll={onScroll}
-              onScrollBeginDrag={beginUserScroll}
-              onScrollEndDrag={endUserDrag}
-              onMomentumScrollBegin={beginMomentum}
-              onMomentumScrollEnd={endMomentum}
+              {...listInputProps}
               scrollEventThrottle={32}
               onContentSizeChange={pinToTailAfterContentResize}
               onLayout={pinToTail}

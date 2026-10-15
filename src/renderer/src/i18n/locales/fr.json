@@ -19245,6 +19245,28 @@
       "keywordJira": "jira",
       "keywordDefaultProject": "projet par défaut",
       "keywordIssuePicker": "sélecteur d'issues"
+    },
+    "managed-runtime": {
+      "cancel": "Annuler l'installation",
+      "cancelled": "Installation annulée.",
+      "cancelling": "Annulation…",
+      "chatTitle": "Installez {{agent}} pour commencer à discuter.",
+      "downloading": "Téléchargement de {{done}} Mo.",
+      "downloadingOf": "Téléchargement de {{done}} Mo sur {{total}} Mo.",
+      "external": "Utilise une copie trouvée sur cet hôte.",
+      "extracting": "Extraction de {{agent}}.",
+      "failed": "L'installation a échoué. Réessayez.",
+      "install": "Installer {{agent}}",
+      "installed": "Installé.",
+      "notInstalled": "Non installé.",
+      "progress": "Téléchargement de {{agent}}",
+      "readFailed": "Impossible de vérifier {{agent}} sur cet hôte.",
+      "reinstall": "Réinstaller {{agent}}",
+      "retry": "Réessayer l'installation",
+      "unavailable": "{{agent}} n'est pas disponible sur cet hôte.",
+      "update": "Mettre à jour {{agent}}",
+      "updateAvailable": "Version {{installed}} installée. {{version}} est disponible.",
+      "verifying": "Vérification du téléchargement."
     }
   },
   "dashboardPopout": {

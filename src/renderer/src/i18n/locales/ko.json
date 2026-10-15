@@ -19141,6 +19141,28 @@
       "keywordJira": "Jira",
       "keywordDefaultProject": "기본 프로젝트",
       "keywordIssuePicker": "이슈 선택기"
+    },
+    "managed-runtime": {
+      "cancel": "설치 취소",
+      "cancelled": "설치가 취소되었습니다.",
+      "cancelling": "취소하는 중…",
+      "chatTitle": "채팅을 시작하려면 {{agent}}을(를) 설치하세요.",
+      "downloading": "{{done}}MB 다운로드 중입니다.",
+      "downloadingOf": "{{total}}MB 중 {{done}}MB 다운로드 중입니다.",
+      "external": "이 호스트에서 찾은 사본을 사용합니다.",
+      "extracting": "{{agent}} 압축을 푸는 중입니다.",
+      "failed": "설치하지 못했습니다. 다시 시도하세요.",
+      "install": "{{agent}} 설치",
+      "installed": "설치되었습니다.",
+      "notInstalled": "설치되지 않았습니다.",
+      "progress": "{{agent}} 다운로드",
+      "readFailed": "이 호스트에서 {{agent}}을(를) 확인할 수 없습니다.",
+      "reinstall": "{{agent}} 재설치",
+      "retry": "설치 다시 시도",
+      "unavailable": "{{agent}}은(는) 이 호스트에서 사용할 수 없습니다.",
+      "update": "{{agent}} 업데이트",
+      "updateAvailable": "버전 {{installed}}이(가) 설치되어 있습니다. {{version}}을(를) 사용할 수 있습니다.",
+      "verifying": "다운로드를 확인하는 중입니다."
     }
   },
   "dashboardPopout": {

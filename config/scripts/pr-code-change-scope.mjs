@@ -551,6 +551,7 @@ function jobDetector(job) {
             'config/scripts/build-darwin-terminal-node',
             'config/scripts/verify-darwin-terminal-node',
             'config/scripts/darwin-terminal-node-',
+            'config/scripts/darwin-terminal-worker-stress',
             'config/scripts/__fixtures__/darwin-terminal-worker-wait',
             'config/scripts/__fixtures__/darwin-threadpool-wait',
             'config/scripts/macos-terminal-host-bundle',

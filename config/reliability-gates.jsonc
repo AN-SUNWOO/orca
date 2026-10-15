@@ -22,7 +22,7 @@
       "providers": ["daemon", "local", "ssh", "remote-runtime", "mobile-relay"],
       "coveredPlatforms": ["macos"],
       "coveredProviders": ["daemon"],
-      "coverageNotes": "The repository arm64 build and committed verifier passed real PTY input, filesystem/DNS/crypto and idle-wait generation checks. An isolated signed installed helper with patched Node also served a PTY. Physical Intel CI, a complete package build and older macOS remain unverified. Standalone/SSH servers and the Electron fallback do not receive the patch; mobile/relay inherit only their execution host runtime.",
+      "coverageNotes": "The repository arm64 build and x64 build under Rosetta passed real PTY input, filesystem/DNS/crypto and idle-wait generation checks; physical arm64 CI passed. An isolated signed installed helper with patched Node also served a PTY. Physical Intel CI, a complete package build and older macOS remain unverified. Standalone/SSH servers and the Electron fallback do not receive the patch; mobile/relay inherit only their execution host runtime.",
       "motivatingLinks": [
         "docs/bug-reproductions/darwin-worker-wakeup.md",
         "https://github.com/libuv/libuv/pull/5351"
@@ -49,8 +49,8 @@
         }
       ],
       "runtimeBudget": {
-        "p95Seconds": 5400,
-        "scope": "Cold pinned Node source compilation dominates; cached native runtime probe takes about 32 seconds. No CI soak yet."
+        "p95Seconds": 10800,
+        "scope": "Cold pinned Node source compilation dominates; Intel exceeded the initial 90-minute job allowance, now 180 minutes. Cached native runtime probe takes about 32 seconds. No CI soak yet."
       },
       "performanceBudget": {
         "required": true,
@@ -62,13 +62,13 @@
       },
       "redGreenEvidence": {
         "status": "complete",
-        "evidence": "Upstream real-worker half-range witness: baseline four idle workers with zero jobs/callbacks and queued work; patch four jobs/callbacks and empty queue. Idle-generation regression fails without the patch and passes with it."
+        "evidence": "Upstream real-worker half-range witness: baseline four idle workers with zero jobs/callbacks and queued work; patch four jobs/callbacks and empty queue. An ordinary sequential workload also reproduced the exact half-range signature, zero fresh stat callbacks and no real PTY echo after 15 seconds. Idle-generation regression fails without the patch and passes with it."
       },
       "promotionCriteria": [
         "Collect physical arm64/Intel CI, signed helper launch and older macOS evidence, then repeated soak before promotion."
       ],
       "knownGaps": [
-        "The natural Orca workload that strands a worker for half a generation range remains unknown.",
+        "Ordinary sequential jobs reproduced half-range waiter starvation and PTY input loss; scheduling is intermittent and the exact Orca job-producer sequence remains unknown.",
         "No physical Intel, older macOS, full package build, launchd/TCC attribution or battery measurement yet.",
         "Existing daemons require deliberate restart; standalone/SSH macOS servers and Electron fallback remain unpatched."
       ],

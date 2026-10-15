@@ -69,7 +69,7 @@ async function runBuildCommand(program, args, options = {}) {
     {
       program,
       args,
-      timeoutMs: 90 * 60_000,
+      timeoutMs: 180 * 60_000,
       maxOutputBytes: 1024 * 1024,
       ...options
     },
@@ -86,7 +86,7 @@ async function compileDarwinTerminalNode(directory, inputs, cacheDir) {
   const releaseArchive = await lock(archivePath, {
     realpath: false,
     stale: 60_000,
-    retries: { retries: 1080, minTimeout: 5_000, maxTimeout: 5_000 }
+    retries: { retries: 2160, minTimeout: 5_000, maxTimeout: 5_000 }
   })
   let archive
   try {
@@ -180,7 +180,7 @@ export function ensureDarwinTerminalNode({ arch, cacheDir = pinnedNodeCacheDir()
     const release = await lock(directory, {
       realpath: false,
       stale: 60_000,
-      retries: { retries: 1080, minTimeout: 5_000, maxTimeout: 5_000 }
+      retries: { retries: 2160, minTimeout: 5_000, maxTimeout: 5_000 }
     })
     try {
       return (

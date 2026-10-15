@@ -35,7 +35,7 @@ jobs:
     # cannot enter Windows artifact provenance while mac notarization gets the
     # faster runner.
     runs-on: blacksmith-6vcpu-macos-15
-    timeout-minutes: 150
+    timeout-minutes: 240
     # actions: read fetches the release-cut run's artifacts.
     permissions:
       actions: read
@@ -118,7 +118,7 @@ jobs:
           command: pnpm install --frozen-lockfile --cpu=current,x64,arm64
 
       - name: Build the patched terminal runtimes
-        timeout-minutes: 90
+        timeout-minutes: 180
         run: |
           node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/build-darwin-terminal-node.mjs arm64
           node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/build-darwin-terminal-node.mjs x64

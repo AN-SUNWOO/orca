@@ -54,6 +54,23 @@ try {
     throw new Error(`Runtime proof failed (${result.code}): ${result.stderr}`)
   }
   console.log(result.stdout.trim())
+  if (process.env.ORCA_DARWIN_WORKER_STRESS === '1') {
+    const stress = await runProcess({
+      program: executable,
+      args: [
+        join(import.meta.dirname, 'darwin-terminal-worker-stress.cjs'),
+        addon,
+        require.resolve('node-pty'),
+        scratch
+      ],
+      env: { ...process.env, ORCA_BACKGROUND_LAUNCH: '1', UV_THREADPOOL_SIZE: '4' },
+      timeoutMs: 310_000
+    })
+    console.log(stress.stdout.trim())
+    if (stress.code !== 0) {
+      throw new Error(`Sequential worker stress failed: ${stress.stderr}`)
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

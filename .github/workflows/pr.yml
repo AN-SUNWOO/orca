@@ -1538,7 +1538,7 @@ jobs:
       matrix:
         os: [macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       ORCA_BACKGROUND_LAUNCH: '1'
     steps:

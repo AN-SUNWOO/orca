@@ -9,6 +9,40 @@ static uv_sem_t arrived;
 static uv_sem_t release_workers;
 static unsigned callbacks;
 static int started;
+static uv_work_t stress_request;
+static uv_loop_t* stress_loop;
+static unsigned stress_completed;
+static const unsigned stress_target = 30000000;
+
+static void stress_work(uv_work_t* request) {
+  (void) request;
+}
+
+static void stress_done(uv_work_t* request, int status) {
+  if (status != 0)
+    abort();
+  if (++stress_completed < stress_target &&
+      uv_queue_work(stress_loop, request, stress_work, stress_done) != 0)
+    abort();
+}
+
+static napi_value start_stress(napi_env env, napi_callback_info info) {
+  napi_value result;
+  (void) info;
+  if (stress_loop != NULL ||
+      napi_get_uv_event_loop(env, &stress_loop) != napi_ok ||
+      uv_queue_work(stress_loop, &stress_request, stress_work, stress_done) != 0)
+    abort();
+  napi_get_undefined(env, &result);
+  return result;
+}
+
+static napi_value stress_progress(napi_env env, napi_callback_info info) {
+  napi_value result;
+  (void) info;
+  napi_create_uint32(env, stress_completed, &result);
+  return result;
+}
 
 static void enroll_worker(uv_work_t* request) {
   workers[request - requests] = uv_thread_self();
@@ -84,5 +118,11 @@ NAPI_MODULE_INIT() {
   napi_set_named_property(env, exports, "enroll", function);
   napi_create_function(env, "snapshot", NAPI_AUTO_LENGTH, snapshot, NULL, &function);
   napi_set_named_property(env, exports, "snapshot", function);
+  napi_create_function(env, "startStress", NAPI_AUTO_LENGTH,
+                       start_stress, NULL, &function);
+  napi_set_named_property(env, exports, "startStress", function);
+  napi_create_function(env, "stressProgress", NAPI_AUTO_LENGTH,
+                       stress_progress, NULL, &function);
+  napi_set_named_property(env, exports, "stressProgress", function);
   return exports;
 }

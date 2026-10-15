@@ -114,7 +114,7 @@ jobs:
     # (install 3x10 + publish 2x45 = 120, plus ~25 for checkout/build/verify), or
     # the job is killed mid-retry and no cleanup step runs at all. A typical run
     # is far shorter — this is the notary queue's tail, not its median.
-    timeout-minutes: 150
+    timeout-minutes: 240
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
@@ -230,7 +230,7 @@ jobs:
 
       - name: Build the patched terminal runtimes
         if: steps.freshness.outputs.should_build == 'true'
-        timeout-minutes: 90
+        timeout-minutes: 180
         run: |
           node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/build-darwin-terminal-node.mjs arm64
           node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/build-darwin-terminal-node.mjs x64

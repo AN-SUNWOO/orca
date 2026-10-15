@@ -26,6 +26,29 @@ export function mobileNativeChatRowAnchor(hasHeader: boolean): { minIndexForVisi
   return hasHeader ? ANCHOR_BELOW_HEADER : ANCHOR_AT_FIRST_ROW
 }
 
+/** The list's scrollable node on the page, as RN Web's ScrollView decorates it. */
+type PageScroller = Element & {
+  scrollTop: number
+  scrollHeight: number
+  clientHeight: number
+  getInnerViewNode: () => Element
+}
+
+/** RN Web reports content size a task after layout, so a frame can paint between growth and a pin
+ *  driven by that report. An observer on the scroller and its content runs before that paint. */
+function observePageResize(
+  scroller: PageScroller | null | undefined,
+  onResize: () => void
+): ResizeObserver | null {
+  if (listReportsGestures() || !scroller || typeof ResizeObserver === 'undefined') {
+    return null
+  }
+  const observer = new ResizeObserver(onResize)
+  observer.observe(scroller)
+  observer.observe(scroller.getInnerViewNode())
+  return observer
+}
+
 function distanceFromTail(event: NativeScrollEvent): number {
   const { contentOffset, contentSize, layoutMeasurement } = event
   return contentSize.height - (contentOffset.y + layoutMeasurement.height)
@@ -36,13 +59,15 @@ function isAtTail(event: NativeScrollEvent): boolean {
 }
 
 export type MobileNativeChatTailFollow<TItem> = {
-  /** Attach to the transcript list; the hook scrolls through this ref alone. */
+  /** The transcript list, filled by `attachList`; the hook scrolls through this ref alone. */
   listRef: RefObject<FlatList<TItem> | null>
+  /** The list's `ref`: fills `listRef` and, on the page, watches it resize for its whole mount. */
+  attachList: (list: FlatList<TItem> | null) => () => void
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
   /** Passive maintenance: re-pin after the viewport resizes. */
   pinToTail: () => void
-  /** Content-size maintenance using the list's authoritative measured height. */
+  /** Content-size maintenance: native uses the measured height, the page its live end. */
   pinToTailAfterContentResize: (_width: number, height: number) => void
   /** Explicit jump — send, or the jump-to-latest control. Resumes following. */
   jumpToTail: () => void
@@ -87,7 +112,6 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const userScrollSettleFrameRef = useRef<number | null>(null)
   // Page only: what the offsets last said, in place of the gestures RN Web does not report.
   const pageOffsetRef = useRef(0)
-  const pageContentHeightRef = useRef(0)
 
   // Single writer, so the event-time ref and the render flag cannot disagree.
   const setFollowing = useCallback((next: boolean) => {
@@ -106,27 +130,50 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     setAtTailFlag(next)
   }, [])
 
+  // Live geometry: a size report arrives late and can name an end the view has already left.
+  // Not `scrollToEnd`: its estimate can land short, and the page reads a move up as the reader's.
+  const pinPageToEnd = useCallback(() => {
+    const scroller: PageScroller | null | undefined = listRef.current?.getScrollableNode()
+    if (!followingRef.current || !scroller) {
+      return
+    }
+    const end = scroller.scrollHeight - scroller.clientHeight
+    // Already there, or iOS bouncing past an end: a write then lands while WebKit owns the scroll.
+    if (scroller.scrollTop < 0 || scroller.scrollTop >= end - PAGE_MOVE_SLOP) {
+      return
+    }
+    listRef.current?.scrollToOffset({ animated: false, offset: end })
+  }, [])
+
+  const attachList = useCallback(
+    (list: FlatList<TItem> | null) => {
+      listRef.current = list
+      const observer = observePageResize(list?.getScrollableNode(), pinPageToEnd)
+      return () => {
+        observer?.disconnect()
+        listRef.current = null
+      }
+    },
+    [pinPageToEnd]
+  )
+
   const pinToTail = useCallback(() => {
-    if (!followingRef.current || !hasItems) {
-      return
-    }
-    if (listReportsGestures()) {
+    if (!listReportsGestures()) {
+      pinPageToEnd()
+    } else if (followingRef.current && hasItems) {
       listRef.current?.scrollToEnd({ animated: false })
-      return
     }
-    // Why not `scrollToEnd`: its estimate can land short, and the page reads a move up as the reader's.
-    listRef.current?.scrollToOffset({ animated: false, offset: pageContentHeightRef.current })
-  }, [hasItems])
+  }, [hasItems, pinPageToEnd])
 
   const pinToTailAfterContentResize = useCallback(
     (_width: number, height: number) => {
-      pageContentHeightRef.current = height
-      if (!followingRef.current || !hasItems) {
-        return
+      if (!listReportsGestures()) {
+        pinPageToEnd()
+      } else if (followingRef.current && hasItems) {
+        listRef.current?.scrollToOffset({ animated: false, offset: height })
       }
-      listRef.current?.scrollToOffset({ animated: false, offset: height })
     },
-    [hasItems]
+    [hasItems, pinPageToEnd]
   )
 
   const clearUserScrollSettle = useCallback(() => {
@@ -225,6 +272,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
 
   return {
     listRef,
+    attachList,
     showJumpToTail: !following && !atTail,
     pinToTail,
     pinToTailAfterContentResize,

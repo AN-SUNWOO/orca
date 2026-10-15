@@ -243,6 +243,7 @@ export function MobileNativeChatView({
   const rowKeys = useMobileNativeChatRowKeys(folded, messages, sendSurfaceId)
   const {
     listRef,
+    attachList,
     showJumpToTail,
     pinToTail,
     pinToTailAfterContentResize,
@@ -368,7 +369,7 @@ export function MobileNativeChatView({
           <MobileNativeChatScrollHold rowKeys={rowKeys} {...{ listRef, isFollowing }} />
           <GestureDetector gesture={pinchGesture}>
             <FlatList
-              ref={listRef}
+              ref={attachList}
               data={history.listRows}
               keyExtractor={rowKeys.keyOf}
               renderItem={history.renderListRow}

@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { useHostDescriptor } from '../transport/host-descriptor-store'
 import type { ConnectionState } from '../transport/types'
 import { serverHostHealth, withServerHosts } from '../worktree/server-workspaces'
-import { filterVisibleHostRows } from '../worktree/visible-host-rows'
 import { applyWorktreeHostContextLabels } from '../worktree/worktree-host-context-labels'
 import { applyWorktreeRowDisplayState } from '../worktree/worktree-host-row-identity'
 import type { HostScreenState } from './use-host-screen-state'
@@ -30,11 +29,7 @@ export function useHostDisplayWorktrees(
     // Why: live `worktrees` is authoritative only while connected; under the amber
     // mount default, connecting/handshaking must keep the pre-reconnect list too.
     const base = connState === 'connected' ? state.worktrees : state.lastKnownWorktrees
-    const rows = filterVisibleHostRows(
-      [...base, ...serverWorkspaces.worktrees],
-      state.visibleHostIds,
-      state.repoHostIdByRepoId
-    )
+    const rows = [...base, ...serverWorkspaces.worktrees]
     return applyWorktreeHostContextLabels(
       applyWorktreeRowDisplayState(rows, state.sleptIds, state.optimisticActiveWorktreeIdentity),
       {
@@ -49,7 +44,6 @@ export function useHostDisplayWorktrees(
     state.worktrees,
     state.lastKnownWorktrees,
     serverWorkspaces.worktrees,
-    state.visibleHostIds,
     state.sleptIds,
     state.optimisticActiveWorktreeIdentity,
     state.repoHostIdByRepoId,

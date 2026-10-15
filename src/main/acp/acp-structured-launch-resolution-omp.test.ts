@@ -2,7 +2,10 @@ import { createAcpStructuredLaunchResolver } from '../runtime/structured-agent-l
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentSessionRecord } from '../../shared/agent-session-record'
 import { agentSessionRecordFixture } from '../../shared/agent-session-record.test-fixture'
-import { NATIVE_CHAT_VISUALS_DIR_ENV } from '../native-chat/native-chat-visuals-delivery'
+import {
+  LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV,
+  NATIVE_CHAT_SCRATCH_DIR_ENV
+} from '../native-chat/native-chat-visuals-delivery'
 import { createProviderSpawnSpec } from '../provider-process/provider-process-supervisor'
 import { acpLaunchSpecFor } from './acp-launch-specs'
 import { STRUCTURED_CHILD_ENV_TO_DELETE } from '../runtime/structured-session-child-env'
@@ -63,10 +66,11 @@ describe('OMP ACP launch resolution', () => {
       ANTHROPIC_API_KEY: 'sk-test'
     }
     const launch = await resolver(ompRecord(), { launchEnv: userEnv })({ identity })
-    // Only the shared pane and hook keys, and an inherited visuals folder: this chat has none.
+    // Only the shared pane and hook keys, and an inherited scratch folder: this chat has none.
     expect(launch.envToDelete).toEqual([
       ...STRUCTURED_CHILD_ENV_TO_DELETE,
-      NATIVE_CHAT_VISUALS_DIR_ENV
+      NATIVE_CHAT_SCRATCH_DIR_ENV,
+      LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV
     ])
     const child = createProviderSpawnSpec(
       {

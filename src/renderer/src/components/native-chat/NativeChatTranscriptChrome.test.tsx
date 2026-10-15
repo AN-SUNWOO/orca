@@ -13,6 +13,17 @@ import {
 import { chatImageAccess } from '@/lib/local-file-access'
 import { NativeChatImageAttachments } from './NativeChatTranscriptChrome'
 
+// Chat images carry their runtime owner without resolving an editor connection.
+const mocks = vi.hoisted(() => ({
+  getConnectionIdForFile: vi.fn(() => {
+    throw new Error('Chat image fixtures must not resolve editor file connections')
+  })
+}))
+
+vi.mock('@/lib/connection-context', () => ({
+  getConnectionIdForFile: mocks.getConnectionIdForFile
+}))
+
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 function runtimeContext(worktreeId: string): RuntimeFileOperationArgs {
@@ -49,7 +60,12 @@ beforeEach(() => {
 afterEach(() => {
   resetLocalImageSrcStateForTests()
   vi.unstubAllGlobals()
-  vi.restoreAllMocks()
+  try {
+    expect(mocks.getConnectionIdForFile).not.toHaveBeenCalled()
+  } finally {
+    mocks.getConnectionIdForFile.mockClear()
+    vi.restoreAllMocks()
+  }
 })
 
 describe('NativeChatImageAttachments', () => {

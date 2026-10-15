@@ -38,10 +38,11 @@ export type NewWorkspaceComposerCardProps = {
   nameInputRef?: React.RefObject<HTMLInputElement | null>
   quickAgent: TuiAgent | null
   onQuickAgentChange: (agent: TuiAgent | null) => void
-  /** "None": skip the agent and the extra shell so only the setup script's tab opens. */
+  /** Cleared picker: skip the agent and the extra shell when setup runs. */
   quickSetupOnly?: boolean
   onQuickSetupOnlySelect?: () => void
   eligibleRepos: readonly RepoOption[]
+  selectedRepo?: RepoOption | null
   repoId: string
   projectOptions?: NewWorkspaceProjectOption[]
   selectedProjectId?: string | null

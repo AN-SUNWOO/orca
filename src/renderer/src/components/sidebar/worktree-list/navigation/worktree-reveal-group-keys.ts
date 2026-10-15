@@ -14,7 +14,7 @@ import {
   getWorktreeLineageAncestors
 } from '../../worktree-lineage-projection'
 import { getWorktreeLineageGroupKey, PINNED_GROUP_KEY } from '../grouping/group-keys'
-import type { ProjectGroupingModel } from '../grouping/project-grouping'
+import type { ProjectGroupingModel } from '../../../../../../shared/project-section-grouping'
 import type { PinnedWorktreeDisplayPolicy, WorktreeGroupBy } from '../grouping/row-types'
 import { getGroupKeysForWorktree } from '../grouping/worktree-group-keys'
 

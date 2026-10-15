@@ -16,6 +16,7 @@ import type { AgentSessionAccountHome } from '../../shared/agent-session-account
 import type { resolveCliCommand } from '../../shared/node-cli-command-resolution'
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import {
+  resolveAgainAfterRefreshOnMissingProgram,
   resolveStructuredAgentCommand,
   type StructuredAgentCommandSettings
 } from '../native-chat/structured-agent-command-resolution'
@@ -30,7 +31,8 @@ import {
 import type { StructuredAgentLaunchPartResolver } from '../runtime/structured-agent-launch-composition'
 import { STRUCTURED_CHILD_ENV_TO_DELETE } from '../runtime/structured-session-child-env'
 import {
-  NATIVE_CHAT_VISUALS_DIR_ENV,
+  LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV,
+  NATIVE_CHAT_SCRATCH_DIR_ENV,
   withNativeChatVisualsEnv
 } from '../native-chat/native-chat-visuals-delivery'
 import type { AcpLaunchSpec } from './acp-launch-specs'
@@ -81,6 +83,10 @@ export type AcpLaunchInvocationDeps = {
   resolveLaunchEnv?: (agent: string) => Record<string, string>
   /** The user's per-agent Command setting, re-read per acquisition; none runs the stock binary. */
   resolveCommandSettings?: () => StructuredAgentCommandSettings
+  /** Rereads that env when the agent's program is not found in it; absent never retries. */
+  refreshEnvironmentAfterMiss?: (askedAt: number) => Promise<void>
+  /** Where the program starts, for a PATH entry relative to it; Orca's own when absent. */
+  resolveWorkingDirectory?: () => Promise<string> | string
 } & Pick<AcpStructuredLaunchPartDeps, 'resolveCommand' | 'homePath' | 'inheritedEnv'>
 
 /** The binary a launch with `env` spawns: the user's Command setting when set, else the stock
@@ -144,8 +150,21 @@ export async function acpLaunchVersionSupported(
 }
 
 /** The binary and environment any child of this agent runs under for `accountHome`: a session's
- *  launch and a catalog probe both resolve here, so neither can reach another account or install. */
-export async function resolveAcpLaunchInvocation(
+ *  launch and a catalog probe both resolve here, so neither can reach another account or install,
+ *  and both reread the environment once when the program is missing from it. */
+export function resolveAcpLaunchInvocation(
+  spec: AcpLaunchSpec,
+  accountHome: AgentSessionAccountHome,
+  deps: AcpLaunchInvocationDeps
+): Promise<{ command: string; env: Record<string, string>; envToDelete: string[] }> {
+  return resolveAgainAfterRefreshOnMissingProgram(
+    () => readAcpLaunchInvocation(spec, accountHome, deps),
+    deps.refreshEnvironmentAfterMiss,
+    { env: ({ env }) => env, cwd: deps.resolveWorkingDirectory }
+  )
+}
+
+async function readAcpLaunchInvocation(
   spec: AcpLaunchSpec,
   accountHome: AgentSessionAccountHome,
   deps: AcpLaunchInvocationDeps
@@ -179,6 +198,8 @@ export function acpStructuredLaunchPart(
         resolveEnvironment: basis.baseEnvironment,
         resolveLaunchEnv: () => basis.launchEnv(),
         resolveCommandSettings: basis.commandSettings,
+        refreshEnvironmentAfterMiss: basis.refreshAfterMissingProgram,
+        resolveWorkingDirectory: basis.launchDirectory,
         ...(deps.resolveCommand ? { resolveCommand: deps.resolveCommand } : {}),
         ...(deps.homePath ? { homePath: deps.homePath } : {}),
         ...(deps.inheritedEnv ? { inheritedEnv: deps.inheritedEnv } : {})
@@ -233,7 +254,8 @@ export function acpStructuredLaunchPart(
         ...STRUCTURED_CHILD_ENV_TO_DELETE,
         ...envToDelete,
         // Without visuals, a folder Orca itself inherited (started from a chat) names another chat's.
-        ...(skill ? [] : [NATIVE_CHAT_VISUALS_DIR_ENV])
+        ...(skill ? [] : [NATIVE_CHAT_SCRATCH_DIR_ENV]),
+        LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV
       ]
     }
   }

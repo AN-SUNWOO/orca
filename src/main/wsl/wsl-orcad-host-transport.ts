@@ -13,6 +13,8 @@ import { WSL_COMMAND_LOOP_ARGV0, WSL_COMMAND_LOOP_SCRIPT } from './wsl-command-l
 import { createWslCommandLoopPool } from './wsl-command-loop-pool'
 import { uploadDirectoryIntoWsl, wslGuestSourcePath } from './wsl-directory-upload'
 import { resolveWslExecutablePath } from './wsl-executable-path'
+import { readWslDistroRegistryIdShared } from './wsl-distro-registry-id'
+import { ORCAD_WSL_DISTRO_GUID_ENV } from '../orcad/orcad-migration-wsl-destination'
 import type { WslOrcadHostTarget } from './wsl-orcad-host-target'
 
 export type WslOrcadHostTransport = OrcadHostTransport & {
@@ -32,6 +34,8 @@ type WslOrcadHostTransportOptions = {
   uploadSource?: 'tar' | 'guest-mount'
   /** Test seam: false runs every command on its own wsl.exe. */
   commandLoops?: boolean
+  /** Test seam; production shares the deploy's own registry read (no extra reg.exe). */
+  readDistroRegistryId?: (distro: string) => Promise<string | null>
 }
 
 /**
@@ -93,6 +97,13 @@ export function createWslOrcadHostTransport(
     dispose: () => loops?.dispose(),
     // MEASURED: `nohup … &` dies when its `wsl.exe --exec` exits on a distro without systemd.
     orcadLaunchDetach: 'setsid',
+    // The guest cannot read its own registration; a move into it is bound to this (D1b-2 guard).
+    orcadLaunchEnv: async () => {
+      const id = await (options.readDistroRegistryId ?? readWslDistroRegistryIdShared)(
+        target.distro
+      )
+      return id ? [[ORCAD_WSL_DISTRO_GUID_ENV, id]] : []
+    },
     usesSystemSshTransport: () => false,
     // One transport, one wsl.exe lane: nothing underneath is ever replaced.
     getConnectGeneration: () => 0,

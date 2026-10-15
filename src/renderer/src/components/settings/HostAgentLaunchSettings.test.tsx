@@ -57,6 +57,65 @@ beforeEach(() => {
 })
 
 describe('host launch settings form', () => {
+  it.each(['pill', 'row'] as const)(
+    'clears the selected default through its %s',
+    async (surface) => {
+      transport.read.mockResolvedValue({ ...host(), defaultTuiAgent: 'claude' })
+      transport.mutate.mockResolvedValue({ ...host(), defaultTuiAgent: 'blank' })
+      render(pane(17))
+      await screen.findByDisplayValue('--host-marker')
+      fireEvent.click(
+        screen.getByRole('button', { name: surface === 'pill' ? 'Claude' : 'Default' })
+      )
+      await waitFor(() =>
+        expect(transport.mutate).toHaveBeenCalledWith(
+          { environmentId: 'ssh-host', pairingRevision: 17 },
+          { type: 'default', agent: 'blank' },
+          expect.any(AbortSignal)
+        )
+      )
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Claude' }).getAttribute('aria-pressed')).toBe(
+          'false'
+        )
+      )
+      expect(screen.getByRole('button', { name: 'Auto' }).getAttribute('aria-pressed')).toBe(
+        'false'
+      )
+      expect(screen.queryByRole('button', { name: 'No agent (blank terminal)' })).toBeNull()
+      transport.mutate.mockResolvedValue({ ...host(), defaultTuiAgent: 'claude' })
+      fireEvent.click(screen.getByRole('button', { name: 'Claude' }))
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Claude' }).getAttribute('aria-pressed')).toBe(
+          'true'
+        )
+      )
+      expect(transport.mutate).toHaveBeenLastCalledWith(
+        { environmentId: 'ssh-host', pairingRevision: 17 },
+        { type: 'default', agent: 'claude' },
+        expect.any(AbortSignal)
+      )
+    }
+  )
+
+  it('lets Auto toggle off into an empty selection', async () => {
+    transport.mutate.mockResolvedValue({ ...host(), defaultTuiAgent: 'blank' })
+    const { container } = render(pane(17))
+    await screen.findByDisplayValue('--host-marker')
+    fireEvent.click(screen.getByRole('button', { name: 'Auto' }))
+    await waitFor(() => expect(container.querySelector('[aria-pressed="true"]')).toBeNull())
+    expect(transport.mutate).toHaveBeenCalledWith(
+      { environmentId: 'ssh-host', pairingRevision: 17 },
+      { type: 'default', agent: 'blank' },
+      expect.any(AbortSignal)
+    )
+    transport.mutate.mockResolvedValue(host())
+    fireEvent.click(screen.getByRole('button', { name: 'Auto' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Auto' }).getAttribute('aria-pressed')).toBe('true')
+    )
+  })
+
   it('routes the pane to the chosen host and saves arguments without editing desktop defaults', async () => {
     const desktop = createGlobalSettingsFixture({
       activeRuntimeEnvironmentId: null,

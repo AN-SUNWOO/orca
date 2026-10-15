@@ -1,6 +1,7 @@
 // Compatibility entrypoint: reliability gates invoke this path directly; fragments stay side-effect ordered.
 export {}
 
+await import('./rpc/unused-default-rpc-methods.test-fixture')
 await import('./orca-runtime-test-mocks.spec')
 await import('./orca-runtime-test-lifecycle.spec')
 await import('./orca-runtime-test-fixtures.spec')

@@ -15,6 +15,7 @@ import type {
 } from '../../shared/orcad-managed-runtime'
 import type {
   SshManagedServerRelayReason,
+  SshManagedServerLinkedProject,
   SshManagedServerServingNote,
   SshManagedServerUpdateNote,
   SshTarget
@@ -25,6 +26,7 @@ import {
   type ManagedServerUpdateDeps
 } from './managed-server-update-check'
 import { managedResultAfterUpdate, unservedManagedResult } from './managed-server-serving-gate'
+import { orcadMigrationConflictGuidance } from './orcad-migration-conflict-guidance'
 import {
   classifyOrcadHostUnavailable,
   ORCAD_TUNNEL_UNAVAILABLE_REASON
@@ -48,6 +50,7 @@ export type HostServerOnConnectResult =
       environmentId: string
       update?: SshManagedServerUpdateNote
       serving?: SshManagedServerServingNote
+      linked?: SshManagedServerLinkedProject[]
       /** Another desktop's update held the host; recheck until it clears. Never published. */
       fenceHeld?: true
     }
@@ -188,7 +191,7 @@ async function decide(
       deps.progress(target, 'deploying')
       const deployed = await deps.deploy(target)
       reportHostServerDeploy(deps.report, target, trace, deployed)
-      return await afterDeploy(target, deps, deployed)
+      return await afterDeploy(target, deps, trace, deployed)
     } catch (error) {
       return setupFailed(target, deps, trace, error, true)
     }
@@ -238,6 +241,10 @@ function setupFailed(
   console.warn('[ssh] Managed Orca server setup failed; using the relay this session:', error)
   reportHostServerSetupError(deps.report, target, trace, error)
   const unavailable = classifyOrcadHostUnavailable(error)
+  const conflict = empty ? null : orcadMigrationConflictGuidance(error)
+  if (conflict) {
+    return unfinished(target, deps, unavailable, empty, 'refused', conflict)
+  }
   const detail = error instanceof Error ? error.message : String(error)
   return unfinished(target, deps, unavailable, empty, 'failed', detail)
 }
@@ -249,12 +256,23 @@ function terminalReason(verdict: 'live' | 'unverifiable'): SshManagedServerRelay
 async function afterDeploy(
   target: SshTarget,
   deps: HostServerOnConnectDeps,
+  trace: HostServerDecisionTrace,
   result: OrcadManagedDeployResult
 ): Promise<HostServerOnConnectResult> {
   if (result.outcome === 'deferred') {
     return deferred(target, deps, result, true)
   }
-  return { route: 'managed', environmentId: result.environment.id }
+  const environmentId = result.environment.id
+  if (result.outcome !== 'already-current') {
+    return { route: 'managed', environmentId }
+  }
+  // Another Orca version may serve it; only the now-paired server can say whether it may update.
+  const update = await checkManagedServerUpdate(target, environmentId, deps, () =>
+    deps.progress(target, 'updating')
+  )
+  trace.update = update.reason
+  trace.recorded = update.recorded
+  return managedResultAfterUpdate(environmentId, { state: 'serving' }, update)
 }
 
 async function afterConversion(
@@ -264,7 +282,11 @@ async function afterConversion(
 ): Promise<HostServerOnConnectResult> {
   switch (result.outcome) {
     case 'converted':
-      return { route: 'managed', environmentId: result.environment.id }
+      return {
+        route: 'managed',
+        environmentId: result.environment.id,
+        ...(result.linkedProjects ? { linked: result.linkedProjects } : {})
+      }
     case 'deferred':
       return deferred(target, deps, result, false)
     case 'refused':
@@ -295,7 +317,7 @@ async function unfinished(
   deps: HostServerOnConnectDeps,
   unavailable: string | null,
   empty: boolean,
-  reason: 'deferred' | 'failed',
+  reason: 'deferred' | 'failed' | 'refused',
   failure: string
 ): Promise<HostServerOnConnectResult> {
   try {

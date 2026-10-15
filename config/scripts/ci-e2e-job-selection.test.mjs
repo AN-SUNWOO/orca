@@ -97,7 +97,7 @@ it('keeps Electron build and native prerequisites for every consumer requiring t
   }
   expect(workflow.jobs['ssh-browser-network-route'].needs).toBeUndefined()
   for (const name of ['e2e', 'changed-e2e']) {
-    expect(workflow.jobs[name].needs, name).toEqual(['build', 'prepare-native-cache'])
+    expect(workflow.jobs[name].needs, name).toEqual(['build'])
   }
 })
 
@@ -132,11 +132,9 @@ it('applies allocation hints only to PRs and retains other callers and full refe
       default: true
     })
   }
-  for (const name of ['build', 'prepare-native-cache']) {
-    expect(workflow.jobs[name].if).toBe(
-      "inputs.test_files == '' || github.event_name != 'pull_request' || inputs.needs_build"
-    )
-  }
+  expect(workflow.jobs.build.if).toBe(
+    "inputs.test_files == '' || github.event_name != 'pull_request' || inputs.needs_build"
+  )
   expect(workflow.jobs.e2e.if).toBe("inputs.test_files == ''")
   const changed = workflow.jobs['changed-e2e']
   expect(changed.if).toContain("github.event_name != 'pull_request' || inputs.run_changed_e2e")

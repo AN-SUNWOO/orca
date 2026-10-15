@@ -19,8 +19,8 @@ import {
   getMixedWorktreeHostContextLabels,
   getNoticeHostContextLabels
 } from './host-labels'
-import { buildProjectGroupingIndex } from './project-grouping'
-import type { ProjectGroupingModel } from './project-grouping'
+import { buildProjectGroupingIndex } from '../../../../../../shared/project-section-grouping'
+import type { ProjectGroupingModel } from '../../../../../../shared/project-section-grouping'
 import { appendProjectGroupSections } from './project-group-sections'
 import { getPinnedSectionWorktrees } from '../../pinned-section-worktrees'
 import { emitPinnedGroup } from './pinned-group-rows'
@@ -42,7 +42,8 @@ import type {
   Row,
   WorktreeGroupBy
 } from './row-types'
-import { getRenderedNaturalAnchorRepoIds, withRepoSectionDisplayLabels } from './section-order'
+import { getRenderedNaturalAnchorRepoIds } from './section-order'
+import { withRepoSectionDisplayLabels } from '../../../../../../shared/project-section-order'
 import { buildOrderedGroups } from './worktree-grouping'
 
 export function buildRows(

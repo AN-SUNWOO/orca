@@ -25,6 +25,8 @@ export type AcpStructuredSessionAdapterDeps = {
   }) => Promise<AcpStructuredLaunch>
   /** The same launch for a read that starts no child (restart recovery): the agent's env, unsealed. */
   readLaunch: (identity: AgentSessionJournalIdentity) => Promise<AcpStructuredLaunch>
+  /** Current host arguments before protocol-specific filtering; copies open through the CLI. */
+  resolveLaunchArgs?: () => Promise<string[]> | string[]
   /** The chat's journal as it stands, read without opening it; null when it has none. */
   readJournal?: (sessionId: string) => JournalLoad | null
   /** Starts the agent's process and owns its protocol: `createAcpAgentConnection` in production. */

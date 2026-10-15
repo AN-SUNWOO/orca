@@ -39,9 +39,9 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
     ctx.deps.transitionSpawnHiddenRendererPtyDeliveryState(ctx.preSpawnHiddenMarkId, true)
   }
   if (!ctx.earlyStablePaneOwner) {
-    const pathUsable = ctx.deps.assertFolderWorkspacePtyPathUsable(args.worktreeId)
-    if (pathUsable) {
-      await pathUsable
+    const admission = ctx.deps.assertWorkspaceAcceptsNewPty(args.worktreeId, args.sessionId)
+    if (admission) {
+      await admission
     }
   }
   ctx.spawnTiming.mark('stable_adoption_setup')
@@ -60,9 +60,9 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
       : null
   ctx.spawnTiming.mark('stable_adoption')
   if (ctx.earlyStablePaneOwner && !ctx.preAdoptedStablePane) {
-    const pathUsable = ctx.deps.assertFolderWorkspacePtyPathUsable(args.worktreeId)
-    if (pathUsable) {
-      await pathUsable
+    const admission = ctx.deps.assertWorkspaceAcceptsNewPty(args.worktreeId, args.sessionId)
+    if (admission) {
+      await admission
     }
   }
   if (!ctx.preAdoptedStablePane) {
@@ -175,7 +175,8 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
   }
   ctx.isClaudeLaunch = !ctx.preAdoptedStablePane && isClaudeLaunchCommand(args.command)
   ctx.terminalRuntimeOptions =
-    process.platform === 'win32'
+    ctx.paneAgentLaunch?.launchRuntime?.pty ??
+    (process.platform === 'win32'
       ? resolveLocalWindowsTerminalRuntimeOptions({
           requestedShellOverride: args.shellOverride,
           settings: ctx.deps.getSettings?.(),
@@ -184,10 +185,9 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
         })
       : {
           shellOverride:
-            args.shellOverride ??
-            (ctx.deps.getSettings?.()?.terminalDefaultShell?.trim() || undefined),
+            args.shellOverride ?? (ctx.deps.getSettings?.()?.terminalDefaultShell || undefined),
           terminalWindowsWslDistro: null
-        }
+        })
   const initialShellOverride = ctx.terminalRuntimeOptions.shellOverride
   // Why: daemon host-env setup needs a stable id BEFORE provider.spawn so buildPtyHostEnv hooks/Pi cleanup can run; daemon still honors opts.sessionId ?? mint().
   // Note: sessionId is STABLE across daemon restarts by design — do NOT simplify to a fresh UUID per spawn; that orphans reconnectable state.

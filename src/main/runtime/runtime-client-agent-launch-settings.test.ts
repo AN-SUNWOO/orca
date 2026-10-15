@@ -32,6 +32,19 @@ function fixture() {
 }
 
 describe('execution-host agent launch settings', () => {
+  it('presents an existing retired None default as Blank Terminal to every client', () => {
+    const { controller, host } = fixture()
+    host.defaultTuiAgent = 'blank'
+    host.newWorkspaceSetupOnly = true
+    expect(controller.get()).toMatchObject({
+      defaultTuiAgent: 'blank',
+      newWorkspaceSetupOnly: false
+    })
+    expect(controller.getAgentLaunch()).toMatchObject({
+      defaultTuiAgent: 'blank',
+      newWorkspaceSetupOnly: false
+    })
+  })
   it('edits the store the structured host reads, leaving desktop choices on the desktop', async () => {
     const desktop = createGlobalSettingsFixture({
       workspaceDir: '/desktop',
@@ -106,7 +119,7 @@ describe('execution-host agent launch settings', () => {
     expect(JSON.stringify(controller.getAgentLaunch())).not.toContain('host-only')
   })
 
-  it('persists and projects None, then clears it for a blank default', async () => {
+  it('normalizes older-client None default requests to Blank Terminal', async () => {
     const { controller, host } = fixture()
     const mutation = AgentLaunchSettingsMutation.parse({
       type: 'default',
@@ -115,9 +128,9 @@ describe('execution-host agent launch settings', () => {
     })
     await expect(controller.mutateAgentLaunch(mutation)).resolves.toMatchObject({
       defaultTuiAgent: 'blank',
-      newWorkspaceSetupOnly: true
+      newWorkspaceSetupOnly: false
     })
-    expect(host.newWorkspaceSetupOnly).toBe(true)
+    expect(host.newWorkspaceSetupOnly).toBe(false)
     await expect(
       controller.mutateAgentLaunch({ type: 'default', agent: 'blank' })
     ).resolves.toMatchObject({
@@ -129,7 +142,8 @@ describe('execution-host agent launch settings', () => {
 
   it('clears None when a legacy client explicitly picks Blank Terminal', async () => {
     const { controller, host } = fixture()
-    await controller.mutateAgentLaunch({ type: 'default', agent: 'blank', setupOnly: true })
+    host.defaultTuiAgent = 'blank'
+    host.newWorkspaceSetupOnly = true
     await controller.update({ defaultTuiAgent: 'blank' })
     expect(host.newWorkspaceSetupOnly).toBe(false)
     expect(controller.getAgentLaunch()).toMatchObject({

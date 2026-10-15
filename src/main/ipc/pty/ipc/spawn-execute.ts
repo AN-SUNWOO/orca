@@ -1,15 +1,10 @@
 import { ensureWslHookRelayForReattach } from '../../../agent-hooks/wsl-hook-relay-reattach'
 import { noteWslDistrosRunning } from '../../../wsl-background-distro-gate'
-import { classifyError } from '../../../telemetry/classify-error'
-import { track } from '../../../telemetry/client'
-import { getCohortAtEmit } from '../../../telemetry/cohort-classifier'
-import { agentKindSchema } from '../../../../shared/telemetry-events'
-import { normalizeNodePtySpawnError } from '../provider/liveness'
 import { resolveStablePaneOwner, spawnForStablePane } from '../pane/stable-owner'
 import { excludeReplacedPaneOwner } from '../pane/pane-owner-replacement'
 import { assertSpawnReplyWasLive } from '../pane/agent-session-owners'
-import { ptySizes } from '../delivery/visibility-state'
 import { clearProviderPtyState } from '../provider/state-cleanup'
+import { failPtySpawnExecute } from '../spawn-execute-failure'
 import type { PtyIpcSpawnState } from './spawn-state'
 
 export async function executePtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<void> {
@@ -48,6 +43,9 @@ export async function executePtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<void> {
     const sequenceBeforeProviderSpawn = expectedPtyId
       ? (ctx.deps.runtime?.getPtyOutputSequence?.(expectedPtyId) ?? 0)
       : 0
+    if (!ctx.preAdoptedStablePane && ctx.paneAgentLaunch) {
+      ctx.paneAgentLaunch.dispatched = true
+    }
     const stablePaneSpawn = ctx.preAdoptedStablePane
       ? ctx.preAdoptedStablePane
       : await spawnForStablePane({
@@ -106,69 +104,11 @@ export async function executePtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<void> {
     ctx.deps.runtime?.preparePtyExecutionContext?.(ctx.result.id, spawnedWslDistro)
     ctx.spawnTiming.mark('provider_spawn')
   } catch (err) {
-    if (
-      (ctx.isMintedSessionId || ctx.preparedProvisionalExecutionContext) &&
-      ctx.effectiveSessionAppId
-    ) {
-      ctx.deps.runtime?.preparePtyExecutionContext?.(ctx.effectiveSessionAppId, null, {
-        resetIncarnation: true
-      })
-    }
-    // Why: a stale hidden mark on this session id would gate a later visible attach that reuses it.
-    if (ctx.preSpawnHiddenMarkId !== null) {
-      ctx.deps.transitionSpawnHiddenRendererPtyDeliveryState(ctx.preSpawnHiddenMarkId, false)
-    }
-    const rawMessage = err instanceof Error ? err.message : String(err)
-    if (rawMessage === 'agent_session_exited_during_start' && ctx.rejectedRegistrationCandidate) {
-      ctx.deps.runtime?.releaseRejectedPtyRegistrationFence?.(
-        ctx.rejectedRegistrationCandidate.id,
-        ctx.rejectedRegistrationCandidate.incarnationId
-      )
-    }
-    if (ctx.pendingRegistrationPtyId) {
-      ctx.deps.runtime?.cancelPendingPtyRegistration?.(
-        ctx.pendingRegistrationPtyId,
-        ctx.rejectedRegistrationCandidate?.incarnationId
-      )
-      ctx.pendingRegistrationPtyId = null
-    }
-    const spawnError = normalizeNodePtySpawnError(err)
-    const exitedBeforeSpawnReply =
-      ctx.rejectedRegistrationCandidate?.exitedBeforeSpawnReply === true
-    if (ctx.effectiveSessionAppId !== undefined) {
-      if (
-        ctx.hadSessionSizeBeforeAttach &&
-        ctx.sessionSizeBeforeAttach &&
-        !exitedBeforeSpawnReply
-      ) {
-        ptySizes.set(ctx.effectiveSessionAppId, ctx.sessionSizeBeforeAttach)
-      } else {
-        ptySizes.delete(ctx.effectiveSessionAppId)
-      }
-    }
-    // Why: provider state buildPtyHostEnv materialized for this minted id leaks if spawn failed.
-    if (ctx.isMintedSessionId && ctx.effectiveSessionId !== undefined) {
-      clearProviderPtyState(ctx.effectiveSessionId)
-    }
-    // Why: telemetry-plan.md§agent_error — attribute the error to the renderer-threaded agent_kind, else sniff the command for `claude`; raw messages are dropped at the validator boundary.
-    const rendererAgentKindParse =
-      args.telemetry?.agent_kind !== undefined
-        ? agentKindSchema.safeParse(args.telemetry.agent_kind)
-        : null
-    const errorAgentKind = rendererAgentKindParse?.success
-      ? rendererAgentKindParse.data
-      : ctx.isClaudeLaunch
-        ? ('claude-code' as const)
-        : null
-    if (errorAgentKind) {
-      const classified = classifyError(spawnError)
-      track('agent_error', {
-        agent_kind: errorAgentKind,
-        error_class: classified.error_class,
-        ...getCohortAtEmit()
-      })
-    }
-    throw spawnError
+    throw failPtySpawnExecute(ctx, err, {
+      sessionId: ctx.effectiveSessionId,
+      ownsNewSession: ctx.isMintedSessionId,
+      telemetry: args.telemetry
+    })
   } finally {
     if (ctx.preAllocatedHandle) {
       ctx.deps.trustedTerminalHandleEnv.delete(ctx.preAllocatedHandle)

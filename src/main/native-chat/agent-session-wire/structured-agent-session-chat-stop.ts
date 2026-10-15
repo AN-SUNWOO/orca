@@ -6,8 +6,6 @@
 // reachable only through `mutateWithChatStop`, which queues that step in the same synchronous call
 // as the mutation. Once saved, a failure is answered from the Stop's receipt and noted on the chat.
 
-import { agentSessionFailureFact } from '../../../shared/agent-session-failure'
-import { agentSessionFailureWords } from '../../../shared/agent-session-failure-words'
 import type {
   AgentSessionCancelResult,
   AgentSessionMutationEnvelope,
@@ -35,6 +33,7 @@ import {
   type StructuredAgentSessionStopWindDown
 } from './structured-agent-session-stop-wind-down'
 import { performCancel } from './structured-agent-session-turns-cancel'
+import { contextStructuredAgentSessionCurrentWork } from './structured-agent-session-current-work'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
 
 type ChatStopOutcome = TurnOutcome<AgentSessionCancelResult>
@@ -83,10 +82,7 @@ export function mutateWithChatStop<TValue>(
         caller: caller.callerKey,
         ...(target.eventTurnId !== null ? { turnId: target.eventTurnId } : {})
       },
-      fence: ctx.fence,
-      withdrawal: agentSessionFailureWords(agentSessionFailureFact('cancelled'), {
-        surface: 'rejection'
-      })
+      fence: ctx.fence
     })
     return accepted.ok
       ? { ok: true, value: { settled: target.queued, turnId: accepted.value.turnId } }
@@ -131,6 +127,7 @@ export function mutateWithChatStop<TValue>(
           windDown = { owed, ctx }
         },
         withdrewQueued: Promise.resolve(settled),
+        noteFence: () => context.deps.store.getRecord(sessionId)?.lease.runtimeFence ?? ctx.fence,
         // This Stop's own event, or the one in force it repeats: its settle binds.
         opensSettle: true
       }
@@ -156,7 +153,10 @@ export function mutateWithChatStop<TValue>(
       // Saved, then failed: noted on the chat, then thrown so the answer is the Stop's receipt.
       // On the turn its event named, else the one it named, else the one live now.
       const stoppedTurnId =
-        accepted.value.turnId ?? (target.named ? target.turnId : ctx.journal.activeTurnId())
+        accepted.value.turnId ??
+        (target.named
+          ? target.turnId
+          : contextStructuredAgentSessionCurrentWork(ctx).activeTurnId())
       await noteStructuredAgentSessionStopUnconfirmed(
         ctx,
         { turnId: stoppedTurnId, operationId: envelope.clientOperationId },

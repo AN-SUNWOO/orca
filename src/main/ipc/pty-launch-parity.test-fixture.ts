@@ -62,11 +62,11 @@ export function restoreMainPlatform(): void {
   savedEnv.clear()
 }
 
-/** Settings both lanes read on main's current OS; the untrimmed default shell shows which reads trim it. */
+/** Settings both lanes read on main's current OS; the default shell is stored trimmed, as settings load leaves it. */
 function parityMainSettings(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     // Windows hides the default-shell setting and defaults it to ''.
-    terminalDefaultShell: process.platform === 'win32' ? '' : '  /bin/zsh  ',
+    terminalDefaultShell: process.platform === 'win32' ? '' : '/bin/zsh',
     terminalDefaultShellArgs: ['-l'],
     terminalWindowsShell: 'powershell.exe',
     terminalWindowsPowerShellImplementation: 'auto',

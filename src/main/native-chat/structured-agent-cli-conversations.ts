@@ -1,6 +1,10 @@
 // How a structured agent's chats meet the conversations its own CLI records: adopting one into a new
 // chat, and owning the Session History rows a chat's conversation shows as.
 
+import {
+  isLegacyAgentSessionAccountHome,
+  type AgentSessionAccountHome
+} from '../../shared/agent-session-account-home'
 import type { AgentSessionProviderHandleLink } from '../../shared/agent-session-provider-handle'
 import type { AiVaultAgent } from '../../shared/ai-vault-types'
 import { TUI_AGENT_CONFIG } from '../../shared/tui-agent-config'
@@ -16,6 +20,24 @@ export type StructuredAgentTranscriptImport = {
   /** Recognised account homes, most-preferred first; the first that holds the transcript wins. */
   accountHomeCandidates: (input: {
     settings: StructuredAgentTranscriptImportSettings
+    selectedAccountHome: AgentSessionAccountHome
+  }) => AgentSessionAccountHome[]
+  /** Where the transcript is (its file, or OpenCode's database); null when the home lacks it. */
+  findTranscript: (input: {
+    providerSessionId: string
+    accountHome: AgentSessionAccountHome
+    /** The execution host's effective agent environment before account binding. */
+    launchEnv: NodeJS.ProcessEnv
+    workspaceCwd: string
+  }) => Promise<string | null>
+  /** The adopted chat's handle names the transcript's path, not the conversation id (Pi). */
+  handleNamesTranscript?: true
+}
+
+/** The import of an agent whose account is one directory, named by the chat's own variable. */
+export function directoryTranscriptImport(directories: {
+  accountHomeCandidates: (input: {
+    settings: StructuredAgentTranscriptImportSettings
     selectedAccountHomePath: string
   }) => string[]
   findTranscript: (input: {
@@ -24,6 +46,28 @@ export type StructuredAgentTranscriptImport = {
     launchEnv: NodeJS.ProcessEnv
     workspaceCwd: string
   }) => Promise<string | null>
+  handleNamesTranscript?: true
+}): StructuredAgentTranscriptImport {
+  return {
+    ...(directories.handleNamesTranscript ? { handleNamesTranscript: true } : {}),
+    accountHomeCandidates: ({ settings, selectedAccountHome }) =>
+      isLegacyAgentSessionAccountHome(selectedAccountHome)
+        ? directories
+            .accountHomeCandidates({ settings, selectedAccountHomePath: selectedAccountHome.path })
+            .map((path) => path.trim())
+            .filter((path) => path.length > 0)
+            .map((path) => ({ variable: selectedAccountHome.variable, path }))
+        : [],
+    findTranscript: async ({ providerSessionId, accountHome, launchEnv, workspaceCwd }) =>
+      isLegacyAgentSessionAccountHome(accountHome)
+        ? directories.findTranscript({
+            providerSessionId,
+            accountHomePath: accountHome.path,
+            launchEnv,
+            workspaceCwd
+          })
+        : null
+  }
 }
 
 /** A terminal resume's target: null when it may pick any conversation (`--continue`, a bare flag). */

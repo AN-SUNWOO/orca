@@ -184,6 +184,7 @@ describe('Explicit desktop read acknowledgements', () => {
     const delivery = createStructuredAttentionMobileDelivery({
       readNotificationSettings: () => ({ ...NOTIFICATION_SETTINGS, suppressWhenFocused: false }),
       readWorkspaceLabels: () => ({}),
+      isWorkspaceHidden: () => false,
       dispatch: (event) => fixture.controller.dispatch(event),
       reconcile: (state) => fixture.controller.reconcileStructuredPromptAttention(state),
       now: () => 42

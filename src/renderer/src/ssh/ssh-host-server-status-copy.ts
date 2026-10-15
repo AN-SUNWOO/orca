@@ -2,6 +2,7 @@
 import type {
   SSH_MANAGED_SERVER_PHASES,
   SshConnectionState,
+  SshManagedServerLinkedProject,
   SshManagedServerUpdateNote,
   SshTarget
 } from '../../../shared/ssh-types'
@@ -35,6 +36,9 @@ export function sshHostServerStatusLine(
   }
   if (status?.kind === 'managed' && status.update) {
     return managedUpdateLine(status.update)
+  }
+  if (status?.kind === 'managed' && status.linked?.length) {
+    return linkedProjectsLine(status.linked)
   }
   // A healthy managed server is the default; the card stays quiet unless something needs attention.
   if (status?.kind === 'managed' || (!status && target.orcadFence)) {
@@ -165,6 +169,29 @@ function retryLine(): SshHostServerStatusLine {
       'auto.components.settings.sshHostServer.setupRetry',
       'Orca couldn’t start its server on this host. Try connecting again.'
     )
+  }
+}
+
+/** Projects the server already had: this desktop's own tabs and automations for them stayed behind. */
+function linkedProjectsLine(
+  linked: readonly SshManagedServerLinkedProject[]
+): SshHostServerStatusLine {
+  const paths = linked.map((project) => project.path).join(', ')
+  const count = linked.reduce((total, project) => total + project.automations, 0)
+  return {
+    tone: 'warning',
+    text:
+      count > 0
+        ? translate(
+            'auto.components.settings.sshHostServer.linkedProjects',
+            'This host’s Orca server already had {{paths}}, so this desktop now uses the server’s copy. This desktop’s tabs and {{count}} automations there were not moved, and worktrees it created there show as external worktrees.',
+            { paths, count }
+          )
+        : translate(
+            'auto.components.settings.sshHostServer.linkedProjectsNoAutomations',
+            'This host’s Orca server already had {{paths}}, so this desktop now uses the server’s copy. This desktop’s tabs there were not moved, and worktrees it created there show as external worktrees.',
+            { paths }
+          )
   }
 }
 

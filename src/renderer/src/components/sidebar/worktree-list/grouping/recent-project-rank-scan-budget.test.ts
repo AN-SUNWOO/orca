@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { sortProjectEntries } from './section-order'
+import { sortProjectEntries } from '../../../../../../shared/project-section-order'
 import { appendProjectGroupSections } from './project-group-sections'
 import type { SectionAppendContext } from './group-sections'
 import { PROJECT_GROUP_META } from './group-keys'
-import type { OrderedGroupEntry } from './project-grouping'
+import type { OrderedGroupEntry } from './worktree-group-entry'
 import { repo, worktree } from '../../worktree-list-groups-test-fixtures'
 
 function entry(

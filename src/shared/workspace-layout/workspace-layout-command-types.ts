@@ -88,9 +88,17 @@ export type LayoutCommand =
       dirtyTabIds?: string[]
     })
   | (On & { type: 'promotePreviewTab'; tabId: string })
-  | (On & { type: 'openBrowserTab'; profileId?: string | null; groupId?: string })
+  | (On & {
+      type: 'openBrowserTab'
+      profileId?: string | null
+      groupId?: string
+      /** The id of a page that already runs; it names the tab too, as a host's page names its row. */
+      pageId?: string
+    })
   | (On & {
       type: 'openAgentSessionTab'
+      /** The chat's own tab id, which status and attention address; minted when absent. */
+      tabId?: string
       sessionId: string
       agent: AgentType
       groupId?: string
@@ -147,6 +155,14 @@ export type LayoutCommandResult = {
   /** Old tab-bar id → new, for tabs a file rename re-ided; views move their selection with it. */
   renamedTabIds?: Record<string, string>
 }
+
+/** A command applied to a stored layout: its result, or why it changed nothing. */
+export type LayoutApplyOutcome =
+  | { ok: true; result: LayoutCommandResult }
+  | { ok: false; code: LayoutRefusalCode }
+
+/** `layout.apply`'s reply. `host_not_owned`: a paired server owns that workspace's layout. */
+export type LayoutApplyReply = LayoutApplyOutcome | { ok: false; code: 'host_not_owned' }
 
 export type LayoutContext = {
   mintId: () => string

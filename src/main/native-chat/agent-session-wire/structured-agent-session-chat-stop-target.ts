@@ -7,6 +7,7 @@ import { isQueuedAgentJournalSubmission } from '../../../shared/agent-session-qu
 import type { StructuredAgentSessionProviderChild } from './structured-agent-session-host-types'
 import { stopReachesUnrecordedWork } from './structured-agent-session-queued-stop'
 import { isMainAgentWorking } from './structured-agent-session-turns-cancel'
+import { contextStructuredAgentSessionCurrentWork } from './structured-agent-session-current-work'
 import {
   structuredAgentSessionStopNamesEndedTurn,
   structuredAgentSessionStoppedTurnId
@@ -54,7 +55,10 @@ export function captureChatStopTarget(
   const queued = ctx.journal.submissions().some(isQueuedAgentJournalSubmission)
   const target = {
     child,
-    turnId: structuredAgentSessionStoppedTurnId(ctx.journal, turnId),
+    turnId: structuredAgentSessionStoppedTurnId(
+      contextStructuredAgentSessionCurrentWork(ctx),
+      turnId
+    ),
     named: turnId !== undefined,
     eventTurnId: input.endsSession ? null : (turnId ?? null),
     queued
@@ -92,7 +96,11 @@ export function chatStopTargetStands(
     // As at acceptance: only a named turn with no row yet may still be opening.
     return (
       target.turnId !== null &&
-      !structuredAgentSessionStopNamesEndedTurn(ctx.journal, target.turnId, isMainAgentWorking(ctx))
+      !structuredAgentSessionStopNamesEndedTurn(
+        ctx.journal,
+        contextStructuredAgentSessionCurrentWork(ctx),
+        target.turnId
+      )
     )
   }
   // A Stop naming no turn stops whatever runs: hand-over runs only on the lane this Stop holds, so

@@ -53,7 +53,7 @@ export class RuntimeClientSettingsController {
     const settings = this.store.getSettings()
     return {
       defaultTuiAgent: settings.defaultTuiAgent ?? null,
-      newWorkspaceSetupOnly: settings.newWorkspaceSetupOnly === true,
+      newWorkspaceSetupOnly: false,
       disabledTuiAgents: settings.disabledTuiAgents ?? [],
       agentCmdOverrides: settings.agentCmdOverrides ?? {},
       agentDefaultArgs: settings.agentDefaultArgs ?? {},

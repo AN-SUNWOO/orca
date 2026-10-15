@@ -58,6 +58,8 @@ export type PtySpawnIpcArgs = {
   placement?: unknown
   // Untyped on purpose: isRestoreSpawnIntent is the one check; anything else is undeclared.
   spawnIntent?: unknown
+  // Untyped on purpose: planPaneAgentLaunch's AgentLaunch.safeParse is the one check.
+  agentLaunch?: unknown
   // Why: renderer-threaded launch telemetry (telemetry-plan.md§Agent launch semantics); loosely typed because the main-side schema validator is the single enforcement point.
   telemetry?: {
     agent_kind?: unknown
@@ -96,7 +98,10 @@ export type PtySpawnIpcDeps = {
   }
   getLocalPtyStartupPromise: (hostId?: ResolvedPtyHost) => Promise<void> | undefined
   adoptStablePane: (args: AdoptStablePaneArgs) => Promise<AdoptStablePaneResult | null>
-  assertFolderWorkspacePtyPathUsable: (worktreeId: string | undefined) => Promise<void> | void
+  assertWorkspaceAcceptsNewPty: (
+    worktreeId: string | undefined,
+    sessionId?: string
+  ) => Promise<void> | void
   resolvePtySpawnStartupCwd: (
     worktreeId: string | undefined,
     cwd: string | undefined,

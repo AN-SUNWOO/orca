@@ -30,6 +30,7 @@ export function createSshIpcMocks(): SshIpcMocks {
       disconnectConnection: vi.fn(),
       reconnect: vi.fn(),
       getConnection: vi.fn(),
+      hasCachedCredential: vi.fn().mockReturnValue(false),
       getState: vi.fn(),
       disconnectAll: vi.fn(),
       setCallbacks: vi.fn(),

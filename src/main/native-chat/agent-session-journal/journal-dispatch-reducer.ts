@@ -54,6 +54,7 @@ export function applyJournalDispatchRow(
   if (row.state === 'pending') {
     submission.handedOverAt = row.ts
     placeHandedOverMessage(state, submission, row)
+    foldStoppedHistoryCarried(state, row)
   } else if (row.state === 'rejected') {
     placeRejectedMessage(state, submission, row)
   }
@@ -75,6 +76,20 @@ export function applyJournalDispatchRow(
     cursor: { epoch: row.epoch, sequence: row.seq },
     acceptedAt: row.ts
   })
+}
+
+/** A send is handed over once, so its one pending row names what it carries; a malformed id is
+ *  dropped. */
+function foldStoppedHistoryCarried(
+  state: JournalReducerState,
+  row: Extract<JournalRow, { kind: 'dispatch' }>
+): void {
+  const carried = Array.isArray(row.carries)
+    ? row.carries.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : []
+  if (carried.length > 0) {
+    state.stoppedHistoryCarried.set(row.clientMessageId, carried)
+  }
 }
 
 /** A stored answered turn. One malformed, or naming a way of joining this build does not know, is

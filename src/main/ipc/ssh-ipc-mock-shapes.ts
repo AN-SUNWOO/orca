@@ -24,6 +24,7 @@ export type SshConnectionManagerMock = {
   disconnectConnection: Mock
   reconnect: Mock
   getConnection: Mock
+  hasCachedCredential: Mock
   getState: Mock
   disconnectAll: Mock
   setCallbacks: Mock

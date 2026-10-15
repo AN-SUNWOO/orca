@@ -158,7 +158,8 @@ describe('codex dispatch admission', () => {
       reason: "Codex didn't accept this message: thread not found.",
       rejection: {
         kind: 'providerRejected',
-        detail: { text: 'thread not found', audience: 'person' }
+        detail: { text: 'thread not found', audience: 'person' },
+        neverReachedAgent: true
       }
     })
 

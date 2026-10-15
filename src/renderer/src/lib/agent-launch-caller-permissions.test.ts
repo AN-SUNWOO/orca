@@ -57,7 +57,8 @@ vi.mock('@/runtime/runtime-rpc-result', () => ({ RuntimeRpcCallError: Error }))
 function launchesThroughHost(profile: AgentLaunchCallerProfile): boolean {
   return newTabPromptLaunchesThroughHost({
     promptDelivery: profile.args.promptDelivery ?? 'auto-submit',
-    pastesPrompt: (profile.args.prompt?.trim() ?? '').length > 0
+    pastesPrompt: (profile.args.prompt?.trim() ?? '').length > 0,
+    isRemote: false
   })
 }
 
@@ -67,7 +68,7 @@ function launchesThroughHost(profile: AgentLaunchCallerProfile): boolean {
  * setting, shipped bypass default included.
  */
 function expectHostRequestArguments(profile: AgentLaunchCallerProfile): void {
-  const request = hostLaunchRequest(callRuntimeRpc)
+  const request = hostLaunchRequest(store)
   expect(queuedStartupCommand(store)).toBeUndefined()
   if (profile.args.agentArgs === undefined) {
     expect(request).not.toHaveProperty('agentArgs')

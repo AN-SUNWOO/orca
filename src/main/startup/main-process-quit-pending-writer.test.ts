@@ -24,7 +24,7 @@ const dependencies: Record<string, Record<string, unknown>> = {
   '../runtime/structured-agent-session-runtime-teardown': {
     setStructuredAgentSessionTeardownTrigger: idle()
   },
-  '../runtime/orca-runtime-files': { awaitRuntimeFileWatcherUnsubscribes: settled() },
+  '../runtime/files/watch/file-watcher-leases': { awaitRuntimeFileWatcherUnsubscribes: settled() },
   '../runtime/runtime-metadata': { clearRuntimeMetadataIfOwned: idle() },
   '../browser/paired-runtime-browser-client-host-runtime': {
     shutdownPairedRuntimeBrowserClientHosts: settled()

@@ -39,8 +39,7 @@ export function registerSshConnectionHandlers(): void {
     if (!target?.lastRequiredPassphrase) {
       return false
     }
-    const conn = connectionManager!.getConnection(args.targetId)
-    return !conn?.hasCachedCredential()
+    return !connectionManager!.hasCachedCredential(target)
   })
 
   ipcMain.handle('ssh:testConnection', async (_event, args: { targetId: string }) => {

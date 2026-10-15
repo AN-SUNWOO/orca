@@ -208,7 +208,12 @@ export function useHostWorktreeCatalog(args: {
     }
     void syncViewSettingsFromDesktop()
     void syncShowPinnedInGroups(client)
-    return startHostWorktreeRefresh({ client, fetchWorktrees, fetchRepoMetadata })
+    return startHostWorktreeRefresh({
+      client,
+      fetchWorktrees,
+      fetchRepoMetadata,
+      syncViewSettings: syncViewSettingsFromDesktop
+    })
   }, [
     client,
     connState,

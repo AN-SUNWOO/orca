@@ -42,6 +42,7 @@ import {
   QUEUED_RIG_CALLER,
   type QueuedMessageTestRig
 } from './structured-agent-session-queued-message-rig.test-fixture'
+import { StructuredAgentSessionCurrentWork } from './structured-agent-session-current-work'
 
 let rig: QueuedMessageTestRig
 
@@ -555,6 +556,12 @@ describe('where the host would refuse the send', () => {
     if (!journal) {
       throw new Error('expected the conversation open')
     }
+    // The clear's generation end wakes the drain, which would send the card; holding the session's
+    // lane keeps it waiting while the test reads the gate (`release` lets the drain run).
+    // The gate exists before the task runs: other work may be queued ahead of it on the lane.
+    let release = (): void => undefined
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const held = rig.host.collaboratorsForTests().serialize(HOST_TEST_SESSION, () => gate)
     const card = 'left-behind'
     await journal.queuedMessages.insert({
       messageId: card,
@@ -566,20 +573,33 @@ describe('where the host would refuse the send', () => {
     if (!record) {
       throw new Error('expected the record')
     }
-    return { card, journal, record, fence: record.lease.runtimeFence }
+    const done = async (): Promise<void> => {
+      release()
+      await held
+    }
+    return { card, journal, record, fence: record.lease.runtimeFence, done }
   }
 
   it('a card queued after clear is sendable with the completed clear record still present', async () => {
-    const { card, journal, record, fence } = await cardAddedAfterClear()
-    const gate = structuredQueueSendGate(rig.store, HOST_TEST_SESSION)
+    const { card, journal, record, fence, done } = await cardAddedAfterClear()
+    const gate = structuredQueueSendGate(
+      { store: rig.store, sessions: rig.host.collaboratorsForTests().sessions },
+      HOST_TEST_SESSION
+    )
     expect(readQueuePublication(journal, gate).nextQueuedMessageId).toBe(card)
     const { conversationCommand: _cleared, ...unblocked } = record
-    const next = readQueuePublication(journal, () => ({ record: unblocked, fence }))
+    const next = readQueuePublication(journal, () => ({
+      record: unblocked,
+      work: new StructuredAgentSessionCurrentWork(journal, fence)
+    }))
     expect(next.nextQueuedMessageId).toBe(card)
+    await done()
+    // Released, the drain the clear's end woke sends it.
+    await vi.waitFor(() => expect(journal.queuedMessages.get(card)?.state).toBe('dispatched'))
   })
 
   it('a rewind whose outcome is unknown names no next card', async () => {
-    const { journal, record, fence } = await cardAddedAfterClear()
+    const { journal, record, fence, done } = await cardAddedAfterClear()
     const { conversationCommand: _cleared, ...unblocked } = record
     const rewind = {
       operationId: hostTestOperationId(),
@@ -590,9 +610,13 @@ describe('where the host would refuse the send', () => {
       retained: []
     }
     const next = (gateRecord: typeof record) =>
-      readQueuePublication(journal, () => ({ record: gateRecord, fence })).nextQueuedMessageId
+      readQueuePublication(journal, () => ({
+        record: gateRecord,
+        work: new StructuredAgentSessionCurrentWork(journal, fence)
+      })).nextQueuedMessageId
     expect(next({ ...unblocked, rewind })).toBeNull()
     expect(next({ ...unblocked, rewind: { ...rewind, phase: 'provider-succeeded' } })).toBeNull()
     expect(next({ ...unblocked, rewind: { ...rewind, phase: 'completed' } })).not.toBeNull()
+    await done()
   })
 })

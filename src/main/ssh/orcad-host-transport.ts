@@ -16,4 +16,8 @@ export type OrcadHostTransport = RemoteInstallTransport & {
   getTarget(): OrcadHostTarget
   /** How a launch leaves the exec's session; absent (SSH) means `nohup`. */
   readonly orcadLaunchDetach?: OrcadLaunchDetach
+  /** Host facts only the client can read, passed to orcad at launch; absent (SSH) adds none. */
+  readonly orcadLaunchEnv?: () => Promise<readonly OrcadLaunchEnvEntry[]>
 }
+
+export type OrcadLaunchEnvEntry = readonly [name: string, value: string]

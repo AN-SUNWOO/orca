@@ -16,6 +16,8 @@ export const PAIRED_DESKTOP_METHODS = [
   // The configured servers the desktop shows, and their workspace lists as it last fetched them.
   'mobileRelay.hosts.list',
   'mobileRelay.hosts.worktrees',
+  // The sidebar's Project grouping inputs, as the desktop window last published them.
+  'mobileRelay.projectSections',
   'speech.dictation.cancel',
   'speech.dictation.chunk',
   'speech.dictation.finish',
@@ -42,6 +44,13 @@ export const PAIRED_DESKTOP_METHODS = [
   'accounts.selectCodexForTarget',
   'accounts.subscribe',
   'accounts.unsubscribe',
+  // Jira credentials and issue mutations remain desktop-only.
+  'jira.attachmentImage',
+  'jira.getIssue',
+  'jira.issueComments',
+  'jira.listIssues',
+  'jira.searchIssues',
+  'jira.status',
   'linear.addIssueComment',
   'linear.agentSearchIssues',
   'linear.connect',
@@ -96,11 +105,5 @@ export const PAIRED_DESKTOP_METHODS = [
   'settings.update',
   'settings.updateTerminalQuickCommands',
   'terminal.getAutoRestoreFit',
-  'terminal.setAutoRestoreFit',
-  // SSH targets are configured on the Mac.
-  'ssh.connect',
-  'ssh.getState',
-  'ssh.listRemovedTargetLabels',
-  'ssh.listTargetSummaries',
-  'ssh.listTargets'
+  'terminal.setAutoRestoreFit'
 ] as const

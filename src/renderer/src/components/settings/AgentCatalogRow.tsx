@@ -150,7 +150,7 @@ export function AgentCatalogRow({
                 onClick={onSetDefault}
                 title={
                   isDefault
-                    ? translate('auto.components.settings.AgentsPane.d7625cf8b2', 'Default agent')
+                    ? translate('settings.agents.clearDefault', 'Clear default agent')
                     : translate('auto.components.settings.AgentsPane.5f986a9b92', 'Set as default')
                 }
                 className="h-7 w-full justify-center gap-1 text-xs"

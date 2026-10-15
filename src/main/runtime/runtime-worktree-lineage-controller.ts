@@ -10,6 +10,7 @@ import { sharesResolvedWorktreeLineageBoundary } from '../../shared/resolved-wor
 import type { OrchestrationDb } from './orchestration/db'
 import type { RuntimeStore } from './runtime-store-contract'
 import type { ResolvedWorktree } from './runtime-worktree-path-identity'
+import { isWslMoveWorktreeBlocked } from '../persistence/moving-wsl-projects/wsl-move-background-backoff'
 import {
   RuntimeLineageError,
   enforceCreateLineageHostBoundary,
@@ -154,7 +155,11 @@ export class RuntimeWorktreeLineageController {
       return
     }
     for (const worktree of await this.deps.listResolvedWorktrees()) {
-      if (store.getWorktreeLineage(worktree.id) || !worktree.instanceId) {
+      if (
+        store.getWorktreeLineage(worktree.id) ||
+        !worktree.instanceId ||
+        isWslMoveWorktreeBlocked(worktree.id, worktree.hostId, worktree.path)
+      ) {
         continue
       }
       const taskId = worktree.comment?.match(/\btask_[A-Za-z0-9]+\b/)?.[0]

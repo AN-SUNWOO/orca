@@ -53,14 +53,16 @@ export function registerRuntimeWindowLifecycle(
       worktreeId,
       setup?: CreateWorktreeResult['setup'],
       startup?: WorktreeStartupLaunch,
-      defaultTabs?: CreateWorktreeResult['defaultTabs']
+      defaultTabs?: CreateWorktreeResult['defaultTabs'],
+      providesInitialSurface?: boolean
     ) => {
       send('ui:activateWorktree', {
         repoId,
         worktreeId,
         ...(setup ? { setup } : {}),
         ...(startup ? { startup } : {}),
-        ...(defaultTabs ? { defaultTabs } : {})
+        ...(defaultTabs ? { defaultTabs } : {}),
+        ...(providesInitialSurface ? { providesInitialSurface } : {})
       })
     },
     createTerminal: (worktreeId, opts) =>
@@ -177,13 +179,14 @@ export function registerRuntimeWindowLifecycle(
       requestSessionTabCloseFromRenderer(mainWindow, tabId, worktreeId),
     moveSessionTab: (worktreeId: string, move: RuntimeMobileSessionTabMove) =>
       send('ui:moveSessionTab', { worktreeId, ...move }),
-    openFile: (worktreeId, filePath, relativePath, runtimeEnvironmentId?, navigation?) =>
+    openFile: (worktreeId, filePath, relativePath, runtimeEnvironmentId?, navigation?, position?) =>
       send('ui:openFileFromMobile', {
         worktreeId,
         filePath,
         relativePath,
         runtimeEnvironmentId,
-        ...(navigation ? { navigation } : {})
+        ...(navigation ? { navigation } : {}),
+        ...(position ? { position } : {})
       }),
     openDiff: (worktreeId, filePath, relativePath, staged, runtimeEnvironmentId?, navigation?) =>
       send('ui:openDiffFromMobile', {

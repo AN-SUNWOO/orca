@@ -13,7 +13,7 @@ import {
 } from '../project-runtime-git-options'
 import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import { isFolderRepo } from '../../shared/repo-kind'
-import type { Store } from '../persistence'
+import type { ProjectRuntimeResolutionStore } from '../local-project-runtime-resolution'
 
 export type RuntimeGitHubWorktreeBaseArgs = {
   repoSelector: string
@@ -25,7 +25,10 @@ export type RuntimeGitHubWorktreeBaseArgs = {
 
 export async function resolveRuntimeGitHubWorktreeBase(
   args: RuntimeGitHubWorktreeBaseArgs,
-  deps: { store: Store | null; resolveRepo: (selector: string) => Promise<Repo> }
+  deps: {
+    store: ProjectRuntimeResolutionStore | null
+    resolveRepo: (selector: string) => Promise<Repo>
+  }
 ): Promise<GitHubPrStartPoint | { error: string }> {
   if (!deps.store) {
     throw new Error('runtime_unavailable')

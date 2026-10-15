@@ -109,7 +109,12 @@ describe('ACP Stop names a turn', () => {
     expect(rig.sent('session/cancel')).toHaveLength(2)
     expect(rig.settled).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ clientMessageId: 'follow-up', state: 'rejected' })
+        // Held by Orca, never prompted: proof it never reached the agent.
+        expect.objectContaining({
+          clientMessageId: 'follow-up',
+          state: 'rejected',
+          rejection: { kind: 'cancelled', neverReachedAgent: true }
+        })
       ])
     )
   })
@@ -221,7 +226,7 @@ describe('ACP connection loss', () => {
     ).toEqual({
       state: 'rejected',
       reason: 'Grok stopped before this message was sent.',
-      rejection: { kind: 'providerExited' }
+      rejection: { kind: 'providerExited', neverReachedAgent: true }
     })
     // The next start's stop of the old child is one Orca asked for; it does not rename the crash.
     await expect(rig.acquire()).rejects.toMatchObject({

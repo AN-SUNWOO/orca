@@ -1,4 +1,6 @@
+import type { RuntimeLinearCommandSurface } from './runtime-linear-command-surface'
 import { installRuntimeLinearCommandSurface } from './runtime-linear-command-surface'
+import { publishWorkspaceViewChanges } from './runtime-workspace-view-change-events'
 import { OrcaRuntimeWithMigrationCatalog } from './orca-runtime-migration-catalog'
 import type { RuntimeCommandSurfaceHost } from './orca-runtime-core'
 import type {
@@ -24,8 +26,14 @@ import {
 import { findWorkspaceReferences } from './runtime-reference-find'
 import { createReferenceAgentIndex, referenceConnectionHosts } from './runtime-reference-agents'
 import type { RuntimeReferenceFindParams } from '../../shared/runtime-reference-contracts'
-import { getRepoExecutionHostId } from '../../shared/execution-host'
+import { getRepoExecutionHostId, parseExecutionHostId } from '../../shared/execution-host'
+import type {
+  LayoutApplyReply,
+  LayoutCommand
+} from '../../shared/workspace-layout/workspace-layout-command-types'
+import type { TerminalCreateOptions } from './runtime-terminal-contracts'
 
+// oxlint-disable-next-line typescript/no-unsafe-declaration-merging -- SAFETY: The existing Linear installer supplies the canonical prototype surface.
 class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   private async selectReferenceCatalogWorkspace(selector: string, cwd?: string) {
     const catalog = listReferenceWorkspaces(
@@ -87,6 +95,7 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     // module registers the generation bump at load; a headless host never loads it.
     registerDetectedWorktreeScanInvalidation()
     registerWorktreeChangeInvalidator((repoId) => this.invalidateWorktreeCatalog(repoId))
+    publishWorkspaceViewChanges(this.store, (event) => this.emitClientEvent(event))
   }
 
   /** Whether a window owns the layout and can show a launch's tab ahead of its process. */
@@ -129,6 +138,16 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     this.agentLaunchRecordWarmup.launchClientReady()
   }
 
+  /** Plans an agent launch a window pane's own spawn asks for, with the planner every host launch
+   *  uses, including its runtime fact. */
+  async planAgentPaneLaunch(
+    worktreeId: string,
+    opts: TerminalCreateOptions
+  ): Promise<TerminalCreateOptions> {
+    const workspace = await this.resolveTerminalWorkspaceLaunchScope(`id:${worktreeId}`)
+    return this.resolveAgentTerminalCreateOptions(workspace, opts)
+  }
+
   /** Whether a running process holds this pane now: such a pane is attached to, never launched into. */
   hasLiveTerminalForPaneKey(paneKey: string): boolean {
     return this.getPtyRecordForPaneKey(paneKey)?.connected === true
@@ -136,14 +155,34 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
 
   private readonly workspaceLayoutStream = new WorkspaceLayoutStream({
     store: () => this.store,
-    homeHostId: (key) => this.tryGetWorkspaceSessionHostIdForWorktree(key)
+    homeHostId: (key) => this.tryGetWorkspaceSessionHostIdForWorktree(key),
+    // An empty title is no title.
+    liveTitle: (ptyId) => this.getTrackedDisplayTitleForPty(ptyId) || null
   })
+
+  protected markPaneLiveTitlesDirty(): void {
+    this.workspaceLayoutStream.markLiveTitlesDirty()
+  }
 
   /** The read-only layout stream (`layout.subscribe`, not advertised yet). */
   subscribeWorkspaceLayouts(
     listener: Parameters<WorkspaceLayoutStream['subscribe']>[0]
   ): ReturnType<WorkspaceLayoutStream['subscribe']> {
     return this.workspaceLayoutStream.subscribe(listener)
+  }
+
+  /** A window's layout command (`layout.apply`), applied to the partition that holds the tab. */
+  async applyLayoutCommand(command: LayoutCommand & { tabId: string }): Promise<LayoutApplyReply> {
+    const hostId = this.getWorkspaceSessionHostIdForTab(command.workspace, command.tabId)
+    // Why: a paired server's workspaces keep today's mirrored layout until that server owns it.
+    if (parseExecutionHostId(hostId)?.kind === 'runtime') {
+      return { ok: false, code: 'host_not_owned' }
+    }
+    const store = this.requireStore()
+    if (!store.applyLayoutCommand) {
+      throw new Error('layout_store_unavailable')
+    }
+    return store.applyLayoutCommand(command, hostId)
   }
 
   /** This desktop's display-only copy of each paired server's layout (`layout.getRemoteSnapshots`). */
@@ -156,11 +195,15 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     return peekOpenedAgentSessionRecordStore()
   }
 }
+// Linear installs these methods on the final runtime prototype below.
+// oxlint-disable-next-line typescript/consistent-type-definitions -- SAFETY: This merge models the installed Linear API.
+interface OrcaRuntimeService extends RuntimeLinearCommandSurface {}
+
 type OrcaRuntimeServiceExport = RuntimeCommandSurfaceHost<OrcaRuntimeService>
-const OrcaRuntimeServiceExport = OrcaRuntimeService as unknown as {
+const OrcaRuntimeServiceExport: {
   new (...args: ConstructorParameters<typeof OrcaRuntimeService>): OrcaRuntimeServiceExport
   readonly prototype: OrcaRuntimeServiceExport
-}
+} = OrcaRuntimeService
 export { OrcaRuntimeServiceExport as OrcaRuntimeService }
 installRuntimeLinearCommandSurface(OrcaRuntimeServiceExport.prototype)
 

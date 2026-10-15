@@ -94,8 +94,22 @@ describe('resumeAiVaultSessionInNewChat', () => {
     settle({ kind: 'structured', sessionId: 'session-1' })
   })
 
-  it('toasts a conflict reported by the eventual settlement', async () => {
-    const error = Object.assign(new Error('held'), { code: 'agent_session_conflict' })
+  it('opens an OpenCode 2 row in an OpenCode chat', async () => {
+    await resumeAiVaultSessionInNewChat(session, 'opencode2', 'worktree-1', 'resume-click')
+
+    expect(mocks.beginStructuredAgentSessionProvisionalLaunch).toHaveBeenCalledWith(
+      expect.objectContaining({ plan: expect.objectContaining({ agent: 'opencode' }) })
+    )
+  })
+
+  it.each([
+    ['agent_session_conflict', 'Another chat is already holding this conversation.'],
+    [
+      'agent_session_identity_required',
+      "This conversation's history could not be loaded, so it cannot be resumed in chat."
+    ]
+  ])('toasts the eventual %s refusal', async (code, message) => {
+    const error = Object.assign(new Error('Host diagnostic'), { code })
     mocks.beginStructuredAgentSessionProvisionalLaunch.mockReturnValue({
       sessionId: 'session-1',
       tab: { id: 'agent-session:session-1' },
@@ -103,11 +117,7 @@ describe('resumeAiVaultSessionInNewChat', () => {
     })
 
     await resumeAiVaultSessionInNewChat(session, 'codex', 'worktree-1', 'resume-click')
-    await vi.waitFor(() =>
-      expect(mocks.toastError).toHaveBeenCalledWith(
-        'Another chat is already holding this conversation.'
-      )
-    )
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledExactlyOnceWith(message))
   })
 
   it('keeps unknown outcomes silent for reconciliation', async () => {

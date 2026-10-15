@@ -277,6 +277,8 @@ export function createWebUiApi(): NonNullable<Partial<PreloadApi>['ui']> {
     onTerminalTabCloseRequest: () => noopUnsubscribe,
     respondTerminalTabClose: () => {},
     onSleepWorktree: () => noopUnsubscribe,
+    onWorktreeSleepRequest: () => noopUnsubscribe,
+    respondWorktreeSleep: () => {},
     // Why: paired web is a full renderer that wakes on activation; mobile wake is desktop-host-scoped and never reaches web.
     onResumeSleepingAgents: () => noopUnsubscribe,
     onTerminalZoom: () => noopUnsubscribe,

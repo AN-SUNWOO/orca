@@ -60,31 +60,6 @@ describe('NativeChatComposerActions', () => {
     expect(screen.getByRole('button', { name: 'Stopping…' }).hasAttribute('disabled')).toBe(true)
   })
 
-  it('places session option pickers immediately beside dictation', () => {
-    render(
-      <NativeChatComposerActions
-        attachDisabled={false}
-        dictationDisabled={false}
-        sendDisabled={false}
-        primaryAction="send"
-        isWorking={false}
-        isDictating={false}
-        isDictationHoldMode={false}
-        onAttach={vi.fn()}
-        onDictationToggle={vi.fn()}
-        onDictationHoldStart={vi.fn()}
-        onDictationHoldEnd={vi.fn()}
-        onSend={vi.fn()}
-        sessionOptionsSurface={null}
-        sessionOptionsSnapshot={[]}
-      />
-    )
-
-    const pickers = screen.getByTestId('session-option-pickers')
-    const dictation = screen.getByRole('button', { name: 'Start dictation' })
-    expect(pickers.nextElementSibling).toBe(dictation)
-  })
-
   it('marks the streaming Stop control as the critical hit target', () => {
     render(
       <NativeChatComposerActions

@@ -26,6 +26,7 @@ import { findRestoredEditorWorkspaceRuntimeOwner } from './restored-editor-works
 import type { RuntimeWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { editorTabFileAccess, isClientLocalReadOnlyTab } from '@/lib/local-file-access'
 import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-worktree'
+import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
 
 const inFlightFileReads = new Map<string, InFlightContentRead<FileContent>>()
 
@@ -185,7 +186,12 @@ export function useEditorPanelFileContentLoader({
               await reownRestoredFile(route, runtimeEnvironmentId ?? null)
               return
             }
-            if (runtimeEnvironmentId && !route && !restoredOpenFile.terminalArtifactGrantId) {
+            if (
+              runtimeEnvironmentId &&
+              !route &&
+              !restoredOpenFile.terminalArtifactGrantId &&
+              !chatScratchFileAddress(filePath)
+            ) {
               throw new Error('External local files are not available for remote workspaces.')
             }
             if (!externalSshOwnerId) {

@@ -6,7 +6,7 @@ import { normalizeReviewAreaParam } from './mobile-diff-review-positioning'
 import { useMobileDiffReviewController } from './use-mobile-diff-review-controller'
 import { useForceReconnect } from '../transport/client-context'
 import { useWorkspaceClient } from '../transport/use-workspace-client'
-import { useHostProtocolGates } from '../components/HostProtocolGate'
+import { useHostProtocolGates } from '../components/host-protocol-gates-context'
 import { useWorkspaceRouteHandoff } from '../navigation/workspace-route-handoff'
 
 /**

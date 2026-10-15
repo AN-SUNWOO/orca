@@ -41,6 +41,8 @@ type TransferredDormantKind = (typeof ORCAD_MIGRATION_TRANSFERRED_DORMANT_KINDS)
 export type OrcadMigrationSourceDormantInspection = {
   payload: OrcadMigrationDormantStatePayload
   blockedCounts: Record<TransferredDormantKind, number>
+  /** What blocks the saved tabs and panes, each with the way to clear it. */
+  blockedSessionItems: string[]
 }
 
 export function collectOrcadMigrationSourceDormantState(
@@ -160,7 +162,7 @@ export function collectOrcadMigrationSourceDormantState(
     catalog,
     storage
   )
-  blockedCounts['workspace-session'] = workspaceSession.blockedCount
+  const blockedSessionItems = [...workspaceSession.blockedItems]
   const automationState = collectOrcadMigrationSourceAutomationState(state, source, catalog)
   blockedCounts.automation = automationState.blockedAutomationCount
   blockedCounts['automation-run'] = automationState.blockedRunCount
@@ -171,10 +173,11 @@ export function collectOrcadMigrationSourceDormantState(
     destinationEnvironmentId,
     workspaceSession.payload
   )
-  blockedCounts['mobile-tab-selection'] = clientState.blockedCounts['mobile-tab-selection']
-  blockedCounts['ui-routing'] = clientState.blockedCounts['ui-routing']
   blockedCounts['saved-port-forward'] = clientState.blockedCounts['saved-port-forward']
-  blockedCounts['workspace-session'] += clientState.blockedCount
+  blockedSessionItems.push(
+    ...Array.from({ length: clientState.blockedCount }, () => 'a browser page close saved twice')
+  )
+  blockedCounts['workspace-session'] = blockedSessionItems.length
   return {
     payload: {
       version: 1,
@@ -202,7 +205,8 @@ export function collectOrcadMigrationSourceDormantState(
         : {}),
       ...(clientState.payload ? { clientState: clientState.payload } : {})
     },
-    blockedCounts
+    blockedCounts,
+    blockedSessionItems
   }
 }
 

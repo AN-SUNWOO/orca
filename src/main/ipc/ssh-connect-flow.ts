@@ -131,7 +131,8 @@ async function doConnect(
       targetId,
       server.environmentId,
       server.update,
-      server.serving
+      server.serving,
+      server.linked
     )
   }
   // This version has no relay to fall back to: a host its managed server doesn't serve fails here.

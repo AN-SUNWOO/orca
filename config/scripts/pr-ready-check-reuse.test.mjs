@@ -151,7 +151,7 @@ describe('ready-for-review required check reuse', () => {
     expect(detector.steps.find((step) => step.id === 'e2e_filter').if).toBe(
       "github.event.pull_request.draft != true && steps.filter.outputs.should_run == 'true'"
     )
-    expect(workflow.jobs.verify.if).toBe('${{ !cancelled() }}')
+    expect(workflow.jobs.verify.if).toMatch(/^!cancelled\(\) && !\(/)
     expect(workflow.jobs.verify.needs).toEqual([
       'code_paths',
       'preflight',

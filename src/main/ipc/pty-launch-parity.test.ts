@@ -28,8 +28,18 @@ import {
 import {
   expectedHostProvider,
   HOST_LAUNCH_CASES,
+  HOST_LEAF_ID,
+  HOST_TAB_ID,
   type HostLaunchCase
 } from './pty-launch-parity-host.test-cases'
+import { isHiddenRendererPty } from './pty-hidden-delivery-gate'
+import { ptySizes } from './pty/delivery/visibility-state'
+import { agentSessionOwners } from './pty/pane/agent-session-owners'
+import {
+  makePaneSpawnReservationKey,
+  paneSpawnReservationsByOwnerKey
+} from './pty/pane/spawn-reservation'
+import { makePaneKey } from '../../shared/stable-pane-id'
 import { CALLER_LAUNCH_CASES, OPENCODE_MODEL } from './pty-launch-parity-caller.test-cases'
 import { RpcDispatcher } from '../runtime/rpc/dispatcher'
 import { DESKTOP_RPC_CALLER } from '../runtime/rpc/rpc-caller-identity'
@@ -297,6 +307,111 @@ describe('launch facts outside the tables', () => {
     })
     await expect(launch).rejects.toThrow('spawn boom')
     expect(trackMock.mock.calls.filter(([event]) => event === 'agent_error')).toEqual(c.calls)
+  })
+
+  // C5a (one execute) keeps this on both lanes; C5a-2 flips only the host's agent_error.
+  const FAILED_START_AGENT_ERROR: Record<'window' | 'host', unknown[]> = {
+    window: [['agent_error', { agent_kind: 'claude-code', error_class: 'binary_not_found' }]],
+    host: [['agent_error', { agent_kind: 'claude-code', error_class: 'binary_not_found' }]]
+  }
+  it.each(['window', 'host'] as const)(
+    '%s lane: a start the provider fails undoes everything it claimed',
+    async (lane) => {
+      setMainPlatform('darwin')
+      classifyErrorMock.mockReturnValue({ error_class: 'binary_not_found' })
+      const lanes = startParityLanes(suite, { workspace: POSIX_REPO })
+      let hiddenWhileSpawning = false
+      lanes.provider.mockImplementationOnce(async (options: { sessionId?: string }) => {
+        hiddenWhileSpawning = isHiddenRendererPty(String(options.sessionId))
+        throw new Error('spawn boom')
+      })
+      const gateReleased = vi.fn()
+      const acquireGate = lanes.runtime.acquireWorktreeTerminalSpawn.bind(lanes.runtime)
+      vi.spyOn(lanes.runtime, 'acquireWorktreeTerminalSpawn').mockImplementation(async (...a) => {
+        const release = await acquireGate(...a)
+        return () => {
+          gateReleased()
+          release()
+        }
+      })
+      const cancelRegistration = vi.spyOn(lanes.runtime, 'cancelPendingPtyRegistration')
+      const worktreeId = launchWorkspaceId(POSIX_REPO)
+      const launch =
+        lane === 'host'
+          ? runHostCall(lanes, HOST_LAUNCH_CASES[0]!)
+          : lanes.spawnWindow({
+              cols: 80,
+              rows: 24,
+              cwd: POSIX_PATH,
+              worktreeId,
+              tabId: HOST_TAB_ID,
+              leafId: HOST_LEAF_ID,
+              command: 'claude',
+              initiallyHidden: true,
+              telemetry: { agent_kind: 'claude-code', launch_source: 'task_page' }
+            })
+
+      await expect(launch).rejects.toThrow('spawn boom')
+      const sessionId = String(recordOf(lanes.provider.mock.calls.at(-1)?.[0]).sessionId)
+      expect(trackMock.mock.calls).toEqual(FAILED_START_AGENT_ERROR[lane])
+      expect(hiddenWhileSpawning).toBe(true)
+      expect(isHiddenRendererPty(sessionId)).toBe(false)
+      expect(cancelRegistration.mock.calls).toEqual([[sessionId, undefined]])
+      expect(gateReleased).toHaveBeenCalledOnce()
+      expect(ptySizes.has(sessionId)).toBe(false)
+      const paneKey = makePaneKey(HOST_TAB_ID, HOST_LEAF_ID)
+      expect(
+        paneSpawnReservationsByOwnerKey.has(makePaneSpawnReservationKey(worktreeId, null, paneKey)!)
+      ).toBe(false)
+    }
+  )
+
+  // C5a-2: requests that join one claimed start share its failure; only the request that started it counts it.
+  it('host lane: concurrent resumes of one Claude session count one failed start once', async () => {
+    setMainPlatform('darwin')
+    classifyErrorMock.mockReturnValue({ error_class: 'binary_not_found' })
+    const lanes = startParityLanes(suite, { workspace: POSIX_REPO })
+    lanes.provider.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      throw new Error('spawn boom')
+    })
+    const resume = {
+      kind: 'explicit' as const,
+      worktree: `id:${launchWorkspaceId(POSIX_REPO)}`,
+      agent: 'claude' as const,
+      providerSession: { key: 'session_id' as const, id: '11111111-1111-4111-8111-111111111111' }
+    }
+
+    const results = await Promise.allSettled([
+      lanes.runtime.ensureAgentSession(resume),
+      lanes.runtime.ensureAgentSession(resume)
+    ])
+
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected'])
+    expect(lanes.provider).toHaveBeenCalledOnce()
+    expect(trackMock.mock.calls.filter(([event]) => event === 'agent_error')).toEqual([
+      ['agent_error', { agent_kind: 'claude-code', error_class: 'binary_not_found' }]
+    ])
+  })
+
+  it('host lane: a Claude resume its claim refuses counts one failed start', async () => {
+    setMainPlatform('darwin')
+    classifyErrorMock.mockReturnValue({ error_class: 'unknown' })
+    const lanes = startParityLanes(suite, { workspace: POSIX_REPO })
+    vi.spyOn(agentSessionOwners, 'ensure').mockRejectedValueOnce(
+      new Error('agent_session_conflict')
+    )
+
+    await expect(
+      lanes.runtime.ensureAgentSession({
+        kind: 'explicit',
+        worktree: `id:${launchWorkspaceId(POSIX_REPO)}`,
+        agent: 'claude',
+        providerSession: { key: 'session_id', id: '22222222-2222-4222-8222-222222222222' }
+      })
+    ).rejects.toThrow('agent_session_conflict')
+    expect(lanes.provider).not.toHaveBeenCalled()
+    expect(trackMock.mock.calls.filter(([event]) => event === 'agent_error')).toHaveLength(1)
   })
 
   // C5e (presentation merge): a worker asks the window to reveal its titled tab without activating it.

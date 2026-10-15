@@ -1,8 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 
 import type { ExecutionHostId } from '../../../src/shared/execution-host'
-import { reachableServerClients } from '../transport/execution-host-scoped-rpc-client'
-import { useRelayHosts } from '../worktree/relay-hosts-feed'
+import { useReachableServerClients } from '../worktree/use-reachable-server-clients'
 import { withServerHosts } from '../worktree/server-workspaces'
 import { NewWorktreeModal } from './NewWorktreeModal'
 import type { NewWorktreeModalProps } from './new-worktree-modal-types'
@@ -44,11 +43,7 @@ export const NewWorktreeModalController = forwardRef<NewWorktreeModalControllerH
     const [manualVisible, setManualVisible] = useState(false)
     const visible = routeVisible || manualVisible
     // Why the feed, not the list's server rows: the list stops refreshing behind the sheet.
-    const servers = useRelayHosts(visible ? client : null)
-    const serverClients = useMemo(
-      () => reachableServerClients(client, hostCapabilities, servers ?? []),
-      [client, hostCapabilities, servers]
-    )
+    const { servers, serverClients } = useReachableServerClients(client, hostCapabilities, visible)
     const serverLabelById = useMemo(
       () => withServerHosts(hostLabelById, servers ?? [], (host) => host.label),
       [hostLabelById, servers]

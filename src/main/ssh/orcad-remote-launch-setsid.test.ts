@@ -57,6 +57,16 @@ describe('the WSL launch (setsid)', () => {
     expect(command.trimEnd().endsWith(`cat '/d/orcad-1/${ORCAD_PID_FILENAME}'`)).toBe(true)
   })
 
+  it('passes host facts the guest cannot read, quoted, and refuses a malformed name', () => {
+    const command = orcadLaunchCommand(host, spec('/d/orcad-1'), 'setsid', [
+      ['ORCA_WSL_DISTRO_GUID', "abc'd"]
+    ])
+    expect(command).toContain(`${ORCAD_WSL_HOST_ENV}=1 ORCA_WSL_DISTRO_GUID='abc'\\''d' sh -c`)
+    expect(() =>
+      orcadLaunchCommand(host, spec('/d/orcad-1'), 'setsid', [['BAD NAME', 'x']])
+    ).toThrow('orcad_launch_env_name_invalid')
+  })
+
   it('keeps the SSH launch byte-for-byte when no detach is named', () => {
     const ssh = orcadLaunchCommand(host, spec('/d/orcad-1'))
     expect(ssh).toBe(orcadLaunchCommand(host, spec('/d/orcad-1'), 'nohup'))

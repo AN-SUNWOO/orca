@@ -25,6 +25,7 @@ import {
   subagentJournalBody,
   subagentJournalItemIdentity
 } from '../agent-session-journal/journal-subagent-item'
+import type { StructuredAgentSessionCurrentWork } from './structured-agent-session-current-work'
 
 const UNNAMED = 'subagent'
 const THREAD_GROUP = 'thread'
@@ -38,6 +39,11 @@ type Row = { block: NativeChatSubagentBlock; turnScope: AgentJournalTurnScope }
 export type StructuredAgentSessionSubagentRowsDeps = {
   journal: (sessionId: string) => AgentSessionJournal | undefined
   fence: (sessionId: string) => number
+  /** The host's read of what runs, whose turn a first row joins. */
+  currentWork: (
+    sessionId: string,
+    journal: AgentSessionJournal
+  ) => Pick<StructuredAgentSessionCurrentWork, 'turnScope'>
   readChildWork: (sessionId: string) => AgentChildWorkRowView[] | undefined
   onWriteFailed: (sessionId: string, error: unknown) => void
 }
@@ -73,7 +79,9 @@ export class StructuredAgentSessionSubagentRows {
       const saved = pending?.block ?? journaledSubagent(journal, id)
       const turnScope =
         pending?.turnScope ??
-        (saved ? AGENT_JOURNAL_THREAD_SCOPE : (live ??= journal.liveTurnScope()))
+        (saved
+          ? AGENT_JOURNAL_THREAD_SCOPE
+          : (live ??= this.deps.currentWork(sessionId, journal).turnScope()))
       const parentId =
         child.parentChildWorkId === undefined ? undefined : providerIds.get(child.parentChildWorkId)
       const block = subagentRowBlock(child, id, parentId, saved, turnScope, running.has(child.id))

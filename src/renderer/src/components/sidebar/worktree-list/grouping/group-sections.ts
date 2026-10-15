@@ -14,7 +14,8 @@ import {
   getLaneHostWorktreeIds,
   getMixedHostContextLabels
 } from './host-labels'
-import type { OrderedGroupEntry, ProjectGroupingIndex } from './project-grouping'
+import type { OrderedGroupEntry } from './worktree-group-entry'
+import type { ProjectGroupingIndex } from '../../../../../../shared/project-section-grouping'
 import {
   appendWorktreeRows,
   buildFolderWorkspaceRow,

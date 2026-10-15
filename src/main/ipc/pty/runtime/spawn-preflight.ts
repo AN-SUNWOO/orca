@@ -45,9 +45,9 @@ export async function prepareRuntimePtySpawn(
 ): Promise<PtySpawnResult | null> {
   const args = ctx.args
   if (!ctx.preAdoptedStablePane) {
-    const pathUsable = ctx.deps.assertFolderWorkspacePtyPathUsable(args.worktreeId)
-    if (pathUsable) {
-      await pathUsable
+    const admission = ctx.deps.assertWorkspaceAcceptsNewPty(args.worktreeId, args.sessionId)
+    if (admission) {
+      await admission
     }
   }
   ctx.cwd = ctx.deps.resolvePtySpawnStartupCwd(args.worktreeId, args.cwd)

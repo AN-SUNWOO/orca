@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { Separator } from '../ui/separator'
-import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible'
 import { cn } from '@/lib/utils'
@@ -31,6 +30,7 @@ import { TerminalRenderingSection } from './TerminalRenderingSection'
 import { TerminalSetupScriptSection } from './TerminalSetupScriptSection'
 import { TerminalWindowsShellSection } from './TerminalWindowsShellSection'
 import { TerminalWindowsAdministratorSection } from './TerminalWindowsAdministratorSection'
+import { TerminalCustomShellInput } from './TerminalCustomShellInput'
 import { SettingsSegmentedControl, SettingsSubsectionHeader } from './SettingsFormControls'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
@@ -170,17 +170,17 @@ export function TerminalPane({
           />
           {shellMode === 'custom' ? (
             <div className="space-y-1.5">
-              <Input
+              <TerminalCustomShellInput
                 value={settings.terminalDefaultShell ?? ''}
                 placeholder={translate(
                   'auto.components.settings.TerminalPane.c2bf02ce2f',
                   'fish, nu, or /bin/zsh'
                 )}
-                onChange={(event) => {
+                onEdit={(next) => {
                   setShellValidationError(null)
-                  updateSettings({ terminalDefaultShell: event.target.value.trimStart() })
+                  updateSettings({ terminalDefaultShell: next })
                 }}
-                onBlur={() => void validateShell()}
+                onCommit={() => void validateShell()}
                 className="w-full"
                 aria-label={translate(
                   'auto.components.settings.TerminalPane.5e06e87730',

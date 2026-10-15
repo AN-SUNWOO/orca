@@ -11,7 +11,6 @@ import {
   resolveTuiAgentLaunchArgs,
   resolveTuiAgentLaunchEnv
 } from '../../../../shared/tui-agent-launch-defaults'
-import { isNewWorkspaceSetupOnlyDefault } from '../../../../shared/new-workspace-setup-only'
 import { isTuiAgentEnabled } from '../../../../shared/tui-agent-selection'
 import { getAgentCatalog } from '@/lib/agent-catalog'
 import { useDetectedAgents, type AgentDetectionTarget } from '@/hooks/useDetectedAgents'
@@ -79,7 +78,11 @@ export function AgentLaunchSettingsCatalog({
     cmdOverride: isDetected ? settings.agentCmdOverrides[agent.id] : undefined,
     argsOverride: resolveTuiAgentLaunchArgs(agent.id, settings.agentDefaultArgs),
     envOverride: local ? resolveTuiAgentLaunchEnv(agent.id, local.settings.agentDefaultEnv) : {},
-    onSetDefault: () => save({ type: 'default', agent: agent.id }),
+    onSetDefault: () =>
+      save({
+        type: 'default',
+        agent: settings.defaultTuiAgent === agent.id ? 'blank' : agent.id
+      }),
     onSetEnabled: (enabled) => save({ type: 'availability', agent: agent.id, enabled }),
     onSaveOverride: (value) => mutate({ type: 'command', agent: agent.id, value }),
     onSaveArgs: (value) => mutate({ type: 'arguments', agent: agent.id, value }),
@@ -110,10 +113,7 @@ export function AgentLaunchSettingsCatalog({
   return (
     <>
       <AgentDefaultSetting
-        defaultAgent={
-          isNewWorkspaceSetupOnlyDefault(settings) ? 'setup-only' : settings.defaultTuiAgent
-        }
-        allowSetupOnly={settings.newWorkspaceSetupOnly !== undefined}
+        defaultAgent={settings.defaultTuiAgent}
         detectedIds={detectedIds}
         enabledDetectedAgents={detectedAgents.filter((agent) =>
           isTuiAgentEnabled(agent.id, settings.disabledTuiAgents)
@@ -123,13 +123,7 @@ export function AgentLaunchSettingsCatalog({
           'settings.agents.hostDefaults',
           'Defaults for new agents on the selected host.'
         )}
-        onSetDefault={(agent) =>
-          save({
-            type: 'default',
-            agent: agent === 'setup-only' ? 'blank' : agent,
-            ...(agent === 'setup-only' ? { setupOnly: true } : {})
-          })
-        }
+        onSetDefault={(agent) => save({ type: 'default', agent })}
       />
       {renderPermissions(settings.permissionMode, (mode) => save({ type: 'permissions', mode }))}
       <AgentDetectionCatalog

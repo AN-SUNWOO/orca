@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  AI_VAULT_AGENTS,
   AI_VAULT_SCOPE_PATHS_MAX_COUNT,
   type AiVaultListArgs,
   type AiVaultListResult,
@@ -33,7 +34,14 @@ export type RuntimeAiVaultScanOptions = {
 // parent would silently drop it and resume under the wrong account's home.
 const aiVaultPrepareSessionResumeResultSchema = z.object({
   useRealCodexHome: z.boolean(),
-  substituteCodexHome: z.string().optional()
+  substituteCodexHome: z.string().optional(),
+  forkedSession: z
+    .object({
+      sessionId: z.string(),
+      agent: z.enum(AI_VAULT_AGENTS),
+      filePath: z.string().optional()
+    })
+    .optional()
 })
 
 export function getSavedRuntimeAiVaultHostInfos(
@@ -149,6 +157,13 @@ export async function prepareRuntimeAiVaultSessionResume(
     args
   )
   if (response.ok !== true) {
+    if (
+      response.error.code === 'method_not_found' &&
+      response.error.message === 'Unknown method: aiVault.prepareSessionResume'
+    ) {
+      // Why: Electron drops custom error fields; this exact message preserves the host's verdict.
+      throw new Error('aiVault.prepareSessionResume: method_not_found')
+    }
     throw new Error(response.error.message)
   }
   const parsed = aiVaultPrepareSessionResumeResultSchema.safeParse(response.result)

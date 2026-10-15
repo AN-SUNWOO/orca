@@ -4,8 +4,7 @@ import type {
   CombinedDiffAlternate,
   ConflictReviewEntry,
   ConflictReviewState,
-  OpenCheckRunDetailsState,
-  OpenChatVisualTabState
+  OpenCheckRunDetailsState
 } from '../../../../../../shared/editor-tab-view-types'
 import type {
   GitBranchChangeEntry,
@@ -164,7 +163,6 @@ export type EditorFilesSlice = {
     state: CheckRunDetailsTabPatch
   ) => void
   reloadOpenCheckRunDetailsTab: (fileId: string) => Promise<void>
-  openChatVisualTab: (worktreeId: string, visual: OpenChatVisualTabState) => void
   openBranchAllDiffs: (
     worktreeId: string,
     worktreePath: string,

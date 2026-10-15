@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { computeVisibleWorktreeIds } from './visible-worktrees'
-import { getPairedDeviceIdsByEnvironment } from './workspace-creator-visibility'
+import { computeVisibleWorktreeIds } from './compute-visible-worktrees'
+import { getPairedDeviceIdsByEnvironment } from '../../../../shared/workspace-creator-visibility'
 import type { Repo } from '../../../../shared/repo-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'

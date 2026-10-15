@@ -1,6 +1,6 @@
-import type { AgentAttentionUnreadReason } from '@/attention/agent-attention-contract'
 import type { TerminalState } from './terminal-state'
 import type { Tab } from '../../../../shared/tab-types'
+import type { TabSplitTarget } from '../slices/tabs/tabs-slice-contract'
 import type { TerminalLayoutSnapshot, TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { WorkspaceSessionState } from '../../../../shared/workspace-session-state-types'
@@ -70,6 +70,8 @@ export type TerminalActions = {
       /** Published atomically with pendingStartup for automatic resume ownership. */
       automaticResumeClaim?: AutomaticAgentResumeClaim
       activate?: boolean
+      /** Creates the tab in a new split group instead of targetGroupId. */
+      split?: TabSplitTarget
       recordInteraction?: boolean
       id?: string
       launchAgent?: TuiAgent
@@ -114,11 +116,6 @@ export type TerminalActions = {
   clearTabLaunchAgent: (tabId: string) => void
   setRuntimePaneTitle: (tabId: string, paneId: number, title: string) => void
   clearRuntimePaneTitle: (tabId: string, paneId: number) => void
-  markTerminalTabUnread: (tabId: string, reason: AgentAttentionUnreadReason) => void
-  markTerminalPaneUnread: (paneKey: string, reason: AgentAttentionUnreadReason) => void
-  markAgentCompletionPaneUnread: (paneKey: string, reason: AgentAttentionUnreadReason) => void
-  clearTerminalTabUnread: (tabId: string) => void
-  clearTerminalPaneUnread: (paneKey: string) => void
   setTabCustomTitle: (
     tabId: string,
     title: string | null,
@@ -142,7 +139,6 @@ export type TerminalActions = {
   markUnverifiedPtyLoss: (tabId: string) => void
   /** Records the relay's own answer that a PTY id is gone; the one `exited` a respawn may act on. */
   markPtySourceDisowned: (ptyId: string) => void
-  clearDirectSshTargetPtyBindings: (targetId: string) => number
   /** Awaited verified shutdown; unlike closeTab, physical teardown gates the state commit. */
   shutdownWorktreeTerminals: (
     worktreeId: string,

@@ -54,9 +54,13 @@ describe('registerTabLifecycleIpcBridge new terminal tab', () => {
       openFiles: [],
       browserTabsByWorktree: { [WORKTREE_ID]: [{ id: 'browser-1' }] },
       tabBarOrderByWorktree: { [WORKTREE_ID]: ['browser-1', 'term-a', 'browser-1'] },
-      createTab: () => {
-        terminals.push({ id: 'term-new' })
-        return { id: 'term-new' }
+      createTab: (
+        _worktreeId: string,
+        _groupId: undefined,
+        _shell: undefined,
+        options: { id: string }
+      ) => {
+        terminals.push({ id: options.id })
       },
       setActiveTabType: vi.fn(),
       setTabBarOrder
@@ -64,6 +68,10 @@ describe('registerTabLifecycleIpcBridge new terminal tab', () => {
     registerTabLifecycleIpcBridge([])
     mocks.listeners.onNewTerminalTab()
     await vi.waitFor(() => expect(setTabBarOrder).toHaveBeenCalled())
-    expect(setTabBarOrder).toHaveBeenCalledWith(WORKTREE_ID, ['browser-1', 'term-a', 'term-new'])
+    expect(setTabBarOrder).toHaveBeenCalledWith(WORKTREE_ID, [
+      'browser-1',
+      'term-a',
+      terminals[1].id
+    ])
   })
 })

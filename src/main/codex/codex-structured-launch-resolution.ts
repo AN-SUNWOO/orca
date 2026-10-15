@@ -9,13 +9,15 @@
 import { requireLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import { agentSessionProviderHandleChainHead } from '../../shared/agent-session-provider-handle'
 import { resolveCodexCommand } from '../codex-cli/command'
+import { resolveAgainAfterRefreshOnMissingProgram } from '../native-chat/structured-agent-command-resolution'
 import type { StructuredAgentLaunchPartResolver } from '../runtime/structured-agent-launch-composition'
 import type { CodexStructuredLaunch } from './codex-structured-session-adapter'
 import { codexStructuredPermissionPolicy } from './codex-structured-permission-policy'
 import { resolvePinnedCodexRolloutProof } from './codex-pinned-rollout-proof'
 import { codexStructuredLaunchArgs } from './codex-structured-launch-args'
 import {
-  NATIVE_CHAT_VISUALS_DIR_ENV,
+  LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV,
+  NATIVE_CHAT_SCRATCH_DIR_ENV,
   withNativeChatVisualsEnv
 } from '../native-chat/native-chat-visuals-delivery'
 
@@ -32,6 +34,10 @@ export type CodexStructuredInvocationDeps = Pick<
 > & {
   /** Fresh shell/configured environment for this spawn; never written to the session record. */
   resolveEnvironment?: () => Promise<NodeJS.ProcessEnv>
+  /** Rereads that environment when Codex is not found in it; absent never retries. */
+  refreshEnvironmentAfterMiss?: (askedAt: number) => Promise<void>
+  /** Where the program starts, for a PATH entry relative to it; Orca's own when absent. */
+  resolveWorkingDirectory?: () => Promise<string> | string
 }
 
 export type CodexStructuredInvocation = {
@@ -46,7 +52,17 @@ export type CodexStructuredInvocation = {
  * session it stands in for. Env VALUES stay out of the catalog fingerprint:
  * drift there heals on the next refresh.
  */
-export async function resolveCodexStructuredInvocation(
+export function resolveCodexStructuredInvocation(
+  deps: CodexStructuredInvocationDeps
+): Promise<CodexStructuredInvocation> {
+  return resolveAgainAfterRefreshOnMissingProgram(
+    () => readCodexStructuredInvocation(deps),
+    deps.refreshEnvironmentAfterMiss,
+    { env: ({ environment }) => environment, cwd: deps.resolveWorkingDirectory }
+  )
+}
+
+async function readCodexStructuredInvocation(
   deps: CodexStructuredInvocationDeps
 ): Promise<CodexStructuredInvocation> {
   const environment = await deps.resolveEnvironment?.()
@@ -68,6 +84,8 @@ export function codexStructuredLaunchPart(
     const accountHome = requireLegacyAgentSessionAccountHome(record.accountHome)
     const { command } = await resolveCodexStructuredInvocation({
       ...(deps.resolveCommand ? { resolveCommand: deps.resolveCommand } : {}),
+      refreshEnvironmentAfterMiss: basis.refreshAfterMissingProgram,
+      resolveWorkingDirectory: basis.launchDirectory,
       resolveEnvironment: basis.environment
     })
     const environment = await basis.environment()
@@ -109,7 +127,10 @@ export function codexStructuredLaunchPart(
         visuals
       ),
       // Without visuals, a folder Orca itself inherited (started from a chat) names another chat's.
-      inheritedEnvToDelete: visuals ? [] : [NATIVE_CHAT_VISUALS_DIR_ENV]
+      inheritedEnvToDelete: [
+        ...(visuals ? [] : [NATIVE_CHAT_SCRATCH_DIR_ENV]),
+        LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV
+      ]
     }
   }
 }

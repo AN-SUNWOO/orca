@@ -211,7 +211,7 @@ import Foundation
     precondition(directives.contains("style-src 'self' 'unsafe-inline'"))
     // A file preview is a `data:` URI; `https:` is the favicon, project icon and avatar the
     // page already renders, and the sealed preview frame. See MobileWebShellCsp.
-    precondition(directives.contains("img-src 'self' data: https:"))
+    precondition(directives.contains("img-src 'self' data: blob: https:"))
     precondition(directives.contains("connect-src 'self'"))
     precondition(directives.contains("worker-src 'none'"))
     precondition(directives.contains("frame-src 'none'"))
@@ -224,11 +224,11 @@ import Foundation
     precondition(!header.contains("unsafe-eval"))
     // Narrowed rather than absent: `data:` is a fetch source for images and for nothing else, so a
     // directive that grew one would fail here instead of passing a blanket absence check.
-    precondition(directives.filter { $0.contains("data:") } == ["img-src 'self' data: https:"])
-    precondition(!header.contains("blob:"))
+    precondition(directives.filter { $0.contains("data:") } == ["img-src 'self' data: blob: https:"])
+    precondition(directives.filter { $0.contains("blob:") } == ["img-src 'self' data: blob: https:", "media-src blob:"])
     // Same shape for `https:`: images and nothing else. `http:` is not a substring of `https:`, so
     // this still refuses a cleartext source anywhere in the header.
-    precondition(directives.filter { $0.contains("https:") } == ["img-src 'self' data: https:"])
+    precondition(directives.filter { $0.contains("https:") } == ["img-src 'self' data: blob: https:"])
     precondition(!header.contains("http:"))
     precondition(!header.contains("\r") && !header.contains("\n"))
   }

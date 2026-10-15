@@ -1,4 +1,4 @@
-import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import {
   deferredStructuredAgentSessionLogger,
   type StructuredAgentSessionLogger
@@ -8,7 +8,10 @@ import {
   type StructuredAgentSessionStatusFeedDeps,
   type StructuredAgentSessionStatusSink
 } from './structured-agent-session-status-feed'
-import { StructuredAgentSessionSubagentRows } from './structured-agent-session-subagent-rows'
+import {
+  StructuredAgentSessionSubagentRows,
+  type StructuredAgentSessionSubagentRowsDeps
+} from './structured-agent-session-subagent-rows'
 import { structuredAgentSessionConversationFence } from './structured-agent-session-provider-child'
 
 /** Wire the host's own deps into a feed, and each subagent's saved row onto its child records;
@@ -18,8 +21,9 @@ import { structuredAgentSessionConversationFence } from './structured-agent-sess
 export function createStructuredAgentSessionHostStatusFeed(args: {
   sessions: StructuredAgentSessionStatusFeedDeps['sessions']
   now: () => number
+  currentWork: StructuredAgentSessionSubagentRowsDeps['currentWork']
   deps: () => {
-    store: { getRecord: (sessionId: string) => AgentSessionRecord | null }
+    store: Pick<AgentSessionRecordStore, 'getRecord' | 'replacedRuntime'>
     logger: StructuredAgentSessionLogger
     onSessionStatusChanged?: StructuredAgentSessionStatusFeedDeps['onStatusChanged']
     statusSink?: StructuredAgentSessionStatusSink
@@ -30,6 +34,7 @@ export function createStructuredAgentSessionHostStatusFeed(args: {
   const subagentRows = new StructuredAgentSessionSubagentRows({
     journal: (sessionId) => args.sessions.get(sessionId)?.journal,
     fence: (sessionId) => structuredAgentSessionConversationFence(args.deps().store, sessionId),
+    currentWork: args.currentWork,
     // The views, with the two host-only facts a saved row also keeps from their records.
     readChildWork: (sessionId) => {
       const records = new Map(
@@ -54,6 +59,7 @@ export function createStructuredAgentSessionHostStatusFeed(args: {
   const feed = new StructuredAgentSessionStatusFeed({
     sessions: args.sessions,
     getRecord: (sessionId) => args.deps().store.getRecord(sessionId),
+    replacedRuntime: (sessionId) => args.deps().store.replacedRuntime(sessionId),
     now: args.now,
     logger: deferredStructuredAgentSessionLogger(() => args.deps().logger),
     onStatusChanged: (summary, options) => args.deps().onSessionStatusChanged?.(summary, options),

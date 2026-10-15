@@ -74,7 +74,9 @@ describe('daemon-init: runRestartDaemon (7-step sequence)', () => {
 
     // killedCount must be 3 — proves the count was taken *before* fanout cleared the set (a swapped-order bug reports 0).
     expect(result.killedCount).toBe(3)
-    expect(originalAdapter.fanoutSyntheticExits).toHaveBeenCalledWith(-1)
+    expect(originalAdapter.fanoutSyntheticExits).toHaveBeenCalledWith(-1, {
+      replacedByRestart: true
+    })
     // Ordering invariant: synthetic exits must reach the renderer *before* listeners are torn down (Step 1 before 2).
     expect(order).toEqual(['fanout', 'unbind'])
   })

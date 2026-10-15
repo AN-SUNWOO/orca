@@ -5,7 +5,10 @@ import type {
   AiVaultSessionResumePreparation
 } from '../../shared/ai-vault-resume-preparation'
 import { isUnresolvedOwnerHostId, parseExecutionHostId } from '../../shared/execution-host'
+import { isWslUncPath } from '../../shared/wsl-paths'
 import { assertLegacyAiVaultResumeAllowed } from '../ai-vault/structured-session-ownership'
+import { tryEnsureStructuredAgentSessionHostForResume } from '../runtime/structured-agent-session-host-refusal'
+import { copyStructuredChatConversation } from '../ai-vault/structured-chat-conversation-copy'
 
 export type AiVaultResumeHandlerOptions = {
   ensureStructuredSessionOwnership?: () => Promise<void>
@@ -26,8 +29,6 @@ export async function prepareAiVaultSessionResume(
   args: AiVaultPrepareSessionResumeArgs,
   options: AiVaultResumeHandlerOptions
 ): Promise<AiVaultPrepareSessionResumeResult> {
-  await options.ensureStructuredSessionOwnership?.()
-  assertLegacyAiVaultResumeAllowed(args)
   const executionHost = parseExecutionHostId(args.executionHostId)
   if (executionHost?.kind === 'runtime') {
     if (!options.prepareRuntimeSessionResume || isUnresolvedOwnerHostId(executionHost.id)) {
@@ -39,5 +40,16 @@ export async function prepareAiVaultSessionResume(
   if (executionHost?.kind === 'ssh') {
     return { useRealCodexHome: false }
   }
-  return options.prepareSessionResume?.(args) ?? { useRealCodexHome: false }
+  if (!isWslUncPath(args.filePath)) {
+    if (options.ensureStructuredSessionOwnership) {
+      await (args.codexHome === null && !args.fork
+        ? tryEnsureStructuredAgentSessionHostForResume(options.ensureStructuredSessionOwnership)
+        : options.ensureStructuredSessionOwnership())
+    }
+    assertLegacyAiVaultResumeAllowed(args)
+  }
+  return (
+    (await copyStructuredChatConversation(args)) ??
+    options.prepareSessionResume?.(args) ?? { useRealCodexHome: false }
+  )
 }

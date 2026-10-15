@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 const mocks = vi.hoisted(() => ({
@@ -25,6 +25,8 @@ vi.mock('../tab-bar/tab-session-history-switch', () => ({
 }))
 
 import { NativeChatResumeInCliButton } from './NativeChatResumeInCliButton'
+
+afterEach(cleanup)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -69,7 +71,7 @@ it.each([true, false])('finishes Resume after source chat closes (pane survives=
   }
   releaseHistory()
 
-  await waitFor(() => expect(button).not.toBeDisabled())
+  await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false))
   await waitFor(() => expect(mocks.resume).toHaveBeenCalledOnce())
   expect(mocks.resume).toHaveBeenCalledWith(
     { id: 'saved-row' },

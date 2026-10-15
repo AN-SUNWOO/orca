@@ -91,7 +91,7 @@ it('launches on its own private folder with file sign-in and no other Google cre
   const { command, env, envToDelete } = await resolveAcpLaunchInvocation(ANTIGRAVITY, home, {
     resolveEnvironment: async () => ({ ...user, PATH: '' }),
     resolveCommandSettings: () => ({ agentCmdOverrides: { antigravity: '/missing/agy' } }),
-    inheritedEnv: { GEMINI_API_KEY: 'k', ANTIGRAVITY_HARNESS_PATH: '/x' },
+    inheritedEnv: { GEMINI_API_KEY: 'k', ANTIGRAVITY_HARNESS_PATH: '/x', GCLOUD_PROJECT: 'p' },
     dataDirectory: stateDirectory
   })
   expect(command).toBe(ANTIGRAVITY.command)
@@ -99,6 +99,7 @@ it('launches on its own private folder with file sign-in and no other Google cre
   // A key deleted at spawn beats its overlay, so the file sign-in must not be among them.
   expect(envToDelete.sort()).toEqual([
     'ANTIGRAVITY_HARNESS_PATH',
+    'GCLOUD_PROJECT',
     'GEMINI_API_KEY',
     'GOOGLE_API_KEY'
   ])

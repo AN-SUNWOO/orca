@@ -249,6 +249,8 @@ function scrubAntigravityAcpEnvironment(
       !Object.hasOwn(ANTIGRAVITY_ACP_ENV, key) &&
       (key === 'GEMINI_API_KEY' ||
         key === 'ANTIGRAVITY_HARNESS_PATH' ||
+        key === 'GCLOUD_PROJECT' ||
+        key === 'CLOUDSDK_CORE_PROJECT' ||
         key.startsWith('GOOGLE_') ||
         key.startsWith('AGY_ACP_'))
   )

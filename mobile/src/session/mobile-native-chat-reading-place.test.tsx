@@ -17,8 +17,10 @@ import { MobileNativeChatScrollHold, mobileNativeChatRowId } from './MobileNativ
 import { ToolRun } from './MobileNativeChatToolRun'
 import { useMobileNativeChatPageHistory } from './use-mobile-native-chat-page-history'
 
+const platform = vi.hoisted(() => ({ OS: 'web' }))
+
 vi.mock('react-native', () => ({
-  Platform: { OS: 'web' },
+  Platform: platform,
   Text: 'span',
   View: 'div',
   Pressable: 'button'
@@ -65,8 +67,7 @@ type Element = {
 const oldHostTail = (): NativeChatMessage[] => JSON.parse(JSON.stringify(chat))
 const from = (id: string) => oldHostTail().slice(chat.findIndex((m) => m.id === id))
 
-/** The page laid out with one 20-tall line per text, served as the list's scrollable node, which
- *  counts the writes to its scroll position. */
+/** The page with one 20-tall line per text, as the list's scrollable node counting its writes. */
 function page(tree: () => Node | Node[] | null) {
   const boxes = (): Box[] => {
     const out: Box[] = []
@@ -101,17 +102,14 @@ function page(tree: () => Node | Node[] | null) {
     )
   }
   let scrollTop = 0
-  let writes = 0
   const node = {
+    writes: 0,
     get scrollTop(): number {
       return scrollTop
     },
     set scrollTop(value: number) {
-      writes += 1
+      node.writes += 1
       scrollTop = value
-    },
-    get writes(): number {
-      return writes
     },
     clientHeight: 200,
     get scrollHeight(): number {
@@ -182,17 +180,11 @@ function mount(messages: NativeChatMessage[], options = { following: false, live
     return scroller.writes - before
   }
   show(messages)
-  const press = (id: string) =>
-    act(() =>
-      renderer.root
-        .find((n) => n.props.testID === id)
-        .findAllByType('button')[0]!
-        .props.onPress()
-    )
+  const find = (id: string) => renderer.root.find((n) => n.props.testID === id)
+  const press = (id: string) => act(() => find(id).findAllByType('button')[0]!.props.onPress())
   const drawn = (id: string) => renderer.root.findAll((n) => n.props.testID === id).length
-  const lines = (id: string) =>
-    renderer.root.find((n) => n.props.testID === id).findAllByType('span').length
-  return { scroller, show, press, drawn, lines, root: () => renderer.root }
+  const lines = (id: string) => find(id).findAllByType('span').length
+  return { scroller, show, press, drawn, lines, find }
 }
 
 it('keeps the line a reader was on, its run open, when older messages join the run from an old host', () => {
@@ -219,9 +211,9 @@ it('keeps the line a reader was on, its run open, when older messages join the r
     }
 
     // The run keeps its row, so the earlier turn sits above it and the run stays open.
-    const header = chat0.root().find((n) => n.props.testID === 'header')
     expect(
-      header
+      chat0
+        .find('header')
         .findAll((n) => String(n.props.testID).startsWith('chat-row:'))
         .map((n) => n.props.testID)
     ).toEqual(['u0', 'x0', 'u1'].map(mobileNativeChatRowId))
@@ -236,17 +228,33 @@ it('keeps the line a reader was on, its run open, when older messages join the r
     expect(chat0.drawn('chat-member:call:c34')).toBe(1)
   }
 
-  // Collapsed, the run's header stays where it was, not in the result row's place.
+  // The rows after the run stay put: collapsed, its header holds where it was, not in the result
+  // row's place; open with only its Show more on screen, the header (off screen) holds nothing.
   const later = Array.from({ length: 10 }, (_, i) => say(`t${i}`, 'user', 'later'))
-  const closed = mount([...from('r21'), ...later])
-  const runTop = () =>
-    closed.scroller
-      .querySelectorAll(`[data-testid^="${mobileNativeChatRowId('a22')}"]`)[0]!
-      .querySelectorAll('[data-testid^="chat-member:run"]')[0]!
-      .getBoundingClientRect().top
-  const before = runTop()
-  closed.show([...oldHostTail(), ...later])
-  expect(runTop()).toBe(before)
+  for (const open of [false, true]) {
+    const tail = mount([...from('r21'), ...later])
+    if (open) {
+      tail.press(mobileNativeChatRowId('a22'))
+      tail.scroller.scrollTop += tail.scroller.top('chat-member:call:c27') + 40
+    }
+    const before = tail.scroller.top(mobileNativeChatRowId('t0'))
+    tail.show([...oldHostTail(), ...later])
+    expect(tail.scroller.top(mobileNativeChatRowId('t0'))).toBe(before)
+  }
+})
+
+it('leaves the view to iOS while it bounces the list past the top, and to a native list', () => {
+  for (const [os, scrollTop] of [
+    ['web', -15],
+    ['ios', 40]
+  ] as const) {
+    platform.OS = os
+    const chat0 = mount(from('r21'))
+    chat0.press(mobileNativeChatRowId('a22'))
+    chat0.scroller.scrollTop = scrollTop
+    expect(chat0.show(oldHostTail())).toBe(0)
+  }
+  platform.OS = 'web'
 })
 
 it('at the cap, a trim and an append of equal height hold a parked reader and leave a following one to follow', () => {
@@ -276,8 +284,8 @@ it('at the cap, a trim and an append of equal height hold a parked reader and le
   }
 
   // Trims split the top run: sequential calls leave a result above it; parallel calls (each call,
-  // then each output, or all outputs in one message) leave results below it. The run keeps its key
-  // either way; a result never does.
+  // then each output, or all outputs in one message) leave results below it. Results never take
+  // the run's key.
   const output = (n: number): NativeChatMessage => ({
     ...say(`o${n}`, 'user', ''),
     role: 'tool',
@@ -297,7 +305,7 @@ it('at the cap, a trim and an append of equal height hold a parked reader and le
     top.scroller.scrollTop = top.scroller.top('chat-member:call:c6') + top.scroller.scrollTop - 10
     const trim = (trimmed: number) => {
       top.show([...source.slice(trimmed), ...rows, say(`done${trimmed}`, 'assistant', 'Done')])
-      const run = top.root().find((n) => n.props.testID === mobileNativeChatRowId(head))
+      const run = top.find(mobileNativeChatRowId(head))
       expect(run.findAll((n) => n.props.testID === 'chat-member:call:c6')).toHaveLength(1)
       expect(top.scroller.top('chat-member:call:c6')).toBe(10)
     }

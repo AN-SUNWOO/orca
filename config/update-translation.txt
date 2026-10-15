@@ -253,3 +253,39 @@ Method (reproducible):
   `newWorkspace.createDescription` 에이전트 repetition; zh `jiraColumnStoryPoints` 点数
   (story points) and `jira.transitions.chooseResolution` 解决方案 (Jira field is 解决结果).
 
+## Scan 2026-10-15
+
+- HEAD scanned: e2f2277d512 (origin/main). Base: 7244bf3e6f — the previous scan's PR
+  (#28896) already merged upstream, so the branch was reset onto origin/main and this
+  window is 7244bf3e6f .. HEAD.
+- Gates before fix: catalog verify PASS, coverage --check PASS (13 allowlisted), extraction
+  PASS; all five locales at 16066/16098 (32 missing). No unkeyed strings and en.json in sync.
+- Delta since base: 38 new en keys, 16 removed, 0 changed en values. All five locales newly
+  miss the same 18 keys; the other 14 missing are the pinned English-fallback keys (11
+  provider-credit-balance + 3 Chat UI) and must stay absent. The remaining 20 of the 38 new
+  keys had already shipped translated upstream, so the translatable delta is exactly 18 x5.
+- Applied the 18 new keys x5 via apply-translation-delta.mjs (pipeline repaired ja
+  コンピューター->コンピュータ, 新しい->新規). Strictly additive.
+- Pre-existing (out-of-delta) fixes this pass, per the mandate to fix badly translated
+  strings:
+  - native-chat `goal.*` cluster: es/fr/ja/ko/zh clear, es/fr/ja/ko pursuing, fr/zh blocked,
+    zh limited, zh paused, fr chip.
+  - zh `jira.transitions.chooseResolution` 解决方案 -> 解决结果 (Jira's own field term).
+  - ko `components.newWorkspace.createDescription` 에이전트 repetition removed.
+  - fr "un nouveau espace" -> "un nouvel espace" (9 occurrences).
+- Gates after fix: catalog verify PASS (all five 16084/16098; the 14 omissions are the
+  pinned keys), coverage --check PASS (13 allowlisted), extraction PASS, runtime-catalog
+  PASS (en-runtime-required unchanged), locale vitest suites PASS (24 files, 194 tests).
+- Reviews (2 of max 4 rounds; 5 parallel per-locale reviewers each round):
+  R1 applied 8 fixes plus two French batches: es stalled bloqueado->atascado (the catalog
+  reserves bloqueado for "blocked"); ja goal.set ->設定済み + goal.clear クリア->削除
+  (クリア reads as "achieve"), stalled body 停止->停滞, stalled title 必要になる可能性があります;
+  ko createDescription names the noun with no repetition; zh stalled body 新建终端->新终端;
+  fr ASCII-apostrophe normalization (6 keys, the catalog is ASCII-dominant 4157 vs 191) and
+  the systemic elision "de espace" -> "d'espace" (15 keys).
+  R2 re-reviewed every changed value across all five locales: signed off clean (no findings).
+- Remaining out-of-delta findings for a future pass (pre-existing, not from this window):
+  fr/ja/zh settings search-alias MT (the right fix is a batch addition to
+  `SEARCH_KEYWORD_OVERRIDES`); fr "de owner"/"de users" code-token fields left as-is; zh
+  `jiraColumnStoryPoints` 点数 (the English source is literally "Points").
+

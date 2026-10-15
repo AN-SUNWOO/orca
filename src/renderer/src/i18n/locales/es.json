@@ -18653,7 +18653,8 @@
         "paused": "Objetivo en pausa",
         "blocked": "Objetivo bloqueado",
         "limited": "Objetivo limitado",
-        "attachmentsUnsupported": "Elimina los adjuntos antes de establecer un objetivo."
+        "attachmentsUnsupported": "Elimina los adjuntos antes de establecer un objetivo.",
+        "set": "Objetivo establecido"
       },
       "structuredSessionHostDeclined": "Se abrió {{value0}} en una terminal",
       "structuredSessionHostDeclinedDescription": "Este servidor no puede ejecutar un chat de {{value0}} en este espacio de trabajo.",
@@ -19809,6 +19810,11 @@
       "confirmBody": "Reiniciar termina todos los procesos que se ejecutan en {{sessions}}. Los agentes que admiten reanudación pueden reanudarse después; los shells y otros trabajos no, y deben iniciarse de nuevo. Hazlo cuando tus agentes estén inactivos.",
       "cancel": "Cancelar",
       "confirm": "Reiniciar y terminar procesos"
+    },
+    "stalledDaemonBanner": {
+      "body": "El trabajo en segundo plano en este equipo se ha atascado. Es posible que la escritura y las terminales nuevas no funcionen. Reiniciar el servicio de terminal finaliza sus terminales y comandos en ejecución.",
+      "review": "Revisar las opciones de reinicio",
+      "title": "Es posible que el servicio de terminal necesite reiniciarse"
     }
   },
   "quickOpen": {
@@ -20113,6 +20119,22 @@
       "cancel": "Cancelar",
       "noTransition": "No hay ningún cambio de estado a {{column}} disponible para {{key}}.",
       "queryTooLong": "La consulta de Jira es demasiado larga. Acorta la consulta o borra los filtros."
+    },
+    "favourites": {
+      "activeLabel": "Favoritos de Jira: {{name}}",
+      "applyFailed": "No se pudo aplicar el favorito de Jira.",
+      "chooseSite": "Elige un sitio de Jira conectado para usar sus favoritos.",
+      "clear": "Borrar favorito de Jira",
+      "clearFailed": "No se pudo borrar el filtro guardado. Reinténtalo cuando termine de cargarse o guardarse.",
+      "empty": "No se encontraron favoritos de Jira.",
+      "find": "Buscar un favorito de Jira",
+      "label": "Favoritos de Jira",
+      "loadFailed": "No se pudieron cargar los favoritos de Jira.",
+      "loading": "Cargando favoritos…",
+      "refresh": "Actualizar",
+      "siteMismatch": "Elige un proyecto del sitio de Jira del favorito o borra el filtro de proyectos.",
+      "truncated": "No se pudieron mostrar algunos favoritos. Gestiona tus favoritos en Jira para acortar la lista.",
+      "unsupported": "Actualiza el host de Jira para usar los favoritos."
     }
   }
 }

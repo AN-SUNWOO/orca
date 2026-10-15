@@ -18591,7 +18591,7 @@
       },
       "goal": {
         "placeholder": "描述您的目标，定义可衡量的结果以获得最佳结果",
-        "clear": "明确的目标",
+        "clear": "清除目标",
         "chip": "目标",
         "exitMode": "退出目标模式",
         "sentAsGoal": "作为目标发送",
@@ -18599,11 +18599,12 @@
         "expand": "显示完整目标",
         "pause": "暂停目标",
         "resume": "恢复目标",
-        "pursuing": "追求目标",
-        "paused": "暂停进球",
-        "blocked": "目标被挡",
-        "limited": "目标有限",
-        "attachmentsUnsupported": "在设定目标之前删除附件。"
+        "pursuing": "正在追求目标",
+        "paused": "目标已暂停",
+        "blocked": "目标受阻",
+        "limited": "目标受限",
+        "attachmentsUnsupported": "在设定目标之前删除附件。",
+        "set": "目标已设定"
       },
       "fileLinks": {
         "notFound": "未找到文件：{{value0}}",
@@ -19845,6 +19846,11 @@
       "confirmBody": "重新启动会结束 {{sessions}} 中运行的所有进程。支持恢复的智能体之后可以恢复；shell 和其他作业则不能，必须重新启动。请在智能体空闲时执行此操作。",
       "cancel": "取消",
       "confirm": "重新启动并结束进程"
+    },
+    "stalledDaemonBanner": {
+      "body": "此计算机上的后台工作已停滞。输入和新终端可能无法工作。重新启动终端服务会结束其正在运行的终端和命令。",
+      "review": "查看重新启动选项",
+      "title": "终端服务可能需要重新启动"
     }
   },
   "fileSearch": {
@@ -20068,7 +20074,7 @@
       "loading": "正在加载状态更改…",
       "completeInJira": "在 Jira 中完成“{{name}}”",
       "unsupported": "Jira 需要 Orca 目前无法收集的字段：{{fields}}。",
-      "chooseResolution": "选择解决方案",
+      "chooseResolution": "选择解决结果",
       "comment": "评论",
       "back": "返回",
       "apply": "更改状态",
@@ -20086,6 +20092,22 @@
       "cancel": "取消",
       "noTransition": "{{key}} 没有可转到 {{column}} 的状态更改。",
       "queryTooLong": "Jira 查询过长。请缩短查询或清除筛选条件。"
+    },
+    "favourites": {
+      "activeLabel": "Jira 收藏夹：{{name}}",
+      "applyFailed": "无法应用 Jira 收藏夹。",
+      "chooseSite": "选择一个已连接的 Jira 站点以使用其收藏夹。",
+      "clear": "清除 Jira 收藏夹",
+      "clearFailed": "无法清除已保存的筛选器。待加载或保存完成后再重试。",
+      "empty": "未找到 Jira 收藏夹。",
+      "find": "查找 Jira 收藏夹",
+      "label": "Jira 收藏夹",
+      "loadFailed": "无法加载 Jira 收藏夹。",
+      "loading": "正在加载收藏夹…",
+      "refresh": "刷新",
+      "siteMismatch": "从收藏夹所在的 Jira 站点选择项目，或清除项目筛选器。",
+      "truncated": "部分收藏夹无法列出。请在 Jira 中管理收藏夹以缩小列表。",
+      "unsupported": "更新 Jira 主机以使用收藏夹。"
     }
   },
   "updates": {

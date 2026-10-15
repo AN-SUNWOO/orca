@@ -1200,7 +1200,7 @@
       "useGlobalFileDrop": {
         "38c9f034ff": "Échec de l'envoi des fichiers déposés.",
         "d720e2f855": "Certains fichiers déposés n'ont pas pu être envoyés.",
-        "245faa95b9": "Aucun chemin de espace de travail distant n'est disponible pour les fichiers déposés.",
+        "245faa95b9": "Aucun chemin d'espace de travail distant n'est disponible pour les fichiers déposés.",
         "nativeDropTooManyPathsDescription": "Déposez {{value0}} fichiers maximum à la fois.",
         "nativeDropTooManyPaths": "Le dépôt contient trop de fichiers.",
         "nativeDropPathsTooLargeDescription": "Déposez moins de fichiers ou utilisez une liste de chemins plus courte.",
@@ -1397,8 +1397,8 @@
         "10ef1afb8e": "· mis à jour",
         "55962099bc": "a ouvert cette issue",
         "0ab4664a8b": "Démarrer un espace de travail à partir de l'issue",
-        "36182aa57f": "Démarrer un nouveau espace de travail",
-        "fe6ff12dc2": "Plus d'actions de espace de travail pour l'issue",
+        "36182aa57f": "Démarrer un nouvel espace de travail",
+        "fe6ff12dc2": "Plus d'actions d'espace de travail pour l'issue",
         "726db41722": "Ouvrir l'espace de travail",
         "84855fedd0": "Ouvrir l'espace de travail associé à l'issue",
         "b7bf31b8de": "Échec de la synchronisation de l'état consulté avec GitHub.",
@@ -1778,8 +1778,8 @@
         "openAttachedWorkspace": "Ouvrir l'espace de travail associé à l'issue",
         "openWorkspace": "Ouvrir l'espace de travail",
         "openOnLinear": "Ouvrir dans Linear",
-        "moreWorkspaceActions": "Plus d'actions de espace de travail pour l'issue",
-        "startNewWorkspace": "Démarrer un nouveau espace de travail",
+        "moreWorkspaceActions": "Plus d'actions d'espace de travail pour l'issue",
+        "startNewWorkspace": "Démarrer un nouvel espace de travail",
         "workspaceSection": "Espace de travail",
         "noWorkspaceYet": "Aucun pour l'instant"
       },
@@ -1816,8 +1816,8 @@
         "commentTooLarge": "Le commentaire est trop volumineux pour être envoyé sans risque.",
         "openAttachedWorkspace": "Ouvrir l'espace de travail associé à l'issue",
         "openWorkspace": "Ouvrir l'espace de travail",
-        "moreWorkspaceActions": "Plus d'actions de espace de travail pour l'issue",
-        "startNewWorkspace": "Démarrer un nouveau espace de travail"
+        "moreWorkspaceActions": "Plus d'actions d'espace de travail pour l'issue",
+        "startNewWorkspace": "Démarrer un nouvel espace de travail"
       },
       "NewWorkspaceComposerCard": {
         "reuseExistingBranch": "Réutiliser la branche",
@@ -1922,7 +1922,7 @@
         "c44b70352b": "branche cible",
         "b0e80f083d": "veut merger dans",
         "8ecda455a0": "Ouvrir sur GitHub",
-        "1a2570e18e": "Démarrer un nouveau espace de travail",
+        "1a2570e18e": "Démarrer un nouvel espace de travail",
         "57c13a5aa4": "Plus d'actions d'espace de travail pour la PR",
         "25690a3855": "Démarrer un espace de travail à partir de la PR",
         "a459866967": "Reprendre l'espace de travail attaché à la PR",
@@ -2235,7 +2235,7 @@
         "a0544fb653": "MR !{{value0}}",
         "8396825a14": "Action",
         "c1d1600362": "Ouvrir dans le navigateur",
-        "b6329379ca": "Démarrer un nouveau espace de travail",
+        "b6329379ca": "Démarrer un nouvel espace de travail",
         "054bf695cc": "Brouillon",
         "285bc21dc5": "Modifiez la requête ou effacez-la.",
         "d0e3c8f933": "Aucun travail GitHub correspondant",
@@ -3308,7 +3308,7 @@
             "17fc841e59": "Copier le contexte",
             "0c8a8629b1": "Le fork apparaît comme son propre espace de travail, et non comme un enfant imbriqué. Le nouvel agent reçoit une transcription limitée sous forme de brouillon modifiable.",
             "620461df22": "Fork de premier niveau",
-            "619b5a35d2": "Créer un fork de espace de travail au premier niveau et démarrer un nouvel onglet d'agent avec le contexte capturé.",
+            "619b5a35d2": "Créer un fork d'espace de travail au premier niveau et démarrer un nouvel onglet d'agent avec le contexte capturé.",
             "64e292e8e3": "Forker la session d'agent",
             "9d25de2920": "Créer un fork",
             "2b10412cfc": "Création..."
@@ -3374,7 +3374,7 @@
           "TerminalLinkActionPopover": {
             "openLink": "Ouvrir le lien",
             "openFile": "Ouvrir le fichier",
-            "switchWorkspace": "Changer de espace de travail",
+            "switchWorkspace": "Changer d'espace de travail",
             "openInFinder": "Afficher dans le Finder",
             "openFolder": "Ouvrir le dossier",
             "openWithDefaultApp": "Ouvrir avec l'application par défaut",
@@ -3394,7 +3394,7 @@
             "6bee0c8f17": "Ouvrir l'Analyseur d'espace disque",
             "ae20d0ffc2": "Ignorer",
             "38c282a2c4": "L'analyseur s'ouvre directement depuis ici. Vous pouvez aussi l'ouvrir plus tard depuis le menu d'outils en bas à gauche, en choisissant Analyseur d'espace.",
-            "e2fcf07c0d": "Orca n'a pas pu enregistrer cette session de terminal car le stockage local est plein ou inaccessible en écriture. Ouvrez l'analyseur d'espace disque pour trouver du stockage de espace de travail à nettoyer.",
+            "e2fcf07c0d": "Orca n'a pas pu enregistrer cette session de terminal car le stockage local est plein ou inaccessible en écriture. Ouvrez l'analyseur d'espace disque pour trouver du stockage d'espace de travail à nettoyer.",
             "678c780a2c": "Espace disque indisponible"
           },
           "zcode": {
@@ -3444,7 +3444,7 @@
               "session": {
                 "fork": {
                   "2317900211": "Échec de la copie du contexte du fork.",
-                  "88e34d00eb": "Fork de session de premier niveau ouvert dans un nouveau espace de travail",
+                  "88e34d00eb": "Fork de session de premier niveau ouvert dans un nouvel espace de travail",
                   "fd3d12a1e1": "Échec de la création de l'espace de travail fork.",
                   "38e41edc6e": "Cet espace de travail ne peut pas être forké en worktree Git.",
                   "f867385bb5": "Impossible de trouver l'espace de travail source de ce fork.",
@@ -3822,8 +3822,8 @@
             "a11ed266ce": "espace de travail",
             "ca41be2802": "Ports — espace de travail {{value0}} {{value1}}{{value2}}",
             "b8bc3e420a": "Ports, espace de travail {{value0}} {{value1}}",
-            "3a87d54dfb": "Aucun port de espace de travail détecté",
-            "c174bbbfed": "Recherche des ports de espace de travail...",
+            "3a87d54dfb": "Aucun port d'espace de travail détecté",
+            "c174bbbfed": "Recherche des ports d'espace de travail...",
             "8caaa86e9a": "ports",
             "45834a9ace": "port",
             "4ae65d871a": "externes",
@@ -4082,8 +4082,8 @@
             "33653dbac2": "Suppression en cours",
             "52b629eb84": "Mis à jour",
             "e91dd2a9ae": "Lancez une analyse pour inspecter la taille des espaces de travail.",
-            "61e25239da": "Aucune ligne de espace de travail n'a été fournie par l'analyse.",
-            "8194a4fb29": "L'analyse a échoué avant la collecte de la moindre taille de espace de travail.",
+            "61e25239da": "Aucune ligne d'espace de travail n'a été fournie par l'analyse.",
+            "8194a4fb29": "L'analyse a échoué avant la collecte de la moindre taille d'espace de travail.",
             "b2f82ed5ae": "Supprimable",
             "20a4204dce": "Les derniers résultats valides restent visibles.",
             "8c7c57fbf8": "Analyser",
@@ -4098,7 +4098,7 @@
             "0ba046fbc5": "Échec de l'analyse.",
             "5c6d25720c": "Sélectionnez un espace de travail à inspecter.",
             "c5135e7e4a": "Analyse de la taille des espaces de travail. Vous pouvez quitter cette page.",
-            "0990a63160": "Aucune taille de espace de travail analysée pour le moment.",
+            "0990a63160": "Aucune taille d'espace de travail analysée pour le moment.",
             "977bdf9a36": "Aucun élément de premier niveau à afficher.",
             "131662ac65": "{{value0}} ouvert(s)",
             "0d1c78d749": "Sélectionner {{value0}}"
@@ -6787,9 +6787,9 @@
           "b398b834c9": "Effacer",
           "316ca4e610": "Oublier le cookie",
           "a122332371": "wrk_… (laisser vide pour une recherche automatique)",
-          "dbdb0b0bd8": "Remplacement de l'ID de espace de travail",
-          "d70a5287a4": "Remplacement facultatif de l'ID de espace de travail si la recherche automatique échoue.",
-          "02cb127710": "ID de espace de travail OpenCode Go",
+          "dbdb0b0bd8": "Remplacement de l'ID d'espace de travail",
+          "d70a5287a4": "Remplacement facultatif de l'ID d'espace de travail si la recherche automatique échoue.",
+          "02cb127710": "ID d'espace de travail OpenCode Go",
           "7ce0e1907c": "). Trouvez-le dans les DevTools de votre navigateur → Réseau → une requête opencode.ai → en-tête Cookie. L'authentification OpenCode Go est web et partagée entre les terminaux Windows et WSL.",
           "8951c5309f": "auth=Fe26.2**…",
           "338820326a": ") ou l'en-tête cookie complet (par ex.",
@@ -6997,7 +6997,7 @@
           "retryDetection": "Réessayer",
           "02e0143be5": "Installés",
           "92033495ff": "Auto",
-          "9b175d0f5e": "Agent présélectionné à l'ouverture d'un nouveau espace de travail.",
+          "9b175d0f5e": "Agent présélectionné à l'ouverture d'un nouvel espace de travail.",
           "385212c7a1": "Agent par défaut",
           "f9f127d664": "Remplacez le chemin ou le nom du binaire, et modifiez les arguments de lancement ou l'environnement par défaut de cet agent.",
           "f95b5c79b8": "Installer",
@@ -7109,7 +7109,7 @@
           "a869d0edd8": "Modèle de commande de nom de branche",
           "e784ea62dc": "Avancé",
           "d9b65054ef": ") en un nom court résumant la tâche. Seules les branches qu'Orca a lui-même nommées sont renommées, et jamais après avoir été poussées.",
-          "12ea4a408d": "Quand un agent commence à travailler dans un nouveau espace de travail, Orca renomme sa branche générée automatiquement (par ex.",
+          "12ea4a408d": "Quand un agent commence à travailler dans un nouvel espace de travail, Orca renomme sa branche générée automatiquement (par ex.",
           "ef787db0e3": "Renommage auto de la branche",
           "6a051586d2": "Renommer la branche générée automatiquement d'après le travail dès qu'un agent démarre.",
           "ec3e0c388e": "Enregistrer",
@@ -8988,7 +8988,7 @@
           "6c6a054a1c": "Exécuter dans un nouvel onglet",
           "a9d47451d1": "« Nouvel onglet » ouvre la commande de configuration dans un onglet en arrière-plan intitulé « Configuration », sans voler le focus.",
           "d23b43c5be": "Emplacement du script de configuration",
-          "34a0dfa06e": "Endroit où s'exécute le script de configuration du dépôt lors de la création d'un nouveau espace de travail.",
+          "34a0dfa06e": "Endroit où s'exécute le script de configuration du dépôt lors de la création d'un nouvel espace de travail.",
           "21f8da2078": "Script de configuration de l'espace de travail",
           "6e6480a7df": "Permet aux programmes du terminal (Zellij, tmux, Neovim, fzf, Grok, SSH) de copier vers le presse-papiers système.",
           "3338dcf8c1": "Autoriser les écritures presse-papiers des TUI (OSC 52)",
@@ -18695,19 +18695,20 @@
       },
       "goal": {
         "placeholder": "Décrivez votre objectif, définissez des résultats mesurables pour de meilleurs résultats",
-        "clear": "Objectif clair",
-        "chip": "But",
+        "clear": "Effacer l'objectif",
+        "chip": "Objectif",
         "exitMode": "Quitter le mode objectif",
         "sentAsGoal": "Envoyé comme objectif",
         "collapse": "Masquer l'objectif complet",
         "expand": "Afficher l'objectif complet",
         "pause": "Suspendre l'objectif",
         "resume": "Reprendre l'objectif",
-        "pursuing": "Poursuivre l'objectif",
+        "pursuing": "Objectif en cours",
         "paused": "Objectif suspendu",
-        "blocked": "But bloqué",
+        "blocked": "Objectif bloqué",
         "limited": "Objectif limité",
-        "attachmentsUnsupported": "Supprimez les pièces jointes avant de définir un objectif."
+        "attachmentsUnsupported": "Supprimez les pièces jointes avant de définir un objectif.",
+        "set": "Objectif défini"
       },
       "fileLinks": {
         "notFound": "Fichier introuvable : {{value0}}",
@@ -19845,6 +19846,11 @@
       "confirmBody": "Le redémarrage met fin à tous les processus en cours d'exécution dans {{sessions}}. Les agents qui prennent en charge la reprise peuvent être repris ensuite ; les shells et autres tâches ne le peuvent pas et doivent être redémarrés. Faites-le lorsque vos agents sont inactifs.",
       "cancel": "Annuler",
       "confirm": "Redémarrer et arrêter les processus"
+    },
+    "stalledDaemonBanner": {
+      "body": "Le travail en arrière-plan sur cet ordinateur est bloqué. La saisie et les nouveaux terminaux peuvent ne pas fonctionner. Le redémarrage du service de terminal met fin à ses terminaux et commandes en cours d'exécution.",
+      "review": "Vérifier les options de redémarrage",
+      "title": "Le service de terminal doit peut-être être redémarré"
     }
   },
   "fileSearch": {
@@ -20086,6 +20092,22 @@
       "cancel": "Annuler",
       "noTransition": "Aucun changement de statut vers {{column}} n'est disponible pour {{key}}.",
       "queryTooLong": "La requête Jira est trop longue. Raccourcissez la requête ou effacez les filtres."
+    },
+    "favourites": {
+      "activeLabel": "Favoris Jira : {{name}}",
+      "applyFailed": "Impossible d'appliquer le favori Jira.",
+      "chooseSite": "Choisissez un site Jira connecté pour utiliser ses favoris.",
+      "clear": "Effacer le favori Jira",
+      "clearFailed": "Impossible d'effacer le filtre enregistré. Réessayez une fois le chargement ou l'enregistrement terminé.",
+      "empty": "Aucun favori Jira trouvé.",
+      "find": "Rechercher un favori Jira",
+      "label": "Favoris Jira",
+      "loadFailed": "Impossible de charger les favoris Jira.",
+      "loading": "Chargement des favoris…",
+      "refresh": "Actualiser",
+      "siteMismatch": "Choisissez un projet sur le site Jira du favori, ou effacez le filtre de projets.",
+      "truncated": "Certains favoris n'ont pas pu être listés. Gérez vos favoris dans Jira pour réduire la liste.",
+      "unsupported": "Mettez à jour l'hôte Jira pour utiliser les favoris."
     }
   },
   "updates": {

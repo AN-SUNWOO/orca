@@ -10,7 +10,10 @@ import {
   requireLegacyAgentSessionAccountHome,
   type AgentSessionAccountHome
 } from '../../shared/agent-session-account-home'
-import type { AntigravityChatSignInState } from '../../shared/antigravity-account-types'
+import type {
+  AntigravityAccountState,
+  AntigravityChatSignInState
+} from '../../shared/antigravity-account-types'
 import { createAcpAgentConnection, type AcpAgentConnection } from '../acp/acp-agent-connection'
 import {
   ANTIGRAVITY_LAUNCH_SPEC,
@@ -212,7 +215,7 @@ export function cancelAntigravityChatSignIn(flowId: string): AntigravityChatSign
 /** `saved` is a stat of the server's own sign-in file; nothing reads it. */
 export async function readAntigravityChatSignInStatus(
   accountHome: AgentSessionAccountHome
-): Promise<{ saved: boolean; signingIn: boolean }> {
+): Promise<NonNullable<AntigravityAccountState['chatSignIn']>> {
   const token = join(
     requireLegacyAgentSessionAccountHome(accountHome).path,
     'antigravity-acp',
@@ -222,5 +225,7 @@ export async function readAntigravityChatSignInStatus(
     (file) => file.isFile(),
     () => false
   )
-  return { saved, signingIn: flow !== null && !settled(flow.state.get().value.phase) }
+  const running = flow && !settled(flow.state.get().value.phase) ? flow.state.get().value : null
+  // The running flow's id lets a client that comes back follow it and cancel it.
+  return { saved, signingIn: running !== null, ...(running && { flowId: running.flowId }) }
 }

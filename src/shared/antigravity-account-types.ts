@@ -18,8 +18,9 @@ export type AntigravityAccountState = {
   } | null
   selectedAccountId: string | null
   /** This host's chat sign-in; absent from a host without `accounts.antigravity-chat-sign-in.v1`.
-   *  `saved` says a sign-in file exists, not that it still works. */
-  chatSignIn?: { saved: boolean; signingIn: boolean }
+   *  `saved` says a sign-in file exists, not that it still works. `flowId` names the running
+   *  sign-in, absent from an older host. */
+  chatSignIn?: { saved: boolean; signingIn: boolean; flowId?: string }
 }
 
 export const ANTIGRAVITY_CHAT_SIGN_IN_PHASES = [

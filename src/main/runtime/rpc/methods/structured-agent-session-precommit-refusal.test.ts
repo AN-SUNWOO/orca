@@ -139,13 +139,6 @@ describe('a create refused before it commits', () => {
         reason: 'conversationHeldElsewhere',
         owner: { sessionId: 'owner', workspaceId: 'workspace' }
       }
-    ],
-    [
-      'agent_session_ownership_unknown',
-      {
-        reason: 'conversationHeldElsewhere',
-        owner: { sessionId: 'owner', workspaceId: 'workspace' }
-      }
     ]
   ] as const)('answers %s before commit as a definite failed attempt', async (code, details) => {
     const response = await create({

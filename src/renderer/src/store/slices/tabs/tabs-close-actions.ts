@@ -98,9 +98,10 @@ export function createTabsCloseActions(
           const nextTabs = (current.unifiedTabsByWorktree[worktreeId] ?? []).filter(
             (item) => item.id !== tabId
           )
-          const sleptKey = tab.executionHostId
-            ? sleptChatWorkspaceKey(worktreeId, tab.executionHostId)
-            : null
+          const sleptKey =
+            tab.contentType === 'agent-session' && tab.executionHostId
+              ? sleptChatWorkspaceKey(worktreeId, tab.executionHostId)
+              : null
           const slept = sleptKey ? current.explicitlySleptChatsByWorkspace[sleptKey] : undefined
           const retainedSlept = slept?.filter(
             (entry) => entry.tabId !== tabId || entry.sessionId !== tab.entityId

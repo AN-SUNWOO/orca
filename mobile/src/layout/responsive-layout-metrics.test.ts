@@ -16,7 +16,8 @@ describe('responsive layout metrics', () => {
     expect(getResponsiveLayoutMetrics(1180, 820)).toMatchObject({
       isLandscape: true,
       isTabletLayout: true,
-      isWideLayout: true
+      isWideLayout: true,
+      isLandscapePhone: false
     })
   })
 
@@ -33,7 +34,9 @@ describe('responsive layout metrics', () => {
       isLandscape: true,
       isTabletLayout: false,
       isWideLayout: false,
+      isLandscapePhone: true,
       horizontalPadding: spacing.lg
     })
+    expect(getResponsiveLayoutMetrics(430, 932)).toMatchObject({ isLandscapePhone: false })
   })
 })

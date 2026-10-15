@@ -62,6 +62,12 @@ export const mobileSessionFrameStyles = StyleSheet.create({
     flex: 1,
     minWidth: 0
   },
+  // Landscape phone: the tab strip takes the row's spare width instead of the title.
+  sessionTitleBlockBesideTabs: {
+    flex: 0,
+    flexShrink: 1,
+    maxWidth: 160
+  },
   sessionTitle: {
     color: colors.textPrimary,
     fontSize: 14,
@@ -83,6 +89,12 @@ export const mobileSessionFrameStyles = StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle
+  },
+  tabBarInTopBar: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   tabScroll: {
     flex: 1,

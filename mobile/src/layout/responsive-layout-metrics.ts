@@ -18,6 +18,8 @@ export type ResponsiveLayoutMetrics = {
   isWideLayout: boolean
   /** Tablet-class canvas (both dimensions large); false in narrow splits. */
   isTabletLayout: boolean
+  /** Phone turned sideways: too short to spend two rows on header chrome. */
+  isLandscapePhone: boolean
   /** Max width for primary scrollable content on wide layouts. */
   contentMaxWidth: number
   /** Max width for centered sheets/dialogs on wide layouts. */
@@ -29,13 +31,15 @@ export type ResponsiveLayoutMetrics = {
 export function getResponsiveLayoutMetrics(width: number, height: number): ResponsiveLayoutMetrics {
   const isTabletLayout = Math.min(width, height) >= TABLET_LAYOUT_MIN_SHORT_SIDE
   const isWideLayout = width >= WIDE_LAYOUT_MIN_WIDTH && isTabletLayout
+  const isLandscape = width > height
 
   return {
     width,
     height,
-    isLandscape: width > height,
+    isLandscape,
     isWideLayout,
     isTabletLayout,
+    isLandscapePhone: isLandscape && !isTabletLayout,
     contentMaxWidth: CONTENT_MAX_WIDTH,
     modalMaxWidth: MODAL_MAX_WIDTH,
     // Roomier gutters once content is capped so it isn't glued to the edges.

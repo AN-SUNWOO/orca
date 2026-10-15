@@ -286,14 +286,16 @@ describe('Cmd+J quick action context', () => {
             entityId: 'session-1',
             groupId: 'group-1',
             worktreeId: 'wt-1',
-            contentType: 'agent-session',
-            agentSessionAgent: 'codex'
+            contentType: 'agent-session'
           }
         ]
       },
       activeView: 'settings',
       settings: null
     } as unknown as AppState
+    state.unifiedTabsByWorktree['wt-1']?.forEach((tab) => {
+      tab.agentSessionAgent = 'codex'
+    })
 
     const buildContext = (activeView: AppState['activeView']) =>
       buildCmdJQuickActionContext({

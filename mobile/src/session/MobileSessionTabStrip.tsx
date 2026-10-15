@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, Pressable } from 'react-native'
-import { File, FileText, Globe, Plus } from 'lucide-react-native'
+import { File, FileText, Globe, Plus, SquareTerminal } from 'lucide-react-native'
 import { triggerMediumImpact } from '../platform/haptics'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import {
@@ -7,6 +7,7 @@ import {
   resolveMobileTerminalTabAgentId
 } from './mobile-terminal-tab-agent'
 import { colors } from '../theme/mobile-theme'
+import { MobileSessionHeaderIconButton } from './MobileSessionHeaderIconButton'
 import { QuickCommandsTabButton } from './QuickCommandsTabButton'
 import { styles } from './mobile-session-styles'
 import { useKeyboardPersistingTaps } from '../platform/keyboard-persisting-taps'
@@ -81,6 +82,9 @@ export function MobileSessionTabStrip({
               }
             }}
             onPress={() => switchSessionTab(t)}
+            accessibilityRole="tab"
+            accessibilityLabel={getMobileSessionTabTitle(t)}
+            accessibilityState={{ selected: t.id === activeSessionTabId }}
             onLongPress={() => {
               triggerMediumImpact()
               openSessionTabActionSheetAfterKeyboardDismiss(t)
@@ -101,7 +105,11 @@ export function MobileSessionTabStrip({
               {t.type === 'terminal' &&
                 (() => {
                   const agentId = resolveMobileTerminalTabAgentId(t)
-                  return agentId ? <MobileAgentIcon agentId={agentId} size={13} /> : null
+                  return agentId ? (
+                    <MobileAgentIcon agentId={agentId} size={13} />
+                  ) : (
+                    <SquareTerminal size={13} color={colors.textSecondary} strokeWidth={2.1} />
+                  )
                 })()}
               <Text
                 style={[styles.tabText, t.id === activeSessionTabId && styles.tabTextActive]}
@@ -114,22 +122,15 @@ export function MobileSessionTabStrip({
         ))}
       </ScrollView>
       {/* Why: pinned outside the scroll strip so the new-agent button stays reachable however far the tabs scroll. */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.newTerminalButton,
-          pressed && styles.newTerminalButtonPressed,
-          (creating || creatingBrowser || creatingMarkdown || connState !== 'connected') &&
-            styles.newTerminalButtonDisabled
-        ]}
+      <MobileSessionHeaderIconButton
         disabled={creating || creatingBrowser || creatingMarkdown || connState !== 'connected'}
         onPress={() => {
           setCreateError('')
           setShowCreateTabDrawer(true)
         }}
         accessibilityLabel="New tab"
-      >
-        <Plus size={16} color={colors.textSecondary} strokeWidth={2.2} />
-      </Pressable>
+        icon={Plus}
+      />
       {/* Why: stable placement matters, while old hosts must stay gated because they strip agentPrompt. */}
       <QuickCommandsTabButton
         disabled={creating || creatingBrowser || creatingMarkdown || connState !== 'connected'}

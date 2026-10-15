@@ -124,7 +124,9 @@ describe('host sidebar reveal in the session header', () => {
   }
 
   function buttons(label: string) {
-    return tree().root.findAllByProps({ accessibilityLabel: label })
+    return tree().root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityLabel === label
+    )
   }
 
   it('offers no reveal in a page beside the native sidebar, which it does not draw', async () => {

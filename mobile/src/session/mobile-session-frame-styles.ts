@@ -32,31 +32,24 @@ export const mobileSessionFrameStyles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.xs
-  },
-  backButtonPressed: {
-    backgroundColor: colors.bgRaised
-  },
-  filesButton: {
+  // One button style for every header and tab-strip action; the 4pt gap keeps touch areas from overlapping.
+  headerButton: {
     width: 36,
     height: 36,
     borderRadius: radii.button,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.xs
+    marginHorizontal: spacing.xs / 2
   },
-  filesButtonPressed: {
+  headerButtonPressed: {
     backgroundColor: colors.bgRaised
   },
   // Selected state for the active docked-panel icon on wide layouts (R2).
-  filesButtonActive: {
+  headerButtonActive: {
     backgroundColor: colors.bgRaised
+  },
+  headerButtonDisabled: {
+    opacity: 0.45
   },
   sessionTitleBlock: {
     flex: 1,
@@ -101,7 +94,7 @@ export const mobileSessionFrameStyles = StyleSheet.create({
   },
   tabScroll: {
     flex: 1,
-    maxHeight: 36
+    maxHeight: 44
   },
   tabScrollInTopBar: {
     alignSelf: 'stretch',
@@ -111,10 +104,11 @@ export const mobileSessionFrameStyles = StyleSheet.create({
     paddingLeft: spacing.sm,
     paddingRight: spacing.sm
   },
+  // Sized to the title (capped), so short titles don't waste width.
   tab: {
-    width: 128,
+    minWidth: 44,
     maxWidth: 128,
-    minHeight: 36,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
@@ -149,19 +143,8 @@ export const mobileSessionFrameStyles = StyleSheet.create({
   tabTextActive: {
     color: colors.textPrimary
   },
-  newTerminalButton: {
-    width: 40,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent'
-  },
   newTerminalButtonPressed: {
     backgroundColor: colors.bgRaised
-  },
-  newTerminalButtonDisabled: {
-    opacity: 0.45
   },
   // Divider between the + new-terminal button and the Quick Commands launcher,
   // matching the tab strip's borderSubtle separators.

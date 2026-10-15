@@ -212,6 +212,7 @@ export function useMobileNativeChatSession(args: {
           // overlapping reconnect replay keeps the paged-in history and limit.
           limitRef.current = INITIAL_LIMIT
           beforeOffsetRef.current = applied.beforeOffset ?? null
+          setLoadEarlierFailed(false)
           setHasMore(applied.hasMore ?? applied.messages.length >= INITIAL_LIMIT)
         }
         setMessages(applied.messages)

@@ -33,6 +33,8 @@ export type ClaudeAtRestCommandsDeps = {
 
 type Entry = {
   commands?: AgentSessionSlashCommand[]
+  /** The kept answer is Claude's own list, which a failed refresh keeps rather than the folders'. */
+  fromClaude?: boolean
   /** When the kept answer, or the last failure, landed. */
   scannedAt: number
   lastStartedAt: number
@@ -105,10 +107,14 @@ export class ClaudeAtRestCommandCatalog {
       entry.scannedAt = this.now()
       return true
     }
-    void this.scan(record)
+    void this.scan(record, entry.fromClaude === true)
       .then(
-        (commands) => {
-          if (!newest() || JSON.stringify(commands) === JSON.stringify(entry.commands)) {
+        ({ commands, fromClaude }) => {
+          if (!newest()) {
+            return
+          }
+          entry.fromClaude = fromClaude
+          if (JSON.stringify(commands) === JSON.stringify(entry.commands)) {
             return
           }
           entry.commands = commands
@@ -127,7 +133,10 @@ export class ClaudeAtRestCommandCatalog {
       })
   }
 
-  private async scan(record: AgentSessionRecord): Promise<AgentSessionSlashCommand[]> {
+  private async scan(
+    record: AgentSessionRecord,
+    keepClaudeList: boolean
+  ): Promise<{ commands: AgentSessionSlashCommand[]; fromClaude: boolean }> {
     // The folder Claude will launch in: a floating chat's pin, not the floating setting's current one.
     const cwd =
       agentSessionPinnedLaunchDirectory(record) ??
@@ -136,8 +145,14 @@ export class ClaudeAtRestCommandCatalog {
     if (this.deps.probe) {
       const release = await this.probes.acquire(0)
       try {
-        return await this.deps.probe({ cwd, accountHomePath: account })
+        return {
+          commands: await this.deps.probe({ cwd, accountHomePath: account }),
+          fromClaude: true
+        }
       } catch (error) {
+        if (keepClaudeList) {
+          throw error
+        }
         console.warn('[claude] listing the at-rest `/` commands failed; reading folders:', error)
       } finally {
         release()
@@ -167,7 +182,10 @@ export class ClaudeAtRestCommandCatalog {
         kind: 'skill',
         ...(skill.description ? { description: skill.description } : {})
       }))
-    return [...builtIn, ...custom.filter((command) => !names.has(command.name)), ...skills]
+    return {
+      commands: [...builtIn, ...custom.filter((command) => !names.has(command.name)), ...skills],
+      fromClaude: false
+    }
   }
 
   private now(): number {

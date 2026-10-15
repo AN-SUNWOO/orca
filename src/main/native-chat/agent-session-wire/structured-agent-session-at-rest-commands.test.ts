@@ -307,9 +307,10 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
     )
   })
 
-  it('as Claude itself lists it in the chat’s folder, and from the folders when it can’t', async () => {
+  it('as Claude itself lists it in the chat’s folder, from the folders until it can, and keeps its list through a failed refresh', async () => {
     const asked: ListingCall[] = []
-    let answer = `${JSON.stringify({
+    const failed = '{"type":"control_response","response":{"subtype":"error"}}\n'
+    const listed = `${JSON.stringify({
       type: 'control_response',
       response: {
         subtype: 'success',
@@ -322,6 +323,7 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
         }
       }
     })}\n`
+    let answer = failed
     const probe = createClaudeCommandCatalogProbe({
       resolveCommand: () => 'claude',
       resolveInheritedEnv: async () => ({ PATH: '/bin' }),
@@ -336,30 +338,38 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
       now: () => clock,
       probe
     })
-    await host.flushAllStreamedEvents()
-    await openHost(catalog)
-    const menu = await menuOf(SESSION)
-    expect(menu?.find((entry) => entry.name === 'goal')).toMatchObject({
-      kind: 'command',
-      description: 'Set a goal'
-    })
-    expect(asked[0]?.[0]).toMatchObject({ cwd: workspace })
-    expect(asked[0]?.[1].inheritedEnv?.CLAUDE_CONFIG_DIR).toBe(account)
-    // A CLI that answers no list leaves the menu what the folders hold.
-    answer = '{"type":"control_response","response":{"subtype":"error"}}\n'
-    clock += CLAUDE_AT_REST_COMMANDS_TTL_MS
+    const record = () => store.getRecord(SESSION)!
+    const commandNames = () => namesOf(catalog.read(record()) ?? null, 'command')
     const warned = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
+      await host.flushAllStreamedEvents()
+      await openHost(catalog)
+      // A CLI that answers no list, with none from it before: the menu is what the folders hold.
+      expect(namesOf(await menuOf(SESSION), 'command')).toEqual([
+        'model',
+        'effort',
+        'clear',
+        'compact',
+        'deploy'
+      ])
+      answer = listed
+      clock += CLAUDE_AT_REST_COMMANDS_TTL_MS
       host.readCommands(SESSION)
-      await vi.waitFor(() =>
-        expect(namesOf(catalog.read(store.getRecord(SESSION)!) ?? null, 'command')).toEqual([
-          'model',
-          'effort',
-          'clear',
-          'compact',
-          'deploy'
-        ])
-      )
+      await vi.waitFor(() => expect(commandNames()).toContain('goal'))
+      const claudeList = catalog.read(record())
+      expect(claudeList?.find((entry) => entry.name === 'goal')).toMatchObject({
+        kind: 'command',
+        description: 'Set a goal'
+      })
+      expect(asked[0]?.[0]).toMatchObject({ cwd: workspace })
+      expect(asked[0]?.[1].inheritedEnv?.CLAUDE_CONFIG_DIR).toBe(account)
+      // A failed refresh keeps Claude's list rather than the shorter one from the folders.
+      answer = failed
+      clock += CLAUDE_AT_REST_COMMANDS_TTL_MS
+      host.readCommands(SESSION)
+      await vi.waitFor(() => expect(asked).toHaveLength(3))
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(catalog.read(record())).toEqual(claudeList)
     } finally {
       warned.mockRestore()
     }

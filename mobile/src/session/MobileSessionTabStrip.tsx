@@ -49,7 +49,7 @@ export function MobileSessionTabStrip({
         ref={tabStripRef}
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.tabScroll}
+        style={[styles.tabScroll, inTopBar && styles.tabScrollInTopBar]}
         contentContainerStyle={styles.tabContent}
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={16}
@@ -65,10 +65,14 @@ export function MobileSessionTabStrip({
           scrollActiveTabIntoView(activeSessionTabIdRef.current, false)
         }}
       >
-        {visibleTabs.map((t) => (
+        {visibleTabs.map((t, index) => (
           <Pressable
             key={t.id}
-            style={[styles.tab, t.id === activeSessionTabId && styles.tabActive]}
+            style={[
+              styles.tab,
+              index === 0 && styles.tabFirst,
+              t.id === activeSessionTabId && styles.tabActive
+            ]}
             onLayout={(e) => {
               const { x, width } = e.nativeEvent.layout
               tabLayoutsRef.current.set(t.id, { x, width })

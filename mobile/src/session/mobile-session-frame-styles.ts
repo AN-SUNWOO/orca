@@ -90,15 +90,22 @@ export const mobileSessionFrameStyles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle
   },
+  // Cancels the top bar's vertical padding so tab borders run the bar's full height.
   tabBarInTopBar: {
     flex: 1,
     minWidth: 0,
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    marginVertical: -spacing.xs
   },
   tabScroll: {
     flex: 1,
     maxHeight: 36
+  },
+  tabScrollInTopBar: {
+    alignSelf: 'stretch',
+    maxHeight: 44
   },
   tabContent: {
     paddingLeft: spacing.sm,
@@ -113,12 +120,20 @@ export const mobileSessionFrameStyles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 2,
-    borderBottomColor: 'transparent'
+    borderBottomColor: 'transparent',
+    // Side borders between tabs, as the desktop tab strip draws them.
+    borderRightWidth: 1,
+    borderRightColor: colors.borderSubtle
+  },
+  tabFirst: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.borderSubtle
   },
   tabActive: {
     // Neutral grey underline, matching the desktop terminal tab's active
     // indicator (a muted foreground/card mix), not a blue accent.
-    borderBottomColor: colors.textSecondary
+    borderBottomColor: colors.textSecondary,
+    backgroundColor: colors.bgRaised
   },
   tabLabelRow: {
     maxWidth: '100%',

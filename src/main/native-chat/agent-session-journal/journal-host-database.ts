@@ -69,9 +69,7 @@ export class JournalHostDatabase {
   }
 
   durableTransaction<T>(run: (db: Database.Database) => T): T {
-    return runDurableJournalTransaction(this.db, run, () => {
-      this.stranded = true
-    })
+    return runDurableJournalTransaction(this.db, () => this.transaction(run))
   }
 
   /** Last, after every store has drained. A close that fails keeps the handle, so the retried

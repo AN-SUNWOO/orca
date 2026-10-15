@@ -110,12 +110,11 @@ function configureJournalPragmas(db: Database.Database, stored: number): void {
 /** FULL flushes this commit and all earlier WAL writes before an external side effect. */
 export function runDurableJournalTransaction<T>(
   db: Database.Database,
-  run: (db: Database.Database) => T,
-  onStranded: () => void
+  run: () => T
 ): T {
   db.pragma('synchronous = FULL')
   try {
-    return runJournalTransaction(db, run, onStranded)
+    return run()
   } finally {
     // A stranded transaction cannot change pragmas; its recovery restores NORMAL.
     if (!db.isTransaction) {

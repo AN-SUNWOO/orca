@@ -29,11 +29,13 @@ export async function stopCliSourceBeforeAdoption(input: {
   onCancelledBeforeStop: () => void
 }): Promise<void> {
   const { store, request, source, agent, priorSurvivors } = input
-  const pane = !priorSurvivors?.length
-    ? await inspectCliSourceWriters(source.host, {
-        agent, resumeFrom: source.resumeFrom, workspaceId: source.workspaceId
-      })
-    : null
+  const pane = await inspectCliSourceWriters(source.host, {
+    agent,
+    resumeFrom: priorSurvivors === undefined
+      ? source.resumeFrom
+      : { providerSessionId: source.resumeFrom.providerSessionId },
+    workspaceId: source.workspaceId
+  })
   // Why: the complete ConPTY job tree is daemon-owned and not yet available to this host.
   if (pane && process.platform === 'win32') {
     throw agentSessionRefusalError('agent_session_conflict', {
@@ -42,7 +44,7 @@ export async function stopCliSourceBeforeAdoption(input: {
   }
   await store.founding.reserveAdoption(request)
   input.onReserved()
-  if (priorSurvivors?.length) {
+  if (priorSurvivors !== undefined) {
     const survivors = await probeCliSourceSurvivors(priorSurvivors)
     await store.founding.adoptionSurvivors(request, survivors)
     if (survivors.length > 0) {

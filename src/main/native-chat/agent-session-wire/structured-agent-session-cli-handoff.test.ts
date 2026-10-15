@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { codexProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
+import type { AgentStatusIpcPayload } from '../../../shared/agent-status-types'
 import type { CliSourceStopHost } from '../../runtime/structured-agent-cli-stop'
 import { createRestTestRig, type RestTestRig } from './structured-agent-session-rest-test-rig'
 import { createTestParams, CREATE_TEST_CALLER } from './structured-agent-session-create-test-fixture'
@@ -10,20 +11,31 @@ import {
 } from './structured-agent-session-host-test-data'
 
 const stop = vi.hoisted(() => ({
-  inspect: vi.fn(), capture: vi.fn(), judge: vi.fn(), probe: vi.fn()
+  capture: vi.fn(), judge: vi.fn(), probe: vi.fn()
 }))
 vi.mock('../../runtime/structured-agent-cli-stop', async (load) => ({
   ...await load<typeof import('../../runtime/structured-agent-cli-stop')>(),
-  inspectCliSourceWriters: stop.inspect,
   captureCliSourceProcessIdentities: stop.capture,
   stopCliSourceAndJudge: stop.judge,
   probeCliSourceSurvivors: stop.probe
 }))
 
 let rig: RestTestRig
+let rows: AgentStatusIpcPayload[]
 const identity = { pid: 4321, platform: 'linux' as const, startTime: 'start' }
+const row = (paneKey: string): AgentStatusIpcPayload => ({
+  paneKey,
+  worktreeId: HOST_TEST_LOCATION.workspaceId,
+  agentType: 'codex',
+  state: 'working',
+  prompt: '',
+  connectionId: null,
+  receivedAt: 1,
+  stateStartedAt: 1,
+  providerSession: { key: 'session_id', id: HOST_TEST_THREAD, transcriptPath: '/saved.jsonl' }
+})
 const sourceHost: CliSourceStopHost = {
-  rows: () => [],
+  rows: () => rows,
   resolvePane: () => ({ ptyId: 'pty-source', connected: true }),
   sleeping: () => false,
   presence: async () => 'live',
@@ -43,9 +55,7 @@ const cliSourceStop = {
 beforeEach(async () => {
   vi.clearAllMocks()
   rig = await createRestTestRig({ idleSweep: { intervalMs: 60_000 } })
-  stop.inspect.mockResolvedValue({
-    ptyId: 'pty-source', workspaceId: HOST_TEST_LOCATION.workspaceId, writerMayLive: true
-  })
+  rows = [row('pane-source')]
   stop.capture.mockResolvedValue([identity])
   stop.probe.mockResolvedValue([])
 })
@@ -98,12 +108,22 @@ it.skipIf(process.platform === 'win32')('keeps an unproven writer across replay 
     ok: false, refusal: { details: { reason: 'terminalStopUnconfirmed' } }
   })
   expect(stop.judge).toHaveBeenCalledOnce()
+  rows = [row('new-pane')]
   const retry = {
     ...params,
     envelope: { ...params.envelope, clientOperationId: hostTestOperationId() }
   }
-  stop.probe.mockResolvedValue([])
   expect(await rig.host.create(CREATE_TEST_CALLER, retry, { cliSourceStop })).toMatchObject({
+    ok: false, refusal: { details: { reason: 'conversationHeldElsewhere' } }
+  })
+  expect(stop.probe).not.toHaveBeenCalled()
+  rows = []
+  const afterExit = {
+    ...params,
+    envelope: { ...params.envelope, clientOperationId: hostTestOperationId() }
+  }
+  stop.probe.mockResolvedValue([])
+  expect(await rig.host.create(CREATE_TEST_CALLER, afterExit, { cliSourceStop })).toMatchObject({
     ok: true
   })
   expect(stop.probe).toHaveBeenCalledWith([identity])

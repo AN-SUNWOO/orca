@@ -1,0 +1,117 @@
+import { createHash } from 'node:crypto'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, expect, it, vi } from 'vitest'
+import type * as ReleaseModule from './managed-runtime-release'
+import { reclaimRuntimeReleases, RUNTIME_RELEASE_RECEIPT } from './managed-runtime-release'
+import { ManagedRuntimeInstallation } from './managed-runtime-installation'
+
+// tar names each member it extracts after `-C <dir>`; write exactly those.
+vi.mock('@orca/process-host', () => ({
+  runProcess: vi.fn(async ({ args }: { args: string[] }) => {
+    const at = args.indexOf('-C')
+    for (const member of args.slice(at + 2)) {
+      await writeFile(join(String(args[at + 1]), member), `${member} bytes`)
+    }
+    return { code: 0, stdout: '', stderr: '' }
+  })
+}))
+vi.mock('./managed-runtime-release', async (importOriginal) => {
+  const actual = await importOriginal<typeof ReleaseModule>()
+  return { ...actual, reclaimRuntimeReleases: vi.fn(actual.reclaimRuntimeReleases) }
+})
+
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
+const ARCHIVE = 'archive bytes'
+const roots: string[] = []
+afterEach(() => Promise.all(roots.splice(0).map((r) => rm(r, { recursive: true, force: true }))))
+
+async function rig(bodies: ('hang' | 'whole')[]) {
+  const dataDirectory = await mkdtemp(join(tmpdir(), 'orca-runtime-install-'))
+  roots.push(dataDirectory)
+  const root = join(dataDirectory, 'agent-runtimes', 'agent')
+  const pin = {
+    version: '1.0',
+    url: 'https://example.test/agent-1.0.tar.gz',
+    archiveSha256: sha256(ARCHIVE),
+    archiveBytes: ARCHIVE.length,
+    members: [{ path: 'server', sha256: sha256('server bytes'), bytes: 12 }]
+  }
+  const runtime = { label: 'Agent', root: () => root, pin: () => pin }
+  const fetcher = async () => {
+    const body = bodies.shift()
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(ARCHIVE.slice(0, 5)))
+          if (body === 'whole') {
+            controller.enqueue(new TextEncoder().encode(ARCHIVE.slice(5)))
+            controller.close()
+          }
+        }
+      })
+    )
+  }
+  const host = () =>
+    new ManagedRuntimeInstallation('agent', runtime, {
+      dataDirectory,
+      findExternal: async () => false,
+      fetcher
+    })
+  const phase = async (installation: ManagedRuntimeInstallation) =>
+    (await installation.status()).operation?.phase
+  return { root, host, phase }
+}
+
+it('installs only when asked, with progress, cancel, retry, and a status read from disk', async () => {
+  const { root, host, phase } = await rig(['hang', 'whole'])
+  const installation = host()
+  expect(await installation.status()).toMatchObject({ installedVersion: null, source: null })
+  const started = installation.install()
+  await vi.waitFor(async () =>
+    expect((await installation.status()).operation?.downloadedBytes).toBe(5)
+  )
+  expect(installation.install().id).toBe(started.id)
+  installation.cancel(started.id)
+  expect(await phase(installation)).toBe('cancelling')
+  await vi.waitFor(async () => expect(await phase(installation)).toBe('cancelled'))
+  expect(await readdir(root)).toEqual([])
+
+  expect(installation.install().id).not.toBe(started.id)
+  await vi.waitFor(async () => expect(await phase(installation)).toBe('succeeded'))
+  expect(await host().status()).toMatchObject({
+    installedVersion: '1.0',
+    installedCurrent: true,
+    source: 'managed',
+    operation: null
+  })
+  expect(await readdir(root)).toEqual(['1.0'])
+})
+
+it('publishes an update only once the old releases were reclaimed', async () => {
+  const { root, host, phase } = await rig(['whole'])
+  for (const version of ['0.8', '0.9']) {
+    await mkdir(join(root, version), { recursive: true })
+    await writeFile(join(root, version, 'server'), 'old server', { mode: 0o755 })
+    const members = [{ path: 'server', bytes: 10 }]
+    const receipt = { releaseId: sha256(version), version, members }
+    await writeFile(
+      join(root, version, RUNTIME_RELEASE_RECEIPT),
+      JSON.stringify({ ...receipt, platform: process.platform, arch: process.arch })
+    )
+  }
+  let resume = (): void => {}
+  const reclaim = vi.mocked(reclaimRuntimeReleases)
+  const paused = new Promise<void>((resolve) => (resume = resolve))
+  const { reclaimRuntimeReleases: reclaimNow } =
+    await vi.importActual<typeof ReleaseModule>('./managed-runtime-release')
+  reclaim.mockImplementationOnce(async (...args) => paused.then(() => reclaimNow(...args)))
+  const installation = host()
+  installation.install()
+  await new Promise((resolve) => setTimeout(resolve, 100))
+  expect((await installation.status()).operation).toMatchObject({ downloadedBytes: 0 })
+  resume()
+  await vi.waitFor(async () => expect(await phase(installation)).toBe('succeeded'))
+  expect((await readdir(root)).sort()).toEqual(['0.9', '1.0'])
+})

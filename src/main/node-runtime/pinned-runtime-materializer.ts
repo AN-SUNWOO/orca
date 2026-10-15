@@ -24,6 +24,8 @@ export type PinnedRuntimeArchive = {
   label: string
   url: string
   archiveSha256: string
+  /** The download's size limit; 200 MiB by default. */
+  maxArchiveBytes?: number
 }
 
 export type PinnedRuntimeExecutable = PinnedRuntimeArchive & {
@@ -109,7 +111,12 @@ export async function materializeCachedRuntimeExecutable(
     options.signal?.throwIfAborted()
     const extractedDir = join(temporaryDir, 'extracted')
     await mkdir(extractedDir)
-    const result = await extractRuntimeArchive(runtime, archivePath, extractedDir, options.signal)
+    const result = await extractRuntimeArchive(
+      { label: runtime.label, members: [runtime.member] },
+      archivePath,
+      extractedDir,
+      options.signal
+    )
     options.signal?.throwIfAborted()
     if (result.code !== 0) {
       throw new Error(
@@ -207,18 +214,20 @@ export function materializeCachedNodeRuntime(
 export async function verifyFileSha256(
   path: string,
   expected: string,
-  label: string
+  label: string,
+  signal?: AbortSignal
 ): Promise<void> {
-  const actual = await fileSha256(path)
+  const actual = await fileSha256(path, signal)
+  signal?.throwIfAborted()
   if (actual !== expected) {
     throw new Error(`${label} checksum mismatch: expected ${expected}, got ${actual ?? 'missing'}`)
   }
 }
 
-export async function fileSha256(path: string): Promise<string | null> {
+export async function fileSha256(path: string, signal?: AbortSignal): Promise<string | null> {
   try {
     const hash = createHash('sha256')
-    for await (const chunk of createReadStream(path)) {
+    for await (const chunk of createReadStream(path, { signal })) {
       hash.update(chunk)
     }
     return hash.digest('hex')

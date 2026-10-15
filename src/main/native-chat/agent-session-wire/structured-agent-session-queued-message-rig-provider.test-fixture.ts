@@ -96,7 +96,7 @@ export function createQueuedRigProvider(
     cancelTurn,
     ...(options.stopEndsSession ? { stopEndsSession: () => true } : {}),
     ...(options.startUnanswered ? { startAnswered: () => false } : {}),
-    answerPrompt: vi.fn(async () => undefined),
+    answerPrompt: vi.fn(async ({ commit }) => commit()),
     setOption: vi.fn(async () => undefined),
     ...(options.rewind
       ? { rewind: options.rewind, rewindSupport: () => ({ supported: true as const }) }

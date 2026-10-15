@@ -12,6 +12,7 @@ function context(overrides: Partial<CmdJQuickActionContext> = {}): CmdJQuickActi
     runtimeMode: 'local-desktop',
     activeGroupId: 'research-group',
     openNewBrowserTab: vi.fn().mockResolvedValue(undefined),
+    openBrowserUrl: vi.fn().mockResolvedValue(undefined),
     openNewMarkdownFile: vi.fn(),
     openNewTerminalTab: vi.fn(),
     openCreateWorkspace: vi.fn(),
@@ -27,6 +28,8 @@ describe('Cmd+J website navigation', () => {
     ['  brex.com  ', 'https://brex.com/'],
     ['brex.com/signup?source=orca#start', 'https://brex.com/signup?source=orca#start'],
     ['https://brex.com/login', 'https://brex.com/login'],
+    ['docs.github.io', 'https://docs.github.io/'],
+    ['http://my-app.local:5173', 'http://my-app.local:5173/'],
     ['localhost:3000', 'http://localhost:3000/'],
     ['127.0.0.1:5173/docs', 'http://127.0.0.1:5173/docs'],
     ['[::1]:8080', 'http://[::1]:8080/']
@@ -35,7 +38,8 @@ describe('Cmd+J website navigation', () => {
     const ctx = context()
     expect(action?.title).toBe(`Go to ${query.trim()}`)
     expect(await action?.run(ctx)).toEqual({ status: 'ok' })
-    expect(ctx.openNewBrowserTab).toHaveBeenCalledExactlyOnceWith('research-group', url)
+    expect(ctx.openBrowserUrl).toHaveBeenCalledExactlyOnceWith('research-group', url)
+    expect(ctx.openNewBrowserTab).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -44,6 +48,11 @@ describe('Cmd+J website navigation', () => {
     'brex login',
     'src/app.ts',
     'README.md',
+    'App.vue',
+    'vue.config',
+    'Dockerfile.dev',
+    'Cargo.lock',
+    'my-app.local:5173',
     '/tmp/brex.com',
     'javascript:alert(1)',
     'file:///tmp/index.html',
@@ -64,6 +73,6 @@ describe('Cmd+J website navigation', () => {
     const action = buildCmdJBrowserNavigationAction('brex.com')
     const ctx = context(overrides)
     expect(await action?.run(ctx)).toEqual({ status: 'unavailable', reason })
-    expect(ctx.openNewBrowserTab).not.toHaveBeenCalled()
+    expect(ctx.openBrowserUrl).not.toHaveBeenCalled()
   })
 })

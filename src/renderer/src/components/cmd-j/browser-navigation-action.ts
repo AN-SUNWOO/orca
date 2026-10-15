@@ -6,7 +6,7 @@ import {
 } from '@/components/tab-bar/tab-create-entry-url-classification'
 import { isCmdJPaletteQueryTooLarge } from './palette-results'
 import { getBrowserWorkspaceActionAvailability } from './quick-action-context'
-import type { CmdJQuickAction } from './quick-actions'
+import { runBrowserWorkspaceAction, type CmdJQuickAction } from './quick-actions'
 
 export const BROWSER_NAVIGATION_ACTION_ID = 'navigate-to-url'
 
@@ -15,7 +15,8 @@ export function buildCmdJBrowserNavigationAction(query: string): CmdJQuickAction
   if (!input || isCmdJPaletteQueryTooLarge(input)) {
     return null
   }
-  const target = classifyExplicitUrl(input) ?? classifyHostUrl(input)
+  // Why listed domains only: Cmd+J has no file rows to outrank a dotted name such as `App.vue`.
+  const target = classifyExplicitUrl(input) ?? classifyHostUrl(input, { requireListedDomain: true })
   if (!target || target.kind === 'blocked') {
     return null
   }
@@ -28,16 +29,7 @@ export function buildCmdJBrowserNavigationAction(query: string): CmdJQuickAction
     verbKeywords: [],
     sourceQuery: input,
     isAvailable: getBrowserWorkspaceActionAvailability,
-    run: async (context) => {
-      const availability = getBrowserWorkspaceActionAvailability(context)
-      if (!availability.available) {
-        return { status: 'unavailable', reason: availability.reason }
-      }
-      if (!context.activeGroupId) {
-        return { status: 'unavailable', reason: 'no-active-group' }
-      }
-      await context.openNewBrowserTab(context.activeGroupId, target.url)
-      return { status: 'ok' }
-    }
+    run: (context) =>
+      runBrowserWorkspaceAction(context, (groupId) => context.openBrowserUrl(groupId, target.url))
   }
 }

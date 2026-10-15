@@ -7,6 +7,8 @@ import {
 } from '@/components/cmd-j/quick-action-context'
 import { rankCmdJMiddleResults } from '@/components/cmd-j/palette-results'
 import { buildCmdJBrowserNavigationAction } from '@/components/cmd-j/browser-navigation-action'
+import { openWorkspaceBrowserTab } from '@/lib/workspace-browser-tab-open'
+import { findGroupAndWorktree } from '@/store/slices/tab-group-state'
 import {
   getComposerEligibleRepos,
   resolveComposerActiveRepoId,
@@ -94,6 +96,21 @@ export function useWorktreeJumpPaletteQuickActions({
       )
     )
   }, [])
+  const openBrowserUrlAction = useCallback(async (groupId: string, url: string) => {
+    const state = useAppStore.getState()
+    // Why: the invoking group owns its workspace, as for New Browser Tab.
+    const workspaceId =
+      findGroupAndWorktree(state.groupsByWorktree, groupId)?.worktreeId ?? state.activeWorktreeId
+    if (!workspaceId) {
+      return
+    }
+    await openWorkspaceBrowserTab({
+      workspaceId,
+      targetGroupId: groupId,
+      url,
+      intent: { kind: 'url' }
+    })
+  }, [])
   const openAddQuickCommandAction = useCallback(() => {
     openSettingsTarget({ pane: 'quick-commands', repoId: null, intent: 'add-quick-command' })
     openSettingsPage()
@@ -104,6 +121,7 @@ export function useWorktreeJumpPaletteQuickActions({
         state: useAppStore.getState(),
         activeGroupSnapshot: activeGroupSnapshotRef.current,
         openNewBrowserTab: openNewBrowserTabInActiveWorkspace,
+        openBrowserUrl: openBrowserUrlAction,
         openNewMarkdownFile: openNewMarkdownInActiveWorkspace,
         openNewTerminalTab: openNewTerminalTabInActiveWorkspace,
         openCreateWorkspace: openCreateWorkspaceAction,
@@ -114,6 +132,7 @@ export function useWorktreeJumpPaletteQuickActions({
     [
       deleteActiveWorkspaceAction,
       openAddQuickCommandAction,
+      openBrowserUrlAction,
       openCreateWorkspaceAction,
       openNewBrowserTabInActiveWorkspace,
       openNewMarkdownInActiveWorkspace,

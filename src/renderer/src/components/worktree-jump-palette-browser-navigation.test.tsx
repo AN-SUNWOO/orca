@@ -2,6 +2,7 @@
 
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { Suspense, useMemo } from 'react'
+import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildCmdJBrowserNavigationAction } from './cmd-j/browser-navigation-action'
 import {
@@ -121,8 +122,63 @@ describe('Cmd+J website selection', () => {
 
   afterEach(() => {
     cleanup()
+    vi.restoreAllMocks()
     useAppStore.setState(initialAppState, true)
   })
+
+  it('leads weaker workspace and tab matches even when both sections are present', async () => {
+    const state = useAppStore.getState()
+    useAppStore.setState({
+      worktreesByRepo: {
+        'repo-1': [
+          makeWorktree('wt-alpha', 'Alpha workspace'),
+          makeWorktree('wt-beta', 'project.development workspace')
+        ]
+      },
+      tabsByWorktree: {
+        ...state.tabsByWorktree,
+        'wt-beta': [makeTerminalTab('term-beta', 'wt-beta', 'project.development terminal')]
+      },
+      unifiedTabsByWorktree: {
+        ...state.unifiedTabsByWorktree,
+        'wt-beta': [
+          makeUnifiedTab('tab-beta', 'wt-beta', 'term-beta', 'project.development terminal')
+        ]
+      }
+    })
+    const { result } = renderHook(usePalette)
+
+    await act(async () => result.current.handleQueryChange('project.dev'))
+
+    expect(result.current.paletteSections.multiPrimaryFirstScreen).toBe(true)
+    expect(result.current.commandSelectedItemId).toBe('quick-action:navigate-to-url')
+    expect(result.current.selectableItems[0]?.id).toBe('quick-action:navigate-to-url')
+  })
+
+  it.each(['brex.com', 'new browser tab'])(
+    'shows a browser creation failure for %s without an unhandled rejection',
+    async (query) => {
+      const showError = vi.spyOn(toast, 'error').mockReturnValue('browser-error')
+      const openBrowser = vi.fn().mockRejectedValue(new Error('Browser host disconnected'))
+      const recordInteraction = vi.fn()
+      useAppStore.setState({
+        openNewBrowserTabInActiveWorkspace: openBrowser,
+        recordFeatureInteraction: recordInteraction
+      })
+      const { result } = renderHook(usePalette)
+      await act(async () => result.current.handleQueryChange(query))
+      const action = result.current.selectableItems.find((item) => item.type === 'quick-action')
+      if (!action) {
+        throw new Error('Expected a browser action')
+      }
+
+      await act(async () => result.current.handleSelectItem(action))
+
+      expect(openBrowser).toHaveBeenCalledOnce()
+      expect(showError).toHaveBeenCalledExactlyOnceWith('Browser host disconnected')
+      expect(recordInteraction).not.toHaveBeenCalledWith('cmd-j-quick-action')
+    }
+  )
 
   it.each(['worktree', 'workspace-tab', 'browser-page'] as const)(
     'keeps an exact %s name selected ahead of website creation',

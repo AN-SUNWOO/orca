@@ -36,7 +36,8 @@ export type CmdJQuickActionContext = {
   runtimeMode: 'local-desktop' | 'paired-web'
   managedBrowserCreationEnabled?: boolean
   activeGroupId: string | null
-  openNewBrowserTab: (groupId: string, url?: string) => Promise<void>
+  openNewBrowserTab: (groupId: string) => Promise<void>
+  openBrowserUrl: (groupId: string, url: string) => Promise<void>
   openNewMarkdownFile: (groupId: string) => Promise<void>
   openNewTerminalTab: (groupId: string) => Promise<void>
   openCreateWorkspace: () => void
@@ -149,7 +150,8 @@ export function getCurrentWorkspaceActionAvailability(
 export function buildCmdJQuickActionContext(args: {
   state: AppState
   activeGroupSnapshot: CmdJActiveGroupSnapshot | null
-  openNewBrowserTab: (groupId: string, url?: string) => Promise<void>
+  openNewBrowserTab: (groupId: string) => Promise<void>
+  openBrowserUrl: (groupId: string, url: string) => Promise<void>
   openNewMarkdownFile: (groupId: string) => Promise<void>
   openNewTerminalTab: (groupId: string) => Promise<void>
   openCreateWorkspace: () => void
@@ -190,6 +192,7 @@ export function buildCmdJQuickActionContext(args: {
     managedBrowserCreationEnabled,
     activeGroupId,
     openNewBrowserTab: args.openNewBrowserTab,
+    openBrowserUrl: args.openBrowserUrl,
     openNewMarkdownFile: args.openNewMarkdownFile,
     openNewTerminalTab: args.openNewTerminalTab,
     openCreateWorkspace: args.openCreateWorkspace,

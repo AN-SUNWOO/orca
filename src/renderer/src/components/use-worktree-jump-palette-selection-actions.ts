@@ -213,7 +213,8 @@ export function useWorktreeJumpPaletteSelectionActions({
         })
         .catch((error: unknown) => {
           if (!action.id.startsWith('plugin:')) {
-            throw error
+            toast.error(error instanceof Error ? error.message : String(error))
+            return
           }
           toast.error(
             translate(

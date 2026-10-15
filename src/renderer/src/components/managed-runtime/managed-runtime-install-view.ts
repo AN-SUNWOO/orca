@@ -77,7 +77,7 @@ function settledView(
     action: label === null ? null : { kind: 'install', label }
   })
   const install = translate('components.managed-runtime.install', 'Install {{agent}}', { agent })
-  // A launch runs the copy found outside Orca's, so a download would never be used.
+  // A start already runs a working copy found outside Orca's releases; it needs no download.
   if (state.source === 'external') {
     return view(
       translate(

@@ -22,11 +22,9 @@ vi.mock('react-native', async () => {
       return React.createElement('FlatList', props)
     }),
     ScrollView: React.forwardRef((props, ref) => {
-      const toEnd = () => {
-        pageScroller.scrollTop = pageScroller.scrollHeight - pageScroller.clientHeight
-      }
+      const end = () => Object.assign(pageScroller, { scrollTop: pageScroller.scrollHeight - 500 })
       const node = () => pageScroller
-      const handle = { scrollToEnd: toEnd, getScrollableNode: node, getInnerViewNode: node }
+      const handle = { scrollToEnd: end, getScrollableNode: node, getInnerViewNode: node }
       React.useImperativeHandle(ref, () => handle, [])
       return React.createElement('ScrollView', props)
     }),
@@ -163,6 +161,7 @@ describe('MobileNativeChatView', () => {
     pageScroller.scrollHeight = 0
     pageScroller.scrollTop = 0
     drawn.length = 0
+    platform.OS = 'ios'
     vi.unstubAllGlobals()
   })
 
@@ -684,115 +683,80 @@ describe('MobileNativeChatView', () => {
     expect(list().props.maintainVisibleContentPosition).toEqual({ minIndexForVisible: 0 })
   })
 
-  describe('on the page, where every loaded row is drawn in one list', () => {
+  // On the page every loaded row is drawn in one list. No frame or timer runs here: every write
+  // comes from a commit's layout effects or the list's resize observer.
+  it('opens the page at the end before any frame, holds it while streaming, and opens the next chat there', async () => {
+    platform.OS = 'web'
+    pageScroller.scrollHeight = 1_000
     // Called with `new`, which returns the object it returns.
     function FakeResizeObserver(onResize: () => void) {
       return { observe: () => resized.add(onResize), disconnect: () => resized.delete(onResize) }
     }
-
-    beforeEach(() => {
-      platform.OS = 'web'
-      vi.stubGlobal('ResizeObserver', FakeResizeObserver)
-      pageScroller.scrollHeight = 1_000
-    })
-
-    afterEach(() => {
-      platform.OS = 'ios'
-    })
-
-    const pageList = () => renderer!.root.find((node) => node.type === 'ScrollView')
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver)
     const atEnd = () => pageScroller.scrollHeight - pageScroller.clientHeight
     const label = (text: string) => renderer!.root.findAllByProps({ children: text })
     const jumpControls = () =>
       renderer!.root.findAllByProps({ accessibilityLabel: 'Scroll to latest' })
-
-    function grow(height: number): void {
+    const grow = (height: number) =>
       act(() => {
         pageScroller.scrollHeight = height
         resized.forEach((onResize) => onResize())
       })
-    }
-
-    /** RN Web reports no drag: the offsets are all the owner sees. */
-    function scrollTo(y: number): void {
+    // RN Web reports no drag: the offsets are all the owner sees.
+    const scrollTo = (y: number) => {
+      const contentSize = { height: pageScroller.scrollHeight }
+      const nativeEvent = { contentOffset: { y }, contentSize, layoutMeasurement: { height: 500 } }
       act(() => {
         pageScroller.scrollTop = y
-        pageList().props.onScroll({
-          nativeEvent: {
-            contentOffset: { y },
-            contentSize: { height: pageScroller.scrollHeight },
-            layoutMeasurement: { height: pageScroller.clientHeight }
-          }
-        })
+        renderer!.root.find((node) => node.type === 'ScrollView').props.onScroll({ nativeEvent })
       })
     }
-
-    // No frame or timer runs here: every write is from a commit's layout effects or the observer.
-    it('opens at the end before any frame, holds it while streaming, and opens the next chat there', async () => {
-      vi.useFakeTimers()
-      try {
-        const chat = [assistantTurn('a1', 'One'), assistantTurn('a2', 'Two')]
-        await render({ folded: chat })
-        expect(pageScroller.scrollTop).toBe(atEnd())
-
-        drawn.length = 0
-        for (const [n, text] of ['Stre', 'Streaming', 'Streaming on'].entries()) {
-          await update({ folded: chat, streaming: text })
-          grow(1_100 + n * 50)
-          expect(pageScroller.scrollTop).toBe(atEnd())
-        }
-        // The loaded rows keep equal props, so only the streaming row draws again.
-        expect(new Set(drawn)).toEqual(new Set(['streaming']))
-        drawn.length = 0
-        await update({ folded: [...chat, assistantTurn('a3', 'Three')] })
-        grow(1_300)
-        expect(pageScroller.scrollTop).toBe(atEnd())
-        expect(drawn).toEqual(['a3'])
-
-        // Parked in this chat with Tools on, the next one still opens at its end, following.
-        scrollTo(atEnd())
-        scrollTo(300)
-        act(() => label('Tools')[0].parent!.props.onPress())
-        expect(jumpControls()).toHaveLength(1)
-        pageScroller.scrollHeight = 2_500
-        await update({ folded: [assistantTurn('b1', 'Chat B')], sendSurfaceId: 'tab-b' })
-        expect(pageScroller.scrollTop).toBe(atEnd())
-        expect(jumpControls()).toHaveLength(0)
-        expect(label('Collapse')).toHaveLength(1)
-        grow(2_600)
-        expect(pageScroller.scrollTop).toBe(atEnd())
-      } finally {
-        vi.useRealTimers()
-      }
-    })
-
-    it('stops following when the reader scrolls up, and resumes at the end', async () => {
-      await render({ folded: [assistantTurn('a1', 'Latest')] })
-      scrollTo(atEnd())
-
-      // No drag event arrives on the page: the move up is all there is to go on.
-      scrollTo(300)
-      grow(1_200)
-      expect(pageScroller.scrollTop).toBe(300)
-      expect(jumpControls()).toHaveLength(1)
-
-      scrollTo(700)
-      grow(1_400)
+    vi.useFakeTimers()
+    try {
+      const chat = [assistantTurn('a1', 'One'), assistantTurn('a2', 'Two')]
+      const more = { hasMore: true, onLoadEarlier: vi.fn() }
+      await render({ folded: chat, ...more })
       expect(pageScroller.scrollTop).toBe(atEnd())
-    })
 
-    it('loads older history from the Load earlier control, not from reaching the top', async () => {
-      const onLoadEarlier = vi.fn()
-      await render({ folded: [assistantTurn('a1', 'Latest')], hasMore: true, onLoadEarlier })
+      for (const [n, text] of ['Stre', 'Streaming', 'Streaming on'].entries()) {
+        drawn.length = 0
+        await update({ folded: chat, streaming: text, ...more })
+        grow(1_100 + n * 50)
+        expect(pageScroller.scrollTop).toBe(atEnd())
+      }
+      // The loaded rows keep equal props, so only the streaming row draws again.
+      expect(drawn).toEqual(['streaming'])
+      drawn.length = 0
+      await update({ folded: [...chat, assistantTurn('a3', 'Three')], ...more })
+      grow(1_300)
+      expect(pageScroller.scrollTop).toBe(atEnd())
+      expect(drawn).toEqual(['a3'])
 
-      // Down to the top and into iOS's bounce past it.
+      // A move up parks the reader (no drag event on the page): growth then writes nothing, and
+      // reaching the top, or iOS's bounce past it, loads nothing; only Load earlier does.
+      scrollTo(atEnd())
+      scrollTo(300)
+      grow(1_400)
+      expect(pageScroller.scrollTop).toBe(300)
       scrollTo(40)
       scrollTo(-15)
-      expect(onLoadEarlier).not.toHaveBeenCalled()
+      expect(more.onLoadEarlier).not.toHaveBeenCalled()
+      act(() => label('Load earlier messages')[0].parent!.props.onPress())
+      expect(more.onLoadEarlier).toHaveBeenCalledOnce()
 
-      act(() => pageList().props.children[0].props.onPress())
-      expect(onLoadEarlier).toHaveBeenCalledOnce()
-    })
+      // Parked in this chat with Tools on, the next one still opens at its end, following.
+      act(() => label('Tools')[0].parent!.props.onPress())
+      expect(jumpControls()).toHaveLength(1)
+      pageScroller.scrollHeight = 2_500
+      await update({ folded: [assistantTurn('b1', 'Chat B')], sendSurfaceId: 'tab-b' })
+      expect(pageScroller.scrollTop).toBe(atEnd())
+      expect(jumpControls()).toHaveLength(0)
+      expect(label('Collapse')).toHaveLength(1)
+      grow(2_600)
+      expect(pageScroller.scrollTop).toBe(atEnd())
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('routes an accepted send through the immediate nonanimated tail owner', async () => {

@@ -31,7 +31,9 @@ vi.mock('react-native', async () => {
     View: 'div',
     Pressable: 'button',
     ScrollView: React.forwardRef((props: { children?: ReactNode }, ref) => {
-      React.useImperativeHandle(ref, () => ({ getScrollableNode: () => shown.scroller }), [])
+      const node = () => shown.scroller
+      const handle = { getScrollableNode: node, getInnerViewNode: node }
+      React.useImperativeHandle(ref, () => handle, [])
       return React.createElement('div', null, props.children)
     })
   }

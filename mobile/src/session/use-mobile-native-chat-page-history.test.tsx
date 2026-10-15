@@ -157,7 +157,7 @@ describe('useMobileNativeChatPageHistory', () => {
       })
       // What the overlay hands the page's list.
       const folded = foldMobileNativeChatMessages(session.current.messages, session.current.hasMore)
-      history = useMobileNativeChatPageHistory(folded, renderRow)
+      history = useMobileNativeChatPageHistory<Item>(folded, renderRow)
       return null
     }
     async function answer(): Promise<void> {

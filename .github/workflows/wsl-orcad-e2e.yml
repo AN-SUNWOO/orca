@@ -74,20 +74,31 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      # The image ships WSL 2.7.14, where stopping a systemd distro drops the VM-wide WSLInterop
-      # entry (microsoft/WSL#13885, fixed in 3.0.1). The lane asserts the fixed behavior, so it
-      # installs a pinned 3.0.1 MSI; `wsl --update` asks the GitHub API and gets rate-limited (403).
+      # WSL before 3.0.1 can lose the VM-wide WSLInterop entry when a systemd distro stops
+      # (microsoft/WSL#13885). Older images need the pinned MSI; `wsl --update` gets rate-limited.
+      - name: Check installed WSL version
+        id: wsl-version
+        run: |
+          "ImageOS=$env:ImageOS ImageVersion=$env:ImageVersion"
+          $details = (wsl.exe --version) -join "`n"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read the installed WSL version' }
+          $match = [regex]::Match($details, '(?m)^WSL version:\s*(\d+(?:\.\d+){2,3})\s*$')
+          if (-not $match.Success) { throw "Could not parse the installed WSL version: $details" }
+          $installed = [version]$match.Groups[1].Value
+          $required = [version]'3.0.1'
+          "Installed WSL version: $installed; required minimum: $required"
+          "needs-install=$($installed -lt $required)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
       - name: Restore the pinned WSL package
         id: wsl-msi-cache
+        if: steps.wsl-version.outputs.needs-install == 'true'
         uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/wsl-msi
           key: wsl-orcad-msi-${{ env.WSL_MSI_SHA256 }}
       - name: Install WSL 3.0.1
+        if: steps.wsl-version.outputs.needs-install == 'true'
         timeout-minutes: 8
         run: |
-          "ImageOS=$env:ImageOS ImageVersion=$env:ImageVersion"
-          wsl.exe --version
           $dir = Join-Path $env:RUNNER_TEMP 'wsl-msi'
           New-Item -ItemType Directory -Force $dir | Out-Null
           $msi = Join-Path $dir 'wsl.msi'
@@ -98,15 +109,21 @@ jobs:
           $install = Start-Process msiexec.exe -ArgumentList @('/i', $msi, '/qn', '/norestart', '/l*v', (Join-Path $env:RUNNER_TEMP 'wsl-msi.log')) -Wait -PassThru
           if ($install.ExitCode -notin 0, 3010) { throw "WSL install failed: $($install.ExitCode)" }
           wsl.exe --shutdown
-          $version = [version](((wsl.exe --version) -join "`n") -replace '(?s)^\D*?(\d+\.\d+\.\d+).*$', '$1')
-          wsl.exe --version
-          if ($version -lt [version]'3.0.1') { throw "WSL $version is older than 3.0.1" }
       - name: Save the pinned WSL package
-        if: steps.wsl-msi-cache.outputs.cache-hit != 'true'
+        if: steps.wsl-version.outputs.needs-install == 'true' && steps.wsl-msi-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: ${{ runner.temp }}/wsl-msi
           key: wsl-orcad-msi-${{ env.WSL_MSI_SHA256 }}
+      - name: Verify WSL version
+        run: |
+          $details = (wsl.exe --version) -join "`n"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read the final WSL version' }
+          $match = [regex]::Match($details, '(?m)^WSL version:\s*(\d+(?:\.\d+){2,3})\s*$')
+          if (-not $match.Success) { throw "Could not parse the final WSL version: $details" }
+          $version = [version]$match.Groups[1].Value
+          "Final WSL version: $version; required minimum: 3.0.1"
+          if ($version -lt [version]'3.0.1') { throw "WSL $version is older than 3.0.1" }
       - name: Restore the pinned rootfs
         id: rootfs-cache
         uses: actions/cache/restore@v5

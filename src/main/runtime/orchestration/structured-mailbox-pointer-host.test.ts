@@ -91,7 +91,6 @@ describe('structured mailbox pointer host', () => {
       currentWork: () => null
     }
     expect(await createStructuredMailboxPointerHost().readSessionFacts('s1')).toEqual({
-      awaitingHuman: false,
       submissions
     })
   })
@@ -125,7 +124,6 @@ describe('structured mailbox pointer host', () => {
     }
     const host = createStructuredMailboxPointerHost()
     expect(await host.readSessionFacts('s1')).toEqual({
-      awaitingHuman: false,
       submissions: [current]
     })
     expect(host.currentContextClearOperationId('s1')).toBe('clear-1')
@@ -147,7 +145,6 @@ describe('structured mailbox pointer host', () => {
     }
     const host = createStructuredMailboxPointerHost()
     expect(await host.readSessionFacts('s1')).toEqual({
-      awaitingHuman: false,
       submissions: [current]
     })
     expect(host.currentContextClearOperationId('s1')).toBe('clear-1')

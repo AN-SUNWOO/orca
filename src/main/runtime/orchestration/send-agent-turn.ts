@@ -41,6 +41,8 @@ export type StructuredSessionTurn = {
   operationId: string
   expectedRuntimeFence: number
   delivery: AgentTurnDelivery
+  /** Host-local admission for an automated send. */
+  beforeRun?: () => void
 }
 
 export type StructuredSessionTurnSend = {
@@ -131,7 +133,10 @@ async function sendStructuredSessionTurn(
     body: turn.body,
     delivery: turn.delivery === 'queue' ? 'queue-if-active' : undefined
   })
-  const result = await send.host.send({ callerKey: send.callerKey }, message)
+  const result = await send.host.send(
+    { callerKey: send.callerKey },
+    turn.beforeRun ? { ...message, beforeRun: turn.beforeRun } : message
+  )
   if (!result.ok) {
     return { kind: 'refused', refusal: result.refusal }
   }

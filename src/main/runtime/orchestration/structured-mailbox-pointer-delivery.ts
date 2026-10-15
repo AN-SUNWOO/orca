@@ -51,13 +51,12 @@ type ParkedPointerDelivery = {
 
 export type StructuredPointerSendOutcome =
   | { kind: 'sent'; state: StructuredDispatchState }
+  | { kind: 'held' }
   /** The chat's queue took it, as it takes a person's message. */
   | { kind: 'queued' }
   | { kind: 'unattached' }
 
 export type StructuredPointerSessionFacts = {
-  /** A pending approval or question only the person can answer. */
-  awaitingHuman: boolean
   /** Current-context sends, oldest first: what the lane's own sends settled as. */
   submissions: readonly StructuredPointerSubmission[]
 }
@@ -65,6 +64,7 @@ export type StructuredPointerSessionFacts = {
 export type StructuredMailboxPointerHost = {
   /** `null` when the session cannot be read. */
   readSessionFacts: (sessionId: string) => Promise<StructuredPointerSessionFacts | null>
+  hasActionablePromptNow: (sessionId: string) => boolean | null
   send: (input: {
     sessionId: string
     dispatchId: string | null
@@ -194,6 +194,10 @@ export class OrchestrationStructuredMailboxPointerDelivery<
         if (unread.length === 0) {
           return
         }
+        this.parkedUntilJournalEdge.set(mailboxHandle, {
+          sessionId: current.sessionId,
+          reservedTypes: currentReservedTypes
+        })
         const session = await this.deps.host.readSessionFacts(current.sessionId)
         const contextClearOperationId = this.deps.host.currentContextClearOperationId(
           current.sessionId
@@ -203,7 +207,7 @@ export class OrchestrationStructuredMailboxPointerDelivery<
           return
         }
         attemptedContexts.add(contextKey)
-        progressed = await this.attempt(
+        let attempt = await this.attempt(
           db,
           mailboxHandle,
           current,
@@ -212,18 +216,35 @@ export class OrchestrationStructuredMailboxPointerDelivery<
           session,
           contextClearOperationId
         )
+        while (
+          attempt === 'held' &&
+          this.deps.host.hasActionablePromptNow(current.sessionId) === false
+        ) {
+          attempt = await this.attempt(
+            db,
+            mailboxHandle,
+            current,
+            unread,
+            currentReservedTypes,
+            session,
+            contextClearOperationId
+          )
+        }
+        if (attempt === 'held') {
+          this.retain(mailboxHandle, current.sessionId, 'turn-unsettled', currentReservedTypes)
+          return
+        }
+        progressed = attempt
         if (!progressed) {
           return
         }
         // The arrival snapshot protects its first handoff; successors derive live waiter ownership.
         currentReservedTypes = undefined
         // Acceptance releases the snapshotted batch; rederive any mail that arrived meanwhile.
+        this.parkedUntilJournalEdge.delete(mailboxHandle)
         const next = this.deps.resolveStructuredTarget(mailboxHandle)
         if (!next) {
           return
-        }
-        if (this.parkedUntilJournalEdge.get(mailboxHandle)?.sessionId === current.sessionId) {
-          this.parkedUntilJournalEdge.delete(mailboxHandle)
         }
         current = next
       }
@@ -275,21 +296,11 @@ export class OrchestrationStructuredMailboxPointerDelivery<
     reservedTypes: ReadonlySet<string> | undefined,
     session: StructuredPointerSessionFacts | null,
     contextClearOperationId: string | undefined
-  ): Promise<boolean> {
+  ): Promise<boolean | 'held'> {
     const sessionId = target.sessionId
-    if (!session) {
-      this.retain(mailboxHandle, sessionId, 'session-not-attached', reservedTypes)
-      return false
-    }
     const fence = this.deps.host.currentFence(sessionId)
-    if (fence === null) {
+    if (!session || fence === null) {
       this.retain(mailboxHandle, sessionId, 'session-not-attached', reservedTypes)
-      return false
-    }
-    // Sent now, it would land in the turn the person is answering, and an agent that runs one
-    // prompt at a time would withdraw the prompt; the answer's working edge sends it.
-    if (session.awaitingHuman) {
-      this.retain(mailboxHandle, sessionId, 'turn-unsettled', reservedTypes)
       return false
     }
     const body: AgentJournalMessageItem = {
@@ -338,6 +349,9 @@ export class OrchestrationStructuredMailboxPointerDelivery<
       expectedRuntimeFence: fence,
       body
     })
+    if (outcome.kind === 'held') {
+      return 'held'
+    }
     if (outcome.kind === 'unattached') {
       this.retain(mailboxHandle, sessionId, 'session-not-attached', reservedTypes)
       return false

@@ -52,9 +52,11 @@ function harness(options: {
     }
   })
   const send: StructuredMailboxPointerHost['send'] = vi.fn(async () =>
-    options.queued
-      ? { kind: 'queued' as const }
-      : { kind: 'sent' as const, state: options.dispatchState ?? ('accepted' as const) }
+    awaitingHuman
+      ? { kind: 'held' as const }
+      : options.queued
+        ? { kind: 'queued' as const }
+        : { kind: 'sent' as const, state: options.dispatchState ?? ('accepted' as const) }
   )
   const sendMock = vi.mocked(send)
   const readContext = vi.fn<StructuredMailboxPointerHost['currentContextClearOperationId']>(
@@ -88,7 +90,8 @@ function harness(options: {
     getCliCommand: () => 'orca-dev',
     senderName: (party) => (party.address === 'term_coord' ? 'Coordinator' : null),
     host: {
-      readSessionFacts: async () => (attached ? { awaitingHuman, submissions } : null),
+      readSessionFacts: async () => (attached ? { submissions } : null),
+      hasActionablePromptNow: () => awaitingHuman,
       currentFence: () => 4,
       currentContextClearOperationId: readContext,
       send
@@ -224,16 +227,17 @@ describe('structured mailbox pointer delivery', () => {
     expect(markAsDelivered).toHaveBeenCalledWith(['m1'])
   })
 
-  it('holds mail while the person owes an answer and sends it on the next journal edge', async () => {
+  it('rechecks a held notice when the answer edge lands during its host call', async () => {
     const { delivery, send, markAsDelivered, setAwaitingHuman } = harness({})
     setAwaitingHuman(true)
+    send.mockImplementationOnce(async () => {
+      setAwaitingHuman(false)
+      delivery.onJournalActivity('session-1')
+      return { kind: 'held' }
+    })
     delivery.deliverForHandle('dispatch:d1')
     await flush()
-    expect(send).not.toHaveBeenCalled()
-    setAwaitingHuman(false)
-    delivery.onJournalActivity('session-1')
-    await flush()
-    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledTimes(2)
     expect(markAsDelivered).toHaveBeenCalledWith(['m1'])
   })
 
@@ -533,7 +537,8 @@ describe('forgetting one settled worker', () => {
       getCliCommand: () => 'orca',
       senderName: () => null,
       host: {
-        readSessionFacts: async () => (attached ? { awaitingHuman: false, submissions: [] } : null),
+        readSessionFacts: async () => (attached ? { submissions: [] } : null),
+        hasActionablePromptNow: () => false,
         currentFence: () => 4,
         currentContextClearOperationId: () => undefined,
         send
@@ -634,7 +639,8 @@ describe('a mailbox a /clear moves while its nudge is in flight', () => {
       getCliCommand: () => 'orca-dev',
       senderName: () => null,
       host: {
-        readSessionFacts: async () => ({ awaitingHuman: false, submissions: [] }),
+        readSessionFacts: async () => ({ submissions: [] }),
+        hasActionablePromptNow: () => false,
         currentFence: () => 4,
         currentContextClearOperationId: () => contextClearOperationId,
         send

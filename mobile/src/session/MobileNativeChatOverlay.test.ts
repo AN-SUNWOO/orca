@@ -11,6 +11,7 @@ vi.mock('react-native', () => ({
 }))
 
 vi.mock('./MobileNativeChatView', () => ({ MobileNativeChatView: 'ChatView' }))
+vi.mock('../hooks/use-reduced-motion', () => ({ useReducedMotionEnabled: () => null }))
 vi.mock('./MobileNativeChatQueuedMessages', () => ({ MobileNativeChatQueuedMessages: 'Queued' }))
 vi.mock('./MobileNativeChatBackgroundTasks', () => ({
   MobileNativeChatBackgroundTasks: 'BackgroundTasks'

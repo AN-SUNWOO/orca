@@ -16,7 +16,6 @@ import {
   withoutSubagentGroupTwins
 } from '../../../src/shared/native-chat-subagent-summary'
 import type { NativeChatBlock, NativeChatMessage } from '../../../src/shared/native-chat-types'
-import { MobileMarkdown } from '../components/MobileMarkdown'
 import { MobileSourceCopyButton } from '../components/MobileSourceCopyButton'
 import { nativeChatMessagePlainText } from './mobile-native-chat-message-plain-text'
 import { deriveNativeChatRowContent } from '../../../src/shared/native-chat-row-content'
@@ -33,28 +32,33 @@ import type { NativeChatTurnStatus } from './use-mobile-native-chat-turn-status'
 import { isRenderableImageUri } from './mobile-native-chat-image-preview'
 import { styles, TEXT_SIZE } from './mobile-native-chat-message-styles'
 import { agentMessageAttribution } from './mobile-agent-message-attribution'
-import { withoutPendingNativeChatVisualDirectiveTail } from '../../../src/shared/native-chat-visual-directive'
 import {
   MobileNativeChatVisualContext,
   type MobileNativeChatVisualRender
 } from './mobile-native-chat-visual-context'
+import { MobileNativeChatPacedMarkdown } from './MobileNativeChatPacedMarkdown'
+import type { NativeChatReplyReveals } from '../../../src/shared/native-chat-reply-reveals'
 
 function Prose({
   block,
+  rowKey,
   invert,
   fontScale,
   onOpenFile,
   onLongPress,
   renderVisual,
-  holdPendingVisual = false
+  growing = false,
+  replyReveals
 }: {
   block: NativeChatBlock
+  rowKey: string
   invert?: boolean
   fontScale: number
   /** Assistant prose of a structured chat only. */
   renderVisual?: MobileNativeChatVisualRender
-  /** The reply may still be growing: a directive still being typed at its tail is held back. */
-  holdPendingVisual?: boolean
+  /** The reply may still be growing: it is paced, and a directive still being typed is held back. */
+  growing?: boolean
+  replyReveals?: NativeChatReplyReveals
   onOpenFile?: (relativePath: string) => void
   /** Android only: routes a long press on a link span to the row's actions sheet. */
   onLongPress?: () => void
@@ -84,12 +88,11 @@ function Prose({
       )
     }
     return (
-      <MobileMarkdown
-        content={
-          holdPendingVisual && renderVisual
-            ? withoutPendingNativeChatVisualDirectiveTail(block.text)
-            : block.text
-        }
+      <MobileNativeChatPacedMarkdown
+        rowKey={rowKey}
+        text={block.text}
+        streaming={growing}
+        replyReveals={replyReveals}
         renderVisual={renderVisual}
         rangeSelectable
         textScale={1.25 * fontScale}
@@ -139,7 +142,8 @@ function MobileNativeChatMessageImpl({
   onToggleReasoning,
   unsentNotice,
   subagentGroupsOpen,
-  onToggleSubagentGroup
+  onToggleSubagentGroup,
+  replyReveals
 }: {
   message: NativeChatMessage
   /** The newest assistant row of a live turn with no prompt open: its last text may still grow. */
@@ -172,6 +176,8 @@ function MobileNativeChatMessageImpl({
   /** The roster groups the reader opened, held by the transcript; only a roster row gets it. */
   subagentGroupsOpen?: ReadonlySet<string>
   onToggleSubagentGroup?: (groupId: string) => void
+  /** The list's reveals: the reply's last block is drawn at a reading pace while it grows. */
+  replyReveals?: NativeChatReplyReveals
 }): React.JSX.Element {
   // Another agent's message is set apart from the person's bubble, left-aligned and named.
   const attribution = agentMessageAttribution('Message from', message.from)
@@ -210,6 +216,8 @@ function MobileNativeChatMessageImpl({
     message.role === 'assistant' && mayStillGrow && activeTurnIsWorking === true
       ? message.blocks.at(-1)
       : undefined
+  // Only the reply's last prose can still be written, so only it is paced and remembered.
+  const pacedBlock = message.role === 'assistant' ? drawnProse.at(-1) : undefined
 
   const statusRow = turnStatus ? (
     <MobileNativeChatTurnStatus
@@ -301,7 +309,9 @@ function MobileNativeChatMessageImpl({
                 onOpenFile={onOpenFile}
                 onLongPress={onLongPress}
                 renderVisual={message.role === 'assistant' ? renderVisual : undefined}
-                holdPendingVisual={block === growingBlock}
+                rowKey={message.id}
+                growing={block === growingBlock}
+                replyReveals={block === pacedBlock ? replyReveals : undefined}
               />
             )
           )}

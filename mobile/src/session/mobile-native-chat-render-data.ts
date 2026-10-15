@@ -5,6 +5,7 @@ import {
 } from '../../../src/shared/native-chat-empty-state'
 import { isRootAgentJournalItem } from '../../../src/shared/agent-session-journal-producer'
 import { stripNoiseMessages } from '../../../src/shared/native-chat-noise'
+import { nativeChatStreamingMessage } from '../../../src/shared/native-chat-streaming'
 import { isWordlessProviderFrameMessage } from '../../../src/shared/native-chat-provider-frame-summary'
 import { foldToolMessages } from '../../../src/shared/native-chat-tool-fold'
 import { foldSubagentItems } from '../../../src/shared/native-chat-subagent-items'
@@ -203,13 +204,7 @@ export function buildMobileNativeChatTransientData({
     }
   }
   if (streaming) {
-    data.push({
-      id: 'streaming',
-      role: 'assistant',
-      blocks: [{ type: 'text', text: streaming }],
-      timestamp: null,
-      source: 'hook'
-    })
+    data.push(nativeChatStreamingMessage(streaming))
   }
   data.push(...trailingPending)
   return { folded: renderedFolded, streaming, data }

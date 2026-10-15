@@ -29,6 +29,8 @@ function contextWith(
     fence: 1,
     journal: {
       snapshot: () => ({ items: [] }),
+      cursor: () => ({ epoch: 'e', sequence: 0 }),
+      item: () => null,
       submissions: () => [],
       runningTurn: () => null,
       itemFence: () => undefined,

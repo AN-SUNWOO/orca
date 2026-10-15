@@ -1,13 +1,16 @@
 import { createAgentSessionCurrentRequestsReader } from '../../../shared/agent-session-current-requests-reader'
 import { afterEach, expect, it, vi } from 'vitest'
-import { AGENT_JOURNAL_THREAD_SCOPE } from '../../../shared/agent-session-journal-types'
+import { selectAgentSessionCurrentRequests } from '../../../shared/agent-session-current-requests'
+import {
+  AGENT_JOURNAL_THREAD_SCOPE,
+  type AgentJournalResolution
+} from '../../../shared/agent-session-journal-types'
 import { MOBILE_BRIDGE_MAX_FRAME_BYTES } from '../../../shared/mobile-bridge-frame-bytes'
 import { createStructuredAgentSessionEventCoalescer } from '../../../shared/structured-agent-session-coalescer'
 import {
   EMPTY_STRUCTURED_AGENT_SESSION,
   reduceStructuredAgentSession
 } from '../../../shared/structured-agent-session-reducer'
-import { pendingStructuredSessionPrompts } from '../../../renderer/src/components/native-chat/structured-agent-session-message-projection'
 import {
   HOST_TEST_SESSION as SESSION,
   HOST_TEST_THREAD as THREAD,
@@ -42,7 +45,7 @@ it('keeps full child requests answerable outside the bounded transcript and clea
     { kind: 'turn', turnId: 'parent', state: 'running' },
     attribution
   )
-  const pending = {
+  const pending: AgentJournalResolution = {
     state: 'pending',
     selectedOptionId: null,
     resolvedBy: null,
@@ -166,7 +169,7 @@ it('keeps full child requests answerable outside the bounded transcript and clea
   expect(
     state.items.some((item) => item.itemId === approval.itemId || item.itemId === question.itemId)
   ).toBe(false)
-  const prompts = pendingStructuredSessionPrompts(state.items, state.currentRequests)
+  const prompts = selectAgentSessionCurrentRequests(state)
   expect(prompts.map((item) => item.itemId)).toEqual([approval.itemId, question.itemId])
   expect(prompts[1]?.body).toMatchObject({
     questions: [
@@ -196,7 +199,7 @@ it('keeps full child requests answerable outside the bounded transcript and clea
   await exitWhileSettlementFails(current)
   await vi.waitFor(() => expect(state.currentRequests).toEqual([]))
   expect(journal.cursor()).toEqual(beforeExit)
-  expect(pendingStructuredSessionPrompts(state.items, state.currentRequests)).toEqual([])
+  expect(selectAgentSessionCurrentRequests(state)).toEqual([])
   reader.invalidate()
   coalescer.dispose()
 })

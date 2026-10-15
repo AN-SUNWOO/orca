@@ -60,7 +60,9 @@ export function directoryTranscriptImport(directories: {
 }): StructuredAgentTranscriptImport {
   return {
     admitTranscriptPath: async ({ accountHome, transcriptPath, launchEnv }) => {
-      if (!isLegacyAgentSessionAccountHome(accountHome)) return null
+      if (!isLegacyAgentSessionAccountHome(accountHome)) {
+        return null
+      }
       const root = directories.transcriptRoot({ accountHomePath: accountHome.path, launchEnv })
       return root ? (await admitTranscriptPath(root, transcriptPath))?.path ?? null : null
     },

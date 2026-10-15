@@ -118,16 +118,24 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
         })
         if (exact) {
           try {
-            if ((await stat(exact)).isFile()) return exact
+            if ((await stat(exact)).isFile()) {
+              return exact
+            }
           } catch (error) {
             if (!(error instanceof Error && 'code' in error &&
-                (error.code === 'ENOENT' || error.code === 'ENOTDIR'))) throw error
+                (error.code === 'ENOENT' || error.code === 'ENOTDIR'))) {
+              throw error
+            }
           }
         }
         const found = await input.transcriptImport.findTranscript({ ...args, strictErrors: true })
-        if (!found) return null
+        if (!found) {
+          return null
+        }
         const path = await input.transcriptImport.admitTranscriptPath({ ...args, transcriptPath: found })
-        if (!path) throw new Error('The conversation path is outside its account storage.')
+        if (!path) {
+          throw new Error('The conversation path is outside its account storage.')
+        }
         return path
       },
       launchEnv: input.launchEnv,
@@ -137,7 +145,9 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
       ? await prepareCodexAdoption(adoption, input.providerSessionId, input.prepareCodexResume, candidates)
       : adoption
   } catch (error) {
-    if (isAgentSessionRefusalError(error)) throw error
+    if (isAgentSessionRefusalError(error)) {
+      throw error
+    }
     throw agentSessionRefusalError('agent_session_identity_required',
       { reason: 'transcriptUnreadable' }, error instanceof Error ? error.message : String(error))
   }

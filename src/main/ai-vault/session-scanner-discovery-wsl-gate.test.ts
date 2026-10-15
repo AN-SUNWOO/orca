@@ -153,10 +153,14 @@ it('execution admission preserves native access errors while confirmed missing r
   for (const code of ['EACCES', 'ENOENT']) {
     const failure = Object.assign(new Error(code), { code })
     const search = walkSessionFiles('/account/sessions', 'codex', [], {
-      extensions: new Set(['.jsonl']), strictErrors: true,
-      readDirectory: async () => { throw failure }
+      extensions: new Set(['.jsonl']),
+      strictErrors: true,
+      readDirectory: async () => {
+        throw failure
+      }
     })
-    if (code === 'ENOENT') await expect(search).resolves.toEqual([])
-    else await expect(search).rejects.toBe(failure)
+    await (code === 'ENOENT'
+      ? expect(search).resolves.toEqual([])
+      : expect(search).rejects.toBe(failure))
   }
 })

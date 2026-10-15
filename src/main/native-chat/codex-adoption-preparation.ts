@@ -1,6 +1,9 @@
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { isLegacyAgentSessionAccountHome, type AgentSessionAccountHome } from '../../shared/agent-session-account-home'
+import {
+  isLegacyAgentSessionAccountHome,
+  type AgentSessionAccountHome
+} from '../../shared/agent-session-account-home'
 import type { AiVaultSessionResumePreparation } from '../../shared/ai-vault-resume-preparation'
 import { getSystemCodexHomePath } from '../codex/codex-home-paths'
 import type { StructuredAgentSessionAdoption } from './structured-agent-session-history-adoption'
@@ -14,22 +17,45 @@ export async function prepareCodexAdoption(
   prepare: AiVaultSessionResumePreparation | undefined,
   recognizedHomes: readonly AgentSessionAccountHome[]
 ): Promise<StructuredAgentSessionAdoption> {
-  if (!prepare || !isLegacyAgentSessionAccountHome(source.accountHome)) return source
+  if (!prepare || !isLegacyAgentSessionAccountHome(source.accountHome)) {
+    return source
+  }
   const result = await prepare({
-    agent: 'codex', sessionId: providerSessionId, filePath: source.transcriptPath,
-    codexHome: source.accountHome.path, executionHostId: 'local'
+    agent: 'codex',
+    sessionId: providerSessionId,
+    filePath: source.transcriptPath,
+    codexHome: source.accountHome.path,
+    executionHostId: 'local'
   })
   const home = result.useRealCodexHome ? getSystemCodexHomePath() : result.substituteCodexHome
-  if (!home || normalizeRuntimePathForComparison(home) ===
-      normalizeRuntimePathForComparison(source.accountHome.path)) return source
-  if (!result.useRealCodexHome && !recognizedHomes.some((candidate) =>
-      isLegacyAgentSessionAccountHome(candidate) && normalizeRuntimePathForComparison(candidate.path) ===
-      normalizeRuntimePathForComparison(home))) {
+  if (
+    !home ||
+    normalizeRuntimePathForComparison(home) ===
+      normalizeRuntimePathForComparison(source.accountHome.path)
+  ) {
+    return source
+  }
+  if (
+    !result.useRealCodexHome &&
+    !recognizedHomes.some(
+      (candidate) =>
+        isLegacyAgentSessionAccountHome(candidate) &&
+        normalizeRuntimePathForComparison(candidate.path) === normalizeRuntimePathForComparison(home)
+    )
+  ) {
     throw new Error('The prepared conversation account is not recognized on this host.')
   }
-  const original = await admitTranscriptPath(join(source.accountHome.path, 'sessions'), source.transcriptPath)
-  if (!original?.relativePath) throw new Error('The conversation path could not be verified.')
-  const prepared = await admitTranscriptPath(join(home, 'sessions'), join(home, 'sessions', original.relativePath))
+  const original = await admitTranscriptPath(
+    join(source.accountHome.path, 'sessions'),
+    source.transcriptPath
+  )
+  if (!original?.relativePath) {
+    throw new Error('The conversation path could not be verified.')
+  }
+  const prepared = await admitTranscriptPath(
+    join(home, 'sessions'),
+    join(home, 'sessions', original.relativePath)
+  )
   if (!prepared || !(await stat(prepared.path)).isFile()) {
     throw new Error('The prepared conversation history is unavailable.')
   }

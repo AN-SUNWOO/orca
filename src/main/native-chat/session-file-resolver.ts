@@ -263,7 +263,9 @@ async function findFirstInDirs(
     } catch (error) {
       // A caller abort that races the refusal stays authoritative.
       signal?.throwIfAborted()
-      if (strictErrors) throw error
+      if (strictErrors) {
+        throw error
+      }
       // Why: one stalled distro must not hide another root's hit.
       unavailable = wslTranscriptFsRefusal(error)
     }

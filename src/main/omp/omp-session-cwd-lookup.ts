@@ -82,8 +82,16 @@ export async function findOmpSessionByCwd(input: {
         }
       }
     } catch (error) {
-      if (input.strictErrors && !(error instanceof Error && 'code' in error &&
-          (error.code === 'ENOENT' || error.code === 'ENOTDIR'))) throw error
+      if (
+        input.strictErrors &&
+        !(
+          error instanceof Error &&
+          'code' in error &&
+          (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+        )
+      ) {
+        throw error
+      }
       // A stale or unreadable bucket must not replace a missing history with a blank chat.
     }
   }

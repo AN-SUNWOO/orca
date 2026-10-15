@@ -19,7 +19,7 @@ afterEach(async () => { vi.restoreAllMocks(); await rm(root, { recursive: true, 
 const id = 'provider-session'
 async function file(path: string, records: unknown[]) {
   await mkdir(dirname(path), { recursive: true })
-  await writeFile(path, records.map((record) => JSON.stringify(record)).join('\n') + '\n')
+  await writeFile(path, `${records.map((record) => JSON.stringify(record)).join('\n')}\n`)
   return path
 }
 function params(agent: StructuredAgentId, transcriptPath: string): AgentSessionAttachParams {
@@ -55,13 +55,17 @@ it('creates from the host hook path when Claude filename differs, then checks ac
   expect(find).not.toHaveBeenCalled()
   expect(await prepareAdoptedTranscript(params('claude', adoption.transcriptPath))).toMatchObject({ ok: true })
   const wrongDirectory = params('claude', adoption.transcriptPath)
-  if (wrongDirectory.adopt?.source) wrongDirectory.adopt.source.workspaceCwd = '/another-folder'
+  if (wrongDirectory.adopt?.source) {
+    wrongDirectory.adopt.source.workspaceCwd = '/another-folder'
+  }
   expect(await prepareAdoptedTranscript(wrongDirectory)).toMatchObject({ ok: false,
     refusal: { details: { reason: 'transcriptUnreadable' } } })
 
   const foreign = await file(join(root, 'foreign.jsonl'), [])
   const escaped = process.platform === 'win32' ? foreign : join(root, 'projects', 'escaped.jsonl')
-  if (process.platform !== 'win32') await symlink(foreign, escaped)
+  if (process.platform !== 'win32') {
+    await symlink(foreign, escaped)
+  }
   await expect(resolveStructuredAgentSessionAdoptionForCreate({
     host: null, settings: {}, agent: 'claude', transcriptImport: importer, providerSessionId: id,
     selfSessionId: 'another-chat', selectedAccountHome: { variable: 'CLAUDE_CONFIG_DIR', path: root },

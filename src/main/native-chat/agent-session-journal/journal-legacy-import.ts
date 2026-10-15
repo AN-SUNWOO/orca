@@ -152,7 +152,9 @@ async function prepareOpenCodeImport(input: {
 }): Promise<{ ok: true; items: JournalReplacementItem[] } | { ok: false; error: string }> {
   const dbPath = input.options?.filePath
   if (input.options?.source) {
-    if (!dbPath) return { ok: false, error: 'The conversation database is unavailable.' }
+    if (!dbPath) {
+      return { ok: false, error: 'The conversation database is unavailable.' }
+    }
     try {
       await validateAdoptedOpenCodeSource(dbPath, input.options.source)
     } catch (error) {

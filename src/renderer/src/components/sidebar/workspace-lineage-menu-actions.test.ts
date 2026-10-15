@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Tab } from '../../../../shared/tab-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
 import type { Worktree } from '../../../../shared/worktree/types'
+import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import {
   getWorkspaceLineageMenuActions,
   hasSleepableWorkspaceActivity
@@ -69,6 +70,7 @@ describe('workspace lineage menu actions', () => {
           [grandchild.id]: [{ id: 'grandchild-browser' }]
         },
         unifiedTabsByWorktree: {},
+        agentStatusByPaneKey: {},
         chatOwnerState: {}
       }
     })
@@ -96,6 +98,7 @@ describe('workspace lineage menu actions', () => {
         ptyIdsByTabId: { 'child-tab': ['child-pty'] },
         browserTabsByWorktree: {},
         unifiedTabsByWorktree: {},
+        agentStatusByPaneKey: {},
         chatOwnerState: {}
       }
     })
@@ -105,6 +108,10 @@ describe('workspace lineage menu actions', () => {
   })
 })
 
+function hostHeld(tab: Tab): Record<string, { structuredHostOwned: true }> {
+  return { [structuredAgentSessionPaneKey(tab.id, tab.entityId)]: { structuredHostOwned: true } }
+}
+
 describe('hasSleepableWorkspaceActivity', () => {
   it('treats preserved empty PTY arrays as slept, not live', () => {
     expect(
@@ -113,6 +120,7 @@ describe('hasSleepableWorkspaceActivity', () => {
         ptyIdsByTabId: { 'tab-1': [] },
         browserTabsByWorktree: {},
         unifiedTabsByWorktree: {},
+        agentStatusByPaneKey: {},
         chatOwnerState: {}
       })
     ).toBe(false)
@@ -125,6 +133,7 @@ describe('hasSleepableWorkspaceActivity', () => {
         ptyIdsByTabId: { 'tab-1': ['pty-1'] },
         browserTabsByWorktree: {},
         unifiedTabsByWorktree: {},
+        agentStatusByPaneKey: {},
         chatOwnerState: {}
       })
     ).toBe(true)
@@ -134,12 +143,13 @@ describe('hasSleepableWorkspaceActivity', () => {
         ptyIdsByTabId: {},
         browserTabsByWorktree: { 'wt-1': [{ id: 'browser-1' }] },
         unifiedTabsByWorktree: {},
+        agentStatusByPaneKey: {},
         chatOwnerState: {}
       })
     ).toBe(true)
   })
 
-  it('offers Sleep for a chat-only workspace', () => {
+  it('offers Sleep for a chat-only workspace while its host holds the chat', () => {
     const chat: Tab = {
       id: 'chat-1',
       entityId: 'session-1',
@@ -159,6 +169,7 @@ describe('hasSleepableWorkspaceActivity', () => {
         ptyIdsByTabId: {},
         browserTabsByWorktree: {},
         unifiedTabsByWorktree: { 'wt-1': [chat] },
+        agentStatusByPaneKey: hostHeld(chat),
         chatOwnerState: {
           worktreesByRepo: {
             'repo-1': [{ id: 'wt-1', repoId: 'repo-1', hostId: 'local' }]
@@ -174,6 +185,7 @@ describe('hasSleepableWorkspaceActivity', () => {
           ptyIdsByTabId: {},
           browserTabsByWorktree: {},
           unifiedTabsByWorktree: { 'wt-1': [{ ...chat, executionHostId: 'runtime:remote' }] },
+          agentStatusByPaneKey: hostHeld(chat),
           chatOwnerState: {}
         }
       )
@@ -203,6 +215,7 @@ describe('hasSleepableWorkspaceActivity', () => {
           ptyIdsByTabId: {},
           browserTabsByWorktree: {},
           unifiedTabsByWorktree: { 'folder:folder-1': [chat] },
+          agentStatusByPaneKey: hostHeld(chat),
           chatOwnerState: {
             folderWorkspaces: [
               {

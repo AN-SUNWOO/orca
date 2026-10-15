@@ -6,6 +6,7 @@ import type { Tab } from '../../../../shared/tab-types'
 import type { WorktreeRuntimeOwnerState } from '@/lib/worktree-runtime-owner-state'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
 import { isStructuredTab } from '../../../../shared/structured-agent-session-tab'
+import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import type { WorkspaceSleepTarget } from './sleep-worktree-flow'
 import {
   LOCAL_EXECUTION_HOST_ID,
@@ -25,6 +26,7 @@ type WorkspaceActivityMaps = {
   ptyIdsByTabId: Record<string, string[]>
   browserTabsByWorktree: Record<string, { id: string }[]>
   unifiedTabsByWorktree: Record<string, Tab[]>
+  agentStatusByPaneKey: Record<string, { structuredHostOwned?: true }>
   chatOwnerState: WorktreeRuntimeOwnerState
 }
 
@@ -41,6 +43,7 @@ export function hasSleepableWorkspaceActivity(
     ptyIdsByTabId,
     browserTabsByWorktree,
     unifiedTabsByWorktree,
+    agentStatusByPaneKey,
     chatOwnerState
   }: WorkspaceActivityMaps
 ): boolean {
@@ -93,9 +96,14 @@ export function hasSleepableWorkspaceActivity(
   return (
     tabs.some((tab) => tabHasLivePty(ptyIdsByTabId, tab.id)) ||
     (browserTabsByWorktree[worktreeId] ?? []).length > 0 ||
+    // A chat counts only while its host holds its process; a stopped one has nothing to sleep.
     (unifiedTabsByWorktree[worktreeId] ?? []).some(
       (tab) =>
-        isStructuredTab(tab) && !!hostId && (!tab.executionHostId || tab.executionHostId === hostId)
+        isStructuredTab(tab) &&
+        !!hostId &&
+        (!tab.executionHostId || tab.executionHostId === hostId) &&
+        agentStatusByPaneKey[structuredAgentSessionPaneKey(tab.id, tab.entityId)]
+          ?.structuredHostOwned === true
     )
   )
 }
@@ -132,6 +140,7 @@ export function useWorkspaceLineageMenuActions(
     ptyIdsByTabId,
     browserTabsByWorktree,
     unifiedTabsByWorktree,
+    agentStatusByPaneKey,
     chatOwnerState
   } = activity
   return useMemo(
@@ -146,11 +155,13 @@ export function useWorkspaceLineageMenuActions(
               ptyIdsByTabId,
               browserTabsByWorktree,
               unifiedTabsByWorktree,
+              agentStatusByPaneKey,
               chatOwnerState
             }
           })
         : EMPTY_LINEAGE_MENU_ACTIONS,
     [
+      agentStatusByPaneKey,
       browserTabsByWorktree,
       enabled,
       lineageById,

@@ -15,6 +15,7 @@ import {
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-match'
 import {
+  EMPTY_AGENT_STATUS_BY_PANE_KEY,
   EMPTY_BROWSER_TABS_BY_WORKTREE,
   EMPTY_CYCLIC_LINEAGE_IDS,
   EMPTY_DELETE_STATE_BY_WORKTREE_ID,
@@ -125,6 +126,9 @@ export function useWorktreeContextMenuModel({
   const unifiedTabsByWorktree = useAppStore((s) =>
     selectMenuScopedMap(menuOpen, s.unifiedTabsByWorktree, EMPTY_UNIFIED_TABS_BY_WORKTREE)
   )
+  const agentStatusByPaneKey = useAppStore((s) =>
+    selectMenuScopedMap(menuOpen, s.agentStatusByPaneKey, EMPTY_AGENT_STATUS_BY_PANE_KEY)
+  )
   const deleteStateByWorktreeId = useAppStore((s) =>
     selectMenuScopedMap(menuOpen, s.deleteStateByWorktreeId, EMPTY_DELETE_STATE_BY_WORKTREE_ID)
   )
@@ -143,11 +147,13 @@ export function useWorktreeContextMenuModel({
           ptyIdsByTabId,
           browserTabsByWorktree,
           unifiedTabsByWorktree,
+          agentStatusByPaneKey,
           chatOwnerState: useAppStore.getState()
         })
       ),
     [
       activeContextWorktrees,
+      agentStatusByPaneKey,
       browserTabsByWorktree,
       ptyIdsByTabId,
       tabsByWorktree,
@@ -164,6 +170,7 @@ export function useWorktreeContextMenuModel({
       ptyIdsByTabId,
       browserTabsByWorktree,
       unifiedTabsByWorktree,
+      agentStatusByPaneKey,
       chatOwnerState: useAppStore.getState()
     }
   })

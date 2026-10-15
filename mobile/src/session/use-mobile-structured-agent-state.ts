@@ -1,7 +1,4 @@
-import {
-  openTranscriptAfterHold,
-  isSubscribeEvent
-} from './mobile-structured-transcript-subscription'
+import { openTranscriptAfterHold } from './mobile-structured-transcript-subscription'
 import { startMobileStructuredTranscriptRead } from './mobile-structured-transcript-read'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { AgentJournalCursor } from '../../../src/shared/agent-session-journal-types'

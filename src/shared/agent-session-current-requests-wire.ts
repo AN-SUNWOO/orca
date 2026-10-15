@@ -1,4 +1,4 @@
-import { AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY } from './agent-session-current-requests-capability'
+import type { AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY } from './agent-session-current-requests-capability'
 
 export type AgentSessionCurrentRequestsMarker = {
   contract: typeof AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY

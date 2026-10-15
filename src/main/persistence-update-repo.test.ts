@@ -8,10 +8,12 @@ import {
   makeProjectHostSetup
 } from './persistence-test-harness'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { rmSync, mkdtempSync } from 'node:fs'
+import { rmSync, mkdtempSync, mkdirSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { getDefaultPersistedState } from '../shared/constants'
+import { updateProjectHostSetupWithProvenKind } from './folder-repo-git-conversion'
 
 import {
   getLocalWorktreeScanGeneration,
@@ -355,6 +357,26 @@ describe('Store', () => {
     expect(
       store.updateProjectHostSetup({ setupId: 'r1', updates: { kind: 'git' } })?.repo
     ).toMatchObject({ kind: 'git' })
+  })
+
+  // Git accepts any path inside a work tree, so only the top folder may become a Git project.
+  it('proves a manual folder-to-Git change against the Git root before writing it', async () => {
+    const store = await createStore()
+    const root = join(testState.dir, 'project')
+    mkdirSync(join(root, 'sub'), { recursive: true })
+    execFileSync('git', ['init', '-q'], { cwd: root })
+    store.addRepo(makeRepo({ id: 'inner', path: join(root, 'sub'), kind: 'folder' }))
+    store.addRepo(makeRepo({ id: 'outer', path: root, kind: 'folder' }))
+    const changeToGit = (setupId: string) =>
+      updateProjectHostSetupWithProvenKind(store, (args) => store.updateProjectHostSetup(args), {
+        setupId,
+        updates: { kind: 'git' }
+      })
+
+    await expect(changeToGit('inner')).rejects.toThrow("isn't the top folder of a Git repository")
+    expect(store.getRepo('inner')?.kind).toBe('folder')
+    const converted = await changeToGit('outer')
+    expect(converted?.repo).toMatchObject({ kind: 'git', folderUpgradeGitRootPath: expect.any(String) })
   })
 
   it('deletes independent project host setup records without deleting the project', async () => {

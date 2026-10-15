@@ -18,13 +18,12 @@ import { gitSpawnAfterWindowsEnvironmentReady, promptGuardGitEnv } from '../git/
 import { reuseSavedCloneTarget } from '../git/saved-clone-target'
 import { runWithGitReadCacheInvalidation } from '../git/status'
 import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
-import { isFolderRepo } from '../../shared/repo-kind'
 import { detectRepoIconAndUpstream } from '../repo-icon-autodetect'
 import { getRepoName } from '../git/repo'
 import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
 import type { RuntimeStore } from './runtime-store-contract'
 import { runtimeRepoMatchesExecutionHost } from './runtime-worktree-selection'
-import { findExtraFolderWorkspaceIds } from '../folder-workspace-meta-presence'
+import { resolveClonedFolderConversion } from '../folder-repo-git-conversion'
 
 type RuntimeRepositoryCloneDependencies = {
   getStore: () => RuntimeStore | null
@@ -155,12 +154,9 @@ export class RuntimeRepositoryCloneController {
 
     const existing = findSaved()
     if (existing) {
-      // A folder project with other workspaces stays a folder project: a Git project can't show them.
-      if (
-        isFolderRepo(existing) &&
-        findExtraFolderWorkspaceIds(existing, store.getAllWorktreeMeta()).length === 0
-      ) {
-        const updated = store.updateRepo(existing.id, { kind: 'git' })
+      const conversion = await resolveClonedFolderConversion(store, existing)
+      if (conversion) {
+        const updated = store.updateRepo(existing.id, { kind: 'git', ...conversion })
         if (updated) {
           await prepareLocalWorktreeRootForRepo(store, updated)
           invalidateAuthorizedRootsCache()

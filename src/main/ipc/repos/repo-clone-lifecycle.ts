@@ -5,7 +5,6 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import type { Store } from '../../persistence'
 import type { Repo } from '../../../shared/repo-types'
-import { isFolderRepo } from '../../../shared/repo-kind'
 import { DEFAULT_REPO_BADGE_COLOR } from '../../../shared/constants'
 import { getGitCloneFailureMessage } from '../../../shared/git-clone-failure-message'
 import { gitSpawnAfterWindowsEnvironmentReady, promptGuardGitEnv } from '../../git/runner'
@@ -25,7 +24,7 @@ import { invalidateAuthorizedRootsCache } from '../registered-worktree-roots-cac
 import { emitRepoAdded } from './repo-added-telemetry'
 import { notifyReposChanged } from './repos-changed-notification'
 import { runWithClonePathLock } from './clone-path-lock'
-import { findExtraFolderWorkspaceIds } from '../../folder-workspace-meta-presence'
+import { resolveClonedFolderConversion } from '../../folder-repo-git-conversion'
 
 type ActiveCloneMetadata = {
   path: string
@@ -253,13 +252,11 @@ export function registerRepoCloneHandlers(mainWindow: BrowserWindow, store: Stor
           // Why: check after clone (path didn't exist before); reuse+upgrade a folder repo clone landed into instead of duplicating.
           const existing = findSaved()
           if (existing) {
-            // A folder project with other workspaces stays a folder project: a Git project can't show them.
-            if (
-              isFolderRepo(existing) &&
-              findExtraFolderWorkspaceIds(existing, store.getAllWorktreeMeta()).length === 0
-            ) {
+            const conversion = await resolveClonedFolderConversion(store, existing)
+            if (conversion) {
               const updated = store.updateRepo(existing.id, {
                 kind: 'git',
+                ...conversion,
                 projectHostSetupMethod: 'cloned'
               })
               if (updated) {

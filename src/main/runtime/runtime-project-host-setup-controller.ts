@@ -28,6 +28,7 @@ import {
 } from '../providers/ssh-host-not-served-error'
 import { runWorktreeChangeInvalidators } from '../ipc/worktree-change-invalidators'
 import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
+import { updateProjectHostSetupWithProvenKind } from '../folder-repo-git-conversion'
 import type { RuntimeStore } from './runtime-store-contract'
 import { readAllWorktreeMetaForRepo } from '../persistence/host-qualified-worktree-meta'
 import {
@@ -142,13 +143,23 @@ export class RuntimeProjectHostSetupController {
     )
   }
 
-  updateSetup(args: ProjectHostSetupUpdateArgs): ProjectHostSetupUpdateResult {
+  // Why sync up front: availability and the WSL move fence refuse before any Git probe starts.
+  updateSetup(args: ProjectHostSetupUpdateArgs): Promise<ProjectHostSetupUpdateResult> {
     const store = this.deps.getStore()
-    if (!store?.updateProjectHostSetup) {
+    const updateProjectHostSetup = store?.updateProjectHostSetup?.bind(store)
+    if (!store || !updateProjectHostSetup) {
       throw new Error('runtime_unavailable')
     }
     assertWslMoveHostSetupIdWritable(store, args.setupId)
-    const result = store.updateProjectHostSetup(args)
+    return this.finishSetupUpdate(store, updateProjectHostSetup, args)
+  }
+
+  private async finishSetupUpdate(
+    store: RuntimeStore,
+    updateProjectHostSetup: NonNullable<RuntimeStore['updateProjectHostSetup']>,
+    args: ProjectHostSetupUpdateArgs
+  ): Promise<ProjectHostSetupUpdateResult> {
+    const result = await updateProjectHostSetupWithProvenKind(store, updateProjectHostSetup, args)
     if (!result) {
       throw new Error(`Project host setup not found: ${args.setupId}`)
     }

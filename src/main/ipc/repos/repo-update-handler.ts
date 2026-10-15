@@ -3,7 +3,7 @@ import { ipcMain } from 'electron'
 import type { Store } from '../../persistence'
 import type { Repo } from '../../../shared/repo-types'
 import type { ExecutionHostId } from '../../../shared/execution-host'
-import { normalizeExecutionHostId } from '../../../shared/execution-host'
+import { getRepoExecutionHostId, normalizeExecutionHostId } from '../../../shared/execution-host'
 import { normalizeRepoBadgeColor } from '../../../shared/repo-badge-color'
 import { sanitizeRepoIcon } from '../../../shared/repo-icon'
 import { normalizeGhAccountBinding } from '../../../shared/github/account-binding'
@@ -14,6 +14,7 @@ import {
   normalizeWorktreeVisibilitySourcePreferences
 } from '../../../shared/worktree/visibility-sources'
 import { prepareLocalWorktreeRootForRepo } from '../../worktree-root-preparation'
+import { proveRepoKindChange } from '../../folder-repo-git-conversion'
 import { invalidateAuthorizedRootsCache } from '../registered-worktree-roots-cache'
 import { notifyReposChanged } from './repos-changed-notification'
 import {
@@ -24,7 +25,7 @@ import {
 export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Store): void {
   ipcMain.handle(
     'repos:update',
-    (
+    async (
       _event,
       args: {
         repoId: string
@@ -61,7 +62,7 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
           ghAccount?: GhAccountBinding | null
         }
       }
-    ) => {
+    ): Promise<Repo | null> => {
       if (isWslMoveSourceHost(args.hostId)) {
         assertWslMoveProjectWritable(store, { repoId: args.repoId })
       }
@@ -225,9 +226,16 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
       if (args.hostId && !hostId) {
         return null
       }
+      const target = store
+        .getRepos()
+        .find(
+          (repo) =>
+            repo.id === args.repoId && (!hostId || getRepoExecutionHostId(repo) === hostId)
+        )
+      const provenUpdates = { ...updates, ...(await proveRepoKindChange(target, updates.kind)) }
       const updated = hostId
-        ? store.updateRepo(args.repoId, updates, hostId)
-        : store.updateRepo(args.repoId, updates)
+        ? store.updateRepo(args.repoId, provenUpdates, hostId)
+        : store.updateRepo(args.repoId, provenUpdates)
       if (updated) {
         if ('worktreeBasePath' in updates) {
           void prepareLocalWorktreeRootForRepo(store, updated)

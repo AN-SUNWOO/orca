@@ -177,6 +177,7 @@ describe('repos:add + repos:clone', () => {
 
     expect(mockStore.updateRepo).toHaveBeenCalledWith(existing.id, {
       kind: 'git',
+      folderUpgradeGitRootPath: clonePath,
       projectHostSetupMethod: 'cloned'
     })
     expect(result).toEqual(upgraded)

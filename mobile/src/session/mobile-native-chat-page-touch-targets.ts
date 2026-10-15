@@ -1,6 +1,6 @@
 import type { PageTouchEvent, PageTouches } from './mobile-native-chat-scroll-policy'
 
-function hasPageTouches(event: object): event is PageTouches {
+function hasPageTouches(event: Event): event is Event & PageTouches {
   return 'touches' in event
 }
 

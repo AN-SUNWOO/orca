@@ -11,7 +11,10 @@ vi.mock('react-native', async () => {
   return {
     Platform: { OS: 'web' },
     FlatList: React.forwardRef(
-      (_props: object, ref: ForwardedRef<{ scrollToOffset: typeof scrollToOffset }>) => {
+      (
+        _props: Record<string, unknown>,
+        ref: ForwardedRef<{ scrollToOffset: typeof scrollToOffset }>
+      ) => {
         React.useImperativeHandle(ref, () => ({ scrollToOffset }), [])
         return null
       }

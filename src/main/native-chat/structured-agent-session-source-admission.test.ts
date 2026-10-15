@@ -40,7 +40,7 @@ it('creates from the host hook path when Claude filename differs, then checks ac
   const sourcePath = () => structuredAgentCliSourcePath({
     agent: 'claude', workspaceId: 'folder', resumeFrom: { providerSessionId: id,
       cliSource: { workspaceId: 'folder', paneKey: 'tab:leaf' } },
-    rows: [{ paneKey: 'tab:leaf', worktreeId: 'folder', agentType: 'claude', state: 'waiting',
+    rows: [{ paneKey: 'tab:leaf', worktreeId: 'folder', agentType: 'claude', state: 'waiting', prompt: '',
       connectionId: null, receivedAt: 1, stateStartedAt: 1,
       providerSession: { key: 'session_id', id, transcriptPath } }]
   })

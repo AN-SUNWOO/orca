@@ -5,13 +5,15 @@ import {
   mutateJiraSavedFilters,
   readJiraSavedFilterState
 } from '@/runtime/runtime-jira-saved-filter-state'
-import {
-  normalizeJiraSavedFilterState,
-  type JiraSavedFilterMutation,
-  type JiraSavedFilter
+import type {
+  JiraSavedFilterMutation,
+  JiraSavedFilter,
+  JiraSavedFilterState
 } from '../../../shared/jira-saved-filters'
 import type { TaskPageLinearViewStateModel } from './use-task-page-linear-view-state'
 import { translate } from '@/i18n/i18n'
+
+const EMPTY_SAVED_FILTER_STATE: JiraSavedFilterState = { filters: [], activeFilterId: null }
 
 type JiraSavedFilterModel = Pick<
   TaskPageLinearViewStateModel,
@@ -29,7 +31,7 @@ export function useTaskPageJiraSavedFilters(
   const target = useMemo(() => ipcOrRuntimeTargetForHostId(ownerKey), [ownerKey])
   const [snapshot, setSnapshot] = useState({
     ownerKey: '',
-    state: normalizeJiraSavedFilterState(undefined)
+    state: EMPTY_SAVED_FILTER_STATE
   })
   const [loading, setLoading] = useState(true)
   const [pendingLifetime, setPendingLifetime] = useState<JiraSavedFilterLifetime | null>(null)
@@ -52,8 +54,7 @@ export function useTaskPageJiraSavedFilters(
       }
     }
   }, [owner])
-  const state =
-    snapshot.ownerKey === ownerKey ? snapshot.state : normalizeJiraSavedFilterState(undefined)
+  const state = snapshot.ownerKey === ownerKey ? snapshot.state : EMPTY_SAVED_FILTER_STATE
   const ready = target !== null && snapshot.ownerKey === ownerKey
   useEffect(() => {
     const lifetime = lifetimeRef.current

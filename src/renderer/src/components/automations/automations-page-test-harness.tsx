@@ -399,7 +399,7 @@ export function rows(container: HTMLElement, testId: string): string[] {
   )
 }
 
-/** Registers the reset both page test files depend on; call once per file. */
+/** Registers the per-case store reset and renderer cleanup for the current suite. */
 export function installAutomationsPageHarness(): void {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true

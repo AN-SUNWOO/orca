@@ -99,7 +99,7 @@ describe('launchAiVaultSessionInNewTab', () => {
     // Why: a resume can target a worktree the user is not viewing (it is activated afterwards).
     expect(mockSetActiveTabType).toHaveBeenCalledExactlyOnceWith('terminal', 'wt-1')
     expect(mockSetTabBarOrder).toHaveBeenCalledWith('wt-1', ['tab-1'])
-    expect(result).toEqual({ tabId: 'tab-1', groupId: 'group-1' })
+    expect(result).toEqual({ tabId: 'tab-1' })
   })
 
   it('queues configured resume startup details for agent history resumes', () => {
@@ -141,7 +141,7 @@ describe('launchAiVaultSessionInNewTab', () => {
     })
   })
 
-  it('creates a split group before launching when a split direction is provided', () => {
+  it('creates the terminal directly in a new split group when a split direction is provided', () => {
     launchAiVaultSessionInNewTab({
       agent: 'codex',
       worktreeId: 'wt-1',
@@ -150,8 +150,9 @@ describe('launchAiVaultSessionInNewTab', () => {
       command: 'codex resume session-2'
     })
 
-    expect(mockCreateEmptySplitGroup).toHaveBeenCalledWith('wt-1', 'group-1', 'right')
-    expect(mockCreateTab).toHaveBeenCalledWith('wt-1', 'group-new', undefined, {
+    expect(mockCreateEmptySplitGroup).not.toHaveBeenCalled()
+    expect(mockCreateTab).toHaveBeenCalledWith('wt-1', 'group-1', undefined, {
+      split: { sourceGroupId: 'group-1', splitDirection: 'right' },
       pendingStartup: expect.anything()
     })
   })
@@ -220,7 +221,6 @@ describe('launchAiVaultSessionInNewTab', () => {
     expect(runtimeMocks.createWebRuntimeSessionTerminal).toHaveBeenCalledWith(
       expect.objectContaining({ targetGroupId: 'group-new' })
     )
-    expect(result.groupId).toBe('group-new')
     if (result.tabId === null) {
       await result.runtimeLaunch
     }

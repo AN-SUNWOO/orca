@@ -4,7 +4,7 @@ import type { Repo } from '../../../../shared/repo-types'
 import {
   isAutomationGeneratedWorkspace,
   isCliCreatedWorkspace
-} from '@/components/sidebar/visible-worktree-kinds'
+} from '../../../../shared/worktree/workspace-kinds'
 import { isWorkspaceOwnedBySomeoneElse } from '../../../../shared/workspace-creator-visibility'
 import type { AgentPaneThread } from './activity-thread-types'
 

@@ -6,7 +6,7 @@ import {
   isSleepingSweepExemptWorkspace
 } from '@/components/sidebar/visible-worktrees'
 import { getStructuredChatWorktreeIds } from '@/components/sidebar/visible-worktree-activity-inputs'
-import { isDefaultBranchWorkspace } from '@/components/sidebar/default-branch-workspace'
+import { isDefaultBranchWorkspace } from '../../../shared/worktree/workspace-kinds'
 import { sortWorktreesSmart } from '@/components/sidebar/smart-sort'
 import { buildWorktreeChecksReviewIndex } from '@/components/cmd-j/worktree-checks-review-index'
 import { getLiveAgentStatusByWorktreeId, isInactiveWorkspace } from '@/lib/worktree-activity-state'

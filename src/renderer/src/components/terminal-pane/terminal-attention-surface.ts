@@ -20,6 +20,7 @@ import {
   isCurrentLivePaneKey
 } from './terminal-notification-state'
 import { isTabOnScreen, isWorkspaceOnScreen } from '@/hooks/agent-auto-ack-targets'
+import { isWorkspaceNotificationMutedBySidebarFilters } from '@/attention/hidden-workspace-notification-mute'
 
 type StoreSnapshot = ReturnType<typeof useAppStore.getState>
 
@@ -67,6 +68,8 @@ export function createTerminalAttentionSurface(state: StoreSnapshot): AgentAtten
     // Why: in-app selection alone is not viewing — a backgrounded Orca, Settings or an away user still need unread.
     isWorkspaceViewed: (workspaceId) => isWorkspaceOnScreen(state, workspaceId),
     isWorkspaceActive: (workspaceId) => state.activeWorktreeId === workspaceId,
+    isWorkspaceMuted: (workspaceId) =>
+      isWorkspaceNotificationMutedBySidebarFilters(state, workspaceId),
     resolveViewedSubjectKey: (groupId) => resolveViewedPaneKey(state, groupId)
   }
 }

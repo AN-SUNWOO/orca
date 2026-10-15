@@ -1,6 +1,4 @@
-import { useCallback } from 'react'
 import { toast } from 'sonner'
-import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { useAppStore } from '../../store'
 import { focusTerminalTabSurface } from '../../lib/focus-terminal-tab-surface'
 import { createBrowserUuid } from '../../lib/browser-uuid'
@@ -16,13 +14,6 @@ import { browserWorkspaceHasRemoteOwner } from '@/runtime/remote-browser-tab-own
 import { getClientCreationActionPolicy } from '@/lib/client-creation-action-policy'
 import type { TabGroupWorktreeSnapshot } from './useTabGroupItemProjections'
 
-export function recordTerminalTabGroupSplit(createdTerminal: TerminalTab | null | undefined): void {
-  if (!createdTerminal) {
-    return
-  }
-  useAppStore.getState().recordFeatureInteraction('terminal-pane-split')
-}
-
 export function useTabGroupCreationCommands({
   groupId,
   worktreeId,
@@ -32,12 +23,10 @@ export function useTabGroupCreationCommands({
   worktreeId: string
   worktreeState: TabGroupWorktreeSnapshot
 }) {
-  const focusGroup = useAppStore((state) => state.focusGroup)
   const createTab = useAppStore((state) => state.createTab)
   const setActiveTab = useAppStore((state) => state.setActiveTab)
   const setActiveTabType = useAppStore((state) => state.setActiveTabType)
   const createBrowserTab = useAppStore((state) => state.createBrowserTab)
-  const createEmptySplitGroup = useAppStore((state) => state.createEmptySplitGroup)
   const openNewBrowserTabInActiveWorkspace = useAppStore(
     (state) => state.openNewBrowserTabInActiveWorkspace
   )
@@ -48,33 +37,8 @@ export function useTabGroupCreationCommands({
     (state) => state.openNewTerminalTabInActiveWorkspace
   )
 
-  const createSplitGroup = useCallback(
-    (direction: 'left' | 'right' | 'up' | 'down') => {
-      focusGroup(worktreeId, groupId)
-      const newGroupId = createEmptySplitGroup(worktreeId, groupId, direction)
-      if (!newGroupId) {
-        return
-      }
-      // Why: this Split entry point always seeds a fresh terminal (tab-drag can open other directions).
-      const terminal = createTab(worktreeId, newGroupId)
-      recordTerminalTabGroupSplit(terminal)
-      setActiveTab(terminal.id)
-      setActiveTabType('terminal', worktreeId)
-    },
-    [
-      createEmptySplitGroup,
-      createTab,
-      focusGroup,
-      groupId,
-      setActiveTab,
-      setActiveTabType,
-      worktreeId
-    ]
-  )
-
   // Why: these stay unmemoized plain lambdas — the original built them inline in the returned commands object.
   return {
-    createSplitGroup,
     newBrowserTab: () => {
       void openNewBrowserTabInActiveWorkspace(groupId).catch((error) => {
         toast.error(error instanceof Error ? error.message : String(error))

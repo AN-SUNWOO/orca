@@ -19,7 +19,7 @@ import type { AgentPromptActivity } from '../../agent-prompt-submission-verifica
 import { hasExplicitIdleTitle } from '../../tui-idle-evidence'
 import { readTuiIdleHookTurn, type TuiIdleHookTurn } from '../../tui-idle-hook-lane'
 
-import type { OrcaRuntimeWithStopExactTerminalsForWorktree } from '../../orca-runtime-stop-exact-terminals-for-worktree'
+import type { OrcaRuntimeWithStopExactTerminalsForWorktree } from '../stop/worktree-terminal-stop-targets'
 
 export type TerminalWaitPermissionInputs = ReturnType<
   OrcaRuntimeWithResolveAuthoritativeTerminalWaitPermission['getTerminalWaitPermissionInputs']

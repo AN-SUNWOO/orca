@@ -57,7 +57,6 @@
 6 src/renderer/src/store/slices/browser/browser-tab-actions.ts
 4 src/renderer/src/store/slices/browser/browser-tab-focus-actions.ts
 2 src/renderer/src/store/slices/browser/create-browser-slice.ts
-1 src/renderer/src/store/slices/direct-ssh-terminal-recovery.ts
 9 src/renderer/src/store/slices/editor/actions/check-run-details-actions.ts
 7 src/renderer/src/store/slices/editor/actions/close-file-action.ts
 1 src/renderer/src/store/slices/editor/actions/git-status-actions.ts
@@ -81,7 +80,7 @@
 4 src/renderer/src/store/slices/editor/tabs/editor-open-target-group.ts
 2 src/renderer/src/store/slices/tab-group-reference-repair.ts
 4 src/renderer/src/store/slices/tab-group-state.ts
-2 src/renderer/src/store/slices/tabs-hydration.ts
+1 src/renderer/src/store/slices/tabs-hydration.ts
 4 src/renderer/src/store/slices/tabs/create-tabs-slice.ts
 17 src/renderer/src/store/slices/tabs/tabs-close-actions.ts
 14 src/renderer/src/store/slices/tabs/tabs-create-actions.ts

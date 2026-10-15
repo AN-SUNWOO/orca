@@ -22,9 +22,8 @@
 1 src/main/daemon/daemon-process-identity-query.ts
 1 src/main/daemon/daemon-process-start-time.ts
 1 src/main/daemon/daemon-user-manager-lifetime.ts
-1 src/main/daemon/pty-process-ceiling-runtime.ts
-1 src/main/daemon/pty-process-ceiling.ts
 1 src/main/daemon/pty-subprocess/shell-launch-plan.ts
+1 src/main/daemon/terminal-scopes.ts
 1 src/main/emulator/serve-sim-runtime-materializer.ts
 1 src/main/git/command-runner/git-exec-file.ts
 1 src/main/git/repo-detection-command.ts

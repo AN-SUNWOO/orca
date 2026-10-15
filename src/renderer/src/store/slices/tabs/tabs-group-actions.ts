@@ -1,7 +1,7 @@
 import { createBrowserUuid } from '@/lib/browser-uuid'
-import type { TabGroup } from '../../../../../shared/tab-types'
-import type { TabsSlice, TabsSliceGet, TabsSliceSet } from './tabs-slice-contract'
+import type { TabSplitTarget, TabsSlice, TabsSliceGet, TabsSliceSet } from './tabs-slice-contract'
 import { activeSurfacePatchMatchesState, buildActiveSurfacePatch } from './tabs-surface'
+import type { TabGroup } from '../../../../../shared/tab-types'
 import {
   buildSplitNode,
   collapseGroupLayout,
@@ -9,6 +9,47 @@ import {
 } from '../../../../../shared/workspace-layout/tab-group-layout-tree'
 import { workspaceRootGroupId } from '../../../../../shared/workspace-layout/workspace-layout-minted-ids'
 import { ownsGlobalSelection } from '../../global-selection-owner'
+
+type SplitGroupState = Pick<
+  TabsSlice,
+  'groupsByWorktree' | 'layoutByWorktree' | 'activeGroupIdByWorktree'
+>
+
+/** Places `newGroup` beside the target's source group; callers that fill it do so in the same update. */
+export function insertSplitGroup(
+  state: SplitGroupState,
+  worktreeId: string,
+  target: TabSplitTarget,
+  newGroup: TabGroup
+): SplitGroupState {
+  const { sourceGroupId, splitDirection } = target
+  const currentLayout =
+    state.layoutByWorktree[worktreeId] ?? ({ type: 'leaf', groupId: sourceGroupId } as const)
+  const replacement = buildSplitNode(
+    sourceGroupId,
+    newGroup.id,
+    splitDirection === 'left' || splitDirection === 'right' ? 'horizontal' : 'vertical',
+    splitDirection === 'left' || splitDirection === 'up' ? 'first' : 'second'
+  )
+  return {
+    groupsByWorktree: {
+      ...state.groupsByWorktree,
+      [worktreeId]: [...(state.groupsByWorktree[worktreeId] ?? []), newGroup]
+    },
+    layoutByWorktree: {
+      ...state.layoutByWorktree,
+      [worktreeId]: replaceLeaf(currentLayout, sourceGroupId, replacement)
+    },
+    activeGroupIdByWorktree:
+      target.activate === false
+        ? state.activeGroupIdByWorktree
+        : { ...state.activeGroupIdByWorktree, [worktreeId]: newGroup.id }
+  }
+}
+
+export function emptySplitGroup(worktreeId: string, groupId: string): TabGroup {
+  return { id: groupId, worktreeId, activeTabId: null, tabOrder: [] }
+}
 
 export function createTabsGroupActions(
   set: TabsSliceSet,
@@ -131,39 +172,14 @@ export function createTabsGroupActions(
 
     createEmptySplitGroup: (worktreeId, sourceGroupId, direction, opts) => {
       const newGroupId = createBrowserUuid()
-      const newGroup: TabGroup = {
-        id: newGroupId,
-        worktreeId,
-        activeTabId: null,
-        tabOrder: []
-      }
-      const shouldActivate = opts?.activate !== false
-      set((state) => {
-        const existing = state.groupsByWorktree[worktreeId] ?? []
-        const currentLayout =
-          state.layoutByWorktree[worktreeId] ?? ({ type: 'leaf', groupId: sourceGroupId } as const)
-        const replacement = buildSplitNode(
-          sourceGroupId,
-          newGroupId,
-          direction === 'left' || direction === 'right' ? 'horizontal' : 'vertical',
-          direction === 'left' || direction === 'up' ? 'first' : 'second'
+      set((state) =>
+        insertSplitGroup(
+          state,
+          worktreeId,
+          { sourceGroupId, splitDirection: direction, activate: opts?.activate },
+          emptySplitGroup(worktreeId, newGroupId)
         )
-        return {
-          groupsByWorktree: { ...state.groupsByWorktree, [worktreeId]: [...existing, newGroup] },
-          layoutByWorktree: {
-            ...state.layoutByWorktree,
-            [worktreeId]: replaceLeaf(currentLayout, sourceGroupId, replacement)
-          },
-          ...(shouldActivate
-            ? {
-                activeGroupIdByWorktree: {
-                  ...state.activeGroupIdByWorktree,
-                  [worktreeId]: newGroupId
-                }
-              }
-            : {})
-        }
-      })
+      )
       get().recordFeatureInteraction?.('terminal-panes')
       return newGroupId
     }

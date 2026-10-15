@@ -11,6 +11,14 @@ import type { WorkspaceSessionHydrationOptions } from '@/lib/workspace-session-h
 
 export type TabSplitDirection = 'left' | 'right' | 'up' | 'down'
 
+/** A new group beside `sourceGroupId`, created in the same update as the tab that fills it. */
+export type TabSplitTarget = {
+  sourceGroupId: string
+  splitDirection: TabSplitDirection
+  /** false leaves the worktree's active group where it was. */
+  activate?: boolean
+}
+
 export type TabDragActivationSnapshot = {
   activeGroupId: string | null
   activeTabIdByGroup: Record<string, string | null>
@@ -40,6 +48,8 @@ export type TabsSlice = {
         | 'isPinned'
       > & {
         targetGroupId: string
+        /** Creates the tab in a new split group instead; wins over targetGroupId. */
+        split: TabSplitTarget
         /** Client-local unified tab id to insert after; an explicit targetGroupId still wins. */
         afterTabId: string
         activate: boolean
@@ -52,10 +62,7 @@ export type TabsSlice = {
   createUnifiedTabInSplit: (
     worktreeId: string,
     contentType: TabContentType,
-    target: {
-      sourceGroupId: string
-      splitDirection: TabSplitDirection
-    },
+    target: Omit<TabSplitTarget, 'activate'>,
     init?: Partial<
       Pick<
         Tab,

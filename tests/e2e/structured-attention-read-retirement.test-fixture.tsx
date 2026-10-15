@@ -56,7 +56,8 @@ export const NOTIFICATION_SETTINGS: NotificationSettings = {
   customSoundId: 'system',
   customSoundPath: null,
   customSoundVolume: 1,
-  mutedNotificationSourceIds: []
+  mutedNotificationSourceIds: [],
+  notifyHiddenWorkspaces: false
 }
 export const SCOPE = {
   executionHostId: 'local',
@@ -209,6 +210,7 @@ beforeEach(() => {
   const delivery = createStructuredAttentionMobileDelivery({
     readNotificationSettings: () => ({ ...NOTIFICATION_SETTINGS, suppressWhenFocused: false }),
     readWorkspaceLabels: () => ({}),
+    isWorkspaceHidden: () => false,
     dispatch: (event) => controller.dispatch(event),
     reconcile: (state) => controller.reconcileStructuredPromptAttention(state),
     now: () => 42

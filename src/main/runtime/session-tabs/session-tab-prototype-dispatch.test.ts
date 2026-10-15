@@ -329,7 +329,7 @@ class SessionRuntime extends OrcaRuntimeService {
     return Promise.resolve(null)
   }
 
-  protected override hydrateHeadlessMobileSessionTabsFromWorkspaceSession(): Set<string> {
+  public override hydrateHeadlessMobileSessionTabsFromWorkspaceSession(): Set<string> {
     return new Set()
   }
 

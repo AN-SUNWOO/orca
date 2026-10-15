@@ -23,11 +23,13 @@ export type ClaudeStructuredAuthPolicy = {
  * selection, not the platform default target, owns its auth.
  */
 export function claudeStructuredAuthPolicyForSettings(
-  settings: Pick<
-    GlobalSettings,
-    | 'claudeManagedAccounts'
-    | 'activeClaudeManagedAccountId'
-    | 'activeClaudeManagedAccountIdsByRuntime'
+  settings: Partial<
+    Pick<
+      GlobalSettings,
+      | 'claudeManagedAccounts'
+      | 'activeClaudeManagedAccountId'
+      | 'activeClaudeManagedAccountIdsByRuntime'
+    >
   >
 ): ClaudeStructuredAuthPolicy {
   // Why the router first: it decides whether the account or System default runs, as for terminals.

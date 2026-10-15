@@ -53,6 +53,7 @@ export abstract class OrcaRuntimeWithAdoptTerminalOrphansFromInventory extends O
       }
     }
     return adoptRuntimeTerminalOrphansFromInventory({
+      hostId: this.workspaceSessions.getHostId(workspace.id),
       request,
       workspace,
       inventory,

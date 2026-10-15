@@ -13,8 +13,8 @@ import type { TabSplitDirection } from '@/store/slices/tabs'
 import type { WebRuntimeTerminalCreateOutcome } from '@/runtime/web-runtime-session-types'
 
 export type LaunchAiVaultSessionInNewTabResult =
-  | { tabId: string; groupId?: string }
-  | { tabId: null; groupId?: string; runtimeLaunch: Promise<WebRuntimeTerminalCreateOutcome> }
+  | { tabId: string }
+  | { tabId: null; runtimeLaunch: Promise<WebRuntimeTerminalCreateOutcome> }
 
 export function launchAiVaultSessionInNewTab(args: {
   agent: AiVaultAgent
@@ -29,15 +29,18 @@ export function launchAiVaultSessionInNewTab(args: {
   splitDirection?: TabSplitDirection
 }): LaunchAiVaultSessionInNewTabResult {
   const store = useAppStore.getState()
-  let targetGroupId = args.targetGroupId
-  // Why before both paths: the runtime path used to return first and drop the split (#22791).
-  const splitGroupId =
-    args.splitDirection && targetGroupId
-      ? store.createEmptySplitGroup(args.worktreeId, targetGroupId, args.splitDirection)
-      : null
-  targetGroupId = splitGroupId ?? targetGroupId
+  // Why both paths split: the runtime path used to return first and drop the split (#22791).
+  const split =
+    args.splitDirection && args.targetGroupId
+      ? { sourceGroupId: args.targetGroupId, splitDirection: args.splitDirection }
+      : undefined
   const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(store, args.worktreeId)
   if (isWebRuntimeSessionActive(runtimeEnvironmentId)) {
+    // Why an empty group first: the paired host creates the tab after a round trip.
+    const splitGroupId = split
+      ? store.createEmptySplitGroup(args.worktreeId, split.sourceGroupId, split.splitDirection)
+      : null
+    const targetGroupId = splitGroupId ?? args.targetGroupId
     const runtimeLaunch = createWebRuntimeSessionTerminal({
       worktreeId: args.worktreeId,
       environmentId: runtimeEnvironmentId,
@@ -62,14 +65,11 @@ export function launchAiVaultSessionInNewTab(args: {
       }
       return outcome
     })
-    return {
-      tabId: null,
-      ...(targetGroupId ? { groupId: targetGroupId } : {}),
-      runtimeLaunch: observedRuntimeLaunch
-    }
+    return { tabId: null, runtimeLaunch: observedRuntimeLaunch }
   }
 
-  const tab = store.createTab(args.worktreeId, targetGroupId, undefined, {
+  const tab = store.createTab(args.worktreeId, args.targetGroupId, undefined, {
+    ...(split ? { split } : {}),
     ...(args.cwd ? { startupCwd: args.cwd } : {}),
     pendingStartup: {
       command: args.command,
@@ -88,5 +88,5 @@ export function launchAiVaultSessionInNewTab(args: {
 
   persistAgentLaunchTabOrder(args.worktreeId, tab.id)
 
-  return { tabId: tab.id, groupId: targetGroupId }
+  return { tabId: tab.id }
 }

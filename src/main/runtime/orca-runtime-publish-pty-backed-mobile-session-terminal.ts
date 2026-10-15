@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithHasLiveOrPersistedServeOrSshOwnedPtyBinding } from './orca-runtime-has-live-or-persisted-serve-or-ssh-owned-pty-binding'
+import { OrcaRuntimeWithHasLiveOrPersistedServeOrSshOwnedPtyBinding } from './session-lifecycle/close/has-live-or-persisted-serve-or-ssh-owned-pty-binding'
 import type { RuntimePtyWorktreeRecord } from './runtime-terminal-state-records'
 import { normalizeCompatibleAgentTitleForOwner } from '../../shared/agent-title-owner'
 import { getLatestPtyTitle } from './runtime-worktree-status-projection'

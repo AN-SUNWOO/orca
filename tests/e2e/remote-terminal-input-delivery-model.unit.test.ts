@@ -1,3 +1,4 @@
+import '../../src/main/runtime/rpc/unused-default-rpc-methods.test-fixture'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createModelLink,
@@ -372,7 +373,7 @@ async function runSchedule(seed: number, stats: Stats): Promise<void> {
   const arrived = checkPty(ptyWrites.join(''), ops, seed)
   for (const op of ops) {
     // A write the pane reported applied really reached the PTY, whole.
-    if (op.result === true) {
+    if (op.result === true && !arrived.has(op.id)) {
       expect(arrived.has(op.id), `seed ${seed} op ${op.id} reported applied`).toBe(true)
     }
   }
@@ -389,15 +390,18 @@ function checkPty(pty: string, ops: readonly Op[], seed: number): Set<number> {
   const arrived = new Set<number>()
   let position = 0
   for (const op of ops) {
-    const where = `seed ${seed} op ${op.id} (${op.status}) at ${position}: ${JSON.stringify(pty.slice(position, position + 40))}`
+    const where = (): string =>
+      `seed ${seed} op ${op.id} (${op.status}) at ${position}: ${JSON.stringify(pty.slice(position, position + 40))}`
     if (pty.startsWith(op.text, position)) {
-      expect(op.status, where).not.toBe('forbidden')
+      if (op.status === 'forbidden') {
+        expect(op.status, where()).not.toBe('forbidden')
+      }
       arrived.add(op.id)
       position += op.text.length
       continue
     }
     if (op.status === 'required') {
-      throw new Error(`missing or out of order: ${where}`)
+      throw new Error(`missing or out of order: ${where()}`)
     }
     if (op.status === 'optional') {
       // A withdrawn chunked paste or a restart can cut it after a whole chunk.

@@ -15,6 +15,7 @@ import {
 } from './workspace-unread-flag'
 import { workspaceMarkerTabIds } from './workspace-live-markers'
 import { isTabOnScreen } from '@/hooks/agent-auto-ack-targets'
+import { isWorkspaceNotificationMutedBySidebarFilters } from '@/attention/hidden-workspace-notification-mute'
 
 export const createWorkspaceAttentionSlice: StateCreator<
   AppState,
@@ -81,6 +82,10 @@ export const createWorkspaceAttentionSlice: StateCreator<
       // Why: a bell on the tab on screen is already read; marking it would persist the flag
       // true then false, and a remote owner turns each persist into an RPC.
       if (isTabOnScreen(get(), worktreeId, tabId, 'terminal')) {
+        return
+      }
+      // Why here too: the bell's marker is written before its delayed banner reaches the attention policy.
+      if (isWorkspaceNotificationMutedBySidebarFilters(get(), worktreeId)) {
         return
       }
       markWorkspaceUnreadFlag(set, get, worktreeId)

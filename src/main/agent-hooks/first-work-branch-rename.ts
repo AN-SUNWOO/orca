@@ -44,7 +44,9 @@ export type FirstWorkBranchRenameEvent = {
 }
 
 export type FirstWorkBranchRenameDeps = {
-  getSettings: () => GlobalSettings
+  getSettings: () => Parameters<typeof resolveTextGenerationParams>[0] &
+    Parameters<typeof getConfiguredBranchPrefix>[0] &
+    Partial<Pick<GlobalSettings, 'autoRenameBranchFromWork'>>
   getRepo: (repoId: string) => Repo | undefined
   getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
   /** Current sidebar display name for the worktree, if one is stored. */

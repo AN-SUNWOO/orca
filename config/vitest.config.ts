@@ -29,7 +29,8 @@ const transforms = {
 const testOptions = {
   environment: 'node',
   clearMocks: false,
-  fsModuleCache: true,
+  // Persistent transforms can miss source additions; only explicit cache experiments opt in.
+  fsModuleCache: Boolean(process.env.ORCA_UNIT_MODULE_CACHE_PATH),
   ...(process.env.ORCA_UNIT_MODULE_CACHE_PATH
     ? { fsModuleCachePath: process.env.ORCA_UNIT_MODULE_CACHE_PATH }
     : {}),

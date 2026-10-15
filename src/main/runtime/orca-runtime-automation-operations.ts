@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithPtyForegroundProcessReads } from './orca-runtime-pty-foreground-process-reads'
+import { OrcaRuntimeWithPtyForegroundProcessReads } from './client/runtime-client-state'
 import type {
   AutomationOwnerPrecondition,
   AutomationDestination

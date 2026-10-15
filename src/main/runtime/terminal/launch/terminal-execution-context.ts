@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithRegisterPty } from '../../orca-runtime-register-pty'
+import { OrcaRuntimeWithRegisterPty } from '../lifecycle/pty-registration'
 
 export abstract class OrcaRuntimeWithPreparePtyExecutionContext extends OrcaRuntimeWithRegisterPty {
   protected abstract disposeHeadlessTerminal(ptyId: string): void

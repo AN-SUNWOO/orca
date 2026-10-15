@@ -44,7 +44,7 @@ import type { RuntimeSkillCommands } from './runtime-skill-command-surface'
 import { RuntimeTerminalStreamConsumers } from './runtime-terminal-stream-consumers'
 import type { RecentPtyOutputBuffer } from './recent-pty-output-buffer'
 
-import type { LiveTerminalPty } from './orca-runtime-build-pty-terminal-summary'
+import type { LiveTerminalPty } from './terminal/query/pty-terminal-summary'
 import type { FreshExplicitAgentStatus } from './runtime-hook-agent-row-selection'
 
 export abstract class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWithRuntimeId {

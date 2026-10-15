@@ -1,10 +1,11 @@
-import { OrcaRuntimeWithFocusTerminal } from '../orca-runtime-focus-terminal'
+import { OrcaRuntimeWithFocusTerminal } from '../terminal/focus/focus-terminal'
 import { EXPLICIT_TERMINAL_CLOSE_STOP_TIMEOUT_MS } from '../orca-runtime-core'
 import { SSH_PROVIDER_UNREGISTERED_REASON } from '../../../shared/pty-liveness-verdict'
 import type { RuntimeTerminalClose } from '../../../shared/runtime-types'
 import type { RuntimePtyTabCloseAuthority } from '../runtime-terminal-state-records'
 import { parsePaneKey } from '../../../shared/stable-pane-id'
 import { errorMessage } from '../../../shared/error-message'
+import type { ResolvedWorktree } from '../runtime-worktree-path-identity'
 
 /** How an explicit close's stop of its addressed PTY ended. */
 type ExplicitCloseStop = { stopped: boolean }
@@ -12,6 +13,30 @@ type ExplicitCloseStop = { stopped: boolean }
 const NO_STOP: ExplicitCloseStop = { stopped: false }
 
 export abstract class OrcaRuntimeWithStopExplicitlyClosedTabPtys extends OrcaRuntimeWithFocusTerminal {
+  protected abstract getResolvedWorktreeMap(): Promise<Map<string, ResolvedWorktree>>
+  protected abstract refreshPtyWorktreeRecordsFromController(
+    resolvedWorktrees: ResolvedWorktree[],
+    targetWorktreeId?: string | null,
+    deadline?: number
+  ): Promise<Set<string> | null>
+  protected abstract getLivePtyIdsForWorktree(
+    worktreeId: string,
+    freshPtyIds?: ReadonlySet<string>
+  ): Set<string>
+  protected abstract getTerminalHandlesForPtyId(ptyId: string): string[]
+  protected abstract getRecordedTerminalSleepHandles(
+    ptyIds: Iterable<string>,
+    terminalHandlesByPtyId: Readonly<Record<string, readonly string[]>>
+  ): string[]
+  protected abstract commitWorktreeTerminalSleepPtys(args: {
+    worktreeId: string
+    generation: number
+    ptyIds: readonly string[]
+    pendingPtyIds: Set<string>
+    committedPtyIds: Set<string>
+    terminalHandlesByPtyId: Readonly<Record<string, readonly string[]>>
+  }): void
+
   protected async stopExplicitlyClosedTabPtys(
     ptyIds: readonly string[],
     addressedPtyId: string

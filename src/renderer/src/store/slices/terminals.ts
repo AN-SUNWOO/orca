@@ -16,7 +16,6 @@ import { createTerminalPtyReleaseActions } from '../terminals/terminal-pty-relea
 import { createTerminalUnverifiedPtyLossActions } from '../terminals/terminal-unverified-pty-loss'
 import { createTerminalDisownedPtySourceActions } from '../terminals/terminal-disowned-pty-sources'
 import { createTerminalPaneHibernationActions } from '../terminals/terminal-pane-hibernation'
-import { createDirectSshTerminalBindingActions } from '../terminals/direct-ssh-terminal-bindings'
 import { createTerminalShutdownActions } from '../terminals/terminal-shutdown'
 import { createTerminalRestartActions } from '../terminals/terminal-restart-state'
 import { createTerminalLayoutActions } from '../terminals/terminal-layout-state'
@@ -83,7 +82,6 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
   ...createTerminalUnverifiedPtyLossActions(set),
   ...createTerminalDisownedPtySourceActions(set),
   ...createTerminalPaneHibernationActions(set, get),
-  ...createDirectSshTerminalBindingActions(set, get),
   ...createTerminalShutdownActions(set, get),
   ...createTerminalRestartActions(set, get),
   ...createTerminalLayoutActions(set, get),

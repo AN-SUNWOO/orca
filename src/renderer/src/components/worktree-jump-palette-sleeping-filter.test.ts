@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isSleepingSweepExemptWorkspace } from './sidebar/visible-worktrees'
+import { isSleepingSweepExemptWorkspace } from './sidebar/visible-worktree-kinds'
 import type { Worktree } from '../../../shared/worktree/types'
 
 function makeWorktree(overrides: Partial<Worktree> = {}): Worktree {

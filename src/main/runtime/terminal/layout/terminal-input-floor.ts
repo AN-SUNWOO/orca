@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithOnPtyExit } from '../../orca-runtime-on-pty-exit'
+import { OrcaRuntimeWithOnPtyExit } from '../lifecycle/pty-exit-lifecycle'
 import type { PtyLivenessVerdict } from '../../../../shared/pty-liveness-verdict'
 import type { DriverState } from '../../orca-runtime-core'
 import type { TerminalInputKind } from '../../../../shared/terminal-input-kind'

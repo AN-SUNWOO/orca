@@ -1,14 +1,23 @@
 import type { ExecutionHostId, ExecutionHostScope } from '../../../../shared/execution-host'
 import type { Worktree } from '../../../../shared/worktree/types'
-import { getWorktreeGitIdentityDisplay } from '@/lib/worktree-git-identity-display'
 
 /**
- * Predicates for what KIND of workspace a row is.
- *
- * Split out of visible-worktrees so the filter/visibility logic there stays under
- * the line cap; these answer "what is this workspace", not "should it be shown".
+ * The sleeping-sweep exemption and the filter-state shape, split out of visible-worktrees so the
+ * filter logic there stays under the line cap. The kind predicates live in shared/worktree/workspace-kinds.
  */
 
+/**
+ * Whether the "Hide sleeping" sweep must keep this row (#8873).
+ *
+ * Why isMainWorktree and not isDefaultBranchWorkspace: the project's primary
+ * checkout is the repo's only guaranteed entry point. Detached-HEAD and offline
+ * SSH mains fail the default-branch predicate yet often have no sibling row at
+ * all, so sweeping them drops the entire project out of the sidebar, Cmd+J and
+ * the board with no way back except changing a filter.
+ *
+ * Why shared: the sidebar pipeline and the jump palette both apply this, and a
+ * second copy is how the two surfaces drift.
+ */
 export function isSleepingSweepExemptWorkspace(
   worktree: Worktree,
   alwaysShowDefaultBranchWorkspace: boolean | undefined
@@ -26,26 +35,6 @@ export function isSleepingSweepExemptionNarrowingList(
   alwaysShowDefaultBranchWorkspace: boolean | undefined
 ): boolean {
   return !showSleepingWorkspaces && alwaysShowDefaultBranchWorkspace === false
-}
-
-export function isAutomationGeneratedWorkspace(worktree: Worktree): boolean {
-  return worktree.automationProvenance?.kind === 'created-by-automation'
-}
-
-export function isCliCreatedWorkspace(worktree: Worktree): boolean {
-  return worktree.cliProvenance?.kind === 'created-by-cli'
-}
-
-/**
- * Whether a worktree sits on a detached HEAD (a commit, not a branch).
- *
- * Why the head check: folder workspaces and SSH-synthesized rows carry both an
- * empty branch and an empty head, so branch-emptiness alone would sweep them
- * into this filter. Requiring a real head keeps the predicate to genuine
- * detached-HEAD checkouts, matching what DetachedHeadBadge renders on the card.
- */
-export function isDetachedHeadWorkspace(worktree: Worktree): boolean {
-  return getWorktreeGitIdentityDisplay(worktree)?.kind === 'detached'
 }
 
 /** Inputs describing sidebar filter settings that the Clear Filters path owns. */

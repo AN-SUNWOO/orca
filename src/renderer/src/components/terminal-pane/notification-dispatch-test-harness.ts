@@ -47,6 +47,7 @@ export type NotificationDispatchMockState = {
       agentTaskComplete?: boolean
       customSoundPath?: string | null
       customSoundId?: string | null
+      notifyHiddenWorkspaces?: boolean
     }
   }
   markAgentAttentionUnread: ReturnType<typeof vi.fn>

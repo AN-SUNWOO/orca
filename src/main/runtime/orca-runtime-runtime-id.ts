@@ -98,10 +98,10 @@ export class OrcaRuntimeWithRuntimeId {
 
   protected tabs = new Map<string, RuntimeSyncedTab>()
 
-  protected mobileSessionTabsByWorktree = new Map<string, RuntimeMobileSessionTabsSnapshot>()
+  mobileSessionTabsByWorktree = new Map<string, RuntimeMobileSessionTabsSnapshot>()
 
   /** Single host writer for mobile session snapshots; versions are total-order stamps. */
-  protected storeMobileSessionSnapshot(
+  storeMobileSessionSnapshot(
     worktreeId: string,
     snapshot: RuntimeMobileSessionTabsSnapshot
   ): RuntimeMobileSessionTabsSnapshot {

@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDefaultWorkspaceSession } from '../../shared/constants'
 import {
   CLOSED_TERMINAL_TAB_TOMBSTONE_TTL_MS,
@@ -20,6 +20,9 @@ import {
   makeSession
 } from './__fixtures__/orca-runtime-terminal-close-continuity-fixtures'
 import { advanceTerminalTopologyRevision } from '../persistence/terminal-topology/terminal-topology-membership'
+import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
+import type { DurableProfileStateMutation } from '../persistence/loading-store/store-runtime-state'
+import { RuntimeMachineName } from './runtime-machine-name'
 
 const SSH_REPO_ID = 'ssh-repo'
 const SSH_HOST_ID = 'ssh:target-1'
@@ -297,5 +300,178 @@ describe('close records', () => {
     expect(
       store.getWorkspaceSession(SSH_HOST_ID).closedTerminalTabTombstonesByTabId?.['ssh-tab']
     ).toBeDefined()
+  })
+})
+
+describe('terminal resume cleanup characterization', () => {
+  class ResumeRecordsRuntime extends OrcaRuntimeService {
+    clearResumeRecords() {
+      return this['clearWorktreeTerminalResumeRecords']('folder-proof', LOCAL_EXECUTION_HOST_ID, [
+        'closed-tab'
+      ])
+    }
+  }
+
+  beforeEach(() => {
+    vi.spyOn(RuntimeMachineName.prototype, 'start').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function persistedRuntime() {
+    const directory = mkdtempSync(join(tmpdir(), 'orca-stop-resume-'))
+    directories.push(directory)
+    const store = createSqliteTestStore(Store, { dataFile: join(directory, 'orca-data.json') })
+    store.setWorkspaceSession({
+      ...store.getWorkspaceSession(),
+      terminalPtyIncarnationsByPaneKey: { 'closed-tab:left': 'incarnation-proof' }
+    })
+    store.flushOrThrow()
+    return { store, runtime: new ResumeRecordsRuntime(store) }
+  }
+
+  function removeSessionReader(store: Store) {
+    const original = store.getWorkspaceSession
+    Object.defineProperty(store, 'getWorkspaceSession', { configurable: true, value: undefined })
+    return () => {
+      Object.defineProperty(store, 'getWorkspaceSession', { configurable: true, value: original })
+    }
+  }
+
+  describe('terminal resume cleanup guarded Store accesses', () => {
+    it('removes stale pane incarnations through the real durable Store callback', async () => {
+      const { store, runtime } = persistedRuntime()
+      expect(store.getWorkspaceSession().terminalPtyIncarnationsByPaneKey).toEqual({
+        'closed-tab:left': 'incarnation-proof'
+      })
+      await expect(runtime.clearResumeRecords()).resolves.toBeUndefined()
+      expect(store.getWorkspaceSession().terminalPtyIncarnationsByPaneKey).toEqual({})
+    })
+
+    it('refuses a missing capability before the durable callback', async () => {
+      const { store, runtime } = persistedRuntime()
+      const durable = vi.spyOn(store, 'runDurableMutation')
+      const restore = removeSessionReader(store)
+      try {
+        await expect(runtime.clearResumeRecords()).rejects.toThrow('workspace_session_unavailable')
+        expect(durable).not.toHaveBeenCalled()
+      } finally {
+        restore()
+      }
+    })
+
+    it('keeps the native failure when the capability disappears after the guard', async () => {
+      const { store, runtime } = persistedRuntime()
+      const original = store.runDurableMutation.bind(store)
+      let restore: (() => void) | undefined
+      vi.spyOn(store, 'runDurableMutation').mockImplementation(function <T>(
+        mutate: () => DurableProfileStateMutation<T>
+      ): Promise<T> {
+        return original(() => {
+          restore = removeSessionReader(store)
+          return mutate()
+        })
+      })
+      try {
+        await expect(runtime.clearResumeRecords()).rejects.toThrow(TypeError)
+      } finally {
+        restore?.()
+      }
+    })
+
+    it('keeps the native failure at the later rollback capability read', async () => {
+      const { store, runtime } = persistedRuntime()
+      let restore: (() => void) | undefined
+      vi.spyOn(store, 'runDurableMutation').mockImplementation(async function <T>(
+        mutate: () => DurableProfileStateMutation<T>
+      ): Promise<T> {
+        const mutation = mutate()
+        expect(mutation.rollback).toBeTypeOf('function')
+        restore = removeSessionReader(store)
+        mutation.rollback?.()
+        return mutation.value
+      })
+      try {
+        await expect(runtime.clearResumeRecords()).rejects.toThrow(TypeError)
+      } finally {
+        restore?.()
+      }
+    })
+  })
+  it('keeps the native failure when the Root Store disappears inside the durable callback', async () => {
+    const { store, runtime } = persistedRuntime()
+    const original = store.runDurableMutation.bind(store)
+    const descriptor = Object.getOwnPropertyDescriptor(runtime, 'store')
+    if (!descriptor) {
+      throw new Error('fixture Store descriptor missing')
+    }
+    vi.spyOn(store, 'runDurableMutation').mockImplementation(function <T>(
+      mutate: () => DurableProfileStateMutation<T>
+    ): Promise<T> {
+      return original(() => {
+        Object.defineProperty(runtime, 'store', { configurable: true, value: null })
+        return mutate()
+      })
+    })
+    try {
+      await expect(runtime.clearResumeRecords()).rejects.toThrow(TypeError)
+    } finally {
+      Object.defineProperty(runtime, 'store', descriptor)
+    }
+  })
+
+  it('keeps the native failure when the Root Store disappears before rollback', async () => {
+    const { store, runtime } = persistedRuntime()
+    const descriptor = Object.getOwnPropertyDescriptor(runtime, 'store')
+    if (!descriptor) {
+      throw new Error('fixture Store descriptor missing')
+    }
+    vi.spyOn(store, 'runDurableMutation').mockImplementation(async function <T>(
+      mutate: () => DurableProfileStateMutation<T>
+    ): Promise<T> {
+      const mutation = mutate()
+      expect(mutation.rollback).toBeTypeOf('function')
+      Object.defineProperty(runtime, 'store', { configurable: true, value: null })
+      mutation.rollback?.()
+      return mutation.value
+    })
+    try {
+      await expect(runtime.clearResumeRecords()).rejects.toThrow(TypeError)
+    } finally {
+      Object.defineProperty(runtime, 'store', descriptor)
+    }
+  })
+
+  it('retains the repeated Root Store reads and session method receiver and arguments', async () => {
+    const { store, runtime } = persistedRuntime()
+    const descriptor = Object.getOwnPropertyDescriptor(runtime, 'store')
+    if (!descriptor) {
+      throw new Error('fixture Store descriptor missing')
+    }
+    let storeReads = 0
+    const original = store.getWorkspaceSession
+    const reader = vi.spyOn(store, 'getWorkspaceSession').mockImplementation(function (
+      this: Store,
+      ...args: Parameters<Store['getWorkspaceSession']>
+    ) {
+      expect(this).toBe(store)
+      expect(args).toEqual([LOCAL_EXECUTION_HOST_ID])
+      return original.apply(this, args)
+    })
+    Object.defineProperty(runtime, 'store', {
+      configurable: true,
+      get() {
+        storeReads += 1
+        return store
+      }
+    })
+    try {
+      await expect(runtime.clearResumeRecords()).resolves.toBeUndefined()
+      expect(storeReads).toBe(7)
+      expect(reader).toHaveBeenCalledTimes(2)
+    } finally {
+      Object.defineProperty(runtime, 'store', descriptor)
+    }
   })
 })

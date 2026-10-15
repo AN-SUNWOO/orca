@@ -28,6 +28,7 @@ import {
   type MobileNativeChatPendingItem
 } from './mobile-native-chat-render-data'
 import { useMobileNativeChatPageHistory } from './use-mobile-native-chat-page-history'
+import { useMobileNativeChatRowKeys } from './mobile-native-chat-row-keys'
 import { useMobileNativeChatPinchGesture } from './use-mobile-native-chat-pinch-gesture'
 import {
   mobileNativeChatRowAnchor,
@@ -239,6 +240,7 @@ export function MobileNativeChatView({
       }),
     [messages, folded, streaming, pending, imagePreviewsByMessageId]
   )
+  const rowKeys = useMobileNativeChatRowKeys(folded, messages, sendSurfaceId)
   const {
     listRef,
     showJumpToTail,
@@ -287,8 +289,6 @@ export function MobileNativeChatView({
   // Per-turn status rows: one live indicator while the turn runs, then a settled
   // "Worked for N" row. The structured lane owns them; the bridge lane keeps its
   // three-dot indicator.
-  // The display status, decided once in the session hook.
-  const stopping = turnIndicator?.stopping === true
   const turns = useMobileNativeChatTurnDisclosure({
     messages: data,
     enabled: structuredActivityUi,
@@ -298,7 +298,8 @@ export function MobileNativeChatView({
     turnJournal,
     thinking: turnIndicator?.thinking === true,
     activityText: turnIndicator?.activityText ?? null,
-    stopping,
+    // The display status, decided once in the session hook.
+    stopping: turnIndicator?.stopping === true,
     lineYields: structuredActivityUi && (ask != null || permission != null || question != null),
     scopeKey: sendSurfaceId
   })
@@ -323,7 +324,7 @@ export function MobileNativeChatView({
     [toolsExpanded, fontScale, onOpenFile, structuredActivityUi, turns, unsentNotices]
   )
 
-  const history = useMobileNativeChatPageHistory(turns.listMessages, renderItem)
+  const history = useMobileNativeChatPageHistory(turns.listMessages, renderItem, rowKeys)
 
   const liveStatus = turns.liveLine ? (
     <MobileNativeChatLiveLine
@@ -335,7 +336,6 @@ export function MobileNativeChatView({
   ) : null
 
   const emptyState = mobileNativeChatEmptyState(status, agent ?? null, error)
-  const showLoading = status === 'loading' && messages.length === 0
 
   const lockReason = useSettledMobileNativeChatInputLock(inputLockReason)
   // Why only Send, terminal-backed only: that send types into the agent's prompt and can answer it,
@@ -357,7 +357,7 @@ export function MobileNativeChatView({
 
   return (
     <View style={[styles.root, { paddingBottom: bottomPad }]}>
-      {showLoading ? (
+      {status === 'loading' && messages.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.textSecondary} />
         </View>
@@ -368,7 +368,7 @@ export function MobileNativeChatView({
             <FlatList
               ref={listRef}
               data={history.listRows}
-              keyExtractor={(item) => item.id}
+              keyExtractor={rowKeys.keyOf}
               renderItem={history.renderListRow}
               contentContainerStyle={styles.listContent}
               // Let link/file taps land while the composer keyboard is up
@@ -394,7 +394,6 @@ export function MobileNativeChatView({
               ListEmptyComponent={emptyStateView}
             />
           </GestureDetector>
-          {/* Jump-to-latest control. */}
           {showJumpToTail ? (
             <Pressable
               accessibilityLabel="Scroll to latest"

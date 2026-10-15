@@ -8,9 +8,10 @@ type Row<TItem> = { item: TItem; index: number }
 /** RN Web's list draws rows by index, so rows added at the front push the ones a reader is on out
  *  of what it draws. On the page, rows that arrive above the list's first row go in its header
  *  instead: the list's own rows keep their indexes and stay drawn. */
-export function useMobileNativeChatPageHistory<TItem extends { id: string }>(
+export function useMobileNativeChatPageHistory<TItem>(
   rows: readonly TItem[],
-  renderRow: (row: Row<TItem>) => ReactElement
+  renderRow: (row: Row<TItem>) => ReactElement,
+  keys: { keyOf: (row: TItem) => string; current: (key: string) => string | undefined }
 ): {
   listRows: readonly TItem[]
   renderListRow: (row: Row<TItem>) => ReactElement
@@ -18,15 +19,17 @@ export function useMobileNativeChatPageHistory<TItem extends { id: string }>(
   withHistory: (header: ReactElement | null) => ReactElement | null
 } {
   const onPage = Platform.OS === 'web'
-  // The row the list starts at, for as long as that row exists.
+  // The row the list starts at, for as long as that row, or the row its messages joined, exists.
   const [headId, setHeadId] = useState<string | null>(null)
+  const { keyOf, current } = keys
+  const head = headId === null ? undefined : current(headId)
   const headIndex = useMemo(
-    () => (onPage && headId !== null ? rows.findIndex((row) => row.id === headId) : -1),
-    [onPage, headId, rows]
+    () => (onPage && head !== undefined ? rows.findIndex((row) => keyOf(row) === head) : -1),
+    [onPage, head, rows, keyOf]
   )
-  const firstId = rows[0]?.id
-  if (onPage && headIndex === -1 && firstId !== undefined && firstId !== headId) {
-    setHeadId(firstId)
+  const nextHead = headIndex !== -1 ? head : rows.length > 0 ? keyOf(rows[0]) : undefined
+  if (onPage && nextHead !== undefined && nextHead !== headId) {
+    setHeadId(nextHead)
   }
   const historyCount = Math.max(headIndex, 0)
   const historyRows = useMemo(
@@ -49,11 +52,11 @@ export function useMobileNativeChatPageHistory<TItem extends { id: string }>(
         <>
           {header}
           {historyRows.map((item, index) => (
-            <Fragment key={item.id}>{renderRow({ item, index })}</Fragment>
+            <Fragment key={keyOf(item)}>{renderRow({ item, index })}</Fragment>
           ))}
         </>
       ),
-    [historyRows, renderRow]
+    [historyRows, renderRow, keyOf]
   )
   return {
     listRows,

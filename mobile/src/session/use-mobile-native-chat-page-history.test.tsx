@@ -11,6 +11,7 @@ type Item = { id: string }
 type History = ReturnType<typeof useMobileNativeChatPageHistory<Item>>
 
 const rows = (...ids: string[]): Item[] => ids.map((id) => ({ id }))
+const keys = { keyOf: (item: Item) => item.id, current: (key: string) => key }
 const renderRow = vi.fn(({ item, index }: { item: Item; index: number }): ReactElement =>
   createElement('Row', { id: item.id, index })
 )
@@ -20,7 +21,7 @@ describe('useMobileNativeChatPageHistory', () => {
   let history: History | null = null
 
   function Harness({ items }: { items: Item[] }): null {
-    history = useMobileNativeChatPageHistory(items, renderRow)
+    history = useMobileNativeChatPageHistory(items, renderRow, keys)
     return null
   }
 

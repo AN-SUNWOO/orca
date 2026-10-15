@@ -5,19 +5,19 @@ type Box = { top: number; bottom: number }
 
 /** The parts of a DOM element this reads; on the page the list's scrollable node is one. */
 type RowElement = {
-  isConnected: boolean
   getBoundingClientRect: () => Box
-  children: ArrayLike<RowElement>
+  getAttribute: (name: string) => string | null
 }
 type Scroller = {
   scrollTop: number
   scrollHeight: number
   clientHeight: number
   getBoundingClientRect: () => Box
-  firstElementChild: RowElement | null
+  querySelectorAll: (selector: string) => ArrayLike<RowElement>
 }
 
-type Held = { row: RowElement; top: number }
+/** The message the reader was on, by its row's id, and where it was. */
+type Held = { rowId: string; top: number }
 
 type Props = {
   /** The first row's key: a change in it is rows changing above the reader. */
@@ -25,25 +25,41 @@ type Props = {
   listRef: RefObject<{ getScrollableNode: () => Scroller | null | undefined } | null>
 }
 
-/** The lowest row on screen. Why the lowest: the "Load earlier" control stays at the top while
- *  history lands under it, so the topmost element does not move with the rows. */
-function lowestRowOnScreen(scroller: Scroller): Held | null {
-  const content = scroller.firstElementChild
-  if (!content) {
-    return null
-  }
+const ROW_ID_PREFIX = 'chat-row:'
+
+/** A message row's `testID`, which the page draws as `data-testid`. It sets message rows apart from
+ *  the "Load earlier" control and the live status line, which don't move with the messages, and
+ *  finds the row again when the update redraws it elsewhere. */
+export function mobileNativeChatRowId(messageId: string): string {
+  return `${ROW_ID_PREFIX}${messageId}`
+}
+
+function messageRows(scroller: Scroller): RowElement[] {
+  return Array.from(scroller.querySelectorAll(`[data-testid^="${ROW_ID_PREFIX}"]`))
+}
+
+/** The first message on screen: the one the reader is reading. */
+function firstMessageOnScreen(scroller: Scroller): Held | null {
   const view = scroller.getBoundingClientRect()
-  // The list's own rows, then the rows of the header block that precedes them.
-  const header = content.children[0]
-  for (const rows of [content.children, header?.children ?? []]) {
-    for (let at = rows.length - 1; at >= 0; at -= 1) {
-      const box = rows[at].getBoundingClientRect()
-      if (box.top < view.bottom && box.bottom > view.top && rows[at] !== header) {
-        return { row: rows[at], top: box.top }
-      }
+  const rows = messageRows(scroller)
+  // Rows in normal flow have ordered bottoms, so the first one on screen is found without
+  // measuring the up to 2,000 above it.
+  let low = 0
+  let high = rows.length
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    if (rows[middle].getBoundingClientRect().bottom <= view.top) {
+      low = middle + 1
+    } else {
+      high = middle
     }
   }
-  return null
+  if (low === rows.length) {
+    return null
+  }
+  const { top } = rows[low].getBoundingClientRect()
+  const rowId = rows[low].getAttribute('data-testid')
+  return rowId !== null && top < view.bottom ? { rowId, top } : null
 }
 
 /** iOS is still bouncing the list past an end. A write then lands while WebKit owns the scroll, and
@@ -52,9 +68,9 @@ function overscrolled({ scrollTop, scrollHeight, clientHeight }: Scroller): bool
   return scrollTop < 0 || scrollTop > scrollHeight - clientHeight + 1
 }
 
-/** Keeps the page's view on the same rows when rows above it change, by putting a row that was on
- *  screen back where it was. A class because only `getSnapshotBeforeUpdate` sees that row before
- *  the new ones are in the document. A native list holds its own place
+/** Keeps the page's view on the same message when rows above it change, by putting the first
+ *  message that was on screen back where it was. A class because only `getSnapshotBeforeUpdate`
+ *  sees that message before the new rows are in the document. A native list holds its own place
  *  (`maintainVisibleContentPosition`). */
 export class MobileNativeChatScrollHold extends Component<Props> {
   getSnapshotBeforeUpdate(previous: Props): Held | null {
@@ -62,13 +78,18 @@ export class MobileNativeChatScrollHold extends Component<Props> {
       return null
     }
     const scroller = this.props.listRef.current?.getScrollableNode()
-    return scroller && !overscrolled(scroller) ? lowestRowOnScreen(scroller) : null
+    return scroller && !overscrolled(scroller) ? firstMessageOnScreen(scroller) : null
   }
 
   componentDidUpdate(_previous: Props, _state: unknown, held: Held | null): void {
-    const scroller = held?.row.isConnected ? this.props.listRef.current?.getScrollableNode() : null
-    if (held && scroller) {
-      scroller.scrollTop += held.row.getBoundingClientRect().top - held.top
+    const scroller = held ? this.props.listRef.current?.getScrollableNode() : null
+    if (!held || !scroller) {
+      return
+    }
+    const { rowId, top } = held
+    const row = messageRows(scroller).find((each) => each.getAttribute('data-testid') === rowId)
+    if (row) {
+      scroller.scrollTop += row.getBoundingClientRect().top - top
     }
   }
 

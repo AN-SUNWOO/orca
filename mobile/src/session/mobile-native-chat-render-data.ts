@@ -77,6 +77,11 @@ export function foldMobileNativeChatMessages(
   return stripNoiseMessages(foldToolMessages(start > 0 ? rows.slice(start) : rows))
 }
 
+/** The first row the page draws from these messages while an older page can still load. */
+export function firstPageRowId(messages: readonly NativeChatMessage[]): string | undefined {
+  return foldMobileNativeChatMessages(messages, true)[0]?.id
+}
+
 /** Assemble the folded transcript, streaming text, and optimistic user echoes. */
 export function buildMobileNativeChatTransientData({
   messages,

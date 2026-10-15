@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { MobileNativeChatView, type MobileNativeChatInputLockReason } from './MobileNativeChatView'
-import { foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
+import { firstPageRowId, foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
 import type { MobileNativeChatImageAttachments } from './use-mobile-native-chat-image-attachments'
 import type { MobileNativeChatController } from './use-mobile-native-chat-controller'
 import { useMobileNativeChatStreamingBubble } from './use-mobile-native-chat-streaming-bubble'
@@ -60,6 +60,12 @@ export function MobileNativeChatOverlay({
   const folded = useMemo(
     () => foldMobileNativeChatMessages(session.messages, olderPageMayLoad),
     [session.messages, olderPageMayLoad]
+  )
+  const { loadEarlier } = session
+  // The page doesn't draw a run's start until older history loads, so a tap reads on until it does.
+  const loadEarlierRows = useCallback(
+    () => loadEarlier(Platform.OS === 'web' ? firstPageRowId : undefined),
+    [loadEarlier]
   )
   const streaming = useMobileNativeChatStreamingBubble(
     folded,
@@ -124,7 +130,7 @@ export function MobileNativeChatOverlay({
           onOpenFile={onOpenFile}
           hasMore={session.hasMore}
           loadingEarlier={session.loadingEarlier}
-          onLoadEarlier={session.loadEarlier}
+          onLoadEarlier={loadEarlierRows}
           onSend={images.sendNativeChat}
           sendSurfaceId={sendSurfaceId}
           getSendCompletionGeneration={getSendCompletionGeneration}

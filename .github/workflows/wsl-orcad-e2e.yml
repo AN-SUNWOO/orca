@@ -12,6 +12,7 @@ on:
       - 'src/main/runtime/**'
       - 'src/main/native-chat/**'
       - 'src/main/claude/**'
+      - 'src/main/claude-accounts/**'
       - 'src/main/codex/**'
       - 'src/main/acp/**'
       - 'src/main/pi/**'

@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { View, Text, ScrollView, Pressable } from 'react-native'
 import { File, FileText, Globe, Plus } from 'lucide-react-native'
 import { triggerMediumImpact } from '../platform/haptics'
@@ -42,11 +43,23 @@ export function MobileSessionTabStrip({
     visibleTabs
   } = controller
   const tabBarKeepsKeyboard = useKeyboardPersistingTaps('handled')
+  const attachTabStrip = useCallback(
+    (view: ScrollView | null) => {
+      if (view) {
+        tabStripOffsetRef.current = 0
+        tabStripViewportWidthRef.current = 0
+        tabStripContentWidthRef.current = 0
+        tabLayoutsRef.current.clear()
+      }
+      tabStripRef.current = view
+    },
+    [tabStripRef, tabStripOffsetRef, tabStripViewportWidthRef, tabStripContentWidthRef, tabLayoutsRef]
+  )
   return (
     <View ref={tabBarKeepsKeyboard} style={inTopBar ? styles.tabBarInTopBar : styles.tabBar}>
       {/* Why: tab taps must register on first press with the keyboard open instead of being eaten by dismissal (#5106). */}
       <ScrollView
-        ref={tabStripRef}
+        ref={attachTabStrip}
         horizontal
         showsHorizontalScrollIndicator={false}
         style={[styles.tabScroll, inTopBar && styles.tabScrollInTopBar]}

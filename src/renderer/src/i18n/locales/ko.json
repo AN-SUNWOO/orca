@@ -32,7 +32,8 @@
       },
       "providers": {
         "title": "공급자",
-        "antigravityDescription": "Antigravity 채팅은 Orca가 이 호스트에 다운로드하는 서버에서 실행되며, agy CLI와는 별개입니다."
+        "antigravityDescription": "Antigravity 채팅은 Orca가 이 호스트에 다운로드하는 서버에서 실행되며, agy CLI와는 별개입니다.",
+        "antigravitySignIn": "채팅은 터미널 agy 계정과 별개인 자체 Antigravity 로그인을 사용합니다. 이 기기에서 한 번 로그인하세요."
       }
     },
     "terminal": {
@@ -19726,7 +19727,10 @@
     },
     "antigravity": {
       "chatTitle": "Antigravity 채팅",
+      "chatDescription": "채팅은 위의 agy 계정과 별개인 자체 Antigravity 로그인을 사용합니다. 이 기기에서 한 번 로그인하세요.",
       "chatSignIn": "로그인",
+      "chatChangeAccount": "계정 변경",
+      "chatRetry": "로그인 다시 시도",
       "chatCancel": "취소",
       "chatCopyLink": "로그인 링크 복사",
       "chatCopyFailed": "링크를 복사할 수 없습니다.",

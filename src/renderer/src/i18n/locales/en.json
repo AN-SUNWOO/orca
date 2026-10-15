@@ -200,7 +200,8 @@
       },
       "providers": {
         "title": "Providers",
-        "antigravityDescription": "Antigravity chats run a server Orca downloads to this host, separate from the agy CLI."
+        "antigravityDescription": "Antigravity chats run a server Orca downloads to this host, separate from the agy CLI.",
+        "antigravitySignIn": "Chats use their own Antigravity sign-in, separate from your agy terminal account. Sign in once on this device."
       }
     },
     "terminal": {
@@ -19862,7 +19863,10 @@
     },
     "antigravity": {
       "chatTitle": "Antigravity chats",
+      "chatDescription": "Chats use their own Antigravity sign-in, separate from your agy account above. Sign in once on this device.",
       "chatSignIn": "Sign in",
+      "chatChangeAccount": "Change account",
+      "chatRetry": "Retry sign-in",
       "chatCancel": "Cancel",
       "chatCopyLink": "Copy sign-in link",
       "chatCopyFailed": "Could not copy the link.",

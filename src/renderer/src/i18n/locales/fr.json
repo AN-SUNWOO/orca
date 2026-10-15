@@ -136,7 +136,8 @@
       },
       "providers": {
         "title": "Fournisseurs",
-        "antigravityDescription": "Les chats Antigravity utilisent un serveur qu’Orca télécharge sur cet hôte, distinct de la CLI agy."
+        "antigravityDescription": "Les chats Antigravity utilisent un serveur qu’Orca télécharge sur cet hôte, distinct de la CLI agy.",
+        "antigravitySignIn": "Les discussions utilisent leur propre connexion Antigravity, distincte de votre compte agy du terminal. Connectez-vous une seule fois sur cet appareil."
       }
     },
     "terminal": {
@@ -19726,7 +19727,10 @@
     },
     "antigravity": {
       "chatTitle": "Discussions Antigravity",
+      "chatDescription": "Les discussions utilisent leur propre connexion Antigravity, distincte de votre compte agy ci-dessus. Connectez-vous une seule fois sur cet appareil.",
       "chatSignIn": "Se connecter",
+      "chatChangeAccount": "Changer de compte",
+      "chatRetry": "Réessayer la connexion",
       "chatCancel": "Annuler",
       "chatCopyLink": "Copier le lien de connexion",
       "chatCopyFailed": "Impossible de copier le lien.",

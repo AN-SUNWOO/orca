@@ -5,6 +5,7 @@ import { useClipboardTextCopyFeedback } from '@/hooks/use-clipboard-text-copy-fe
 import { callAntigravityChatSignIn } from '@/runtime/runtime-antigravity-accounts-client'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import type { AntigravityChatSignInState } from '../../../../shared/antigravity-account-types'
+import type { ManagedRuntimeInstallObservation } from '@/runtime/use-managed-runtime-install'
 import { Button } from '../ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 
@@ -39,11 +40,42 @@ function chatSignInLine(flow: Flow | null, saved: boolean, openFailed: boolean, 
   }
 }
 
+function signInButtonLabel(flow: Flow | null, saved: boolean, error: string | null): string {
+  if (
+    error ||
+    flow?.phase === 'failed' ||
+    flow?.phase === 'cancelled' ||
+    flow?.phase === 'expired'
+  ) {
+    return translate('accounts.antigravity.chatRetry', 'Retry sign-in')
+  }
+  return flow?.phase === 'signedIn' || (!flow && saved)
+    ? translate('accounts.antigravity.chatChangeAccount', 'Change account')
+    : translate('accounts.antigravity.chatSignIn', 'Sign in')
+}
+
+/** Chats sign in on the host itself, never in a WSL distro; a remote host's Google page returns to
+ *  that host, so remote sign-in waits for callback forwarding. */
+export function hostOffersAntigravityChatSignIn(owner: RuntimeClientTarget): boolean {
+  return owner.kind === 'local'
+}
+
+/** Sign-in runs the installed server, so it waits while the host reports nothing to run; the
+ *  install row beside it says why. A status the host could not report leaves it to the host. */
+export function antigravityChatSignInBlocked(
+  install: Extract<ManagedRuntimeInstallObservation, { kind: 'active' }>
+): boolean {
+  const { snapshot } = install
+  return snapshot.kind === 'unknown' || (snapshot.kind === 'known' && !snapshot.state.source)
+}
+
 /** This execution host's sign-in for Antigravity chats, run by the host's own server. */
 export function AntigravityChatSignInRow(props: {
   owner: RuntimeClientTarget
   label: string
+  description: string
   saved: boolean
+  disabled: boolean
   onSettled: () => void
 }): React.JSX.Element {
   const { owner, label } = props
@@ -112,6 +144,7 @@ export function AntigravityChatSignInRow(props: {
         <p className="text-xs font-medium">
           {translate('accounts.antigravity.chatTitle', 'Antigravity chats')}
         </p>
+        <p className="text-xs text-muted-foreground">{props.description}</p>
         <p role="status" className="text-xs text-muted-foreground">
           {chatSignInLine(flow, props.saved, openFailed, label)}
         </p>
@@ -156,8 +189,8 @@ export function AntigravityChatSignInRow(props: {
           </Button>
         </div>
       ) : (
-        <Button size="xs" variant="outline" onClick={() => void signIn()}>
-          {translate('accounts.antigravity.chatSignIn', 'Sign in')}
+        <Button size="xs" variant="outline" disabled={props.disabled} onClick={() => void signIn()}>
+          {signInButtonLabel(flow, props.saved, error)}
         </Button>
       )}
     </div>

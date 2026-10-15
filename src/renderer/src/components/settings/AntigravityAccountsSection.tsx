@@ -16,7 +16,11 @@ import { Badge } from '../ui/badge'
 import { ManagedRuntimeInstallRow } from '../managed-runtime/ManagedRuntimeInstallRow'
 import { useAppStore } from '../../store'
 import { getChatProvidersSearchEntry } from './chat-providers-search'
-import { AntigravityChatSignInRow } from './AntigravityChatSignInRow'
+import {
+  AntigravityChatSignInRow,
+  antigravityChatSignInBlocked,
+  hostOffersAntigravityChatSignIn
+} from './AntigravityChatSignInRow'
 
 export function AntigravityAccountsSection({
   owner,
@@ -50,12 +54,6 @@ export function AntigravityAccountsSection({
   const nativeChat = useAppStore((s) => s.settings?.experimentalNativeChat === true)
   const chats = nativeChat && runtime !== 'wsl'
   const chatRuntime = useManagedRuntimeInstall(owner, 'antigravity', chats)
-  const chatHost =
-    nativeChat && ownerKind === 'local' && runtime !== 'wsl' ? window.api.platform.get() : null
-  const chatSignInAvailable =
-    chatHost !== null &&
-    (chatHost.platform === 'darwin' || chatHost.platform === 'linux') &&
-    (chatHost.arch === 'arm64' || chatHost.arch === 'x64')
 
   useEffect(() => {
     mounted.current = true
@@ -167,16 +165,6 @@ export function AntigravityAccountsSection({
           })}
         </p>
       </div>
-      {/* Chats sign in on the host itself, never in a WSL distro; a remote host's Google page returns
-          to that host, so remote sign-in waits for callback forwarding. */}
-      {chatSignInAvailable && (
-        <AntigravityChatSignInRow
-          owner={owner}
-          label={label}
-          saved={state?.chatSignIn?.saved === true}
-          onSettled={() => void run('List')}
-        />
-      )}
       <p className="text-xs text-muted-foreground">
         {translate(
           'accounts.antigravity.signIn',
@@ -315,6 +303,19 @@ export function AntigravityAccountsSection({
             agentLabel={translate('accounts.antigravity.title', 'Antigravity')}
             surface="settings"
           />
+          {hostOffersAntigravityChatSignIn(owner) ? (
+            <AntigravityChatSignInRow
+              owner={owner}
+              label={label}
+              description={translate(
+                'accounts.antigravity.chatDescription',
+                'Chats use their own Antigravity sign-in, separate from your agy account above. Sign in once on this device.'
+              )}
+              saved={state?.chatSignIn?.saved === true}
+              disabled={antigravityChatSignInBlocked(chatRuntime)}
+              onSettled={() => void run('List')}
+            />
+          ) : null}
         </div>
       ) : null}
     </section>

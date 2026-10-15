@@ -24,11 +24,19 @@ it('opens the link once across polls and refreshes the list when signed in', asy
   Object.assign(window, { api: { shell: { openUrl } } })
   const onSettled = vi.fn()
   const row = (
-    <AntigravityChatSignInRow owner={{ kind: 'local' }} label="" saved onSettled={onSettled} />
+    <AntigravityChatSignInRow
+      owner={{ kind: 'local' }}
+      label=""
+      description=""
+      saved={false}
+      disabled={false}
+      onSettled={onSettled}
+    />
   )
   const view = render(<TooltipProvider>{row}</TooltipProvider>)
   await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
   await screen.findByText('Signed in.')
+  expect(screen.getByRole('button', { name: 'Change account' })).toBeTruthy()
   expect(openUrl).toHaveBeenCalledExactlyOnceWith(url)
   expect(onSettled).toHaveBeenCalledOnce()
   view.unmount()
@@ -44,7 +52,14 @@ it('does not follow a Start response after the row unmounts', async () => {
   const onSettled = vi.fn()
   const view = render(
     <TooltipProvider>
-      <AntigravityChatSignInRow owner={{ kind: 'local' }} label="" saved onSettled={onSettled} />
+      <AntigravityChatSignInRow
+        owner={{ kind: 'local' }}
+        label=""
+        description=""
+        saved={false}
+        disabled={false}
+        onSettled={onSettled}
+      />
     </TooltipProvider>
   )
   await userEvent.click(view.getByRole('button', { name: 'Sign in' }))

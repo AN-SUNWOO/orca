@@ -39,9 +39,13 @@ export async function installWslChatFixture(lane: WslChatHost) {
     `#!/bin/sh\nexec ${shellEscape(runtime)} ${shellEscape(script)} "$@"\n`
   )
   await lane.guest(`chmod 700 ${shellEscape(cli)}`)
+  await lane.rpc('settings.mutateAgentLaunch', {
+    type: 'command',
+    agent: 'claude',
+    value: shellEscape(cli)
+  })
   await lane.rpc('settings.update', {
-    nativeChatInheritShellEnvironment: false,
-    agentCmdOverrides: { claude: shellEscape(cli) },
+    nativeChatPermissionMode: 'ask',
     agentDefaultEnv: {
       claude: {
         ORCA_SDK_CONTRACT_SCENARIO_PATH: `${root}/scenario.json`,

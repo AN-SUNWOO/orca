@@ -12,6 +12,7 @@ import type { TuiAgent } from '../../../shared/tui-agent'
 
 export type WebRuntimeTerminalCreateOutcome =
   | { status: 'created' }
+  | { status: 'abandoned' }
   | { status: 'failed'; message: string }
 
 export type CreateWebRuntimeSessionTerminalArgs = {
@@ -19,6 +20,8 @@ export type CreateWebRuntimeSessionTerminalArgs = {
   environmentId?: string | null
   afterTabId?: string
   targetGroupId?: string
+  /** A pane-scoped launch must retire a host terminal if this target closes in flight. */
+  strictDestination?: boolean
   command?: string
   cwd?: string
   env?: Record<string, string>

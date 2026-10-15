@@ -123,6 +123,7 @@ export function useAiVaultSessionLaunchActions({
             agent: session.agent,
             worktreeId: targetId.worktreeId,
             ...(targetGroupId ? { targetGroupId } : {}),
+            ...(targetGroupId ? { strictDestination: true } : {}),
             ...startup
           })
           if (launchResult.tabId === null) {
@@ -136,6 +137,9 @@ export function useAiVaultSessionLaunchActions({
                       { value0: agentLabel(session.agent) }
                     )
                 )
+                return
+              }
+              if (outcome.status === 'abandoned') {
                 return
               }
               if (useAppStore.getState().activeWorktreeId !== targetId.worktreeId) {

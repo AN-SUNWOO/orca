@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAppStore } from '@/store'
 import { createBrowserUuid } from '@/lib/browser-uuid'
+import { isAgentLaunchDestinationLive } from '@/lib/agent-launch-destination'
 import { translate } from '@/i18n/i18n'
 import { useTabSessionLaunchActions } from '../tab-bar/use-tab-session-launch-actions'
 import {
@@ -40,9 +41,8 @@ export function NativeChatResumeInCliButton({
     )
   const resume = async (): Promise<void> => {
     const targetGroupId = groupId
-    const isOpen = () =>
-      useAppStore.getState().unifiedTabsByWorktree[worktreeId]?.some((tab) => tab.id === tabId) ??
-      false
+    const isDestinationLive = () =>
+      isAgentLaunchDestinationLive(worktreeId, targetGroupId)
     const subject = resolveTabSessionHistorySubject(useAppStore.getState(), {
       tab: { id: tabId, worktreeId },
       nativeChat
@@ -56,11 +56,11 @@ export function NativeChatResumeInCliButton({
       (args) => window.api.aiVault.listSessions(args),
       {
         requestToken: createBrowserUuid(),
-        isCancelled: () => !isOpen(),
+        isCancelled: () => !isDestinationLive(),
         userRequested: true
       }
     )
-    if (!isOpen()) {
+    if (!isDestinationLive()) {
       return
     }
     const move = row ? resolveTabSessionSwitch(useAppStore.getState(), row, subject) : null

@@ -173,6 +173,7 @@ describe('Resume in New CLI launch', () => {
       agent: 'claude',
       worktreeId: 'worktree-1',
       targetGroupId: 'chat-group',
+      strictDestination: true,
       ...FORK_STARTUP
     })
   })

@@ -104,6 +104,9 @@ export function launchAgentInWebHostTab(args: {
     // Why: created means the host accepted the launch, not that a local tab
     // exists; keep pruning stale local rows until the snapshot mirrors.
     removeStaleLocalAgentTabsForWebHostLaunch(worktreeId)
+    if (outcome.status === 'abandoned') {
+      return { delivered: false, failureNotified: false }
+    }
     if (outcome.status === 'failed') {
       toast.error(
         outcome.message ||

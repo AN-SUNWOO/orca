@@ -43,6 +43,11 @@ describe('managedRuntimeInstallView', () => {
     }
     expect(shown({}, 'settings')).toEqual(['Not installed.', 'Install Fake', null])
     expect(shown({}, 'chat')).toEqual([null, 'Install Fake', null])
+    expect(shown({ downloadBytes: 111_456_962 }, 'chat')).toEqual([
+      '111.5 MB download.',
+      'Install Fake',
+      null
+    ])
     expect(shown({ operation: op({}) }, 'chat')).toEqual([
       'Downloading 42.0 MB of 111.0 MB.',
       'Cancel installation',

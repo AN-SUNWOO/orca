@@ -29,6 +29,10 @@
         "saveFailed": "No se pudo guardar la configuración de nombres de chats.",
         "searchAgent": "agente",
         "searchTemplate": "plantilla de comandos"
+      },
+      "providers": {
+        "title": "Proveedores",
+        "antigravityDescription": "Los chats de Antigravity usan un servidor que Orca descarga en este host, independiente de la CLI de agy."
       }
     },
     "terminal": {
@@ -19145,6 +19149,7 @@
       "cancelling": "Cancelando…",
       "chatTitle": "Instala {{agent}} para empezar a chatear.",
       "damaged": "Esta copia de {{agent}} está dañada.",
+      "downloadSize": "Descarga de {{size}} MB.",
       "downloading": "Descargando {{done}} MB.",
       "downloadingOf": "Descargando {{done}} MB de {{total}} MB.",
       "external": "Usa la copia de {{agent}} encontrada en este host.",

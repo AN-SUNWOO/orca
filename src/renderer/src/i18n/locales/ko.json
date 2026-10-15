@@ -29,6 +29,10 @@
         "saveFailed": "채팅 이름 설정을 저장하지 못했습니다.",
         "searchAgent": "에이전트",
         "searchTemplate": "명령 템플릿"
+      },
+      "providers": {
+        "title": "공급자",
+        "antigravityDescription": "Antigravity 채팅은 Orca가 이 호스트에 다운로드하는 서버에서 실행되며, agy CLI와는 별개입니다."
       }
     },
     "terminal": {
@@ -19149,6 +19153,7 @@
       "cancelling": "취소하는 중…",
       "chatTitle": "채팅을 시작하려면 {{agent}}을(를) 설치하세요.",
       "damaged": "이 {{agent}} 사본이 손상되었습니다.",
+      "downloadSize": "{{size}}MB 다운로드.",
       "downloading": "{{done}}MB 다운로드 중입니다.",
       "downloadingOf": "{{total}}MB 중 {{done}}MB 다운로드 중입니다.",
       "external": "이 호스트에서 찾은 {{agent}} 사본을 사용합니다.",

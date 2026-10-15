@@ -141,9 +141,17 @@ function settledView(
   if (operation?.kind === 'install' && failed) {
     return view(null, retry)
   }
-  // The chat card's heading already says it is not installed.
-  const notInstalled = translate('components.managed-runtime.notInstalled', 'Not installed.')
-  return view(surface === 'chat' ? null : notInstalled, install)
+  // The chat card's heading already says it is not installed; the size says what Install costs.
+  const size = state.downloadBytes
+  const idle =
+    size !== undefined
+      ? translate('components.managed-runtime.downloadSize', '{{size}} MB download.', {
+          size: megabytes(size)
+        })
+      : surface === 'chat'
+        ? null
+        : translate('components.managed-runtime.notInstalled', 'Not installed.')
+  return view(idle, install)
 }
 
 /** What an install row says and offers for the host's answer. */

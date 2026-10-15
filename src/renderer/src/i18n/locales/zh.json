@@ -29,6 +29,10 @@
         "saveFailed": "无法保存聊天命名设置。",
         "searchAgent": "智能体",
         "searchTemplate": "命令模板"
+      },
+      "providers": {
+        "title": "提供方",
+        "antigravityDescription": "Antigravity 聊天运行在 Orca 下载到此主机的服务器上，与 agy CLI 相互独立。"
       }
     },
     "terminal": {
@@ -19149,6 +19153,7 @@
       "cancelling": "正在取消…",
       "chatTitle": "安装 {{agent}} 即可开始聊天。",
       "damaged": "此 {{agent}} 副本已损坏。",
+      "downloadSize": "下载大小 {{size}} MB。",
       "downloading": "正在下载 {{done}} MB。",
       "downloadingOf": "正在下载 {{done}} MB / {{total}} MB。",
       "external": "使用在此主机上找到的 {{agent}} 副本。",

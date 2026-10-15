@@ -29,6 +29,10 @@
         "saveFailed": "チャット名の設定を保存できませんでした。",
         "searchAgent": "Agent",
         "searchTemplate": "コマンドテンプレート"
+      },
+      "providers": {
+        "title": "プロバイダー",
+        "antigravityDescription": "Antigravity チャットは、Orca がこのホストにダウンロードするサーバーで動作します。agy CLI とは別です。"
       }
     },
     "terminal": {
@@ -19149,6 +19153,7 @@
       "cancelling": "キャンセルしています…",
       "chatTitle": "チャットを始めるには {{agent}} をインストールしてください。",
       "damaged": "この {{agent}} のコピーは破損しています。",
+      "downloadSize": "{{size}} MB のダウンロード。",
       "downloading": "{{done}} MB をダウンロード中です。",
       "downloadingOf": "{{total}} MB 中 {{done}} MB をダウンロード中です。",
       "external": "このホストで見つかった {{agent}} のコピーを使用しています。",

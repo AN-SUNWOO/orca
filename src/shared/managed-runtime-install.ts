@@ -31,6 +31,8 @@ export type ManagedRuntimeInstallState = {
   /** The program this host lacks to unpack the release, e.g. `unzip`. */
   missingProgram?: string
   version: string | null
+  /** The pinned release's download size; absent without one. */
+  downloadBytes?: number
   installedVersion: string | null
   /** False with an installed version: an update is available. */
   installedCurrent: boolean

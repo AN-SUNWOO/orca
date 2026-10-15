@@ -77,6 +77,7 @@ export class ManagedRuntimeInstallation {
       available: pin !== null && !missingProgram,
       ...(missingProgram && { missingProgram }),
       version: pin?.version ?? null,
+      ...(pin && { downloadBytes: pin.archiveBytes }),
       installedVersion: release?.version ?? null,
       installedCurrent: release?.current ?? false,
       ...(pin && !release?.current && broken.includes(pin.version) && { damaged: true }),

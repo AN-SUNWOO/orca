@@ -197,6 +197,10 @@
         "saveFailed": "Could not save chat name settings.",
         "searchAgent": "agent",
         "searchTemplate": "command template"
+      },
+      "providers": {
+        "title": "Providers",
+        "antigravityDescription": "Antigravity chats run a server Orca downloads to this host, separate from the agy CLI."
       }
     },
     "terminal": {
@@ -19332,6 +19336,7 @@
       "cancelling": "Cancelling…",
       "chatTitle": "Install {{agent}} to start chatting.",
       "damaged": "This copy of {{agent}} is damaged.",
+      "downloadSize": "{{size}} MB download.",
       "downloading": "Downloading {{done}} MB.",
       "downloadingOf": "Downloading {{done}} MB of {{total}} MB.",
       "external": "Uses the copy of {{agent}} found on this host.",

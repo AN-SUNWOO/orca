@@ -323,7 +323,7 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
         }
       }
     })}\n`
-    let answer = failed
+    let answer: string | Promise<string> = failed
     const probe = createClaudeCommandCatalogProbe({
       resolveCommand: () => 'claude',
       resolveInheritedEnv: async () => ({ PATH: '/bin' }),
@@ -352,9 +352,18 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
         'compact',
         'deploy'
       ])
-      answer = listed
+      const success = Promise.withResolvers<string>()
+      const failure = Promise.withResolvers<string>()
+      answer = success.promise
       clock += CLAUDE_AT_REST_COMMANDS_TTL_MS
       host.readCommands(SESSION)
+      await vi.waitFor(() => expect(asked).toHaveLength(2))
+      // Both scans start before Claude answers; the newer one will fall back after it does.
+      answer = failure.promise
+      clock += 30_000
+      host.readCommands(SESSION)
+      await vi.waitFor(() => expect(asked).toHaveLength(3))
+      success.resolve(listed)
       await vi.waitFor(() => expect(commandNames()).toContain('goal'))
       const claudeList = catalog.read(record())
       expect(claudeList?.find((entry) => entry.name === 'goal')).toMatchObject({
@@ -363,11 +372,15 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
       })
       expect(asked[0]?.[0]).toMatchObject({ cwd: workspace })
       expect(asked[0]?.[1].inheritedEnv?.CLAUDE_CONFIG_DIR).toBe(account)
+      failure.resolve(failed)
+      await vi.waitFor(() => expect(warned).toHaveBeenCalledTimes(2))
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(catalog.read(record())).toEqual(claudeList)
       // A failed refresh keeps Claude's list rather than the shorter one from the folders.
       answer = failed
       clock += CLAUDE_AT_REST_COMMANDS_TTL_MS
       host.readCommands(SESSION)
-      await vi.waitFor(() => expect(asked).toHaveLength(3))
+      await vi.waitFor(() => expect(asked).toHaveLength(4))
       await new Promise((resolve) => setTimeout(resolve, 20))
       expect(catalog.read(record())).toEqual(claudeList)
     } finally {

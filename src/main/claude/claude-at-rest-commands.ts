@@ -107,10 +107,14 @@ export class ClaudeAtRestCommandCatalog {
       entry.scannedAt = this.now()
       return true
     }
-    void this.scan(record, entry.fromClaude === true)
+    void this.scan(record)
       .then(
         ({ commands, fromClaude }) => {
           if (!newest()) {
+            return
+          }
+          // A queued fallback cannot replace a Claude answer that landed while it ran.
+          if (entry.fromClaude && !fromClaude) {
             return
           }
           entry.fromClaude = fromClaude
@@ -134,8 +138,7 @@ export class ClaudeAtRestCommandCatalog {
   }
 
   private async scan(
-    record: AgentSessionRecord,
-    keepClaudeList: boolean
+    record: AgentSessionRecord
   ): Promise<{ commands: AgentSessionSlashCommand[]; fromClaude: boolean }> {
     // The folder Claude will launch in: a floating chat's pin, not the floating setting's current one.
     const cwd =
@@ -150,9 +153,6 @@ export class ClaudeAtRestCommandCatalog {
           fromClaude: true
         }
       } catch (error) {
-        if (keepClaudeList) {
-          throw error
-        }
         console.warn('[claude] listing the at-rest `/` commands failed; reading folders:', error)
       } finally {
         release()

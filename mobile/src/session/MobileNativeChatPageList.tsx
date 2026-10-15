@@ -69,7 +69,13 @@ export function MobileNativeChatPageList({
     (): MobileNativeChatWindowScroller | null | undefined => scroll.current?.getScrollableNode(),
     []
   )
-  const view = useMobileNativeChatPageWindow({ rows, rowKeys, following: endAnchored, layoutKey, scroller })
+  const view = useMobileNativeChatPageWindow({
+    rows,
+    rowKeys,
+    following: endAnchored,
+    layoutKey,
+    scroller
+  })
   const { cover, keepInPlace } = view
   useImperativeHandle(
     ref,

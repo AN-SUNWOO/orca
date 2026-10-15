@@ -242,24 +242,8 @@ export function MobileNativeChatView({
     [messages, folded, streaming, pending, imagePreviewsByMessageId]
   )
   const rowKeys = useMobileNativeChatRowKeys(folded, messages, sendSurfaceId)
-  const {
-    listProps,
-    pageListProps,
-    showJumpToTail,
-    pinToTail,
-    pinToTailAfterContentResize,
-    jumpToTail,
-    beginUserScroll,
-    endUserDrag,
-    beginMomentum,
-    endMomentum,
-    scrollMayLoadEarlier,
-    recordScrollMetrics,
-    placeHold
-  } = useMobileNativeChatTailFollow({
-    hasItems: data.length > 0,
-    scopeKey: sendSurfaceId
-  })
+  const tail = useMobileNativeChatTailFollow({ hasItems: data.length > 0, scopeKey: sendSurfaceId })
+  const { jumpToTail, recordScrollMetrics, scrollMayLoadEarlier } = tail
 
   const handleSend = useCallback(
     async (text: string): Promise<boolean> => {
@@ -370,11 +354,11 @@ export function MobileNativeChatView({
         </View>
       ) : (
         <GestureHandlerRootView style={styles.listWrap}>
-          <MobileNativeChatScrollHold rowKeys={rowKeys} {...placeHold} />
+          <MobileNativeChatScrollHold rowKeys={rowKeys} {...tail.placeHold} />
           <GestureDetector gesture={pinchGesture}>
             {Platform.OS === 'web' ? (
               <MobileNativeChatPageList
-                {...pageListProps}
+                {...tail.pageListProps}
                 rows={turns.listMessages}
                 rowKeys={rowKeys}
                 renderItem={renderItem}
@@ -383,7 +367,7 @@ export function MobileNativeChatView({
               />
             ) : (
               <FlatList
-                {...listProps}
+                {...tail.listProps}
                 data={turns.listMessages}
                 keyExtractor={rowKeys.keyOf}
                 renderItem={renderItem}
@@ -392,13 +376,13 @@ export function MobileNativeChatView({
                 // instead of being swallowed by the dismiss gesture.
                 keyboardShouldPersistTaps="handled"
                 onScroll={onScroll}
-                onScrollBeginDrag={beginUserScroll}
-                onScrollEndDrag={endUserDrag}
-                onMomentumScrollBegin={beginMomentum}
-                onMomentumScrollEnd={endMomentum}
+                onScrollBeginDrag={tail.beginUserScroll}
+                onScrollEndDrag={tail.endUserDrag}
+                onMomentumScrollBegin={tail.beginMomentum}
+                onMomentumScrollEnd={tail.endMomentum}
                 scrollEventThrottle={32}
-                onContentSizeChange={pinToTailAfterContentResize}
-                onLayout={pinToTail}
+                onContentSizeChange={tail.pinToTailAfterContentResize}
+                onLayout={tail.pinToTail}
                 maintainVisibleContentPosition={mobileNativeChatRowAnchor(hasMore === true)}
                 ListHeaderComponent={header}
                 ListFooterComponent={footer}
@@ -406,7 +390,7 @@ export function MobileNativeChatView({
               />
             )}
           </GestureDetector>
-          {showJumpToTail ? (
+          {tail.showJumpToTail ? (
             <Pressable
               accessibilityLabel="Scroll to latest"
               style={[styles.fab, styles.fabBottom]}

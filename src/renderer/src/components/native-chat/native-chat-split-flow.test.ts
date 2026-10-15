@@ -1,6 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import { createTestStore } from '@/store/slices/store-test-helpers'
 import { createTabsSliceMockApi } from '@/store/slices/tabs-slice-test-harness'
+import { isEmptyWorkspaceDefaultSurfacePending } from '@/lib/empty-workspace-default-surface-claims'
 
 let store: ReturnType<typeof createTestStore>
 const mocks = vi.hoisted(() => ({
@@ -24,7 +25,7 @@ createTabsSliceMockApi()
 import { runNativeChatSplitTarget } from './native-chat-layout-actions'
 
 it.each(['right', 'down'] as const)(
-  'splits %s on the owning host without launching a CLI when it admits or declines',
+  'splits %s on the owning host, refusing declines and abandoning closed destinations',
   async (direction) => {
     vi.clearAllMocks()
     store = createTestStore()
@@ -63,7 +64,6 @@ it.each(['right', 'down'] as const)(
         { entityId: 'fresh-session', agentSessionAgent: 'codex', executionHostId, groupId }
       ])
     )
-    expect(store.getState().activeGroupIdByWorktree[worktreeId]).toBe(groupId)
     expect(mocks.begin.mock.lastCall?.[2].executionHostId).toBe(executionHostId)
     expect(mocks.begin.mock.lastCall?.[2].prompt).toBeUndefined()
     const splitTabs = store.getState().unifiedTabsByWorktree[worktreeId]
@@ -77,6 +77,18 @@ it.each(['right', 'down'] as const)(
       )
     })
     expect(store.getState().unifiedTabsByWorktree[worktreeId]).toEqual(splitTabs)
+    const admission = Promise.withResolvers<{ supported: boolean }>()
+    mocks.createSupport.mockReturnValueOnce(admission.promise)
+    runNativeChatSplitTarget(target, direction)
+    store
+      .getState()
+      .closeEmptyGroup(worktreeId, store.getState().activeGroupIdByWorktree[worktreeId])
+    admission.resolve({ supported: true })
+    await vi.waitFor(() => expect(isEmptyWorkspaceDefaultSurfacePending(worktreeId)).toBe(false))
+    expect(store.getState().unifiedTabsByWorktree[worktreeId]).toEqual(splitTabs)
+    expect(store.getState().layoutByWorktree[worktreeId]).toEqual(
+      state.layoutByWorktree[worktreeId]
+    )
     expect(mocks.begin).toHaveBeenCalledOnce()
     expect(mocks.launchCli).not.toHaveBeenCalled()
     expect(mocks.info).not.toHaveBeenCalled()

@@ -14,6 +14,7 @@ vi.mock('@/store', () => ({
   useAppStore: {
     getState: () => ({
       unifiedTabsByWorktree: {},
+      groupsByWorktree: { 'wt-1': [{ id: 'group-2' }] },
       activeGroupIdByWorktree: {},
       createUnifiedTab: mocks.createUnifiedTab,
       setActiveTabType: vi.fn()

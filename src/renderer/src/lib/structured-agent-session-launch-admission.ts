@@ -23,6 +23,7 @@ import type { StructuredPromptDeliveryResult } from '@/lib/structured-agent-sess
 import type { LaunchAgentInNewTabArgs } from '@/lib/launch-agent-in-new-tab'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
+import { isAgentLaunchDestinationLive } from '@/lib/agent-launch-destination'
 
 /** What a host's "no" opens instead: the terminal the launch would have opened had it known. */
 export type StructuredLaunchTerminal = {
@@ -137,6 +138,7 @@ export function beginHostAdmittedStructuredLaunch(args: {
   worktreeId: string
   executionHostId: ExecutionHostId
   target: RuntimeClientTarget
+  targetGroupId?: string
   /** Commits the admitted chat: the local launch path, told which host admitted it and the saved
    *  selection that host said create will seed. */
   openAdmitted: (seedOptions?: Readonly<Record<string, string>>) => AdmittedLaunch | null
@@ -151,7 +153,10 @@ export function beginHostAdmittedStructuredLaunch(args: {
   const paired = args.target.kind === 'environment'
   let cancelled = false
   let admitted: AdmittedLaunch | null = null
-  const isCancelled = (): boolean => cancelled || args.hooks.signal?.aborted === true
+  const isCancelled = (): boolean =>
+    cancelled ||
+    args.hooks.signal?.aborted === true ||
+    !isAgentLaunchDestinationLive(args.worktreeId, args.targetGroupId)
   let resolveDelivery: (result: StructuredPromptDeliveryResult) => void = () => undefined
   const deliversPrompt = Boolean(plan.prompt?.trim()) && plan.promptDelivery !== 'draft'
   const promptDeliveryResult = deliversPrompt

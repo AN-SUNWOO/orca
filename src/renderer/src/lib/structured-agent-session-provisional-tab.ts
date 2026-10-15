@@ -24,6 +24,7 @@ import {
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
+import { isAgentLaunchDestinationLive } from '@/lib/agent-launch-destination'
 import type { NativeChatComposerFocusIntent } from '@/components/native-chat/use-native-chat-composer-reveal-focus'
 
 type LocalProvisionalLaunch = StructuredAgentLaunchHandle & { tab: Tab }
@@ -95,6 +96,7 @@ type ProvisionalLaunchArgs = {
   hooks: StructuredAgentLaunchHooks
   focusIntent?: NativeChatComposerFocusIntent
   target?: AgentSessionLaunchTarget
+  /** A named pane must survive admission; omission keeps default placement. */
   targetGroupId?: string
   activate?: boolean
   /** Lets workspace flows reveal before the chat's tab is owned: before its host is asked, when no
@@ -137,6 +139,10 @@ export function beginStructuredAgentSessionProvisionalLaunch(
     return launch
   }
   try {
+    if (worktreeId && !isAgentLaunchDestinationLive(worktreeId, args.targetGroupId)) {
+      cancelIfNoTab()
+      return null
+    }
     const owner = worktreeId ? structuredLaunchOwner(args.plan, worktreeId, args.target) : null
     if (owner && worktreeId && args.beforeOpen?.() === false) {
       cancelIfNoTab()
@@ -152,6 +158,7 @@ export function beginStructuredAgentSessionProvisionalLaunch(
       worktreeId,
       executionHostId: owner.executionHostId,
       target: owner.target,
+      targetGroupId: args.targetGroupId,
       openAdmitted: (seedOptions) =>
         open(
           beginLocalProvisionalLaunch({

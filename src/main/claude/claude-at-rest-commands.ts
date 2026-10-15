@@ -99,22 +99,22 @@ export class ClaudeAtRestCommandCatalog {
     const scan = ++entry.started
     entry.lastStartedAt = this.now()
     entry.inFlight += 1
-    const newest = () => {
+    const newest = (fromClaude: boolean) => {
       if (scan < entry.kept) {
         return false
       }
-      entry.kept = scan
       entry.scannedAt = this.now()
+      // A rejected fallback still settles the refresh, but cannot supersede Claude's list.
+      if (entry.fromClaude && !fromClaude) {
+        return false
+      }
+      entry.kept = scan
       return true
     }
     void this.scan(record)
       .then(
         ({ commands, fromClaude }) => {
-          if (!newest()) {
-            return
-          }
-          // A queued fallback cannot replace a Claude answer that landed while it ran.
-          if (entry.fromClaude && !fromClaude) {
+          if (!newest(fromClaude)) {
             return
           }
           entry.fromClaude = fromClaude

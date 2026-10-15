@@ -388,6 +388,73 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
     }
   })
 
+  it('does not let a rejected fallback discard an overlapping Claude refresh', async () => {
+    const listed = (name: string) =>
+      `${JSON.stringify({
+        type: 'control_response',
+        response: {
+          subtype: 'success',
+          request_id: 'orca-command-discovery',
+          response: { commands: [{ name, description: name, argumentHint: '', builtin: true }] }
+        }
+      })}\n`
+    const pending = Promise.withResolvers<string>()
+    const fallback = Promise.withResolvers<void>()
+    let fallbackStarted = false
+    let answers: (string | Promise<string>)[] = [listed('first'), pending.promise, 'bad']
+    const asked: ListingCall[] = []
+    const probe = createClaudeCommandCatalogProbe({
+      resolveCommand: () => 'claude',
+      resolveInheritedEnv: async () => ({ PATH: '/bin' }),
+      resolveAuthPolicy: () => ({ account: 'system' }),
+      runListing: async (...call) => {
+        asked.push(call)
+        return answers.shift() ?? 'bad'
+      }
+    })
+    const catalog = new ClaudeAtRestCommandCatalog({
+      resolveWorkspacePath: async () => workspace,
+      now: () => clock,
+      probe,
+      discover: async (args) => {
+        if (answers.length === 0) {
+          fallbackStarted = true
+          await fallback.promise
+        }
+        const { discoverSkills } = await import('../../skills/discovery')
+        return discoverSkills({ ...args, homeDir: join(directory, 'home'), refresh: true })
+      }
+    })
+    const record = store.getRecord(SESSION)!
+    const commandNames = () => namesOf(catalog.read(record) ?? null, 'command')
+    catalog.read(record)
+    await vi.waitFor(() => expect(commandNames()).toContain('first'))
+    clock += CLAUDE_AT_REST_COMMANDS_TTL_MS
+    catalog.read(record)
+    await vi.waitFor(() => expect(asked).toHaveLength(2))
+    clock += 30_000
+    catalog.read(record)
+    await vi.waitFor(() => expect(asked).toHaveLength(3))
+    await vi.waitFor(() => expect(fallbackStarted).toBe(true))
+    clock -= 30_000
+    fallback.resolve()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(commandNames()).toContain('first')
+    pending.resolve(listed('second'))
+    await vi.waitFor(() => expect(commandNames()).toContain('second'))
+
+    const settledCalls = asked.length
+    answers = ['bad']
+    clock += CLAUDE_AT_REST_COMMANDS_TTL_MS
+    catalog.read(record)
+    await vi.waitFor(() => expect(asked).toHaveLength(settledCalls + 1))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    clock += CLAUDE_AT_REST_COMMANDS_TTL_MS - 1
+    catalog.read(record)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(asked).toHaveLength(settledCalls + 1)
+  })
+
   it('from the folders of the host that runs it, never another host’s', async () => {
     const remoteWorkspace = join(directory, 'remote-workspace')
     await writeSkill(join(remoteWorkspace, '.claude', 'skills'), 'remote-only')

@@ -223,7 +223,14 @@ describe('workspace sleep flow', () => {
     expect(mocks.toast).toHaveBeenCalledTimes(1)
   })
 
-  it('reports an unverified chat stop to a caller that answers for it, without a toast', async () => {
+  it('reports an unverified chat stop to a caller that answers for it, without a toast or Sleep record', async () => {
+    // A project move pauses through this core; it is not the user's Sleep, so it neither marks nor clears.
+    const prior = { 'local|wt-1': [{ tabId: 'chat-1', sessionId: 'session-1' }] }
+    mocks.state.explicitlySleptChatsByWorkspace = { ...prior }
+    mocks.state.unifiedTabsByWorktree = {
+      'wt-1': [chat('chat-1', 'session-1', 'wt-1')],
+      'wt-2': [chat('chat-2', 'session-2', 'wt-2')]
+    }
     mocks.call
       .mockResolvedValueOnce({
         stoppedSessionIds: [],
@@ -239,6 +246,8 @@ describe('workspace sleep flow', () => {
     expect(outcome.failedWorktreeIds).toEqual(['wt-1'])
     expect(outcome.errors).toHaveLength(1)
     expect(mocks.toast).not.toHaveBeenCalled()
+    expect(mocks.state.explicitlySleptChatsByWorkspace).toEqual(prior)
+    expect(mocks.state.markWorkspaceChatsSlept).not.toHaveBeenCalled()
   })
 
   it('keeps a superseded chat quiet while completing other workspace cleanup', async () => {

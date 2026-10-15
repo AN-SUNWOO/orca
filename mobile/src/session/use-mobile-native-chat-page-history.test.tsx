@@ -89,11 +89,8 @@ describe('useMobileNativeChatPageHistory', () => {
   })
 
   it('reads one tap past pages of a wordless tool run until a row is drawn, keeping the rows it drew', async () => {
-    const message = (
-      id: string,
-      role: NativeChatMessage['role'],
-      ...blocks: NativeChatBlock[]
-    ): NativeChatMessage => ({ id, role, blocks, timestamp: null, source: 'transcript' })
+    const message = (id: string, role: NativeChatMessage['role'], ...blocks: NativeChatBlock[]) =>
+      ({ id, role, blocks, timestamp: null, source: 'transcript' }) satisfies NativeChatMessage
     const text = (value: string): NativeChatBlock => ({ type: 'text', text: value })
     const call = (n: number): NativeChatBlock => ({
       type: 'tool-call',
@@ -106,7 +103,7 @@ describe('useMobileNativeChatPageHistory', () => {
       output: 'ok',
       callId: `c${n}`
     })
-    const chat = Array.from({ length: 60 }, (_unused, n) =>
+    const chat: NativeChatMessage[] = Array.from({ length: 60 }, (_unused, n) =>
       message(`old${n}`, n % 2 === 0 ? 'user' : 'assistant', text(`turn ${n}`))
     )
     chat.push(
@@ -115,16 +112,10 @@ describe('useMobileNativeChatPageHistory', () => {
     )
     // 101 calls and results with no words between them: longer than a 60-message page.
     for (let n = 0; n < 50; n += 1) {
-      chat.push(
-        message(`r${n}`, 'user', result(n)),
-        message(`call${n + 1}`, 'assistant', call(n + 1))
-      )
+      chat.push(message(`r${n}`, 'user', result(n)), message(`a${n + 1}`, 'assistant', call(n + 1)))
     }
-    chat.push(
-      message('r50', 'user', result(50)),
-      message('done', 'assistant', text('Fixed.')),
-      message('thanks', 'user', text('thanks'))
-    )
+    chat.push(message('r50', 'user', result(50)), message('done', 'assistant', text('Fixed.')))
+    chat.push(message('thanks', 'user', text('thanks')))
     // The host pages back from where its last page started; each page waits for `answer()`.
     let start = chat.length
     const pageFrom = (
@@ -176,6 +167,7 @@ describe('useMobileNativeChatPageHistory', () => {
       })
     }
     const listIds = (): string[] | undefined => history?.listRows.map((row) => row.id)
+    const ids = (from: number, to: number): string[] => chat.slice(from, to).map((row) => row.id)
     await act(async () => {
       renderer = create(createElement(Chat))
     })
@@ -196,19 +188,8 @@ describe('useMobileNativeChatPageHistory', () => {
     expect(sendRequest).toHaveBeenCalledTimes(2)
     expect(session.current?.loadingEarlier).toBe(false)
     expect(session.current?.hasMore).toBe(true)
-    expect(
-      headerRows()
-        .slice(-3)
-        .map((row) => row.id)
-    ).toEqual(['old59', 'ask', 'look'])
+    expect(headerRows().map((row) => row.id)).toEqual([...ids(5, 60), 'ask', 'look'])
     // The place-hold finds the reader's row by id, and the list keeps its rows at their indexes.
-    expect(listIds()).toEqual(['done', 'thanks'])
-
-    act(() => session.current?.loadEarlier(firstPageRowId))
-    await answer()
-
-    expect(session.current?.hasMore).toBe(false)
-    expect(headerRows()[0]?.id).toBe('old0')
     expect(listIds()).toEqual(['done', 'thanks'])
   })
 

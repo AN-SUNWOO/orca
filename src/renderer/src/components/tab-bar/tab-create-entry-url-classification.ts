@@ -34,7 +34,7 @@ export type HostUrlClassification =
   | { kind: 'host-url'; url: string }
 
 export type HostUrlClassificationOptions = {
-  /** Surfaces without file matches to outrank `App.vue` need a real public suffix on bare hosts too. */
+  /** Require a listed suffix even without a path, so `App.vue` is not a host. */
   requireListedDomain?: boolean
 }
 

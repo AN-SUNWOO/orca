@@ -26,6 +26,12 @@ vi.mock('@/hooks/useSettingsNavigationMetadata', () => ({
   useSettingsNavigationMetadata: () => []
 }))
 
+const { openWorkspaceBrowserTab } = vi.hoisted(() => ({ openWorkspaceBrowserTab: vi.fn() }))
+vi.mock(import('@/lib/workspace-browser-tab-open'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  openWorkspaceBrowserTab
+}))
+
 const initialAppState = useAppStore.getInitialState()
 
 type ListInput = Parameters<typeof useWorktreeJumpPaletteListEntries>[0]
@@ -105,6 +111,7 @@ function usePalette() {
 
 describe('Cmd+J website selection', () => {
   beforeEach(() => {
+    openWorkspaceBrowserTab.mockReset().mockResolvedValue(undefined)
     useAppStore.setState(
       {
         ...initialAppState,
@@ -155,11 +162,15 @@ describe('Cmd+J website selection', () => {
     expect(result.current.selectableItems[0]?.id).toBe('quick-action:navigate-to-url')
   })
 
-  it.each(['brex.com', 'new browser tab'])(
+  it.each([
+    ['brex.com', 'url'],
+    ['new browser tab', 'blank']
+  ] as const)(
     'shows a browser creation failure for %s without an unhandled rejection',
-    async (query) => {
+    async (query, tabKind) => {
       const showError = vi.spyOn(toast, 'error').mockReturnValue('browser-error')
       const openBrowser = vi.fn().mockRejectedValue(new Error('Browser host disconnected'))
+      openWorkspaceBrowserTab.mockRejectedValue(new Error('Browser host disconnected'))
       const recordInteraction = vi.fn()
       useAppStore.setState({
         openNewBrowserTabInActiveWorkspace: openBrowser,
@@ -174,7 +185,7 @@ describe('Cmd+J website selection', () => {
 
       await act(async () => result.current.handleSelectItem(action))
 
-      expect(openBrowser).toHaveBeenCalledOnce()
+      expect(tabKind === 'url' ? openWorkspaceBrowserTab : openBrowser).toHaveBeenCalledOnce()
       expect(showError).toHaveBeenCalledExactlyOnceWith('Browser host disconnected')
       expect(recordInteraction).not.toHaveBeenCalledWith('cmd-j-quick-action')
     }
@@ -240,7 +251,7 @@ describe('Cmd+J website selection', () => {
       },
       { wrapper: ({ children }) => <Suspense fallback={null}>{children}</Suspense> }
     )
-    const { closeModal, openNewBrowserTabInActiveWorkspace } = useAppStore.getState()
+    const { closeModal } = useAppStore.getState()
 
     await act(async () => result.current.handleQueryChange('first.com'))
     await act(async () => result.current.handleQueryChange('second.com'))
@@ -254,7 +265,7 @@ describe('Cmd+J website selection', () => {
     }
     await act(async () => result.current.handleSelectItem(staleAction))
 
-    expect(openNewBrowserTabInActiveWorkspace).not.toHaveBeenCalled()
+    expect(openWorkspaceBrowserTab).not.toHaveBeenCalled()
     expect(closeModal).not.toHaveBeenCalled()
     expect(result.current.skipRestoreFocusRef.current).toBe(false)
 
@@ -269,9 +280,11 @@ describe('Cmd+J website selection', () => {
     await act(async () => result.current.handleSelectItem(currentAction))
 
     expect(closeModal).toHaveBeenCalledExactlyOnceWith()
-    expect(openNewBrowserTabInActiveWorkspace).toHaveBeenCalledExactlyOnceWith(
-      'group-wt-alpha',
-      'https://second.com/'
-    )
+    expect(openWorkspaceBrowserTab).toHaveBeenCalledExactlyOnceWith({
+      workspaceId: 'wt-alpha',
+      targetGroupId: 'group-wt-alpha',
+      url: 'https://second.com/',
+      intent: { kind: 'url' }
+    })
   })
 })

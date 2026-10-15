@@ -50,7 +50,7 @@ describe('Cmd+J website navigation', () => {
     'README.md',
     'App.vue',
     'vue.config',
-    'Dockerfile.dev',
+    'test.spec',
     'Cargo.lock',
     'my-app.local:5173',
     '/tmp/brex.com',

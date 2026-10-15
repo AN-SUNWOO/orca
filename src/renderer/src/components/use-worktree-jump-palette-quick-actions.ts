@@ -142,7 +142,7 @@ export function useWorktreeJumpPaletteQuickActions({
   // Why: buildQuickActionContext() reads the store imperatively, so these voided values are the
   // memo's real inputs — each one is read (some transitively, e.g. runtimeStatusByEnvironmentId
   // via the managed-browser creation policy) while availability is computed.
-  const middleItems = useMemo<(SettingsPaletteItem | QuickActionPaletteItem)[]>(() => {
+  const availableActions = useMemo(() => {
     void activeView
     void activeWorktreeId
     void worktreesByRepo
@@ -155,25 +155,13 @@ export function useWorktreeJumpPaletteQuickActions({
     void settings?.activeRuntimeEnvironmentId
     void runtimeStatusByEnvironmentId
     const context = buildQuickActionContext()
-    const results = rankCmdJMiddleResults({
-      query: deferredQuery,
-      settingsResults,
+    return {
+      context,
       actionResults: actionResults.filter((action) => action.isAvailable(context).available)
-    })
-    const navigationAction = buildCmdJBrowserNavigationAction(deferredQuery)
-    if (navigationAction?.isAvailable(context).available) {
-      results.unshift({ ...navigationAction, order: 0, qualityClass: 'exact-intent' })
     }
-    return results.map((result) =>
-      result.kind === 'settings'
-        ? { id: result.id, type: 'settings' as const, result }
-        : { id: `quick-action:${result.id}`, type: 'quick-action' as const, result }
-    )
   }, [
     actionResults,
     buildQuickActionContext,
-    deferredQuery,
-    settingsResults,
     activeView,
     activeWorktreeId,
     worktreesByRepo,
@@ -186,6 +174,22 @@ export function useWorktreeJumpPaletteQuickActions({
     settings?.activeRuntimeEnvironmentId,
     runtimeStatusByEnvironmentId
   ])
+  const middleItems = useMemo<(SettingsPaletteItem | QuickActionPaletteItem)[]>(() => {
+    const results = rankCmdJMiddleResults({
+      query: deferredQuery,
+      settingsResults,
+      actionResults: availableActions.actionResults
+    })
+    const navigationAction = buildCmdJBrowserNavigationAction(deferredQuery)
+    if (navigationAction?.isAvailable(availableActions.context).available) {
+      results.unshift({ ...navigationAction, order: 0, qualityClass: 'exact-intent' })
+    }
+    return results.map((result) =>
+      result.kind === 'settings'
+        ? { id: result.id, type: 'settings' as const, result }
+        : { id: `quick-action:${result.id}`, type: 'quick-action' as const, result }
+    )
+  }, [availableActions, deferredQuery, settingsResults])
   return { prefetchCreateWorkspaceBaseForComposer, buildQuickActionContext, middleItems }
 }
 

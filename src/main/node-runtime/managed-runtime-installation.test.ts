@@ -104,8 +104,9 @@ it('publishes an update only once the old releases were reclaimed', async () => 
   let resume = (): void => {}
   const reclaim = vi.mocked(reclaimRuntimeReleases)
   const paused = new Promise<void>((resolve) => (resume = resolve))
-  const { reclaimRuntimeReleases: reclaimNow } =
-    await vi.importActual<typeof ReleaseModule>('./managed-runtime-release')
+  const { reclaimRuntimeReleases: reclaimNow } = await vi.importActual<typeof ReleaseModule>(
+    './managed-runtime-release'
+  )
   reclaim.mockImplementationOnce(async (...args) => paused.then(() => reclaimNow(...args)))
   const installation = host()
   installation.install()
@@ -114,4 +115,20 @@ it('publishes an update only once the old releases were reclaimed', async () => 
   resume()
   await vi.waitFor(async () => expect(await phase(installation)).toBe('succeeded'))
   expect((await readdir(root)).sort()).toEqual(['0.9', '1.0'])
+})
+
+it('repairs a damaged copy when Install is clicked again', async () => {
+  const { root, host, phase } = await rig(['whole', 'whole'])
+  const installation = host()
+  installation.install()
+  await vi.waitFor(async () => expect(await phase(installation)).toBe('succeeded'))
+  await writeFile(join(root, '1.0', 'server'), 'cut')
+  expect(await installation.status()).toMatchObject({ installedVersion: null, damaged: true })
+
+  installation.install()
+  await vi.waitFor(async () => expect(await phase(installation)).toBe('succeeded'))
+  const repaired = await installation.status()
+  expect(repaired).toMatchObject({ installedVersion: '1.0', installedCurrent: true })
+  expect(repaired.damaged).toBeUndefined()
+  expect(await readdir(root)).toEqual(['1.0'])
 })

@@ -5,6 +5,7 @@ import { runProcess } from '@orca/process-host'
 import type { ProcessResult } from '@orca/process-host/process-spec'
 import { waitForPromiseWithSignal } from '../../shared/abort-signal-reason'
 import { isDefinitiveAbsence } from '../../shared/definitive-filesystem-absence'
+import { resolveExecutableCommand } from '../../shared/node-cli-command-resolution'
 import { getZipExtractorCommand } from '../../shared/zip-extractor-command'
 import type { MainHttpClient } from '../network/http-client'
 import { isRetryableDownloadError, type HttpStatusError } from '../network/transient-download-error'
@@ -30,14 +31,7 @@ export async function extractRuntimeArchive(
   signal?: AbortSignal
 ): Promise<ProcessResult> {
   const { label } = runtime
-  // Why tar for .tar.gz: every POSIX host and Windows 10+ ships it; Node publishes no zip there.
-  const command = archivePath.endsWith('.zip')
-    ? getZipExtractorCommand(archivePath, extractDir)
-    : {
-        file: 'tar',
-        args: ['-xzf', archivePath, '-C', extractDir, ...runtime.members],
-        label: 'tar'
-      }
+  const command = archiveExtractorCommand(archivePath, extractDir, runtime.members)
   try {
     return await runProcess({
       program: command.file,
@@ -57,6 +51,24 @@ export async function extractRuntimeArchive(
     }
     throw error
   }
+}
+
+/** The extractor an archive named `archiveName` needs when this host lacks it, so an install can
+ *  refuse before it downloads anything; null when the host has it. */
+export function missingArchiveExtractor(archiveName: string): string | null {
+  const command = archiveExtractorCommand(archiveName, '', [])
+  return resolveExecutableCommand(command.file) ? null : command.label
+}
+
+function archiveExtractorCommand(
+  archivePath: string,
+  extractDir: string,
+  members: readonly string[]
+): { file: string; args: string[]; label: string } {
+  // Why tar for .tar.gz: every POSIX host and Windows 10+ ships it; Node publishes no zip there.
+  return archivePath.endsWith('.zip')
+    ? getZipExtractorCommand(archivePath, extractDir)
+    : { file: 'tar', args: ['-xzf', archivePath, '-C', extractDir, ...members], label: 'tar' }
 }
 
 /** Retries transient network failures; a checksum mismatch or a cancel is final. */

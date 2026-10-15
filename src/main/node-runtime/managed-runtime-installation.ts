@@ -23,6 +23,7 @@ import { verifyFileSha256 } from './pinned-runtime-materializer'
 import {
   downloadVerifiedArchive,
   extractRuntimeArchive,
+  missingArchiveExtractor,
   RUNTIME_ARCHIVE_RETRY_DELAYS_MS
 } from './runtime-archive-download'
 
@@ -62,15 +63,18 @@ export class ManagedRuntimeInstallation {
     await this.state.waitForChange(shown, STATUS_WAIT_MS, signal)
     const { value: operation, revision } = this.state.get()
     const pin = this.runtime.pin()
-    const release = resolveInstalledRuntimeRelease(this.root, pin)
+    const { release, broken } = resolveInstalledRuntimeRelease(this.root, pin)
     const source = (await this.deps.findExternal()) ? 'external' : release ? 'managed' : null
+    const missingProgram = pin && missingArchiveExtractor(pin.url)
     return {
       agent: this.agent,
       revision,
-      available: pin !== null,
+      available: pin !== null && !missingProgram,
+      ...(missingProgram && { missingProgram }),
       version: pin?.version ?? null,
       installedVersion: release?.version ?? null,
       installedCurrent: release?.current ?? false,
+      ...(pin && !release?.current && broken.includes(pin.version) && { damaged: true }),
       source,
       operation
     }
@@ -82,6 +86,10 @@ export class ManagedRuntimeInstallation {
     const pin = this.runtime.pin()
     if (!pin) {
       throw new Error(`${label} is not available on ${process.platform} ${process.arch}.`)
+    }
+    const missingProgram = missingArchiveExtractor(pin.url)
+    if (missingProgram) {
+      throw new Error(`Installing ${label} on this host needs ${missingProgram}.`)
     }
     const current = this.state.get().value
     const { running } = this
@@ -136,7 +144,10 @@ export class ManagedRuntimeInstallation {
       } else if (run.controller.signal.aborted) {
         this.publish(run, { phase: 'cancelled' })
       } else {
-        this.publish(run, { phase: 'failed', error: failureText(this.runtime.label, error, deadline) })
+        this.publish(run, {
+          phase: 'failed',
+          error: failureText(this.runtime.label, error, deadline)
+        })
       }
     } finally {
       this.running = this.running === run ? null : this.running
@@ -153,13 +164,19 @@ export class ManagedRuntimeInstallation {
     await mkdir(this.root, { recursive: true })
     if (existsSync(folder)) {
       this.publish(run, { phase: 'verifying' })
-      await verifyMembers(folder, pin, label, signal).catch((error: unknown) => {
-        throw new Error(`This copy of ${label} is damaged. Remove it, then install again.`, {
-          cause: error
-        })
-      })
-      run.committed = true
-      return
+      const whole = await verifyMembers(folder, pin, label, signal).then(
+        () => true,
+        (error: unknown) => {
+          signal.throwIfAborted()
+          console.warn(`[managed-runtime] ${this.agent} copy is damaged; repairing:`, error)
+          return false
+        }
+      )
+      if (whole) {
+        run.committed = true
+        return
+      }
+      this.publish(run, { phase: 'downloading' })
     }
     const space = await statfs(this.root)
     const needed = pin.members.reduce((sum, m) => sum + m.bytes, pin.archiveBytes)
@@ -174,7 +191,12 @@ export class ManagedRuntimeInstallation {
       const archive = join(staging, basename(new URL(pin.url).pathname))
       let shownAt = 0
       await downloadVerifiedArchive(
-        { label, url: pin.url, archiveSha256: pin.archiveSha256, maxArchiveBytes: pin.archiveBytes },
+        {
+          label,
+          url: pin.url,
+          archiveSha256: pin.archiveSha256,
+          maxArchiveBytes: pin.archiveBytes
+        },
         archive,
         this.deps.fetcher ?? getMainHttpClient().fetch,
         signal,
@@ -185,17 +207,32 @@ export class ManagedRuntimeInstallation {
             this.publish(run, { downloadedBytes: bytes })
           }
         }
-      )
+      ).catch((error: unknown) => {
+        if (signal.aborted || isChecksumMismatch(error)) {
+          throw error
+        }
+        console.warn(`[managed-runtime] ${this.agent} download failed:`, error)
+        throw new Error(
+          `Couldn't download ${label}. Check your network connection or proxy, then try again.`,
+          { cause: error }
+        )
+      })
       this.publish(run, { phase: 'extracting', downloadedBytes: pin.archiveBytes })
       const members = pin.members.map((member) => member.path)
       const extracted = await extractRuntimeArchive({ label, members }, archive, release, signal)
       if (extracted.code !== 0) {
-        throw new Error(`${label} archive extraction failed: ${extracted.stderr || extracted.stdout}`)
+        throw new Error(
+          `${label} archive extraction failed: ${extracted.stderr || extracted.stdout}`
+        )
       }
       this.publish(run, { phase: 'verifying' })
       await verifyMembers(release, pin, label, signal)
       await writeRuntimeReleaseReceipt(release, pin)
       signal.throwIfAborted()
+      // A damaged copy moves into staging, which is deleted below or reclaimed on the next start.
+      if (existsSync(folder)) {
+        await rename(folder, join(staging, 'damaged'))
+      }
       await rename(release, folder)
       run.committed = true
     } finally {
@@ -204,8 +241,13 @@ export class ManagedRuntimeInstallation {
   }
 
   private async reclaim(): Promise<void> {
-    const keep = resolveInstalledRuntimeRelease(this.root, this.runtime.pin())
-    const failed = await reclaimRuntimeReleases(this.root, keep?.version ?? null).catch(
+    const { release, unreadable } = resolveInstalledRuntimeRelease(this.root, this.runtime.pin())
+    if (unreadable) {
+      // Which release a launch runs is unknown, so nothing is provably stale.
+      console.warn(`[managed-runtime] ${this.agent} releases unreadable; not reclaiming this run`)
+      return
+    }
+    const failed = await reclaimRuntimeReleases(this.root, release?.version ?? null).catch(
       (error: unknown) => [String(error)]
     )
     if (failed.length > 0) {
@@ -219,9 +261,13 @@ function failureText(label: string, error: unknown, deadline: AbortSignal): stri
   if (deadline.aborted) {
     return `Installing ${label} took longer than 45 minutes. Try again.`
   }
-  return /checksum mismatch/.test(message)
+  return isChecksumMismatch(error)
     ? `The ${label} download did not match its pinned checksum, so nothing was installed.`
     : message
+}
+
+function isChecksumMismatch(error: unknown): boolean {
+  return error instanceof Error && /checksum mismatch/.test(error.message)
 }
 
 async function verifyMembers(

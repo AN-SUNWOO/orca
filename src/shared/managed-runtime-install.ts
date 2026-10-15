@@ -23,12 +23,16 @@ export type ManagedRuntimeInstallState = {
   agent: string
   /** Rises with every change the host publishes, across operations. */
   revision: number
-  /** The host has a pinned release; without one no Install is offered. */
+  /** The host has a pinned release it can unpack; otherwise no Install is offered. */
   available: boolean
+  /** The program this host lacks to unpack the release, e.g. `unzip`. */
+  missingProgram?: string
   version: string | null
   installedVersion: string | null
   /** False with an installed version: an update is available. */
   installedCurrent: boolean
+  /** The pinned release's folder is there but not whole; Install repairs it. */
+  damaged?: boolean
   /** What a chat start runs now: Orca's release, a copy found outside it, or nothing. */
   source: 'managed' | 'external' | null
   /** The latest operation; an ended one stays readable until the next starts. */

@@ -124,8 +124,8 @@ export async function writeRuntimeReleaseReceipt(
   await writeFile(join(folder, RUNTIME_RELEASE_RECEIPT), JSON.stringify(receipt), { flag: 'wx' })
 }
 
-/** Removes everything under `root` but the release named `keep`: called only while the caller
- *  owns every install and launch of this runtime, so nothing else runs from or publishes into it.
+/** Removes everything under `root` but the release named `keep`. Safe only when `keep` is what a
+ *  launch resolves and the caller is the only writer, so no chat runs from what it removes.
  *  Answers the entries it could not remove. */
 export async function reclaimRuntimeReleases(root: string, keep: string | null): Promise<string[]> {
   const names = await readdir(root).catch((error: NodeJS.ErrnoException) =>

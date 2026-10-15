@@ -157,7 +157,7 @@ export function emitSubscriberFrame(
   const built = buildSubscriberFrame(
     hooks,
     subscriber,
-    includeMarker ? { ...event, currentRequests: marker } : event,
+    includeMarker && event.type !== 'end' ? { ...event, currentRequests: marker } : event,
     options?.withholdQueued === true
   )
   for (const outgoing of built.frames) {

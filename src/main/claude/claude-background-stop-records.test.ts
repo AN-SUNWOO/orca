@@ -39,6 +39,8 @@ async function droppedFromRoster() {
         fence: 7,
         journal: {
           snapshot: () => ({ items: [] }),
+          cursor: () => ({ epoch: 'e', sequence: 0 }),
+          item: () => null,
           submissions: () => [],
           runningTurn: () => null,
           itemFence: () => undefined,

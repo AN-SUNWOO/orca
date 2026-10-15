@@ -305,9 +305,7 @@ const ANTIGRAVITY_LAUNCH_SPEC: AcpLaunchSpec = {
   privateTempDirectory: true,
   // `session/load` replays the whole conversation, which the chat already holds.
   resumePreference: 'resume',
-  launchGate: new AcpLaunchGate(
-    "Antigravity's setup is changing on this host. Try again after it finishes."
-  )
+  launchGate: new AcpLaunchGate('Antigravity')
 }
 
 export const ACP_LAUNCH_SPECS: readonly AcpLaunchSpec[] = [

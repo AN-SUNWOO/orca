@@ -205,3 +205,26 @@ it('refuses a new start while its sign-in changes, and stops one already startin
   await expect(failedOperation).rejects.toThrow('stop failed')
   expect(worked).toBe(false)
 })
+
+it('stops a chat that has left the gate but is not loaded yet before the operation runs', async () => {
+  const [initialized, opened] = await readAcpFixture('antigravity-v1-question')
+  const rig = await openAcpAdapterRig({
+    spec: ANTIGRAVITY,
+    initialize: result(initialized),
+    script: (agent) =>
+      agent.on('session/new', (frame) =>
+        agent.reply(frame, { ...result(opened), sessionId: PROVIDER_SESSION })
+      )
+  })
+  // Its start returned, so the gate has no start to abort and no loaded chat lists it yet.
+  await rig.acquire()
+  const child = rig.child()
+  let ranOverLiveChild: boolean | null = null
+  await ANTIGRAVITY.launchGate!.run(
+    async () => {},
+    async () => {
+      ranOverLiveChild = !child.exited
+    }
+  )
+  expect(ranOverLiveChild).toBe(false)
+})

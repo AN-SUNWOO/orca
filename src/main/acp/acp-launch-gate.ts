@@ -3,12 +3,17 @@
 // In memory only; a restart ends it.
 
 import { AgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import type { ProviderAcquisitionConnection } from '../provider-process/provider-acquisition-starts'
 
 export class AcpLaunchGate {
   private operating = false
   private readonly starts = new Map<AbortController, Promise<void>>()
+  private readonly retained = new Set<ProviderAcquisitionConnection>()
+  private readonly refusal: string
 
-  constructor(private readonly refusal: string) {}
+  constructor(private readonly label: string) {
+    this.refusal = `${label}'s setup is changing on this host. Try again after it finishes.`
+  }
 
   /** A start's way in: refused while an operation runs; an operation that begins aborts it. */
   enter(signal: AbortSignal | undefined): { signal: AbortSignal; leave: () => void } {
@@ -29,7 +34,15 @@ export class AcpLaunchGate {
     }
   }
 
-  /** `work`, once the starts under way have ended and `stopLive` has stopped the running chats. */
+  /** Held from spawn until the child exits: a start that left the gate still runs until its chat is
+   *  loaded, so an operation proves every such child gone, not only the loaded chats. */
+  retain(connection: ProviderAcquisitionConnection): void {
+    this.retained.add(connection)
+    connection.onExit(() => this.retained.delete(connection))
+  }
+
+  /** `work`, once the starts under way have ended, `stopLive` has stopped the running chats and
+   *  every retained child is proven gone; otherwise it rejects without running `work`. */
   async run<T>(stopLive: () => Promise<void>, work: () => Promise<T>): Promise<T> {
     if (this.operating) {
       throw new Error(this.refusal)
@@ -40,9 +53,24 @@ export class AcpLaunchGate {
       starts.forEach(([controller]) => controller.abort())
       await Promise.all(starts.map(([, left]) => left))
       await stopLive()
+      await this.stopRetained()
       return await work()
     } finally {
       this.operating = false
+    }
+  }
+
+  private async stopRetained(): Promise<void> {
+    const owners = [...this.retained]
+    const closes = await Promise.allSettled(owners.map((owner) => owner.close()))
+    closes.forEach((close, index) => {
+      const result = close.status === 'fulfilled' ? close.value : false
+      if (typeof result === 'boolean' ? result : result.root === 'exited') {
+        this.retained.delete(owners[index])
+      }
+    })
+    if (this.retained.size > 0) {
+      throw new Error(`${this.label} could not be stopped on this host. Try again.`)
     }
   }
 }

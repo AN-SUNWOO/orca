@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import {
   Platform,
   type FlatList,
@@ -25,6 +25,9 @@ const ANCHOR_AT_FIRST_ROW = { minIndexForVisible: 0 } as const
 export function mobileNativeChatRowAnchor(hasHeader: boolean): { minIndexForVisible: number } {
   return hasHeader ? ANCHOR_BELOW_HEADER : ANCHOR_AT_FIRST_ROW
 }
+
+/** The part of the page list's scrollable DOM node the pin reads. */
+type PageScroller = { scrollTop: number; scrollHeight: number }
 
 function distanceFromTail(event: NativeScrollEvent): number {
   const { contentOffset, contentSize, layoutMeasurement } = event
@@ -75,8 +78,10 @@ export type MobileNativeChatTailFollow<TItem> = {
 export function useMobileNativeChatTailFollow<TItem>(args: {
   /** Guards `scrollToEnd` against an empty list. */
   hasItems: boolean
+  /** The chat shown; on the page another one opens following, whatever the reader did here. */
+  scopeKey: string
 }): MobileNativeChatTailFollow<TItem> {
-  const { hasItems } = args
+  const { hasItems, scopeKey } = args
   const listRef = useRef<FlatList<TItem> | null>(null)
   const [following, setFollowingFlag] = useState(true)
   const [atTail, setAtTailFlag] = useState(true)
@@ -87,7 +92,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const userScrollSettleFrameRef = useRef<number | null>(null)
   // Page only: what the offsets last said, in place of the gestures RN Web does not report.
   const pageOffsetRef = useRef(0)
-  const pageContentHeightRef = useRef(0)
+  const scopeKeyRef = useRef(scopeKey)
 
   // Single writer, so the event-time ref and the render flag cannot disagree.
   const setFollowing = useCallback((next: boolean) => {
@@ -115,12 +120,15 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       return
     }
     // Why not `scrollToEnd`: its estimate can land short, and the page reads a move up as the reader's.
-    listRef.current?.scrollToOffset({ animated: false, offset: pageContentHeightRef.current })
+    // The live height: the last reported one can still be the previous chat's.
+    const scroller: PageScroller | null | undefined = listRef.current?.getScrollableNode()
+    if (scroller) {
+      listRef.current?.scrollToOffset({ animated: false, offset: scroller.scrollHeight })
+    }
   }, [hasItems])
 
   const pinToTailAfterContentResize = useCallback(
     (_width: number, height: number) => {
-      pageContentHeightRef.current = height
       if (!followingRef.current || !hasItems) {
         return
       }
@@ -220,6 +228,21 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   )
 
   const isFollowing = useCallback(() => followingRef.current, [])
+
+  // The view stays mounted across chats: before paint, so the next one never shows where the reader
+  // left the last. Page only until the native list takes the same reset.
+  useLayoutEffect(() => {
+    if (scopeKeyRef.current === scopeKey) {
+      return
+    }
+    scopeKeyRef.current = scopeKey
+    if (listReportsGestures()) {
+      return
+    }
+    jumpToTail()
+    const scroller: PageScroller | null | undefined = listRef.current?.getScrollableNode()
+    pageOffsetRef.current = scroller?.scrollTop ?? 0
+  }, [scopeKey, jumpToTail])
 
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
 

@@ -117,21 +117,7 @@ export class StructuredAgentSessionRetry {
     if (this.disposed) {
       return
     }
-    const chat = this.owe(sessionId)
-    // A release an earlier process never settled: its proof is kept, as its end's signal would
-    // have, since the next reservation clears the lease's copy.
-    const lease = this.context.deps.store.getRecord(sessionId)?.lease
-    const proof = lease?.claimStatus === 'released' ? lease.deathEvidence : null
-    const held = chat.debts.evidence ?? []
-    if (
-      proof &&
-      !held.some(
-        ({ ownerFence, observedAt }) =>
-          ownerFence === proof.ownerFence && observedAt === proof.observedAt
-      )
-    ) {
-      chat.debts.evidence = [...held, proof]
-    }
+    this.owe(sessionId)
     this.wake()
   }
 

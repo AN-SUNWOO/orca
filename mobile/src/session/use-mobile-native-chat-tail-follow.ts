@@ -50,8 +50,10 @@ export type MobileNativeChatTailFollow<TItem> = {
   endUserDrag: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
   beginMomentum: () => void
   endMomentum: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
-  /** Whether a scroll near the top is the reader's own, and so may page in older history. */
-  readerIsScrolling: () => boolean
+  /** Whether a scroll near the top may page in older history: only a native list's own drag. The
+   *  page loads it only from the "Load earlier" control, since a page landing in iOS's top bounce
+   *  gets the place-hold's write while WebKit owns the scroll, and the list stops scrolling. */
+  scrollMayLoadEarlier: () => boolean
   recordScrollMetrics: (event: NativeScrollEvent) => void
 }
 
@@ -84,7 +86,6 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   // Page only: what the offsets last said, in place of the gestures RN Web does not report.
   const pageOffsetRef = useRef(0)
   const pageContentHeightRef = useRef(0)
-  const pageReaderMovedUpRef = useRef(false)
 
   // Single writer, so the event-time ref and the render flag cannot disagree.
   const setFollowing = useCallback((next: boolean) => {
@@ -142,10 +143,9 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       }
       const moved = event.contentOffset.y - pageOffsetRef.current
       pageOffsetRef.current = event.contentOffset.y
-      pageReaderMovedUpRef.current = moved < -PAGE_MOVE_SLOP
       if (followingRef.current) {
         // A pin only moves toward the end and a clamp lands on it: up and short of it is the reader.
-        if (pageReaderMovedUpRef.current && distanceFromTail(event) > PAGE_MOVE_SLOP) {
+        if (moved < -PAGE_MOVE_SLOP && distanceFromTail(event) > PAGE_MOVE_SLOP) {
           setFollowing(false)
         }
       } else if (moved > PAGE_MOVE_SLOP && endsAtTail) {
@@ -212,8 +212,8 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     [finishUserScroll]
   )
 
-  const readerIsScrolling = useCallback(
-    () => (listReportsGestures() ? userScrollActiveRef.current : pageReaderMovedUpRef.current),
+  const scrollMayLoadEarlier = useCallback(
+    () => listReportsGestures() && userScrollActiveRef.current,
     []
   )
 
@@ -229,7 +229,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     endUserDrag,
     beginMomentum,
     endMomentum,
-    readerIsScrolling,
+    scrollMayLoadEarlier,
     recordScrollMetrics
   }
 }

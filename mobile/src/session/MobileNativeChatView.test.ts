@@ -731,14 +731,18 @@ describe('MobileNativeChatView', () => {
       expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_000 })
     })
 
-    it('pages in history when the reader scrolls up to the top, not when a pin passes it', async () => {
+    it('loads older history from the Load earlier control, not from reaching the top', async () => {
       const onLoadEarlier = vi.fn()
       await render({ folded: [assistantTurn('a1', 'Latest')], hasMore: true, onLoadEarlier })
 
-      act(() => list().props.onScroll(scrolledTo(40, 540)))
+      // Down to the top and into iOS's bounce past it.
+      act(() => {
+        list().props.onScroll(scrolledTo(40, 540))
+        list().props.onScroll(scrolledTo(-15, 540))
+      })
       expect(onLoadEarlier).not.toHaveBeenCalled()
 
-      act(() => list().props.onScroll(scrolledTo(10, 540)))
+      act(() => list().props.ListHeaderComponent.props.onPress())
       expect(onLoadEarlier).toHaveBeenCalledOnce()
     })
   })

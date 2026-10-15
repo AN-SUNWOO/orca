@@ -11,6 +11,8 @@ type RowElement = {
 }
 type Scroller = {
   scrollTop: number
+  scrollHeight: number
+  clientHeight: number
   getBoundingClientRect: () => Box
   firstElementChild: RowElement | null
 }
@@ -44,6 +46,12 @@ function lowestRowOnScreen(scroller: Scroller): Held | null {
   return null
 }
 
+/** iOS is still bouncing the list past an end. A write then lands while WebKit owns the scroll, and
+ *  the list stops taking the reader's scrolls until they leave the chat. */
+function overscrolled({ scrollTop, scrollHeight, clientHeight }: Scroller): boolean {
+  return scrollTop < 0 || scrollTop > scrollHeight - clientHeight + 1
+}
+
 /** Keeps the page's view on the same rows when rows above it change, by putting a row that was on
  *  screen back where it was. A class because only `getSnapshotBeforeUpdate` sees that row before
  *  the new ones are in the document. A native list holds its own place
@@ -54,7 +62,7 @@ export class MobileNativeChatScrollHold extends Component<Props> {
       return null
     }
     const scroller = this.props.listRef.current?.getScrollableNode()
-    return scroller ? lowestRowOnScreen(scroller) : null
+    return scroller && !overscrolled(scroller) ? lowestRowOnScreen(scroller) : null
   }
 
   componentDidUpdate(_previous: Props, _state: unknown, held: Held | null): void {

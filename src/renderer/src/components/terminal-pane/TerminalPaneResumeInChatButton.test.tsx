@@ -17,7 +17,9 @@ const mocks = vi.hoisted(() => ({
   run: vi.fn(),
   pending: false
 }))
-vi.mock('@/store', () => ({ useAppStore: (selector: (state: object) => unknown) => selector({}) }))
+vi.mock('@/store', () => ({
+  useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector({})
+}))
 vi.mock('../tab-bar/cli-chat-resume-source', () => ({
   resolveCliChatResumeSource: (_state: unknown, args: unknown) => {
     mocks.resolve(args)

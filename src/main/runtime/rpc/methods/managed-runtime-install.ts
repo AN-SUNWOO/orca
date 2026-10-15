@@ -13,6 +13,7 @@ import { ManagedRuntimeInstallation } from '../../../node-runtime/managed-runtim
 import { isAgentSessionPreSpawnError } from '../../../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { getProfileUserDataPath } from '../../../orca-profiles/profile-storage-paths'
 import { resolveHostStructuredAgentLaunchEnvironment } from '../../structured-agent-launch-support'
+import { isPathInsideOrEqual } from '../../../../shared/cross-platform-path'
 import { defineMethod } from '../core'
 
 const installations = new Map<string, ManagedRuntimeInstallation>()
@@ -22,12 +23,18 @@ function installationFor(agent: string, runtime: OrcaRuntimeService): ManagedRun
   if (!spec?.managedRuntime) {
     throw new Error(`Orca installs no runtime for ${agent}.`)
   }
+  const dataDirectory = getProfileUserDataPath()
+  const releases = spec.managedRuntime.root(dataDirectory)
+  // What a start would run, outside Orca's releases: the launch's own lookup decides.
   const findExternal = async (): Promise<boolean> => {
     const settings = runtime.requireStore().getSettings()
     const env = { ...(await resolveHostStructuredAgentLaunchEnvironment(agent, settings)), ...spec.env }
     try {
-      const options = { commandSettings: settings, dataDirectory: null }
-      return resolveAcpLaunchCommand(spec, env, options) !== spec.command
+      const command = resolveAcpLaunchCommand(spec, env, {
+        commandSettings: settings,
+        dataDirectory
+      })
+      return command !== spec.command && !isPathInsideOrEqual(releases, command)
     } catch (error) {
       // An unrunnable Command setting refuses the start itself; it is no copy.
       if (isAgentSessionPreSpawnError(error)) {
@@ -40,7 +47,7 @@ function installationFor(agent: string, runtime: OrcaRuntimeService): ManagedRun
     installations.get(agent) ??
     // The chat host's own state root, where its launches look.
     new ManagedRuntimeInstallation(agent, spec.managedRuntime, {
-      dataDirectory: getProfileUserDataPath(),
+      dataDirectory,
       findExternal
     })
   installations.set(agent, installation)

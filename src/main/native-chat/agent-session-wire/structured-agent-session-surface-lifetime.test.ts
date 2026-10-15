@@ -236,7 +236,7 @@ beforeEach(async () => {
   // Like real adapters, the close reports its own end onto the chat's lane before it returns.
   closeSession = vi.fn(async (sessionId: string) => {
     const child = host['sessions'].get(sessionId)?.child
-    if (child) {
+    if (child?.generation) {
       void host.handleAdapterEvent({
         type: 'ended',
         sessionId,

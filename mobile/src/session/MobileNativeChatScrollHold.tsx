@@ -17,7 +17,7 @@ type Scroller = Tagged & { scrollTop: number; scrollHeight: number; clientHeight
 type Unit = { key: string; top: number; member?: string; placed: string }
 
 type Props = {
-  rowKeys: Pick<MobileNativeChatRowKeys, 'sourceHead' | 'current' | 'placement'>
+  rowKeys: Pick<MobileNativeChatRowKeys, 'scope' | 'sourceHead' | 'current' | 'placement'>
   /** Whether the reader follows the end, which then owns the scroll. */
   isFollowing: () => boolean
   listRef: RefObject<{ getScrollableNode: () => Scroller | null | undefined } | null>
@@ -121,8 +121,10 @@ function overscrolled({ scrollTop, scrollHeight, clientHeight }: Scroller): bool
  *  holds its own place (`maintainVisibleContentPosition`). */
 export class MobileNativeChatScrollHold extends Component<Props> {
   getSnapshotBeforeUpdate(previous: Props): Unit[] | null {
+    // Another chat opens at its end, which the follow owner resets only after this reads it.
     if (
       Platform.OS !== 'web' ||
+      previous.rowKeys.scope !== this.props.rowKeys.scope ||
       previous.rowKeys.sourceHead === this.props.rowKeys.sourceHead ||
       this.props.isFollowing()
     ) {

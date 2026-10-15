@@ -1,4 +1,12 @@
-import { createElement, useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject
+} from 'react'
 import {
   Platform,
   type FlatList,
@@ -106,8 +114,10 @@ export type MobileNativeChatTailFollow<TItem> = {
 export function useMobileNativeChatTailFollow<TItem>(args: {
   /** Guards `scrollToEnd` against an empty list. */
   hasItems: boolean
+  /** The chat shown; on the page another one opens following, whatever the reader did here. */
+  scopeKey: string
 }): MobileNativeChatTailFollow<TItem> {
-  const { hasItems } = args
+  const { hasItems, scopeKey } = args
   const listRef = useRef<FlatList<TItem> | null>(null)
   const [following, setFollowingFlag] = useState(true)
   const [atTail, setAtTailFlag] = useState(true)
@@ -118,6 +128,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const userScrollSettleFrameRef = useRef<number | null>(null)
   // Page only: what the offsets last said, in place of the gestures RN Web does not report.
   const pageOffsetRef = useRef(0)
+  const scopeKeyRef = useRef(scopeKey)
 
   // Single writer, so the event-time ref and the render flag cannot disagree.
   const setFollowing = useCallback((next: boolean) => {
@@ -280,6 +291,21 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       createElement(MobileNativeChatPageScroll, { ...props, endAnchored: following }),
     [following]
   )
+
+  // The view stays mounted across chats: before paint, so the next one never shows where the reader
+  // left the last. Page only until the native list takes the same reset.
+  useLayoutEffect(() => {
+    if (scopeKeyRef.current === scopeKey) {
+      return
+    }
+    scopeKeyRef.current = scopeKey
+    if (listReportsGestures()) {
+      return
+    }
+    jumpToTail()
+    const scroller: PageScroller | null | undefined = listRef.current?.getScrollableNode()
+    pageOffsetRef.current = scroller?.scrollTop ?? 0
+  }, [scopeKey, jumpToTail])
 
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
 

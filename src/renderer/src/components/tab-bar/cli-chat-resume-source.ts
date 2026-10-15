@@ -20,7 +20,7 @@ export type CliChatResumeSource = {
 }
 
 export function cliChatResumeNeedsConfirmation(state: AppState, source: CliChatResumeSource): boolean {
-  return state.agentStatusByPaneKey[source.paneKey]?.state !== 'idle'
+  return state.agentStatusByPaneKey[source.paneKey]?.state !== 'done'
 }
 
 export function resolveCliChatResumeSource(

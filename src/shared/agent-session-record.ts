@@ -372,11 +372,9 @@ export function isPersistedAgentSessionRecord(
       isAgentSessionProviderContextBoundary(record.providerContextBoundary)) &&
     (record.conversationCommand === undefined ||
       isAgentSessionConversationCommandRecord(record.conversationCommand)) &&
-    (record.conversationName === undefined ||
-      isAgentSessionConversationName(record.conversationName)) &&
+    (record.conversationName === undefined || isAgentSessionConversationName(record.conversationName)) &&
     (record.launchArgs === undefined || isAgentSessionLaunchArgs(record.launchArgs)) &&
-    (record.adoptionSurvivors === undefined ||
-      isSavedAgentProcessIdentitySet(record.adoptionSurvivors)) &&
+    (record.adoptionSurvivors === undefined || isSavedAgentProcessIdentitySet(record.adoptionSurvivors)) &&
     !Object.hasOwn(record, 'launchEnv') &&
     isPersistedAgentSessionLease(record.lease) &&
     record.lease.sessionId === record.sessionId &&

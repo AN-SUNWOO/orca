@@ -64,6 +64,11 @@ it('refuses an unconsented writer or another live pane before any stop', async (
   expect(await inspectCliSourceWriters(host([row('source')]), input)).toMatchObject({
     ptyId: 'source', writerMayLive: true
   })
+  expect(await inspectCliSourceWriters(host([{ ...row('source'), state: 'done' }]), {
+    ...input, resumeFrom: { ...input.resumeFrom, cliSource: {
+      ...input.resumeFrom.cliSource, stopRunningAgent: false
+    } }
+  })).toMatchObject({ ptyId: 'source', writerMayLive: true })
 })
 
 it('keeps a sleeping pane held even without a current PTY', async () => {

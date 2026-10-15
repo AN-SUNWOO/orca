@@ -77,7 +77,8 @@ export async function inspectCliSourceWriters(
     const writerMayLive = presence !== 'exited' && !shell
     if (
       writerMayLive &&
-      (row !== source || input.resumeFrom.cliSource?.stopRunningAgent !== true)
+      (row !== source || (row.state !== 'done' &&
+        input.resumeFrom.cliSource?.stopRunningAgent !== true))
     ) {
       throw conflict()
     }

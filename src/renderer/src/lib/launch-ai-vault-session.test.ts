@@ -15,11 +15,14 @@ const runtimeMocks = vi.hoisted(() => ({
   isWebRuntimeSessionActive: vi.fn(() => false)
 }))
 
+const mockGroupsByWorktree: Record<string, { id: string }[]> = {
+  'wt-1': [{ id: 'group-1' }]
+}
 const mockState = {
   createTab: mockCreateTab,
   createEmptySplitGroup: mockCreateEmptySplitGroup,
   closeEmptyGroup: mockCloseEmptyGroup,
-  groupsByWorktree: { 'wt-1': [{ id: 'group-1' }] } as Record<string, { id: string }[]>,
+  groupsByWorktree: mockGroupsByWorktree,
   setActiveTabType: mockSetActiveTabType,
   setTabBarOrder: mockSetTabBarOrder,
   tabsByWorktree: {} as Record<string, { id: string }[]>,

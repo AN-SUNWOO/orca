@@ -704,6 +704,9 @@ describe('StructuredAgentSessionStatusBridge', () => {
     expect(sleepable()).toBe(false)
     act(() => feed().emit({ type: 'status', session: summary({ updatedAt: 3 }) }))
     expect(state().explicitlySleptChatsByWorkspace['local|wt-1']).toBeUndefined()
+    // Work reported before the Sleep flow records the chat still wakes it.
+    act(() => state().markWorkspaceChatsSlept('wt-1', 'local', [chat]))
+    expect(state().explicitlySleptChatsByWorkspace['local|wt-1']).toBeUndefined()
   })
 
   it('drops the status and the feed when the last structured tab closes', async () => {

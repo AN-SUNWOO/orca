@@ -242,7 +242,6 @@ export function MobileNativeChatView({
   )
   const rowKeys = useMobileNativeChatRowKeys(folded, messages, sendSurfaceId)
   const {
-    listRef,
     attachList,
     showJumpToTail,
     pinToTail,
@@ -254,7 +253,7 @@ export function MobileNativeChatView({
     endMomentum,
     scrollMayLoadEarlier,
     recordScrollMetrics,
-    isFollowing
+    placeHold
   } = useMobileNativeChatTailFollow<NativeChatMessage>({ hasItems: data.length > 0 })
 
   const handleSend = useCallback(
@@ -366,7 +365,7 @@ export function MobileNativeChatView({
         </View>
       ) : (
         <GestureHandlerRootView style={styles.listWrap}>
-          <MobileNativeChatScrollHold rowKeys={rowKeys} {...{ listRef, isFollowing }} />
+          <MobileNativeChatScrollHold rowKeys={rowKeys} {...placeHold} />
           <GestureDetector gesture={pinchGesture}>
             <FlatList
               ref={attachList}

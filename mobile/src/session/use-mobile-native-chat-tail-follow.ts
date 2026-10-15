@@ -59,9 +59,8 @@ function isAtTail(event: NativeScrollEvent): boolean {
 }
 
 export type MobileNativeChatTailFollow<TItem> = {
-  /** The transcript list, filled by `attachList`; the hook scrolls through this ref alone. */
-  listRef: RefObject<FlatList<TItem> | null>
-  /** The list's `ref`: fills `listRef` and, on the page, watches it resize for its whole mount. */
+  /** The list's `ref`, which the hook scrolls through alone; on the page it also watches the list
+   *  resize for as long as it is mounted. */
   attachList: (list: FlatList<TItem> | null) => () => void
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
@@ -80,8 +79,8 @@ export type MobileNativeChatTailFollow<TItem> = {
    *  gets the place-hold's write while WebKit owns the scroll, and the list stops scrolling. */
   scrollMayLoadEarlier: () => boolean
   recordScrollMetrics: (event: NativeScrollEvent) => void
-  /** Whether the reader follows the end now; read at commit by the page's place-hold. */
-  isFollowing: () => boolean
+  /** Read at commit by the page's place-hold: the list, and whether the reader follows the end. */
+  placeHold: { listRef: RefObject<FlatList<TItem> | null>; isFollowing: () => boolean }
 }
 
 /** Sole owner of transcript scroll position.
@@ -271,7 +270,6 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
 
   return {
-    listRef,
     attachList,
     showJumpToTail: !following && !atTail,
     pinToTail,
@@ -283,6 +281,6 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     endMomentum,
     scrollMayLoadEarlier,
     recordScrollMetrics,
-    isFollowing
+    placeHold: { listRef, isFollowing }
   }
 }

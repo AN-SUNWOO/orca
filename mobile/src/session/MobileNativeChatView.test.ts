@@ -3,7 +3,6 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileNativeChatView } from './MobileNativeChatView'
-import { MobileNativeChatScrollHold } from './MobileNativeChatScrollHold'
 
 const scrollToEnd = vi.hoisted(() => vi.fn())
 const scrollToOffset = vi.hoisted(() => vi.fn())
@@ -703,68 +702,14 @@ describe('MobileNativeChatView', () => {
       }
     }
 
-    it('stops following when the reader scrolls up, and resumes at the end', async () => {
-      await render({ folded: [assistantTurn('a1', 'Latest')] })
-      act(() => {
-        list().props.onContentSizeChange(320, 1_000)
-        list().props.onScroll(scrolledTo(500, 1_000))
-      })
-      scrollToOffset.mockClear()
-
-      // No drag event arrives on the page: the move up is all there is to go on.
-      act(() => {
-        list().props.onScroll(scrolledTo(300, 1_000))
-        list().props.onContentSizeChange(320, 1_200)
-      })
-      expect(scrollToOffset).not.toHaveBeenCalled()
-      expect(
-        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
-      ).toHaveLength(1)
-
-      act(() => {
-        list().props.onScroll(scrolledTo(700, 1_200))
-        pageScroller.scrollHeight = 1_400
-        list().props.onContentSizeChange(320, 1_400)
-      })
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 900 })
-    })
-
-    it('does not take its own pin, landing short of a grown end, for the reader', async () => {
-      await render({ folded: [assistantTurn('a1', 'Latest')] })
-      act(() => {
-        list().props.onContentSizeChange(320, 1_000)
-        list().props.onScroll(scrolledTo(500, 1_000))
-      })
-      scrollToOffset.mockClear()
-
-      // The pin reached the end it was sent to; the reply had grown 400 past it by then.
-      act(() => {
-        list().props.onScroll(scrolledTo(700, 1_600))
-        list().props.onContentSizeChange(320, 1_600)
-      })
-
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_100 })
-    })
-
-    it('pins a resized viewport to the live end, never the list estimate', async () => {
-      await render({ folded: [assistantTurn('a1', 'Latest')] })
-      act(() => list().props.onScroll(scrolledTo(500, 1_000)))
-      scrollToEnd.mockClear()
-
-      pageScroller.clientHeight = 300
-      act(() => list().props.onLayout?.({}))
-
-      expect(scrollToEnd).not.toHaveBeenCalled()
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 700 })
-    })
-
-    it('holds a following reader at the live end before the late size report', async () => {
+    it('holds a following reader at the live end through growth, a late size report and layout', async () => {
       const latest = [assistantTurn('a1', 'Latest')]
       const landed = [assistantTurn('a0', 'Older'), ...latest]
       const onLoadEarlier = vi.fn()
       await render({ folded: latest, hasMore: true, onLoadEarlier })
       act(() => list().props.onScroll(scrolledTo(500, 1_000)))
 
+      // Older rows land; the observer pins before RN Web's size report, which comes a task later.
       act(() => list().props.ListHeaderComponent.props.onPress())
       await update({ folded: landed, hasMore: true, onLoadEarlier })
       pageScroller.scrollHeight = 5_000
@@ -772,20 +717,35 @@ describe('MobileNativeChatView', () => {
       expect(onLoadEarlier).toHaveBeenCalledOnce()
       expect(scrollToOffset).toHaveBeenCalledOnce()
       expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 4_500 })
-      expect(renderer!.root.findByType(MobileNativeChatScrollHold).props.isFollowing()).toBe(true)
-
-      // The old height, reported a task late, can't pull the view back.
+      // That report, of the old height, can't pull the view back.
       act(() => list().props.onContentSizeChange(320, 1_000))
       expect(scrollToOffset).toHaveBeenCalledOnce()
 
-      // The reader scrolls up from the pin's end; growth then leaves them there.
+      // The pin's own move, short of a reply that grew meanwhile, is not the reader's.
       act(() => {
-        list().props.onScroll(scrolledTo(4_500, 5_000))
-        list().props.onScroll(scrolledTo(3_000, 5_000))
+        list().props.onScroll(scrolledTo(4_500, 5_400))
+        list().props.onContentSizeChange(320, 5_400)
       })
+      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 4_900 })
+
+      // No drag event arrives on the page: the move up is all there is to go on.
+      act(() => list().props.onScroll(scrolledTo(3_000, 5_400)))
       pageScroller.scrollHeight = 6_000
       resized()
-      expect(scrollToOffset).toHaveBeenCalledOnce()
+      expect(scrollToOffset).toHaveBeenCalledTimes(2)
+      expect(
+        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
+      ).toHaveLength(1)
+
+      // Back at the end it follows again, and a smaller viewport pins to the live end.
+      act(() => list().props.onScroll(scrolledTo(5_500, 6_000)))
+      pageScroller.scrollHeight = 6_400
+      resized()
+      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 5_900 })
+      pageScroller.clientHeight = 300
+      act(() => list().props.onLayout?.({}))
+      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 6_100 })
+      expect(scrollToEnd).not.toHaveBeenCalled()
     })
 
     it('loads older history from the Load earlier control, not from reaching the top', async () => {

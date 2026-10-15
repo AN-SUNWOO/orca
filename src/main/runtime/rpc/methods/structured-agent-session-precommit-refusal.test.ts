@@ -131,18 +131,31 @@ afterEach(() => {
 })
 
 describe('a create refused before it commits', () => {
-  it('answers missing history before commit as a definite failed attempt', async () => {
+  it.each([
+    ['agent_session_identity_required', { reason: 'transcriptNotFound' }],
+    [
+      'agent_session_conflict',
+      {
+        reason: 'conversationHeldElsewhere',
+        owner: { sessionId: 'owner', workspaceId: 'workspace' }
+      }
+    ],
+    [
+      'agent_session_ownership_unknown',
+      {
+        reason: 'conversationHeldElsewhere',
+        owner: { sessionId: 'owner', workspaceId: 'workspace' }
+      }
+    ]
+  ] as const)('answers %s before commit as a definite failed attempt', async (code, details) => {
     const response = await create({
       resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
-        throw agentSessionRefusalError('agent_session_identity_required', {
-          reason: 'transcriptNotFound'
-        })
+        throw agentSessionRefusalError(code, details)
       })
     })
-
     expect(refusalOf(response)).toMatchObject({
-      code: 'agent_session_identity_required',
-      details: { reason: 'transcriptNotFound' },
+      code,
+      details,
       createAttemptRefusedBeforeCommit: true
     })
     expect(attach).not.toHaveBeenCalled()

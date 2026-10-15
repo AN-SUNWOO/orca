@@ -13,7 +13,6 @@ import {
   type StructuredLaunchAdmission
 } from '@/lib/structured-agent-session-host-admission'
 import { holdEmptyWorkspaceDefaultSurfaceForLaunch } from '@/lib/empty-workspace-default-surface-claims'
-import { StructuredAgentSessionCreateRefusalError } from '@/lib/structured-agent-session-launch-errors'
 import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-label'
 import type {
   StructuredAgentLaunchHooks,
@@ -161,11 +160,14 @@ export function beginHostAdmittedStructuredLaunch(args: {
   const releaseHold = holdEmptyWorkspaceDefaultSurfaceForLaunch(args.worktreeId)
   const settlement = (async (): Promise<StructuredAgentLaunchSettlement> => {
     try {
-      const asked = await admitStructuredLaunchOnHost(
-        args.target,
-        toRuntimeWorktreeSelector(args.worktreeId),
-        plan.agent
-      )
+      // Resuming asks create for the existing owner before fresh-launch prerequisites.
+      const asked: StructuredLaunchAdmission = plan.resumeFrom
+        ? { kind: 'admitted' }
+        : await admitStructuredLaunchOnHost(
+            args.target,
+            toRuntimeWorktreeSelector(args.worktreeId),
+            plan.agent
+          )
       if (isCancelled()) {
         resolveDelivery(NOT_DELIVERED)
         return { kind: 'cancelled', sessionId: null }
@@ -188,15 +190,6 @@ export function beginHostAdmittedStructuredLaunch(args: {
         }
       }
       if (admission.kind === 'declined') {
-        if (plan.resumeFrom) {
-          resolveDelivery(NOT_DELIVERED)
-          return {
-            kind: 'failed',
-            error: new StructuredAgentSessionCreateRefusalError(
-              'structured_agent_session_unsupported'
-            )
-          }
-        }
         // The notice explains a server's refusal; on this machine the terminal opening is the answer.
         if (paired) {
           notifyHostDeclined(plan.agent)

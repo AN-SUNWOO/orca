@@ -117,12 +117,33 @@ it('refuses concurrent adoption of a provider conversation by another session', 
   expect(results.filter((result) => result.ok)).toHaveLength(1)
   expect(results.filter((result) => !result.ok)).toMatchObject([
     {
-      refusal: { code: 'agent_session_conflict', details: { reason: 'conversationHeldElsewhere' } }
+      refusal: {
+        code: 'agent_session_conflict',
+        details: {
+          reason: 'conversationHeldElsewhere',
+          owner: { sessionId: expect.any(String), workspaceId: params.location.workspaceId }
+        },
+        createAttemptRefusedBeforeCommit: true
+      }
     }
   ])
   expect(rig.store.listRecords()).toHaveLength(1)
   expect(rig.store.listOperationRows()).toHaveLength(1)
   expect(rig.adapter.acquire).not.toHaveBeenCalled()
+})
+
+it('distinguishes an empty saved source from an unreadable one without founding a chat', async () => {
+  const params = await adoptedParams()
+  await writeFile(join(rig.root, 'rollout.jsonl'), '')
+  expect(await rig.host.create(CALLER, params)).toMatchObject({
+    ok: false,
+    refusal: {
+      details: { reason: 'transcriptEmpty' },
+      createAttemptRefusedBeforeCommit: true
+    }
+  })
+  expect(rig.store.listRecords()).toEqual([])
+  expect(rig.store.listOperationRows()).toEqual([])
 })
 
 it('refuses concurrent founding under a tab another chat already owns', async () => {

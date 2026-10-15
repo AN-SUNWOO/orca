@@ -21,6 +21,7 @@ import {
 
 export type StructuredAgentSessionAdoptionOwnership = {
   sessionId: string
+  workspaceId: string
   /** Any agent's chat may hold the conversation, though only one with an importer adopts. */
   provider: StructuredAgentId
   providerSessionId: string
@@ -110,7 +111,10 @@ export function structuredAdoptionConflictError(
     agentSessionLeaseAdmitsWriter(ownership.lease)
       ? 'agent_session_conflict'
       : 'agent_session_ownership_unknown',
-    { reason: 'conversationHeldElsewhere' }
+    {
+      reason: 'conversationHeldElsewhere',
+      owner: { sessionId: ownership.sessionId, workspaceId: ownership.workspaceId }
+    }
   )
 }
 

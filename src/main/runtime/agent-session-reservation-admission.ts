@@ -250,7 +250,8 @@ export function assertAdoptedConversationUnowned(
     )
     if (holdsSameConversation) {
       throw agentSessionRefusalError('agent_session_conflict', {
-        reason: 'conversationHeldElsewhere'
+        reason: 'conversationHeldElsewhere',
+        owner: { sessionId: record.sessionId, workspaceId: record.location.workspaceId }
       })
     }
   }

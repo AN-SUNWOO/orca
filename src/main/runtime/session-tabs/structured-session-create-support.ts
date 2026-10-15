@@ -4,6 +4,7 @@ import { OrcaRuntimeWithGetWorktreePs } from '../workspaces/workspace-process-li
 import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-wire/structured-agent-session-registry'
 import {
   resolveCommittedStructuredAgentSessionAdoptionIntent,
+  requireUnownedStructuredAgentSessionAdoption,
   resolveStructuredAgentSessionAdoptionForCreate
 } from '../structured-agent-session-create-adoption'
 import { isNativeLocalLocation, LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
@@ -151,6 +152,14 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     callerKey?: string
     resumeFrom?: { providerSessionId: string }
   }): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
+    if (input.resumeFrom) {
+      requireUnownedStructuredAgentSessionAdoption({
+        host: getStructuredAgentSessionHost(),
+        agent: input.agent,
+        providerSessionId: input.resumeFrom.providerSessionId,
+        selfSessionId: input.envelope.sessionId
+      })
+    }
     const hostLaunchDirectory = isFloatingWorkspaceSelector(input.worktree)
       ? (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path
       : undefined
@@ -237,12 +246,10 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     const adoption =
       input.resumeFrom && transcriptImport
         ? await resolveStructuredAgentSessionAdoptionForCreate({
-            host,
             settings,
             agent: input.agent,
             transcriptImport,
             providerSessionId: input.resumeFrom.providerSessionId,
-            selfSessionId: input.envelope.sessionId,
             selectedAccountHome,
             launchEnv: await resolveHostStructuredAgentLaunchEnvironment(input.agent, settings),
             workspaceCwd: (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path

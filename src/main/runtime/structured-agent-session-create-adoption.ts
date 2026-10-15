@@ -60,29 +60,33 @@ export function resolveCommittedStructuredAgentSessionAdoptionIntent(input: {
   }
 }
 
-export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
+export function requireUnownedStructuredAgentSessionAdoption(input: {
   host: StructuredAgentSessionHost | null
-  settings: StructuredAgentTranscriptImportSettings
   agent: StructuredAgentId
-  /** The agent's registered importer; only an agent with one adopts. */
-  transcriptImport: StructuredAgentTranscriptImport
   providerSessionId: string
   selfSessionId: string
-  selectedAccountHome: AgentSessionAccountHome
-  launchEnv: NodeJS.ProcessEnv
-  workspaceCwd: string
-}) {
+}): void {
   const conflict = input.host
     ? findConflictingStructuredAdoption({
-        agent: input.agent,
-        providerSessionId: input.providerSessionId,
-        selfSessionId: input.selfSessionId,
+        ...input,
         ownership: listStructuredProviderSessionOwnership(input.host.deps.store.listRecords())
       })
     : null
   if (conflict) {
     throw structuredAdoptionConflictError(conflict)
   }
+}
+
+export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
+  settings: StructuredAgentTranscriptImportSettings
+  agent: StructuredAgentId
+  /** The agent's registered importer; only an agent with one adopts. */
+  transcriptImport: StructuredAgentTranscriptImport
+  providerSessionId: string
+  selectedAccountHome: AgentSessionAccountHome
+  launchEnv: NodeJS.ProcessEnv
+  workspaceCwd: string
+}) {
   return resolveStructuredAgentSessionAdoption({
     providerSessionId: input.providerSessionId,
     candidateAccountHomes: input.transcriptImport.accountHomeCandidates(input),

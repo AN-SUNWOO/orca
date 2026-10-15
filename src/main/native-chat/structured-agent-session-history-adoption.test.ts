@@ -60,6 +60,7 @@ function ownership(
 ): StructuredAgentSessionAdoptionOwnership {
   return {
     sessionId: 'codex_owner',
+    workspaceId: 'workspace-owner',
     provider: 'codex',
     providerSessionId: 'thread-1',
     lease: agentSessionLeaseFixture(),

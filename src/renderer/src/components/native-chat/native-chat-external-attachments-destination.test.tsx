@@ -163,6 +163,34 @@ describe('OS attachment destination through input-method composition', () => {
   })
 
   it.each([true, false])(
+    'uses current image support when queued with acceptsImages=%s',
+    async (acceptsImages) => {
+      const path = '/local/image.png'
+      await render('workspace-1', acceptsImages)
+      await act(async () => latest().attachExternalPaths([path]))
+      expect(mocks.stat).toHaveBeenCalledOnce()
+      expect(nativeChatPendingAttachmentSnapshot('drop-test')).toHaveLength(1)
+      expect(latest().imageAttachments.every(({ pending }) => pending)).toBe(true)
+      expect(container.querySelector('[data-draft]')?.textContent).toBe('')
+
+      const currentAcceptsImages = !acceptsImages
+      await render('workspace-1', currentAcceptsImages)
+      composing = false
+      act(() => latest().flushPendingAttachments())
+      act(() => latest().flushPendingAttachments())
+
+      expect(nativeChatPendingAttachmentSnapshot('drop-test')).toEqual([])
+      expect(latest().imageAttachments.map(({ path }) => path)).toEqual(
+        currentAcceptsImages ? [path] : []
+      )
+      expect(nativeChatImagesHoldSend(latest().imageAttachments)).toBe(false)
+      expect(container.querySelector('[data-draft]')?.textContent).toBe(
+        currentAcceptsImages ? '' : `@${path} `
+      )
+    }
+  )
+
+  it.each([true, false])(
     'keeps the workspace-file exemption off OS drops (queued=$queued)',
     async (queued) => {
       composing = queued

@@ -150,7 +150,7 @@ export function useNativeChatResolvedPathAttachments({
             attached =
               batch.operation.apply(intoScope ? null : (paths) => filePaths.push(...paths)) ||
               attached
-          } else if (!intoScope) {
+          } else {
             const images = attachable.filter(
               ({ path }) => acceptsImages && isNativeChatImageAttachmentPath(path)
             )
@@ -198,7 +198,12 @@ export function useNativeChatResolvedPathAttachments({
       if (disabledRef.current) {
         batches.forEach(({ operation }) => operation?.cancel())
       } else {
-        applyRef.current(batches, false, true, true)
+        applyRef.current(
+          batches.filter(({ operation }) => operation),
+          false,
+          true,
+          true
+        )
       }
     },
     [mountedRef]
@@ -230,7 +235,7 @@ export function useNativeChatResolvedPathAttachments({
           }
           return
         }
-        if (mountedRef.current && isComposing()) {
+        if (isComposing() && (mountedRef.current || !operation)) {
           const pendingCount = pendingResolvedBatchesRef.current.reduce(
             (count, batch) => count + batch.paths.length,
             0

@@ -115,9 +115,13 @@ export function useNativeChatComposerAttachments({
     [pending, previews, restoring, settled]
   )
   const mountedRef = useMemo(
-    () => ({ scopeKey: attachmentScopeKey, current: true }),
+    () => ({ scopeKey: attachmentScopeKey, current: true, acceptsImages: true }),
     [attachmentScopeKey]
   )
+  // Captured callbacks retain this scope's last committed capability after unmount.
+  useLayoutEffect(() => {
+    mountedRef.acceptsImages = acceptsImages
+  }, [acceptsImages, mountedRef])
   useEffect(() => {
     mountedRef.current = true
     return () => {
@@ -233,11 +237,11 @@ export function useNativeChatComposerAttachments({
       connectionId?: string | null,
       options?: NativeChatPendingAttachmentOptions
     ) => {
-      return acceptsImages
+      return mountedRef.acceptsImages
         ? settleNativeChatPendingAttachment(attachmentScopeKey, id, path, connectionId)
         : attachPendingReferences([{ id, path }], options)
     },
-    [acceptsImages, attachPendingReferences, attachmentScopeKey]
+    [attachPendingReferences, attachmentScopeKey, mountedRef]
   )
 
   const revealPendingImageAttachment = useCallback(

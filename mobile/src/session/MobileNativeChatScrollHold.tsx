@@ -45,7 +45,10 @@ function heldMessage(scroller: Scroller, headKey: string | undefined): Held | nu
   const view = scroller.getBoundingClientRect()
   const rows = messageRows(scroller)
   const headId = headKey === undefined ? null : mobileNativeChatRowId(headKey)
-  const kept = Math.max(rows.findIndex((row) => row.getAttribute('data-testid') === headId), 0)
+  const kept = Math.max(
+    rows.findIndex((row) => row.getAttribute('data-testid') === headId),
+    0
+  )
   // Rows in normal flow have ordered bottoms, so the first one on screen is found without
   // measuring the up to 2,000 above it.
   let low = kept

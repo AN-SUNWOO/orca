@@ -57,6 +57,7 @@ async function rig(bodies: ('hang' | 'whole')[]) {
     new ManagedRuntimeInstallation('agent', runtime, {
       dataDirectory,
       findExternal: async () => false,
+      fence: (work) => work(),
       fetcher
     })
   const phase = async (installation: ManagedRuntimeInstallation) =>

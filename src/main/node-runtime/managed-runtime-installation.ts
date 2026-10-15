@@ -1,6 +1,7 @@
 // Installs a managed runtime when the person asks, on the host that runs its chats. One instance per
 // runtime owns every change to its releases: it reclaims old ones once, first, then installs one at a
 // time. Publishing the release by rename is the commit point; a cancel after it changes nothing.
+// Remove deletes the releases only inside the host's ownership fence, never beside an install.
 
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -38,6 +39,8 @@ export type ManagedRuntimeInstallationDeps = {
   dataDirectory: string
   /** Whether a start would run a copy found outside Orca's releases (PATH, install folders). */
   findExternal: () => Promise<boolean>
+  /** Runs `work` once nothing on this host runs the runtime; rejects without running it otherwise. */
+  fence: (work: () => Promise<void>) => Promise<void>
   fetcher?: MainHttpClient['fetch']
 }
 
@@ -99,6 +102,9 @@ export class ManagedRuntimeInstallation {
     }
     const current = this.state.get().value
     const { running } = this
+    if (running && current?.kind === 'remove') {
+      throw new Error(`${label} is being removed. Try again after it finishes.`)
+    }
     if (current && current.id === running?.id && !running.controller.signal.aborted) {
       return current
     }
@@ -116,9 +122,36 @@ export class ManagedRuntimeInstallation {
     return operation
   }
 
+  /** Joins a running removal; refused while an install, or its cleanup, still runs. */
+  remove(): ManagedRuntimeOperation {
+    const current = this.state.get().value
+    if (this.running && current?.kind === 'remove') {
+      return current
+    }
+    if (this.running) {
+      throw new Error(`${this.runtime.label} is installing. Try again after it finishes.`)
+    }
+    const run: Run = { id: randomUUID(), controller: new AbortController(), committed: false }
+    const operation: ManagedRuntimeOperation = {
+      id: run.id,
+      kind: 'remove',
+      phase: 'removing',
+      downloadedBytes: 0,
+      totalBytes: null
+    }
+    this.running = run
+    this.state.set(operation)
+    this.mutation = this.mutation.then(() => this.runRemove(run))
+    return operation
+  }
+
   cancel(operationId: string): void {
-    if (this.state.get().value?.id !== operationId) {
+    const current = this.state.get().value
+    if (current?.id !== operationId) {
       throw new Error(`That ${this.runtime.label} installation is no longer running.`)
+    }
+    if (current.kind === 'remove') {
+      throw new Error(`Removing ${this.runtime.label} cannot be cancelled.`)
     }
     const run = this.running
     if (run?.id === operationId && !run.committed && !run.controller.signal.aborted) {
@@ -155,6 +188,18 @@ export class ManagedRuntimeInstallation {
           error: failureText(this.runtime.label, error, deadline)
         })
       }
+    } finally {
+      this.running = this.running === run ? null : this.running
+    }
+  }
+
+  private async runRemove(run: Run): Promise<void> {
+    try {
+      await this.deps.fence(() => rm(this.root, { recursive: true, force: true }))
+      this.publish(run, { phase: 'succeeded' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.publish(run, { phase: 'failed', error: message })
     } finally {
       this.running = this.running === run ? null : this.running
     }

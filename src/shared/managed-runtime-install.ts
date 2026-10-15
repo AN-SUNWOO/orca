@@ -2,6 +2,8 @@
 
 // The host answers managedRuntime.status, managedRuntime.install and managedRuntime.cancel.
 export const MANAGED_RUNTIME_INSTALL_RUNTIME_CAPABILITY = 'managed-runtime.install.v1' as const
+// Why separate: a host that installs may predate managedRuntime.remove.
+export const MANAGED_RUNTIME_REMOVE_RUNTIME_CAPABILITY = 'managed-runtime.remove.v1' as const
 
 export type ManagedRuntimeOperation = {
   id: string

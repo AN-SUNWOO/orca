@@ -31,7 +31,7 @@ export function NativeChatPaneHeader({ tabId, worktreeId, groupId, nativeChat, f
   const splitShortcut = useShortcutKeyDetails('terminal.splitRight')
   const close = translate('auto.components.terminal.pane.TerminalContextMenu.8c17d6786d', 'Close Pane')
   return (
-    <div className="pane-title-bar" data-chromeless="" data-active-pane={focused ? '' : undefined}
+    <div className="pane-title-bar z-20" data-chromeless="" data-active-pane={focused ? '' : undefined}
       data-pane-title-surface={light ? 'light' : 'dark'}
       style={HEADER_STYLE}>
       <div className="pane-title-actions ml-auto flex shrink-0 items-center gap-0">

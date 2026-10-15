@@ -128,7 +128,7 @@ async function renderChatPointer(mailbox: string): Promise<string> {
     getCliCommand: localOrchestrationCliCommand,
     senderName: () => null,
     host: {
-      readSessionFacts: async () => ({ submissions: [] }),
+      readSessionFacts: async () => ({ awaitingHuman: false, submissions: [] }),
       currentFence: () => 1,
       currentContextClearOperationId: () => undefined,
       send: async (input) => {

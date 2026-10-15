@@ -38,6 +38,7 @@ function harness(options: {
   const mailbox = options.mailbox ?? 'dispatch:d1'
   const dispatchId = options.dispatchId === undefined ? 'd1' : options.dispatchId
   let attached = options.attached ?? true
+  let awaitingHuman = false
   // The session's recorded sends, as its journal reports them.
   let submissions: StructuredPointerSubmission[] = []
   // The mailbox's unread mail; a pointed message is no longer selected for a pointer.
@@ -87,7 +88,7 @@ function harness(options: {
     getCliCommand: () => 'orca-dev',
     senderName: (party) => (party.address === 'term_coord' ? 'Coordinator' : null),
     host: {
-      readSessionFacts: async () => (attached ? { submissions } : null),
+      readSessionFacts: async () => (attached ? { awaitingHuman, submissions } : null),
       currentFence: () => 4,
       currentContextClearOperationId: readContext,
       send
@@ -107,6 +108,9 @@ function harness(options: {
     },
     setSubmissions: (next: StructuredPointerSubmission[]) => {
       submissions = next
+    },
+    setAwaitingHuman: (next: boolean) => {
+      awaitingHuman = next
     }
   }
 }
@@ -214,6 +218,19 @@ describe('structured mailbox pointer delivery', () => {
     await flush()
     expect(send).not.toHaveBeenCalled()
     setAttached(true)
+    delivery.onJournalActivity('session-1')
+    await flush()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(markAsDelivered).toHaveBeenCalledWith(['m1'])
+  })
+
+  it('holds mail while the person owes an answer and sends it on the next journal edge', async () => {
+    const { delivery, send, markAsDelivered, setAwaitingHuman } = harness({})
+    setAwaitingHuman(true)
+    delivery.deliverForHandle('dispatch:d1')
+    await flush()
+    expect(send).not.toHaveBeenCalled()
+    setAwaitingHuman(false)
     delivery.onJournalActivity('session-1')
     await flush()
     expect(send).toHaveBeenCalledTimes(1)
@@ -516,7 +533,7 @@ describe('forgetting one settled worker', () => {
       getCliCommand: () => 'orca',
       senderName: () => null,
       host: {
-        readSessionFacts: async () => (attached ? { submissions: [] } : null),
+        readSessionFacts: async () => (attached ? { awaitingHuman: false, submissions: [] } : null),
         currentFence: () => 4,
         currentContextClearOperationId: () => undefined,
         send
@@ -617,7 +634,7 @@ describe('a mailbox a /clear moves while its nudge is in flight', () => {
       getCliCommand: () => 'orca-dev',
       senderName: () => null,
       host: {
-        readSessionFacts: async () => ({ submissions: [] }),
+        readSessionFacts: async () => ({ awaitingHuman: false, submissions: [] }),
         currentFence: () => 4,
         currentContextClearOperationId: () => contextClearOperationId,
         send

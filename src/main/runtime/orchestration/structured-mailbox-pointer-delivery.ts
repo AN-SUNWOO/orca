@@ -56,6 +56,8 @@ export type StructuredPointerSendOutcome =
   | { kind: 'unattached' }
 
 export type StructuredPointerSessionFacts = {
+  /** A pending approval or question only the person can answer. */
+  awaitingHuman: boolean
   /** Current-context sends, oldest first: what the lane's own sends settled as. */
   submissions: readonly StructuredPointerSubmission[]
 }
@@ -282,6 +284,12 @@ export class OrchestrationStructuredMailboxPointerDelivery<
     const fence = this.deps.host.currentFence(sessionId)
     if (fence === null) {
       this.retain(mailboxHandle, sessionId, 'session-not-attached', reservedTypes)
+      return false
+    }
+    // Sent now, it would land in the turn the person is answering, and an agent that runs one
+    // prompt at a time would withdraw the prompt; the answer's working edge sends it.
+    if (session.awaitingHuman) {
+      this.retain(mailboxHandle, sessionId, 'turn-unsettled', reservedTypes)
       return false
     }
     const body: AgentJournalMessageItem = {

@@ -18161,6 +18161,7 @@
       "empty": "No users found"
     },
     "native-chat": {
+      "splitRight": "Split Chat Right",
       "reasoning": "Reasoning",
       "failureWords": {
         "theAgent": "The agent",

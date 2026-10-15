@@ -47,6 +47,7 @@ import { useAppStore } from '../../store'
 import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-label'
 import { useNativeChatStructuredComposerTransport } from './use-native-chat-structured-composer-transport'
 import { NativeChatThreadGoalBanner } from './NativeChatThreadGoalBanner'
+import { NativeChatPaneHeader } from './NativeChatPaneHeader'
 import { structuredAgentSessionReadFailureNotice } from './structured-agent-session-read-failure-notice'
 import { useStructuredAgentSessionDeliveryNotices } from './use-structured-agent-session-delivery-notices'
 import { dispatchWasWithdrawn } from '../../../../shared/structured-agent-session-dispatch-rejection'
@@ -272,11 +273,16 @@ export function NativeChatStructuredSession(
       onContextMenuCapture={paneCommands.onContextMenuCapture}
       className={cn(
         NATIVE_CHAT_APPEARANCE_ROOT_CLASS,
-        'flex h-full min-h-0 w-full flex-col focus:outline-none'
+        'relative flex h-full min-h-0 w-full flex-col focus:outline-none'
       )}
       style={appearanceStyle}
       data-native-chat-scheme={appearanceStyle.colorScheme}
     >
+      {ownerWorktreeId && props.groupId && !props.contextMenuActions ? (
+        <NativeChatPaneHeader tabId={props.tabId} worktreeId={ownerWorktreeId} groupId={props.groupId}
+          nativeChat={{ sessionId: props.sessionId, agent: props.agent }} focused={props.isFocusedGroup === true}
+          colorScheme={appearanceStyle.colorScheme} />
+      ) : null}
       <div className="relative flex min-h-0 flex-1 flex-col">
         {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}
         {viewState.kind === 'loading' || (viewState.kind === 'error' && !readFailure) ? (

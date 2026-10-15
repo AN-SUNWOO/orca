@@ -79,22 +79,7 @@ export function TabSessionSurfaceSwitchMenuItems({
   leadingSeparator: boolean
 }): React.JSX.Element | null {
   const resolved = useTabSessionSwitch(tab, nativeChat)
-  const targetState = useAppStore(
-    useShallow((state) => ({
-      projects: state.projects,
-      settings: state.settings,
-      folderWorkspaces: state.folderWorkspaces,
-      projectGroups: state.projectGroups,
-      repos: state.repos,
-      worktreesByRepo: state.worktreesByRepo
-    }))
-  )
-  const launchActions = useAiVaultSessionLaunchActions({
-    activeWorktree: null,
-    activeWorktreeId: tab.worktreeId,
-    targetState,
-    agentCmdOverrides: targetState.settings?.agentCmdOverrides
-  })
+  const launchActions = useTabSessionLaunchActions(tab.worktreeId)
   if (!resolved) {
     return null
   }
@@ -118,4 +103,23 @@ export function TabSessionSurfaceSwitchMenuItems({
       />
     </>
   )
+}
+
+export function useTabSessionLaunchActions(worktreeId: string) {
+  const targetState = useAppStore(
+    useShallow((state) => ({
+      projects: state.projects,
+      settings: state.settings,
+      folderWorkspaces: state.folderWorkspaces,
+      projectGroups: state.projectGroups,
+      repos: state.repos,
+      worktreesByRepo: state.worktreesByRepo
+    }))
+  )
+  return useAiVaultSessionLaunchActions({
+    activeWorktree: null,
+    activeWorktreeId: worktreeId,
+    targetState,
+    agentCmdOverrides: targetState.settings?.agentCmdOverrides
+  })
 }

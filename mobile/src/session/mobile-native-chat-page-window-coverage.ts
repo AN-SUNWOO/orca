@@ -1,4 +1,3 @@
-/** A drawn row's box, or the screen's, in the same coordinates. */
 export type MobileNativeChatBox = { top: number; bottom: number }
 
 export const boxHeight = (box: MobileNativeChatBox): number => box.bottom - box.top
@@ -14,7 +13,6 @@ export type MobileNativeChatWindowExtent = {
 
 type Estimate = (key: string | undefined) => number
 
-/** The estimated height of rows `[from, to)`. */
 export function mobileNativeChatSpan(
   keys: readonly string[],
   from: number,
@@ -28,9 +26,8 @@ export function mobileNativeChatSpan(
   return px
 }
 
-/** The window the screen needs, from where the drawn rows (`cells`) are: rows within one screen
- *  (`reach`) of it drawn, rows past two dropped. Null when it already has them. `absorb`: rows were
- *  drawn above the reader, so their height must come out of the top spacer. */
+/** Draws rows within one screen (`reach`) of it and drops rows past two; null when nothing changes.
+ *  `absorb`: rows were drawn above the reader, so their height comes out of the top spacer. */
 export function coverMobileNativeChatWindow(
   { keys, start, end, top, following }: MobileNativeChatWindowExtent,
   cells: readonly MobileNativeChatBox[],

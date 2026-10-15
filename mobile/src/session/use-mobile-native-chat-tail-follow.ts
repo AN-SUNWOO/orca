@@ -54,17 +54,16 @@ export type MobileNativeChatListHandle = {
   getScrollableNode: () => PageScroller | null | undefined
   scrollToOffset: (params: { animated: boolean; offset: number }) => void
   scrollToEnd: (params: { animated: boolean }) => void
-  /** Page only: the list draws what a resize left the screen needing, after the end pin. */
+  /** Page only: runs after the end pin on each resize. */
   afterResize?: () => void
-  /** Page only: the place-hold's correction, which the list makes without writing while moving. */
+  /** Page only: the place-hold's correction, never written while the reader moves. */
   keepInPlace?: (drift: number) => void
 }
 
 export type MobileNativeChatTailFollow = {
   /** Spread on the native list. `ref`: the hook scrolls through it alone. */
   listProps: { ref: (list: MobileNativeChatListHandle | null) => () => void }
-  /** Spread on the page list: the same `ref`, which also watches the list resize while mounted, and
-   *  whether the reader follows the end, which the page keeps as the browser's anchor. */
+  /** Spread on the page list: the same `ref`, which also watches the list resize. */
   pageListProps: {
     ref: (list: MobileNativeChatListHandle | null) => () => void
     endAnchored: boolean

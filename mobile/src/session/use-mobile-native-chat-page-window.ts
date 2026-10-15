@@ -9,18 +9,14 @@ import {
   type MobileNativeChatWindowExtent
 } from './mobile-native-chat-page-window-coverage'
 
-/** Height assumed for a row before any row has been drawn. */
 const FIRST_ESTIMATE = 80
-/** Quiet time after the last scroll, with no finger down, that counts as at rest. A scroll write any
- *  sooner can land in iOS momentum, which it stops. */
+/** No touch and no scroll for this long is at rest: a write any sooner can stop iOS momentum. */
 const REST_MS = 150
 
-/** The window's node: top spacer, the drawn rows, bottom spacer. */
 export const MOBILE_NATIVE_CHAT_WINDOW_ID = 'chat-window'
 
 type Measured = { getBoundingClientRect: () => MobileNativeChatBox }
 
-/** The page's scrollable DOM node, as far as the window reads it. */
 export type MobileNativeChatWindowScroller = Measured & {
   scrollTop: number
   clientHeight: number
@@ -32,15 +28,14 @@ export type MobileNativeChatWindowScroller = Measured & {
 
 type Win = {
   scope: string
-  /** The first drawn row, and its index when committed: where the window stays once the key is gone. */
+  /** Its index when committed is where the window stays once the key is gone. */
   first: string
   firstAt: number
-  /** The last drawn row; null while the window reaches the end. */
   last: string | null
   lastAt: number
-  /** The top spacer while parked; following derives it and the end pin holds the view. */
+  /** The top spacer while parked; following derives it. */
   top: number
-  /** The first row before rows were drawn above it: their height comes out of the spacer. */
+  /** The first row before rows were drawn above it; their height comes out of the spacer. */
   absorb: string | null
 }
 
@@ -48,29 +43,23 @@ type Motion = {
   touching: boolean
   lastScroll: number
   timer: ReturnType<typeof setTimeout> | undefined
-  /** A correction or settle waits for rest. */
   owed: boolean
-  /** The place-hold's correction not yet made. */
   drift: number
-  /** A scroll offset to write once the spacer change it goes with is in the document. */
+  /** Written once the spacer change it goes with is in the document. */
   writeTo: number | null
 }
 
-/** The drawn rows' boxes, then the bottom spacer's. */
 function drawnBoxes(scroller: MobileNativeChatWindowScroller): MobileNativeChatBox[] {
   const node = scroller.querySelector(`[data-testid="${MOBILE_NATIVE_CHAT_WINDOW_ID}"]`)
   return node ? Array.from(node.children, (c) => c.getBoundingClientRect()).slice(1) : []
 }
 
-/** Which rows the page draws: those near the screen, named by key so rows landing or trimmed around
- *  them never change which are drawn. The rest are two spacers. A move the reader didn't make is
- *  never written while they touch or scroll: what is drawn above them comes out of the top spacer,
- *  and a correction the spacer can't take waits until they are at rest. */
+/** The rows near the screen, named by key so landings and trims never change which are drawn. Rows
+ *  drawn above the reader come out of the top spacer; a correction it can't take waits for rest. */
 export function useMobileNativeChatPageWindow(args: {
   rows: readonly NativeChatMessage[]
   rowKeys: Pick<MobileNativeChatRowKeys, 'scope' | 'keyOf' | 'current'>
   following: boolean
-  /** Changes when every row's height may: the font scale, the Tools toggle. */
   layoutKey: string
   scroller: () => MobileNativeChatWindowScroller | null | undefined
 }): {
@@ -78,14 +67,11 @@ export function useMobileNativeChatPageWindow(args: {
   end: number
   top: number
   bottom: number
-  /** Draws what the screen needs: after a resize the end pin has handled. */
   cover: () => void
-  /** The place-hold's correction on the page. */
   keepInPlace: (drift: number) => void
 } {
   const { rows, rowKeys, following, layoutKey, scroller } = args
-  // The window is an external store: React renders its changes synchronously, before the next paint,
-  // whether they come from a scroll, the resize observer or the rest timer.
+  // An external store, so its changes render synchronously before paint from any event source.
   const store = useRef({ version: 0, notify: () => {} })
   const subscribe = useCallback((notify: () => void) => {
     store.current.notify = notify
@@ -101,7 +87,6 @@ export function useMobileNativeChatPageWindow(args: {
   const heights = useRef(new Map<string, number>())
   const measured = useRef({ sum: 0, count: 0, layoutKey, width: 0 })
   const w = useRef<Win | null>(null)
-  // What the last commit drew, for the passes that run outside a render.
   const drawn = useRef<MobileNativeChatWindowExtent>({
     keys: [],
     start: 0,
@@ -136,7 +121,6 @@ export function useMobileNativeChatPageWindow(args: {
     measured.current = { ...measured.current, ...next, sum: 0, count: 0 }
   }, [])
 
-  // This render's window.
   const keys = useMemo(() => rows.map(rowKeys.keyOf), [rows, rowKeys.keyOf])
   const indexOf = useMemo(() => new Map(keys.map((key, at) => [key, at])), [keys])
   const n = keys.length
@@ -172,7 +156,7 @@ export function useMobileNativeChatPageWindow(args: {
   const start = Math.min(at(win.first, win.firstAt), Math.max(0, end - 1))
   end = Math.min(n, Math.max(end, start + 1))
   const above = mobileNativeChatSpan(keys, 0, start, estimate)
-  // Room to draw rows taller than estimated, kept while rows remain above; none at the top.
+  // Room for rows taller than estimated, while rows remain above.
   const settled = start > 0 ? above + screen : 0
   const top = following ? settled : Math.max(0, win.top)
   const bottom = mobileNativeChatSpan(keys, end, n, estimate)
@@ -185,7 +169,6 @@ export function useMobileNativeChatPageWindow(args: {
     m.timer = m.touching || wait <= 0 ? undefined : setTimeout(rest, wait)
     if (!m.touching && wait <= 0) {
       m.owed = false
-      // The commit settles what is owed, now that the reader is at rest.
       render()
     }
   }, [render])
@@ -197,7 +180,6 @@ export function useMobileNativeChatPageWindow(args: {
     }
   }, [rest])
 
-  /** Draws rows the screen is near and drops those far from it. True when the window changed. */
   const cover = useCallback((): boolean => {
     const d = drawn.current
     const s = scroller()
@@ -259,13 +241,13 @@ export function useMobileNativeChatPageWindow(args: {
       m.writeTo = null
     }
     if (win.absorb !== null && !following) {
-      // Rows drawn above the reader: the spacer gives up exactly their height, so nothing moves.
+      // The spacer gives up exactly their height, so nothing moves.
       const cells = drawnBoxes(s)
       const added = Math.min((indexOf.get(win.absorb) ?? start) - start, cells.length)
       let px = cells.slice(0, added).reduce((sum, box) => sum + boxHeight(box), 0)
       let cut = 0
       for (; cut < added && px > top; cut += 1) {
-        // Taller than estimated and more than the spacer holds: it waits, undrawn, for rest.
+        // More than the spacer holds: undrawn until rest makes room.
         remember(keys[start + cut], boxHeight(cells[cut]!))
         px -= boxHeight(cells[cut]!)
       }
@@ -317,7 +299,7 @@ export function useMobileNativeChatPageWindow(args: {
         arm()
       }
     }
-    // Every scroll event, not RN Web's throttled `onScroll`, which can drop the one after a jump.
+    // Not RN Web's throttled `onScroll`, which can drop the event after a jump.
     const scrolled = () => {
       m.lastScroll = Date.now()
       cover()

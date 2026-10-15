@@ -28,29 +28,21 @@ import {
 type Row = { item: NativeChatMessage; index: number }
 
 type Props = {
-  /** The follow owner's attachment: it scrolls through this and watches the list resize. */
   ref: Ref<MobileNativeChatListHandle>
-  /** Whether the reader follows the end. */
   endAnchored: boolean
-  /** The follow owner's end pin, which writes only while following and short of the end. */
   pin: () => void
   rows: readonly NativeChatMessage[]
   rowKeys: Pick<MobileNativeChatRowKeys, 'scope' | 'keyOf' | 'current'>
   renderItem: (row: Row) => ReactElement
-  /** Changes when every row's height may: the font scale, the Tools toggle. */
   layoutKey: string
-  /** Above the rows: the "Load earlier" control. */
   header: ReactElement | null
-  /** Below the rows: the live status, then the messages waiting behind the turn. */
   footer: ReactElement | null
   emptyStateView: ReactElement | null
   onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
 }
 
-/** The page's transcript in one keyed flow, drawing only the messages near the screen. RN Web's list
- *  decides which rows are drawn by index, after paint, so a chat opened in it climbed to its end, and
- *  rows paged in above a reader had to be drawn somewhere else, where iOS stopped scrolling at the
- *  seam. */
+/** The page's transcript in one keyed flow: RN Web's list draws by index after paint, so opens climbed
+ *  and older pages went in its header, where iOS stopped scrolling at the seam. */
 export function MobileNativeChatPageList({
   ref,
   endAnchored,
@@ -88,7 +80,7 @@ export function MobileNativeChatPageList({
     }),
     [cover, keepInPlace]
   )
-  // At every commit, once the owner holds this list: a chat's first paint is at its end.
+  // After the handle attaches, so a chat's first paint is at its end.
   useLayoutEffect(() => pin())
 
   return (

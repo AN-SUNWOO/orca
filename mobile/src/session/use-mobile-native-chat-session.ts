@@ -41,9 +41,9 @@ export type MobileNativeChatSession = {
   readFailedFinally?: boolean
   /** True when an older page may exist (the last read filled the window). */
   hasMore: boolean
-  /** Whether an older-history page is currently loading. */
+  /** `olderPages === 'loading'`, kept because recorded RPC fixtures read it. */
   loadingEarlier: boolean
-  /** How the last older-history read the reader asked for ended. */
+  /** The Load earlier control's state: reading now, or how the last read ended. */
   olderPages?: OlderPagePhase
   /** Grow the window to page in older history. */
   loadEarlier: () => void

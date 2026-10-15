@@ -190,5 +190,7 @@ describe('useMobileStructuredAgentState older history', () => {
     act(() => hook.current!.loadEarlier())
     await vi.waitFor(() => expect(hook.current!.olderPages).toBe('unavailable'))
     expect(hook.current!.state.status).toBe('ready')
+    act(() => hook.current!.loadEarlier())
+    expect(hook.current!.olderPages).toBe('unavailable')
   })
 })

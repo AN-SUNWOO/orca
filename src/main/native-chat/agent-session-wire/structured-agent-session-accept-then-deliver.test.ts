@@ -676,7 +676,7 @@ describe('a start that fails while messages wait on it', () => {
 })
 
 describe('Stop withdraws what is queued', () => {
-  it('never meets a crash leftover: startup settles it first (W17a)', async () => {
+  it('never meets a crash leftover: its first open settles it first (W17a)', async () => {
     await writeAsEarlierProcess(async (journal, fence) => {
       await journal.appendSubmission({
         ...earlierSubmission('person', 'p', true),

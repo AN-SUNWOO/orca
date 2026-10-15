@@ -1,7 +1,10 @@
 // What a test may ask of the host's retry (`StructuredAgentSessionRetry`) that no production caller
 // does: whether a chat is still owed, and waiting until it is not.
 
+import { vi } from 'vitest'
+import { RECONCILIATION_BACKOFF_MS } from './structured-agent-session-reconciliation-backoff'
 import type { StructuredAgentSessionRetry } from './structured-agent-session-reconciliation-retry'
+import type { StructuredAgentSessionHost } from './structured-agent-session-host'
 
 /** Whether a visit is owed: something was signalled, or failed, and has not settled. */
 export function retryOwes(retry: StructuredAgentSessionRetry, sessionId: string): boolean {
@@ -17,6 +20,20 @@ export async function retryIdle(
     retryOwes(retry, sessionId) &&
     (retry['running'] || retry['timer'] === 'soon' || retry['failures'] === 0)
   ) {
-    await retry.attempted(sessionId)
+    const attempt = retry.attempted(sessionId)
+    // A lane an operation held (an open's own, say) waits out the timer's first step.
+    if (vi.isFakeTimers() && retry['timer'] !== null && retry['timer'] !== 'soon') {
+      await vi.advanceTimersByTimeAsync(RECONCILIATION_BACKOFF_MS.max)
+    }
+    await attempt
   }
+}
+
+/** A released chat settles on its first open: open it, then wait for that settlement. */
+export async function openAndSettle(
+  host: Pick<StructuredAgentSessionHost, 'journalSnapshot' | 'collaboratorsForTests'>,
+  sessionId: string
+): Promise<void> {
+  await host.journalSnapshot(sessionId)
+  await retryIdle(host.collaboratorsForTests().reconciliation, sessionId)
 }

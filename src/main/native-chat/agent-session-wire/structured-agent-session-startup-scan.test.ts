@@ -1,4 +1,5 @@
-// Startup's background heal and each retry round: readers write nothing, a person never waits on a
+// Startup's background heal and each retry round: startup names only the chats its records show
+// work in, a reader's first open settles the rest, readers write nothing, a person never waits on a
 // round, and a hidden chat's surviving agent is never signalled.
 
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -16,13 +17,8 @@ import {
   closeTestJournalHostDatabases,
   openTestJournalHostDatabase
 } from '../agent-session-journal/journal-host-database-test-support'
-import {
-  publishJournalSessionEpoch,
-  readJournalSessionEpoch
-} from '../agent-session-journal/journal-row-table'
 import { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import type { StructuredAgentSessionHost } from './structured-agent-session-host'
-import { HOST_TEST_LOCATION as LOCATION } from './structured-agent-session-host-test-data'
 import * as reconciliationLoad from './structured-agent-session-reconciliation-load'
 import * as reconciliationPass from './structured-agent-session-reconciliation-pass'
 import {
@@ -33,7 +29,6 @@ import {
   scanTurnState as turnState,
   seedScanJournal
 } from './structured-agent-session-startup-scan.test-fixture'
-import { retryOwes } from './structured-agent-session-retry.test-fixture'
 
 const CHAT = 'chat-aaaaaaa1'
 const OTHER = 'chat-aaaaaaa2'
@@ -98,22 +93,37 @@ const latch = (lease: Partial<AgentSessionRecord['lease']>) => (record: AgentSes
   lease: { ...record.lease, handoffStage: 'recovering' as const, ...lease }
 })
 
-it('finds what an earlier process left with no fence move and no stored mark, and keeps its send as a card', async () => {
-  await seedTestAgentSessionRecordStore(root, { records: [record(RELEASED, true)] })
-  await seedScanJournal(root, RELEASED, { queued: true })
-  store = await openTestAgentSessionRecordStore(root)
+it('settles a crash whose owner is proven gone at startup, with no reader opening it', async () => {
+  // Its owner held the lease when the earlier process died; the probe finds it gone.
+  await seed([CHAT], [CHAT])
   host = openScanHost(root, store)
   const current = host
-  const ended = vi.fn()
-  store.onGenerationEnded(ended)
 
   await current.reconcileRestartLeases()
   await current.startupSettled()
+  await idle(current, [CHAT])
+
+  expect(current.collaboratorsForTests().sessions.has(CHAT)).toBe(false)
+  // The read's own snapshot, taken as it opens: settled before any reader came.
+  expect(await turnState(current, CHAT)).toBe('interrupted')
+})
+
+it('settles a released chat an earlier process left on its first open, keeping its send as a card', async () => {
+  await seedTestAgentSessionRecordStore(root, { records: [record(RELEASED, true)] })
+  await seedScanJournal(root, RELEASED, { queued: true })
+  store = await openTestAgentSessionRecordStore(root)
+  const open = vi.spyOn(AgentSessionJournal.prototype, 'open')
+  host = openScanHost(root, store)
+  const current = host
+  await current.reconcileRestartLeases()
+  await current.startupSettled()
+  await pause(1_200)
+  // Its record shows nothing owed: startup opens it for nothing.
+  expect(open).not.toHaveBeenCalled()
+
+  await current.journalSnapshot(RELEASED)
   await idle(current, [RELEASED])
 
-  // Already released: the restart moved nothing and ended no generation.
-  expect(ended).not.toHaveBeenCalled()
-  expect(store.getRecord(RELEASED)?.lease.runtimeFence).toBe(14)
   // Nothing proved its owner gone, but the runtime that held it was replaced, which ends it.
   expect(await turnState(current, RELEASED)).toBe('interrupted')
   const { journal } = current.collaboratorsForTests().sessions.get(RELEASED)!
@@ -121,27 +131,6 @@ it('finds what an earlier process left with no fence move and no stored mark, an
   expect(journal.queuedMessages.list()).toEqual([
     expect.objectContaining({ body: expect.objectContaining({ role: 'user' }) })
   ])
-})
-
-it('opens and writes nothing for a chat whose saved epoch holds no row, and owes it nothing', async () => {
-  // An older build's repair crashed after naming the epoch: nothing durable is there to settle.
-  await seedTestAgentSessionRecordStore(root, { records: [record(RELEASED, true)] })
-  const database = openTestJournalHostDatabase(root)
-  const identity = { sessionId: RELEASED, workspaceId: LOCATION.workspaceId }
-  publishJournalSessionEpoch(database.db, identity, 'empty-epoch')
-  store = await openTestAgentSessionRecordStore(root)
-  const open = vi.spyOn(AgentSessionJournal.prototype, 'open')
-  host = openScanHost(root, store)
-  const current = host
-
-  await current.reconcileRestartLeases()
-  await current.startupSettled()
-
-  expect(retryOwes(current.collaboratorsForTests().reconciliation, RELEASED)).toBe(false)
-  // No retry comes back to it: a fresh epoch held only by a read was a busy loop once.
-  await new Promise((resolve) => setTimeout(resolve, 1_200))
-  expect(open).not.toHaveBeenCalled()
-  expect(readJournalSessionEpoch(database.db, RELEASED)).toBe('empty-epoch')
 })
 
 it("never holds the round for a chat's busy lane: a person's long operation delays no other chat", async () => {
@@ -163,6 +152,7 @@ it("never holds the round for a chat's busy lane: a person's long operation dela
     .collaboratorsForTests()
     .serialize(busy!, () => new Promise((resolve) => setTimeout(resolve, 3_000)))
   await host.reconcileRestartLeases()
+  chats.forEach((id) => host!.collaboratorsForTests().reconciliation.signal(id))
   await vi.waitFor(() => expect(Object.keys(visits)).toHaveLength(2), { timeout: 10_000 })
 
   expect(Math.max(...others.map((id) => visits[id] ?? Infinity))).toBeLessThan(1_500)
@@ -183,6 +173,7 @@ it('replays each of 20 closed chats once while a lock refuses round after round'
   const loads = vi.spyOn(reconciliationLoad, 'loadStructuredAgentSessionForReconciliation')
   host = openScanHost(root, store)
   await host.reconcileRestartLeases()
+  chats.forEach((id) => host!.collaboratorsForTests().reconciliation.signal(id))
 
   // Rounds at 0 s, 1 s, 3 s and 5 s, each stopped by the lock.
   await pause(5_500)

@@ -30,7 +30,7 @@ import type {
   StructuredAgentSessionHostDeps,
   StructuredAgentSessionReveal
 } from './structured-agent-session-host-types'
-import { scanStructuredAgentSessionsAtStartup } from './structured-agent-session-startup-settlement'
+import { structuredAgentSessionRecoveryCandidates } from './structured-agent-session-startup-candidates'
 import {
   StructuredAgentSessionRetry,
   type StructuredAgentSessionRetryContext
@@ -65,10 +65,10 @@ export async function revealStructuredAgentSession(
   }
 }
 
-/** The host's startup and its reconciliation: reconcile, then hand every chat to the host's retry
- *  in the background (no chat's tab or send waits on it), and the readable-restore sweep that
- *  resolves and opens each visible chat. Its lease bookkeeping is a reader's, which never fails a
- *  read or startup; startup shares it. */
+/** The host's startup and its reconciliation: reconcile, then hand the chats an earlier process may
+ *  have left work in to the host's retry in the background (no chat's tab or send waits on it), and
+ *  the readable-restore sweep that resolves and opens each visible chat. Its lease bookkeeping is a
+ *  reader's, which never fails a read or startup; startup shares it. */
 export function createStructuredAgentSessionHostRestore(
   deps: StructuredAgentSessionHostDeps,
   wiring: Omit<
@@ -91,7 +91,7 @@ export function createStructuredAgentSessionHostRestore(
   }
 ): {
   reconcileRestartLeases: () => Promise<void>
-  /** The startup scan the last reconcile began; resolved once every chat's first attempt ran. */
+  /** Resolved once the startup candidates' first attempts ran. */
   startupSettled: () => Promise<void>
   restoreReadableSessions: (sessionIds?: readonly string[]) => Promise<void>
   reconciliation: StructuredAgentSessionRetry
@@ -188,7 +188,12 @@ export function createStructuredAgentSessionHostRestore(
   return {
     reconcileRestartLeases: async () => {
       await reconcile('startup')
-      startupSettled = scanStructuredAgentSessionsAtStartup(deps.store, reconciliation)
+      // Generation ends the reconcile committed are signalled already; a lock it met before it
+      // could commit leaves the store-wide step owed, which this round runs.
+      const candidates = structuredAgentSessionRecoveryCandidates(deps.store)
+      candidates.forEach((sessionId) => reconciliation.signal(sessionId))
+      reconciliation.wakeStoreWide()
+      startupSettled = Promise.all(candidates.map(reconciliation.attempted)).then(() => undefined)
     },
     startupSettled: () => startupSettled,
     restoreReadableSessions: (sessionIds) => {

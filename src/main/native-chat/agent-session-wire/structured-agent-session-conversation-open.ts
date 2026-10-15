@@ -4,10 +4,10 @@
 // It only reads, except for a chat with no journal yet or whose saved epoch holds no row, for which
 // it writes a fresh first epoch. A damaged journal fails the open, which refuses it as unloadable.
 // What an earlier generation or host process left running or queued is settled by the ownership
-// event that ended it — its exit, the next acquisition, or startup
-// (`structured-agent-session-leftover-settlement.ts`,
-// `structured-agent-session-startup-settlement.ts`) — never here. Nothing here starts a provider
-// child.
+// event that ended it — its exit, the next acquisition, or startup — or by the retry this open
+// signals (`structured-agent-session-leftover-settlement.ts`,
+// `structured-agent-session-reconciliation-retry.ts`), in the background, never here. Nothing here
+// starts a provider child.
 
 import type { JournalHostDatabase } from '../agent-session-journal/journal-host-database'
 import { openAgentSessionJournal } from '../agent-session-journal/journal-store-factory'

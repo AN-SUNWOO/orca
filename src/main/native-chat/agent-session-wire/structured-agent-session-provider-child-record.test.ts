@@ -340,11 +340,17 @@ describe('Stop on a child still proving its start', () => {
 describe('settling an earlier child before the next one takes its message', () => {
   it("settles the earlier child's turn from its death evidence and leaves the queued message to the new child (R1)", async () => {
     // The earlier child exited mid-turn; the released lease keeps only its death evidence.
+    const ownerFence = store.getRecord(SESSION)!.lease.deathEvidence!.ownerFence!
     await store.transitionHandoff(SESSION, (record) => ({
       ...record,
       lease: {
         ...record.lease,
-        deathEvidence: { kind: 'exit-observed', detail: 'provider exited', observedAt: NOW - 1_000 }
+        deathEvidence: {
+          kind: 'exit-observed',
+          detail: 'provider exited',
+          observedAt: NOW - 1_000,
+          ownerFence
+        }
       }
     }))
     const releasedFence = store.getRecord(SESSION)!.lease.runtimeFence
@@ -361,11 +367,11 @@ describe('settling an earlier child before the next one takes its message', () =
     await journal.appendItem(
       { provider: 'codex', threadId: THREAD, turnId: 'earlier-turn', ordinal: 0 },
       { kind: 'turn', turnId: 'earlier-turn', state: 'running', startedAt: NOW - 5_000 },
-      { fence: releasedFence, turnScope: AGENT_JOURNAL_THREAD_SCOPE }
+      { fence: ownerFence, turnScope: AGENT_JOURNAL_THREAD_SCOPE }
     )
     await journal.close()
-    // The process died between that release and its settlement: the next startup settles it, in
-    // the background, from the evidence the release kept.
+    // The process died between that release and its settlement: the next open settles it, in the
+    // background, from the evidence the release kept, even after the send's reservation clears it.
     await restartHost()
     await host.reconcileRestartLeases()
     await host.startupSettled()
@@ -628,13 +634,15 @@ describe('a quit with a message still queued', () => {
     surface: 'rejection'
   })
 
-  /** Read after the next launch's startup: its reconcile and settlement, then the restore of the
-   *  chat's tab, whose share holds what the quit left unsent. */
+  /** Read after the next launch's startup, then the restore of the chat's tab, whose open settles
+   *  what the quit left unsent. */
   async function afterRelaunch(id: string): Promise<AgentJournalSubmission | undefined> {
     startHost()
     await host.reconcileRestartLeases()
     await host.startupSettled()
     await host.restoreReadableSessions([SESSION])
+    // A released chat settles on its first open, which the restore is.
+    await retryIdle(host.collaboratorsForTests().reconciliation, SESSION)
     return await submission(id)
   }
 

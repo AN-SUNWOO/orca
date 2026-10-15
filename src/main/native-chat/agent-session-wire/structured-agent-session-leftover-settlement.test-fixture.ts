@@ -33,7 +33,7 @@ import {
   QUEUED_RIG_CALLER as CALLER,
   type QueuedMessageTestRig
 } from './structured-agent-session-queued-message-rig.test-fixture'
-import { retryIdle, retryOwes } from './structured-agent-session-retry.test-fixture'
+import { openAndSettle, retryOwes } from './structured-agent-session-retry.test-fixture'
 
 export const TURN: AgentJournalItemIdentity = {
   provider: 'codex',
@@ -286,15 +286,15 @@ export function logEveryWrite(db: Database.Database): () => string[] {
       .map((row) => String(row.entry))
 }
 
-/** Startup as the runtime runs it, on any host: the restart reconcile, then the scan of every chat
- *  it begins, with no stored mark of what is owed, until the host's retry is idle. */
+/** Startup as the runtime runs it, on any host: the restart reconcile and the candidates it
+ *  settles, then the chat's first open, which settles a released chat, until the retry is idle. */
 export async function startUpHost(
   host: Pick<
     StructuredAgentSessionHost,
-    'reconcileRestartLeases' | 'startupSettled' | 'collaboratorsForTests'
+    'reconcileRestartLeases' | 'startupSettled' | 'collaboratorsForTests' | 'journalSnapshot'
   >
 ): Promise<void> {
   await host.reconcileRestartLeases()
   await host.startupSettled()
-  await retryIdle(host.collaboratorsForTests().reconciliation, SESSION)
+  await openAndSettle(host, SESSION)
 }

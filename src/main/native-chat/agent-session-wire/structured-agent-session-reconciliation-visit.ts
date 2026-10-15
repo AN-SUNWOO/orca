@@ -14,7 +14,6 @@ import {
   loadStructuredAgentSessionForReconciliation,
   structuredAgentSessionJournalIsCurrent
 } from './structured-agent-session-reconciliation-load'
-import type { StructuredAgentSessionReconciliationSlotWaiter } from './structured-agent-session-reconciliation-slots'
 
 export type StructuredAgentSessionRetryContext = StructuredAgentSessionReconciliationPassContext & {
   deps: StructuredAgentSessionReconciliationPassContext['deps']
@@ -48,7 +47,7 @@ export type StructuredAgentSessionVisit =
   | 'busy'
 
 /** A chat with something owed, until a visit finds nothing left. */
-export type StructuredAgentSessionOwedChat = StructuredAgentSessionReconciliationSlotWaiter & {
+export type StructuredAgentSessionOwedChat = {
   debts: StructuredAgentSessionReconciliationDebts
   /** A visit is owed now; false while only a recovering lease's proofs wait for its decision. */
   due: boolean

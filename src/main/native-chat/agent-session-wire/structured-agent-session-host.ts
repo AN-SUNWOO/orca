@@ -237,7 +237,7 @@ export class StructuredAgentSessionHost {
   onSessionsHeld = (listener: () => void): (() => void) => this.deps.store.onFirstRecord(listener)
 
   reconcileRestartLeases = (): Promise<void> => this.restore.reconcileRestartLeases()
-  /** Once the settlement the last startup reconcile began has run for every chat. */
+  /** Once the startup candidates' first settlement attempts ran. */
   startupSettled = (): Promise<void> => this.restore.startupSettled()
 
   restoreReadableSessions = (ids?: readonly string[]) => this.restore.restoreReadableSessions(ids)

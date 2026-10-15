@@ -1,6 +1,6 @@
 // A turn an exited agent left running, whose settlement write failed, is settled by the chat's
-// retry once storage takes it, or by the next startup. A reader opening the chat
-// in between writes nothing, and the turn holds nothing: it is an ended generation's.
+// retry once storage takes it, or after a restart by the retry its first open signals. A reader
+// opening the chat writes nothing itself, and the turn holds nothing: it is an ended generation's.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AGENT_JOURNAL_THREAD_SCOPE } from '../../../shared/agent-session-journal-types'
@@ -112,16 +112,17 @@ describe('a turn its gone agent left running', () => {
     expect(rig.host.collaboratorsForTests().sessions.has(SESSION)).toBe(false)
   })
 
-  it('is settled by the startup after a restart, even when a read reaches the chat first', async () => {
+  it('is settled after a restart behind the first read, which itself writes nothing', async () => {
     // Storage refuses it for the rest of this process.
     await exitWithUnwrittenSettlement(100)
     await rig.restart()
     setStructuredAgentSessionHost(rig.host)
-
-    // The client's read opens the chat first and writes nothing.
-    expect(await workingTurnState()).toBe('running')
     await rig.host.reconcileRestartLeases()
     await rig.host.startupSettled()
+
+    // Released, so startup leaves it for its first open, whose settlement runs in the background.
+    expect(await workingTurnState()).toBe('running')
+    await retryIdle(rig.host.collaboratorsForTests().reconciliation, SESSION)
     expect(await workingTurnState()).toBe('interrupted')
     await rig.host.restoreReadableSessions([SESSION])
     expect(await workingTurnState()).toBe('interrupted')

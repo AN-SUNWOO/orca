@@ -621,7 +621,7 @@ describe('startup repair and retention', () => {
       .spyOn(JournalQueuedMessages.prototype, 'repairAndPrune')
       .mockRejectedValueOnce(new Error('SQLITE_FULL'))
     try {
-      // Startup reports it (`structured-agent-session-startup-settlement.ts`) and goes on.
+      // The retry's pass reports it (`structured-agent-session-reconciliation-pass.ts`) and goes on.
       await expect(journal.queuedMessages.repairAndPrune()).rejects.toThrow('SQLITE_FULL')
       await queueDraft(journal, 'draft-2')
       expect(journal.queuedMessages.list()).toHaveLength(2)

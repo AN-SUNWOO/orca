@@ -108,10 +108,9 @@ export function createStructuredAgentSessionTabSurface(
       /** A close that may still put the tab back sends the hidden notice once it settles. */
       options?: { deferHiddenNotice?: boolean }
     ): Promise<void> => {
-      if (visible) {
-        await setStructuredAgentSessionTabVisibility(host, sessionId, true, tabId)
-      } else {
-        await serializeClose(sessionId, async () => {
+      await (visible
+        ? setStructuredAgentSessionTabVisibility(host, sessionId, true, tabId)
+        : serializeClose(sessionId, async () => {
           const reservedTabId = host.deps.store.getSessionTabId(sessionId)
           const record = host.deps.store.getRecord(sessionId)
           const canAbandon = Boolean(
@@ -131,8 +130,7 @@ export function createStructuredAgentSessionTabSurface(
           if (!abandoned) {
             await setStructuredAgentSessionTabVisibility(host, sessionId, false, tabId)
           }
-        })
-      }
+        }))
       if (!visible) {
         unopened.delete(sessionId)
         if (!options?.deferHiddenNotice) {

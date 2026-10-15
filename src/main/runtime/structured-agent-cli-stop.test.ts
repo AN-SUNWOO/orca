@@ -76,7 +76,9 @@ it('keeps a sleeping pane held even without a current PTY', async () => {
 })
 
 it('re-probes the captured identity after its child re-parents away from the PTY', async () => {
-  if (process.platform === 'win32') return
+  if (process.platform === 'win32') {
+    return
+  }
   processTable.capture.mockResolvedValue({
     root: { pid: 123, startedAt: 'root-start' },
     rootPgid: 123,

@@ -189,6 +189,8 @@ describe('reserved terminal adoption', () => {
       operation: { callerKey: 'client-1', operationId: operationId(), fingerprint: 'fp-2' }
     })
     await store.founding.reserveAdoption(next)
+    await expect(store.founding.completeAdoption(next)).rejects.toThrow('agent_session_conflict')
+    await store.founding.adoptionSurvivors(next, [])
     await store.founding.completeAdoption(next)
     expect(store.getRecord(first.sessionId)?.adoptionSurvivors).toBeUndefined()
     expect(store.founding.prepare(first).operationRow.outcome).toMatchObject({ status: 'failed' })

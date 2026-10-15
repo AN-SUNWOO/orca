@@ -183,10 +183,10 @@ export function withLegacyResumeCommandAdmission<T>(
 ): Promise<T> {
   const invocations = command ? parseResumeInvocations(command) : []
   const targets = [...new Map(invocations.flatMap((item) => item.target ? [[
-    item.provider + '\0' + item.target,
+    `${item.provider}\0${item.target}`,
     { provider: item.provider, target: item.target }
   ] as const] : [])).values()].sort((a, b) =>
-    (a.provider + a.target).localeCompare(b.provider + b.target)
+    `${a.provider}${a.target}`.localeCompare(`${b.provider}${b.target}`)
   )
   const run = (index: number): Promise<T> => index === targets.length
     ? task()

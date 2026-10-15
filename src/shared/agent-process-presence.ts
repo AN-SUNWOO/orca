@@ -46,6 +46,11 @@ export function readAgentProcessIdentity(value: unknown): AgentProcessIdentity |
   return { pid, platform, startTime }
 }
 
+export function isSavedAgentProcessIdentitySet(value: unknown): value is AgentProcessIdentity[] {
+  return Array.isArray(value) && value.length <= 4096 &&
+    value.every((identity) => readAgentProcessIdentity(identity) !== undefined)
+}
+
 export function readAgentProcessPresence(value: unknown): AgentProcessPresence | undefined {
   if (
     !value ||

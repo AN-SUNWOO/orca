@@ -19,5 +19,5 @@ export function withStructuredConversationAdmission<T>(
     agent,
     nativeId: providerSessionId
   })
-  return admissions.serialize('terminal-adoption:' + root, task)
+  return admissions.serialize(`terminal-adoption:${root}`, task)
 }

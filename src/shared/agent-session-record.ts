@@ -29,7 +29,7 @@ import {
   type AgentSessionProviderContextBoundary
 } from './agent-session-provider-context'
 import { isStructuredAgentId } from './agent-session-provider-handle-encoding'
-import { readAgentProcessIdentity, type AgentProcessIdentity } from './agent-process-presence'
+import { isSavedAgentProcessIdentitySet, type AgentProcessIdentity } from './agent-process-presence'
 import {
   isAgentSessionAccountHome,
   MAX_PATH_LENGTH,
@@ -376,9 +376,7 @@ export function isPersistedAgentSessionRecord(
       isAgentSessionConversationName(record.conversationName)) &&
     (record.launchArgs === undefined || isAgentSessionLaunchArgs(record.launchArgs)) &&
     (record.adoptionSurvivors === undefined ||
-      (Array.isArray(record.adoptionSurvivors) &&
-        record.adoptionSurvivors.length <= 4096 &&
-        record.adoptionSurvivors.every((identity) => readAgentProcessIdentity(identity) !== undefined))) &&
+      isSavedAgentProcessIdentitySet(record.adoptionSurvivors)) &&
     !Object.hasOwn(record, 'launchEnv') &&
     isPersistedAgentSessionLease(record.lease) &&
     record.lease.sessionId === record.sessionId &&

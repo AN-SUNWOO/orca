@@ -4,7 +4,6 @@ import {
 } from '../../native-chat/structured-agent-cli-source'
 import type { OrcaRuntimeWithRestoreStructuredAgentSessionTabsOnce as RestoreStructuredAgentSessionTabsOnceMethods } from './structured-session-tab-restoration'
 import { agentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
-import { OrcaRuntimeWithGetWorktreePs } from '../workspaces/workspace-process-listing'
 import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-wire/structured-agent-session-registry'
 import {
   resolveCommittedStructuredAgentSessionAdoptionIntent,
@@ -12,7 +11,7 @@ import {
   resolveStructuredAgentSessionAdoptionForCreate,
   type StructuredAgentSessionCreateIntentInput
 } from '../structured-agent-session-create-adoption'
-import { isNativeLocalLocation, LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
+import { isNativeLocalLocation } from '../../../shared/execution-host'
 import { agentSessionExecutionLocationsEqual } from '../../../shared/agent-session-record'
 import { getLocalProjectWorktreeGitOptions } from '../../project-runtime-git-options'
 import type { AgentSessionAttachParams } from '../../native-chat/agent-session-wire/structured-agent-session-attach'
@@ -36,28 +35,9 @@ import {
   agentSessionProviderHandleRoot,
   type StructuredAgentId
 } from '../../../shared/agent-session-provider-handle'
-import type { CliSourceStopHost } from '../structured-agent-cli-stop'
+import { OrcaRuntimeWithStructuredSessionCliSourceHost } from './structured-session-cli-source-host'
 
-export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithGetWorktreePs {
-  cliSourceStopHost(): CliSourceStopHost {
-    return {
-      rows: () => this.getAgentProviderSessionRows(),
-      resolvePane: (paneKey, workspaceId) => this.resolveTerminalPane(paneKey, workspaceId),
-      sleeping: (workspaceId) => [...this.terminalSleepStateByWorktreeId.values()].some(
-        (state) => state.worktreeId === workspaceId &&
-          (state.phase === 'sleeping' || state.phase === 'partial')
-      ),
-      presence: (paneKey) => this.checkHookAgentPresenceFn?.(paneKey) ?? Promise.resolve(null),
-      shellForeground: (ptyId) => this.ptyController?.confirmShellForeground?.(ptyId) ?? Promise.resolve(false),
-      rootPid: async (ptyId) => {
-        const processes = await this.ptyController?.listProcesses?.(LOCAL_EXECUTION_HOST_ID)
-        return processes?.find((entry) => entry.id === ptyId)?.rootProcessId ?? null
-      },
-      stop: (workspaceId, ptyId) => this.stopExactTerminalsForWorktree(
-        `id:${workspaceId}`, [ptyId], { targetOnly: true, keepHistory: false }
-      )
-    }
-  }
+export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithStructuredSessionCliSourceHost {
   protected abstract restoreStructuredAgentSessionTabsOnce(
     ...args: Parameters<
       RestoreStructuredAgentSessionTabsOnceMethods['restoreStructuredAgentSessionTabsOnce']
@@ -76,41 +56,6 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
       location: await this.resolveStructuredAgentSessionLocation(worktreeSelector),
       runtime: this
     })
-  }
-
-  /** Where a launch of `agent` finds its account, resolved on this host by the agent's own
-   *  registration; null for an agent this runtime does not register, whose create is refused. */
-  protected structuredAgentAccountHomeResolver(
-    agent: StructuredAgentId,
-    worktree: string,
-    purpose: 'launch' | 'read',
-    hostLaunchDirectory?: string
-  ) {
-    const registration = structuredAgentRuntimeRegistration(agent)
-    if (!registration) {
-      return null
-    }
-    const services = {
-      getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target),
-      prepareCodexLaunchHome: this.prepareCodexStructuredLaunchFn,
-      readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
-      workspaceTrustSettings: () => this.requireStore().getSettings()
-    }
-    return async ({ launchEnv, location }) =>
-      registration.resolveAccountHome(
-        {
-          launchEnv,
-          location: location ?? null,
-          purpose,
-          workspacePath:
-            purpose === 'launch'
-              ? async () =>
-                  hostLaunchDirectory ??
-                  (await this.resolveRuntimeFileTarget(worktree)).worktree.path
-              : null
-        },
-        services
-      )
   }
 
   /** The definition this runtime registers for `agent`: what its account home pins. Read from the

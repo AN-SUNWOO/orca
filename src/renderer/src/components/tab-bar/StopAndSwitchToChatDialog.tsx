@@ -24,7 +24,7 @@ export function StopAndSwitchToChatDialog({
 }): React.JSX.Element {
   const agent = agentLabel(source.agent)
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel() }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) { onCancel() } }}>
       <DialogContent className="max-w-sm" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="text-sm">

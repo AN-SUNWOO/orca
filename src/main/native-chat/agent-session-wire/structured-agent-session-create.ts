@@ -35,13 +35,8 @@ import { attachStructuredAgentSession } from './structured-agent-session-attach-
 import { readAgentSessionHydrationPage } from './agent-session-history-page'
 import { resolveAgentSessionReplayOutcome } from './structured-agent-session-replay-outcome'
 import type { CliSourceStopHost } from '../../runtime/structured-agent-cli-stop'
-import {
-  captureCliSourceProcessIdentities,
-  inspectCliSourceWriters,
-  probeCliSourceSurvivors,
-  stopCliSourceAndJudge
-} from '../../runtime/structured-agent-cli-stop'
 import type { StructuredAgentSessionResumeSource } from '../../../shared/structured-agent-session-create'
+import { stopCliSourceBeforeAdoption } from './structured-agent-session-cli-handoff'
 
 export type StructuredAgentSessionCreateOptions = {
   firstMessage?: { clientMessageId: string; body: AgentJournalMessageItem }
@@ -203,56 +198,12 @@ async function foundConversation(
   try {
     if (!replayed) {
       if (options.cliSourceStop) {
-        const source = options.cliSourceStop
-        const priorSurvivors = prior?.adoptionSurvivors
-        const pane = !priorSurvivors?.length
-          ? await inspectCliSourceWriters(source.host, {
-              agent: params.agent,
-              resumeFrom: source.resumeFrom,
-              workspaceId: source.workspaceId
-            })
-          : null
-        // Why: the complete ConPTY job tree is daemon-owned and not yet available to this host.
-        if (pane && process.platform === 'win32') {
-          throw agentSessionRefusalError('agent_session_conflict', {
-            reason: 'conversationHeldElsewhere'
-          })
-        }
-        await store.founding.reserveAdoption(request)
-        reservedAdoption = true
-        if (priorSurvivors?.length) {
-          const survivors = await probeCliSourceSurvivors(priorSurvivors)
-          if (survivors.length > 0) {
-            await store.founding.adoptionSurvivors(request, survivors)
-            throw agentSessionRefusalError('agent_session_conflict', {
-              reason: 'terminalStopUnconfirmed'
-            })
-          }
-        } else if (pane) {
-          let identities: Awaited<ReturnType<typeof captureCliSourceProcessIdentities>>
-          try {
-            identities = await captureCliSourceProcessIdentities(source.host, pane.ptyId)
-            await store.founding.adoptionSurvivors(request, identities)
-          } catch {
-              const refusal = {
-                code: 'agent_session_conflict' as const,
-                details: { reason: 'conversationHeldElsewhere' as const },
-                message: 'The terminal process could not be verified. Exit it there, then retry.'
-              }
-              await store.founding.cancelAdoptionBeforeStop(request, refusal)
-              cancelledBeforeStop = true
-              throw agentSessionRefusalError(refusal.code, refusal.details)
-          }
-          const survivors = await stopCliSourceAndJudge(
-            source.host, pane.workspaceId, pane.ptyId, identities
-          )
-          if (survivors.length > 0) {
-            await store.founding.adoptionSurvivors(request, survivors)
-            throw agentSessionRefusalError('agent_session_conflict', {
-              reason: 'terminalStopUnconfirmed'
-            })
-          }
-        }
+        await stopCliSourceBeforeAdoption({
+          store, request, source: options.cliSourceStop, agent: params.agent,
+          priorSurvivors: prior?.adoptionSurvivors,
+          onReserved: () => { reservedAdoption = true },
+          onCancelledBeforeStop: () => { cancelledBeforeStop = true }
+        })
         prepared = await prepareAdoptedTranscript(params)
         if (!prepared.ok) {
           throw new AgentSessionRefusalError(prepared.refusal)
@@ -301,11 +252,9 @@ async function foundConversation(
           return sent
         }
       } else {
-        if (options.cliSourceStop) {
-          await store.founding.completeAdoption(request)
-        } else {
-          await store.founding.commit(request)
-        }
+        await (options.cliSourceStop
+          ? store.founding.completeAdoption(request)
+          : store.founding.commit(request))
       }
       committed = true
     }

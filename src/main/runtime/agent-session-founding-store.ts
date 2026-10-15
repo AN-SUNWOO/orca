@@ -45,7 +45,9 @@ export function createAgentSessionFoundingStore(
   }
   const completeAdoption = (draft: AgentSessionStoreState, request: AgentSessionReserveRequest) => {
     const { record, row } = pendingAdoption(draft, request)
-    // The caller has just re-probed the saved identities; keep them until this same commit.
+    if (record.adoptionSurvivors?.length !== 0) {
+      throw agentSessionRefusalError('agent_session_conflict', { reason: 'terminalStopUnconfirmed' })
+    }
     const { adoptionSurvivors: _survivors, ...completed } = record
     draft.records.set(request.sessionId, completed)
     draft.operations.set(operationKey(request), {

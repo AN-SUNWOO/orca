@@ -24,6 +24,8 @@ export type CmdJQuickAction = {
   description: string
   icon: LucideIcon
   verbKeywords: string[]
+  /** Query-bound actions must still match the live input when selected. */
+  sourceQuery?: string
   isAvailable: (ctx: CmdJQuickActionContext) => CmdJQuickActionAvailability
   run: (ctx: CmdJQuickActionContext) => Promise<CmdJQuickActionRunResult>
 }

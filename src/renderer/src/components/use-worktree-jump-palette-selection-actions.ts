@@ -48,6 +48,7 @@ export function useWorktreeJumpPaletteSelectionActions({
   closeModal,
   recordFeatureInteraction,
   skipRestoreFocusRef,
+  liveQueryRef,
   setSelectedItemId,
   focusFallbackSurface,
   requestBrowserFocus,
@@ -190,6 +191,9 @@ export function useWorktreeJumpPaletteSelectionActions({
   )
   const handleSelectQuickAction = useCallback(
     (action: CmdJActionResult) => {
+      if (action.sourceQuery !== undefined && liveQueryRef.current.trim() !== action.sourceQuery) {
+        return
+      }
       skipRestoreFocusRef.current = true
       closeModal()
       setSelectedItemId('')

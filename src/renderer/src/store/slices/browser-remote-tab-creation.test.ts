@@ -60,64 +60,67 @@ describe('createBrowserSlice runtime guard', () => {
     expect(store.getState().createUnifiedTab).not.toHaveBeenCalled()
   })
 
-  it('creates new browser tabs through the owning runtime for desktop remote worktrees', async () => {
-    const store = createTestStore()
-    store.setState({
-      activeWorktreeId: 'wt-remote',
-      settings: { activeRuntimeEnvironmentId: null } as AppState['settings'],
-      runtimeStatusByEnvironmentId: runtimeStatuses(['browser.screencast.v1']),
-      browserDefaultUrl: 'about:blank',
-      repos: [
-        {
-          id: 'repo-1',
-          path: '/repo',
-          displayName: 'Repo',
-          badgeColor: '#000000',
-          addedAt: 1,
-          connectionId: null,
-          executionHostId: 'runtime:env-1'
-        }
-      ],
-      worktreesByRepo: {
-        'repo-1': [
+  it.each([undefined, 'https://brex.com/'])(
+    'creates new browser tabs through the owning runtime with URL %s',
+    async (url) => {
+      const store = createTestStore()
+      store.setState({
+        activeWorktreeId: 'wt-remote',
+        settings: { activeRuntimeEnvironmentId: null } as AppState['settings'],
+        runtimeStatusByEnvironmentId: runtimeStatuses(['browser.screencast.v1']),
+        browserDefaultUrl: 'about:blank',
+        repos: [
           {
-            id: 'wt-remote',
-            repoId: 'repo-1',
-            path: '/repo/wt',
-            head: 'abc123',
-            branch: 'feature',
-            isBare: false,
-            isMainWorktree: false,
-            displayName: 'Workspace',
-            comment: '',
-            linkedIssue: null,
-            linkedPR: null,
-            linkedLinearIssue: null,
-            isArchived: false,
-            isUnread: false,
-            isPinned: false,
-            sortOrder: 0,
-            lastActivityAt: 1
+            id: 'repo-1',
+            path: '/repo',
+            displayName: 'Repo',
+            badgeColor: '#000000',
+            addedAt: 1,
+            connectionId: null,
+            executionHostId: 'runtime:env-1'
           }
-        ]
-      }
-    })
+        ],
+        worktreesByRepo: {
+          'repo-1': [
+            {
+              id: 'wt-remote',
+              repoId: 'repo-1',
+              path: '/repo/wt',
+              head: 'abc123',
+              branch: 'feature',
+              isBare: false,
+              isMainWorktree: false,
+              displayName: 'Workspace',
+              comment: '',
+              linkedIssue: null,
+              linkedPR: null,
+              linkedLinearIssue: null,
+              isArchived: false,
+              isUnread: false,
+              isPinned: false,
+              sortOrder: 0,
+              lastActivityAt: 1
+            }
+          ]
+        }
+      })
 
-    await store.getState().openNewBrowserTabInActiveWorkspace('group-1')
+      await store.getState().openNewBrowserTabInActiveWorkspace('group-1', url)
 
-    expect(createWebRuntimeSessionBrowserTabMock).toHaveBeenCalledWith({
-      worktreeId: 'wt-remote',
-      environmentId: 'env-1',
-      url: 'about:blank',
-      targetGroupId: 'group-1',
-      // Why: desktop pane groups are client-owned; without the client group the local
-      // reconciler lands the new tab in the first group.
-      clientTargetGroupId: 'group-1'
-    })
-    expect(store.getState().createUnifiedTab).not.toHaveBeenCalled()
-    expect(store.getState().browserTabsByWorktree['wt-remote']).toBeUndefined()
-    expect(store.getState().recordFeatureInteraction).toHaveBeenCalledWith('browser-tab-created')
-  })
+      expect(createWebRuntimeSessionBrowserTabMock).toHaveBeenCalledWith({
+        worktreeId: 'wt-remote',
+        environmentId: 'env-1',
+        url: url ?? 'about:blank',
+        targetGroupId: 'group-1',
+        // Why: desktop pane groups are client-owned; without the client group the local
+        // reconciler lands the new tab in the first group.
+        clientTargetGroupId: 'group-1'
+      })
+      expect(store.getState().createUnifiedTab).not.toHaveBeenCalled()
+      expect(store.getState().browserTabsByWorktree['wt-remote']).toBeUndefined()
+      expect(store.getState().recordFeatureInteraction).toHaveBeenCalledWith('browser-tab-created')
+    }
+  )
 
   it('uses the desktop client browser when a remote npm host cannot stream', async () => {
     const store = createTestStore()

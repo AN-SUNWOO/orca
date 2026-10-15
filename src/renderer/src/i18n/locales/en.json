@@ -420,6 +420,9 @@
     "activityWaitingSuffix": "activity waiting"
   },
   "worktreeJumpPalette": {
+    "goToWebsite": "Go to {{value0}}",
+    "openWebsiteInNewTab": "Open in a new browser tab",
+    "websiteBadge": "Website",
     "matchLabel": {
       "comment": "Comment",
       "issue": "Issue",

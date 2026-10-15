@@ -176,7 +176,7 @@ export function createBrowserTabActions(
       return browserTab
     },
 
-    openNewBrowserTabInActiveWorkspace: async (groupId) => {
+    openNewBrowserTabInActiveWorkspace: async (groupId, url) => {
       const state = get()
       // Why: the invoking group owns its workspace; global selection may already point elsewhere.
       const worktreeId =
@@ -190,7 +190,7 @@ export function createBrowserTabActions(
       if (browserAvailability.state !== 'enabled') {
         throw new Error(browserAvailability.reason)
       }
-      const defaultUrl = state.browserDefaultUrl ?? 'about:blank'
+      const initialUrl = url ?? state.browserDefaultUrl ?? 'about:blank'
       const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(state, worktreeId)
       if (browserAvailability.provider === 'paired-runtime') {
         if (!runtimeEnvironmentId) {
@@ -203,7 +203,7 @@ export function createBrowserTabActions(
           const created = await createPairedBrowserTab({
             worktreeId,
             environmentId: runtimeEnvironmentId,
-            url: defaultUrl,
+            url: initialUrl,
             // Why: desktop pane groups are client-owned — the local reconciler only honors a
             // recorded clientTargetGroupId; targetGroupId steers snapshot-driven clients instead.
             targetGroupId: groupId,
@@ -223,9 +223,9 @@ export function createBrowserTabActions(
         }
         throw new Error('The paired runtime could not create a managed browser tab.')
       }
-      get().createBrowserTab(worktreeId, defaultUrl, {
+      get().createBrowserTab(worktreeId, initialUrl, {
         title: translate('auto.store.slices.browser.d175274b6d', 'New Browser Tab'),
-        focusAddressBar: true,
+        focusAddressBar: url === undefined,
         browserRuntimeEnvironmentId: null,
         targetGroupId: groupId
       })

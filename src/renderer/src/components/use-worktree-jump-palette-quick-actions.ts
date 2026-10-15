@@ -6,6 +6,7 @@ import {
   getUnavailableQuickActionMessage
 } from '@/components/cmd-j/quick-action-context'
 import { rankCmdJMiddleResults } from '@/components/cmd-j/palette-results'
+import { buildCmdJBrowserNavigationAction } from '@/components/cmd-j/browser-navigation-action'
 import {
   getComposerEligibleRepos,
   resolveComposerActiveRepoId,
@@ -122,7 +123,7 @@ export function useWorktreeJumpPaletteQuickActions({
   // Why: buildQuickActionContext() reads the store imperatively, so these voided values are the
   // memo's real inputs — each one is read (some transitively, e.g. runtimeStatusByEnvironmentId
   // via the managed-browser creation policy) while availability is computed.
-  const availableActionResults = useMemo(() => {
+  const middleItems = useMemo<(SettingsPaletteItem | QuickActionPaletteItem)[]>(() => {
     void activeView
     void activeWorktreeId
     void worktreesByRepo
@@ -135,10 +136,25 @@ export function useWorktreeJumpPaletteQuickActions({
     void settings?.activeRuntimeEnvironmentId
     void runtimeStatusByEnvironmentId
     const context = buildQuickActionContext()
-    return actionResults.filter((action) => action.isAvailable(context).available)
+    const results = rankCmdJMiddleResults({
+      query: deferredQuery,
+      settingsResults,
+      actionResults: actionResults.filter((action) => action.isAvailable(context).available)
+    })
+    const navigationAction = buildCmdJBrowserNavigationAction(deferredQuery)
+    if (navigationAction?.isAvailable(context).available) {
+      results.unshift({ ...navigationAction, order: 0, qualityClass: 'exact-intent' })
+    }
+    return results.map((result) =>
+      result.kind === 'settings'
+        ? { id: result.id, type: 'settings' as const, result }
+        : { id: `quick-action:${result.id}`, type: 'quick-action' as const, result }
+    )
   }, [
     actionResults,
     buildQuickActionContext,
+    deferredQuery,
+    settingsResults,
     activeView,
     activeWorktreeId,
     worktreesByRepo,
@@ -151,19 +167,6 @@ export function useWorktreeJumpPaletteQuickActions({
     settings?.activeRuntimeEnvironmentId,
     runtimeStatusByEnvironmentId
   ])
-  const middleItems = useMemo<(SettingsPaletteItem | QuickActionPaletteItem)[]>(
-    () =>
-      rankCmdJMiddleResults({
-        query: deferredQuery,
-        settingsResults,
-        actionResults: availableActionResults
-      }).map((result) =>
-        result.kind === 'settings'
-          ? { id: result.id, type: 'settings' as const, result }
-          : { id: `quick-action:${result.id}`, type: 'quick-action' as const, result }
-      ),
-    [availableActionResults, deferredQuery, settingsResults]
-  )
   return { prefetchCreateWorkspaceBaseForComposer, buildQuickActionContext, middleItems }
 }
 

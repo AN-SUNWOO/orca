@@ -106,6 +106,22 @@ describe('createBrowserSlice annotations', () => {
     })
   })
 
+  it('opens the requested website instead of the default page and keeps focus off the address bar', async () => {
+    const store = createTestStore()
+    store.setState({ browserDefaultUrl: 'https://default.example.com/' })
+
+    await store.getState().openNewBrowserTabInActiveWorkspace('group-1', 'https://brex.com/')
+
+    const tab = store.getState().browserTabsByWorktree['wt-1']?.[0]
+    expect(tab?.url).toBe('https://brex.com/')
+    expect(store.getState().createUnifiedTab).toHaveBeenCalledWith(
+      'wt-1',
+      'browser',
+      expect.objectContaining({ targetGroupId: 'group-1' })
+    )
+    expect(store.getState().pendingAddressBarFocusByPageId).toEqual({})
+  })
+
   it('retains saved page annotations while retiring geometry when the URL changes', () => {
     const store = createTestStore()
     const tab = store.getState().createBrowserTab('wt-1', 'https://example.com')

@@ -214,9 +214,7 @@ export async function sleepWorktreesReportingFailures(
       const { workspaceId, executionHostId, token } = target
       const current = (): boolean =>
         isCurrentWorktreeSleepIntent(workspaceId, executionHostId, token)
-      const clearFailedChats = (
-        failures: NonNullable<AgentSessionWorkspaceSleepResult['failures']>
-      ): void => {
+      const clearFailedChats = (failures: readonly { sessionId?: string }[]): void => {
         if (!options.recordExplicitChatSleep || !current()) {
           return
         }
@@ -298,12 +296,9 @@ export async function sleepWorktreesReportingFailures(
     })
   )
   const results = attempts.map((result, index) => {
-    const current = isCurrentWorktreeSleepIntent(
-      result.workspaceId,
-      result.executionHostId,
-      marked[index].token
-    )
-    const completed = result.completed && current
+    const completed =
+      result.completed &&
+      isCurrentWorktreeSleepIntent(result.workspaceId, result.executionHostId, marked[index].token)
     if (completed && options.recordExplicitChatSleep) {
       const stopped = new Set(result.stoppedSessionIds)
       const chats = capturedChats[index].filter((chat) => stopped.has(chat.sessionId))

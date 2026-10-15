@@ -21,6 +21,7 @@ import { writeOpenCodeSqliteDatabase } from '../ai-vault/session-scanner-opencod
 import { resolveAcpLaunchInvocation } from '../acp/acp-structured-launch-resolution'
 import { acpLaunchSpecFor } from '../acp/acp-launch-specs'
 import { resolveOpenCodeDatabasePath } from '../opencode/opencode-data-directory'
+import * as hostReadableTranscriptPath from './host-readable-transcript-path'
 
 // The OpenCode reader's worker, run in process.
 vi.mock('../ai-vault/session-scanner-opencode-sqlite-worker-spawn', async (importOriginal) => {
@@ -287,6 +288,12 @@ it.each(['win32', 'linux', 'darwin'] as const)(
     const userProfileFile = await RECORDED.omp(
       join(userProfile, '.omp', 'profiles', profile, 'agent'),
       'USERPROFILE'
+    )
+    const nativePlatform = process.platform
+    const needsWslResolution = hostReadableTranscriptPath.needsWslHostResolution
+    // Simulated home precedence still reads fixture paths native to the actual host.
+    vi.spyOn(hostReadableTranscriptPath, 'needsWslHostResolution').mockImplementation((path) =>
+      needsWslResolution(path, nativePlatform)
     )
     vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
 

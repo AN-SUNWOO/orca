@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -14,8 +14,15 @@ import { prepareLegacySharedCodexSessionResume } from '../codex/codex-legacy-ses
 import * as codexHomes from '../codex/codex-home-paths'
 
 let root: string
-beforeEach(async () => { root = await mkdtemp(join(tmpdir(), 'orca-source-admission-')) })
-afterEach(async () => { vi.restoreAllMocks(); await rm(root, { recursive: true, force: true }) })
+beforeEach(async () => {
+  root = await realpath(await mkdtemp(join(tmpdir(), 'orca-source-admission-')))
+  vi.stubEnv('ORCA_USER_DATA_PATH', join(root, 'user-data'))
+})
+afterEach(async () => {
+  vi.unstubAllEnvs()
+  vi.restoreAllMocks()
+  await rm(root, { recursive: true, force: true })
+})
 const id = 'provider-session'
 async function file(path: string, records: unknown[]) {
   await mkdir(dirname(path), { recursive: true })

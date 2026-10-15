@@ -38,20 +38,13 @@ function messageRows(scroller: Scroller): RowElement[] {
   return Array.from(scroller.querySelectorAll(`[data-testid^="${ROW_ID_PREFIX}"]`))
 }
 
-/** The message to hold: the first on screen, the one the reader is reading, or the last one above
- *  the screen when none is (a tall live status line). Never one the update drops: when the new
- *  first message is already drawn, every row above it is the oldest, trimmed at the 2,000 cap. */
-function heldMessage(scroller: Scroller, headKey: string | undefined): Held | null {
+/** The first message on screen: the one the reader is reading. */
+function firstMessageOnScreen(scroller: Scroller): Held | null {
   const view = scroller.getBoundingClientRect()
   const rows = messageRows(scroller)
-  const headId = headKey === undefined ? null : mobileNativeChatRowId(headKey)
-  const kept = Math.max(
-    rows.findIndex((row) => row.getAttribute('data-testid') === headId),
-    0
-  )
   // Rows in normal flow have ordered bottoms, so the first one on screen is found without
   // measuring the up to 2,000 above it.
-  let low = kept
+  let low = 0
   let high = rows.length
   while (low < high) {
     const middle = low + Math.floor((high - low) / 2)
@@ -61,12 +54,12 @@ function heldMessage(scroller: Scroller, headKey: string | undefined): Held | nu
       high = middle
     }
   }
-  if (rows.length === 0) {
+  if (low === rows.length) {
     return null
   }
-  const held = rows[Math.min(low, rows.length - 1)]
-  const rowId = held.getAttribute('data-testid')
-  return rowId === null ? null : { rowId, top: held.getBoundingClientRect().top }
+  const { top } = rows[low].getBoundingClientRect()
+  const rowId = rows[low].getAttribute('data-testid')
+  return rowId !== null && top < view.bottom ? { rowId, top } : null
 }
 
 /** iOS is still bouncing the list past an end. A write then lands while WebKit owns the scroll, and
@@ -85,7 +78,7 @@ export class MobileNativeChatScrollHold extends Component<Props> {
       return null
     }
     const scroller = this.props.listRef.current?.getScrollableNode()
-    return scroller && !overscrolled(scroller) ? heldMessage(scroller, this.props.headKey) : null
+    return scroller && !overscrolled(scroller) ? firstMessageOnScreen(scroller) : null
   }
 
   componentDidUpdate(_previous: Props, _state: unknown, held: Held | null): void {

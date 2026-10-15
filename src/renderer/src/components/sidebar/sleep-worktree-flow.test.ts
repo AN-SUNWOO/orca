@@ -49,7 +49,11 @@ vi.mock('@/runtime/structured-agent-session-client', () => ({
   callStructuredAgentSession: mocks.call
 }))
 
-import { runSleepWorktree, runSleepWorktrees } from './sleep-worktree-flow'
+import {
+  runSleepWorktree,
+  runSleepWorktrees,
+  sleepWorktreesReportingFailures
+} from './sleep-worktree-flow'
 import {
   clearWorktreeSleepIntent,
   forgetWorktreeSleepIntent,
@@ -132,6 +136,24 @@ describe('workspace sleep flow', () => {
     expect(result[0]).toMatchObject({ completed: false, stoppedSessionIds: ['session-1'] })
     expect(mocks.state.shutdownWorktreeTerminals).toHaveBeenCalled()
     expect(mocks.toast).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports an unverified chat stop to a caller that answers for it, without a toast', async () => {
+    mocks.call
+      .mockResolvedValueOnce({
+        stoppedSessionIds: [],
+        failures: [{ sessionId: 'session-1', reason: 'stop-unverifiable' }]
+      })
+      .mockResolvedValueOnce({ stoppedSessionIds: ['session-2'] })
+
+    const outcome = await sleepWorktreesReportingFailures([
+      { id: 'wt-1', executionHostId: 'local' },
+      { id: 'wt-2', executionHostId: 'local' }
+    ])
+
+    expect(outcome.failedWorktreeIds).toEqual(['wt-1'])
+    expect(outcome.errors).toHaveLength(1)
+    expect(mocks.toast).not.toHaveBeenCalled()
   })
 
   it('keeps a superseded chat quiet while completing other workspace cleanup', async () => {

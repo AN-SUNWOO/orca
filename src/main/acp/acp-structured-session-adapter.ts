@@ -244,9 +244,7 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
     input
   ) => stopAcpChildren(this.live(input.sessionId), input.fence, input.taskIds, input.acknowledge)
 
-  backgroundTaskStops: NonNullable<StructuredAgentSessionAdapter['backgroundTaskStops']> = (
-    sessionId
-  ) => acpChildStopCapabilities(this.sessions.get(sessionId))
+  backgroundTaskStops = (id: string) => acpChildStopCapabilities(this.sessions.get(id))
 
   closeSession = (sessionId: string): Promise<boolean> => this.close(sessionId)
   disposeSession = (sessionId: string): Promise<boolean> => this.close(sessionId)

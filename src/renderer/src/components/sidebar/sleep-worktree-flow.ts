@@ -152,15 +152,47 @@ function resolveSleepTarget(
 export async function runSleepWorktrees(
   targets: readonly WorkspaceSleepTarget[]
 ): Promise<WorkspaceSleepResult[]> {
+  const { errors, results } = await sleepWorktreesReportingFailures(targets)
+  if (errors.length > 0) {
+    // Why: callers are fire-and-forget; surface actionable teardown failures after restoring retryable UI state.
+    toast.error(
+      results.length === 1
+        ? translate(
+            'auto.components.sidebar.sleep.worktree.flow.8bc3fc0671',
+            'Failed to sleep workspace'
+          )
+        : translate(
+            'auto.components.sidebar.sleep.worktree.flow.c460fecc4a',
+            'Failed to sleep some workspaces'
+          ),
+      { description: errors.join('\n') }
+    )
+  }
+  return results
+}
+
+export type WorktreeSleepOutcome = {
+  /** Every workspace this call did not verifiably sleep, including an unconfirmed chat stop. */
+  failedWorktreeIds: string[]
+  errors: string[]
+  results: WorkspaceSleepResult[]
+}
+
+/** The sleep without the toast, for callers that report failures themselves. */
+export async function sleepWorktreesReportingFailures(
+  targets: readonly WorkspaceSleepTarget[]
+): Promise<WorktreeSleepOutcome> {
   if (targets.length === 0) {
-    return []
+    return { failedWorktreeIds: [], errors: [], results: [] }
   }
   const state = useAppStore.getState()
   const errors: string[] = []
+  const failedWorktreeIds = new Set<string>()
   const seen = new Set<string>()
   const resolved = targets.flatMap((target) => {
     const selected = resolveSleepTarget(state, target)
     if (!selected) {
+      failedWorktreeIds.add(typeof target === 'string' ? target : target.id)
       errors.push(describeSleepFailure(new Error('workspace owner is unavailable')))
       return []
     }
@@ -204,7 +236,7 @@ export async function runSleepWorktrees(
     state.setActiveWorktree(null)
     restoreSidebarPosition()
   }
-  const results = await Promise.all(
+  const attempts = await Promise.all(
     marked.map(async (target, index): Promise<WorkspaceSleepResult> => {
       const { workspaceId, executionHostId, token } = target
       const current = (): boolean =>
@@ -278,24 +310,14 @@ export async function runSleepWorktrees(
       return { workspaceId, executionHostId, stoppedSessionIds, completed }
     })
   )
-  if (errors.length > 0) {
-    toast.error(
-      resolved.length === 1
-        ? translate(
-            'auto.components.sidebar.sleep.worktree.flow.8bc3fc0671',
-            'Failed to sleep workspace'
-          )
-        : translate(
-            'auto.components.sidebar.sleep.worktree.flow.c460fecc4a',
-            'Failed to sleep some workspaces'
-          ),
-      { description: [...new Set(errors)].join('\n') }
-    )
-  }
-  return results.map((result, index) => ({
+  const results = attempts.map((result, index) => ({
     ...result,
     completed:
       result.completed &&
       isCurrentWorktreeSleepIntent(result.workspaceId, result.executionHostId, marked[index].token)
   }))
+  for (const result of results.filter((candidate) => !candidate.completed)) {
+    failedWorktreeIds.add(result.workspaceId)
+  }
+  return { failedWorktreeIds: [...failedWorktreeIds], errors: [...new Set(errors)], results }
 }

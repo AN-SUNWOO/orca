@@ -372,7 +372,7 @@ export function useNativeChatContextMenu({
           {!showTerminalPaneActions && chatPaneActions?.canClosePane ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={chatPaneActions.onClosePane}>
+              <DropdownMenuItem variant="destructive" onSelect={chatPaneActions.onClosePane}>
                 <X />
                 {translate(
                   'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',

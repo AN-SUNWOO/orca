@@ -41,7 +41,8 @@ function composerAcceptsImages(reported: boolean | undefined): boolean | undefin
       optionPickerRequest: null,
       setOptionPickerRequest: () => {},
       onError: () => {},
-      onSubmitted: () => {}
+      onSubmitted: () => {},
+      installBlocked: false
     })
   )
   return result.current.acceptsImages

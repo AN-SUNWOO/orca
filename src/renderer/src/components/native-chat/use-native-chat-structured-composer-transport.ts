@@ -25,9 +25,11 @@ export function useNativeChatStructuredComposerTransport(args: {
   setOptionPickerRequest: Dispatch<SetStateAction<NativeChatOptionPickerRequest | null>>
   onError: NativeChatStructuredComposerTransport['onError']
   onSubmitted: () => void
+  /** The chat's host has no program to run yet: nothing reaches it until the install lands. */
+  installBlocked: boolean
 }): NativeChatStructuredComposerTransport {
   const { props, controller, sendThroughLaunch, starting, worktreeId, optionPickerRequest } = args
-  const { setOptionPickerRequest, onError, onSubmitted } = args
+  const { setOptionPickerRequest, onError, onSubmitted, installBlocked } = args
   const acceptsImages = useStructuredAgentAcceptsImages(
     props.target,
     props.agent,
@@ -40,6 +42,7 @@ export function useNativeChatStructuredComposerTransport(args: {
       : null
     return {
       send: (text, attachments) =>
+        !installBlocked &&
         sendThroughLaunch(text, attachments.length > 0, () =>
           controller.send(
             text,
@@ -50,8 +53,11 @@ export function useNativeChatStructuredComposerTransport(args: {
             }))
           )
         ),
-      dispatchCommand: (text: string) =>
-        dispatchStructuredAgentSessionComposerCommand(text, {
+      dispatchCommand: async (text: string) => {
+        if (installBlocked) {
+          return { handled: true, accepted: false, error: null }
+        }
+        return dispatchStructuredAgentSessionComposerCommand(text, {
           agent: props.agent,
           snapshot: controller.optionSnapshot,
           invokeAction: async (id) => {
@@ -62,7 +68,8 @@ export function useNativeChatStructuredComposerTransport(args: {
           conversationCommands: controller.conversationCommands,
           runConversationCommand: controller.runConversationCommand,
           ...(setThreadGoalObjective ? { setThreadGoalObjective } : {})
-        }),
+        })
+      },
       ...(setThreadGoalObjective ? { threadGoal: { setObjective: setThreadGoalObjective } } : {}),
       sendOut: controller.sendOut || starting,
       optionsSurface: controller.optionSurface,
@@ -83,6 +90,7 @@ export function useNativeChatStructuredComposerTransport(args: {
   }, [
     acceptsImages,
     controller,
+    installBlocked,
     worktreeId,
     onError,
     onSubmitted,

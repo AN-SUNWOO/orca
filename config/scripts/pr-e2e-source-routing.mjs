@@ -199,7 +199,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     matches: (file) =>
       MANAGED_SSH_HARNESS.test(file) ||
       (isProductSource(file) &&
-        /^src\/(?:main\/(?:orcad\/orcad-(?:idle-|managed-idle-)|ssh\/orcad-(?:managed-serving|managed-wake|managed-tunnel|recovery-slot|remote-launch|remote-runtime-control))|shared\/orcad-idle-exit)/.test(
+        /^src\/(?:main\/(?:orcad\/orcad-(?:idle-|managed-idle-)|ssh\/orcad-(?:already-active-wake|runtime-deployment|managed-serving|managed-wake|managed-tunnel|recovery-slot|remote-launch|remote-runtime-control))|shared\/orcad-idle-exit)/.test(
           file
         ))
   },

@@ -10,8 +10,7 @@ import {
   DropdownMenuSubTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DEFAULT_SHOW_SLEEPING_WORKSPACES } from '../../../../shared/constants'
-import { isSleepingSweepExemptionNarrowingList } from './visible-worktrees'
+import { countActiveWorkspaceFilters } from '../../../../shared/workspace-view/workspace-row-filters'
 import SidebarRepositoryFilterSection from './SidebarRepositoryFilterSection'
 import SidebarWorkspaceFilterSection from './SidebarWorkspaceFilterSection'
 import { getSidebarHostVisibilityLabel, shouldShowHostScopeControls } from './sidebar-host-options'
@@ -39,43 +38,36 @@ export function useWorkspaceOptionsFilterBadge(): {
   const repos = useAppStore((s) => s.repos)
   const visibleWorkspaceHostIds = useAppStore((s) => s.visibleWorkspaceHostIds)
 
-  const selectedCount = useMemo(() => {
-    let count = 0
-    for (const repo of repos) {
-      if (filterRepoIds.includes(repo.id)) {
-        count += 1
-      }
-    }
-    return count
-  }, [repos, filterRepoIds])
-
-  const hasSleepingFilter = showSleepingWorkspaces !== DEFAULT_SHOW_SLEEPING_WORKSPACES
-  const hasSleepingExemptionFilter = isSleepingSweepExemptionNarrowingList(
-    showSleepingWorkspaces,
-    alwaysShowDefaultBranchWorkspace
+  const activeFilterCount = useMemo(
+    () =>
+      countActiveWorkspaceFilters(
+        {
+          hideSleepingWorkspaces: !showSleepingWorkspaces,
+          alwaysShowDefaultBranchWorkspace,
+          hideDefaultBranchWorkspace,
+          hideAutomationGeneratedWorkspaces,
+          hideCliCreatedWorkspaces,
+          hideDetachedHeadWorkspaces,
+          hideWorkspacesFromOtherDevices,
+          filterRepoIds,
+          visibleHostIds: visibleWorkspaceHostIds
+        },
+        repos.map((repo) => repo.id)
+      ),
+    [
+      showSleepingWorkspaces,
+      alwaysShowDefaultBranchWorkspace,
+      hideDefaultBranchWorkspace,
+      hideAutomationGeneratedWorkspaces,
+      hideCliCreatedWorkspaces,
+      hideDetachedHeadWorkspaces,
+      hideWorkspacesFromOtherDevices,
+      filterRepoIds,
+      visibleWorkspaceHostIds,
+      repos
+    ]
   )
-  const hasRepoFilter = selectedCount > 0
-  const hasHostVisibilityFilter = visibleWorkspaceHostIds !== null
-  const hasAnyFilter =
-    hasSleepingFilter ||
-    hideDefaultBranchWorkspace ||
-    hideAutomationGeneratedWorkspaces ||
-    hideCliCreatedWorkspaces ||
-    hideDetachedHeadWorkspaces ||
-    hideWorkspacesFromOtherDevices ||
-    hasSleepingExemptionFilter ||
-    hasRepoFilter ||
-    hasHostVisibilityFilter
-  const activeFilterCount =
-    (hasSleepingFilter ? 1 : 0) +
-    (hideDefaultBranchWorkspace ? 1 : 0) +
-    (hideAutomationGeneratedWorkspaces ? 1 : 0) +
-    (hideCliCreatedWorkspaces ? 1 : 0) +
-    (hideDetachedHeadWorkspaces ? 1 : 0) +
-    (hideWorkspacesFromOtherDevices ? 1 : 0) +
-    (hasSleepingExemptionFilter ? 1 : 0) +
-    (hasHostVisibilityFilter ? 1 : 0) +
-    selectedCount
+  const hasAnyFilter = activeFilterCount > 0
 
   return {
     hasAnyFilter,

@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithHasExactPersistedTerminalSurfaceIdentity } from '../../orca-runtime-has-exact-persisted-terminal-surface-identity'
+import { OrcaRuntimeWithHasExactPersistedTerminalSurfaceIdentity } from '../persisted-surfaces/has-exact-persisted-terminal-surface-identity'
 import type {
   OrchestrationEnvironmentCallOptions,
   OrchestrationWorkerServer

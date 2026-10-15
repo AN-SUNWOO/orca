@@ -315,6 +315,7 @@ import {
   HostedReviewCreationEligibility,
   HostedReviewForBranch
 } from './hosted-review-params'
+import { JiraFavouriteFilterParams } from './jira-favourite-filter-params'
 import {
   AssignableUsers,
   AttachmentImage,
@@ -1009,6 +1010,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'jira.issueCommentsStream': IssueKey,
   'jira.listAssignableUsers': AssignableUsers,
   'jira.listCreateFields': ProjectIssueTypeFields,
+  'jira.listFavouriteFilters': JiraFavouriteFilterParams,
   'jira.listIssueTypes': ProjectIssueTypes,
   'jira.listIssues': ListIssues,
   'jira.listPriorities': SiteSelection,

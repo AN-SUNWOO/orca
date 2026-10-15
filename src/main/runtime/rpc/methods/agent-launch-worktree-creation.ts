@@ -40,9 +40,14 @@ export function agentLaunchWorkspaceFactory(
 ): AgentLaunchWorkspaceFactory {
   return {
     createFolderWorkspace: agentLaunchFolderWorkspaceCreator(context, agent),
+    createRecoveryShell: async (worktreeId) => {
+      await context.runtime.createTerminal(`id:${worktreeId}`, { surfaceOwner: false })
+    },
     createWorktree: async ({
       create,
       startupAgent,
+      promisedAgentChat,
+      onWorkspaceCreated,
       startupPrompt,
       agentArgs,
       cwd,
@@ -101,6 +106,8 @@ export function agentLaunchWorkspaceFactory(
           // The launch owns the agent whichever surface it settles on, so the workspace records
           // it even when no startup terminal was created for it.
           createdWithAgent: agent,
+          ...(promisedAgentChat ? { promisedAgentChat } : {}),
+          ...(onWorkspaceCreated ? { onWorkspaceCreated } : {}),
           // Structured sessions have no startup command to sequence behind setup. Provision the
           // setup terminal synchronously and attach a completion token so the launch can wait
           // before creating the chat surface.

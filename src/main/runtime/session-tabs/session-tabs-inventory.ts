@@ -119,7 +119,8 @@ export abstract class OrcaRuntimeWithCollectMobileVisibleGraphChangedWorktrees e
 
   async listMobileSessionTabs(
     worktreeSelector: string,
-    clientNavigationId?: string
+    clientNavigationId?: string,
+    options?: { includeInitialSurfaceLaunch?: true }
   ): Promise<RuntimeMobileSessionTabsResult> {
     const explicitWorktreeId = this.getValidatedExplicitWorktreeIdSelector(worktreeSelector)
     if (explicitWorktreeId) {
@@ -130,7 +131,7 @@ export abstract class OrcaRuntimeWithCollectMobileVisibleGraphChangedWorktrees e
       this.hydrateHeadlessMobileSessionTabsFromWorkspaceSession(explicitWorktreeId)
       await this.refreshMobileSessionPtyRecords(explicitWorktreeId)
       this.restoreLivePairedRendererSessionOwnedMobileTerminals(explicitWorktreeId)
-      return this.getMobileSessionTabsForWorktree(explicitWorktreeId, clientNavigationId)
+      return this.getMobileSessionTabsForWorktree(explicitWorktreeId, clientNavigationId, options)
     }
     const worktree = await this.resolveWorktreeSelector(worktreeSelector)
     this.hydrateHeadlessMobileSessionTabsFromWorkspaceSession(worktree.id, {
@@ -140,7 +141,7 @@ export abstract class OrcaRuntimeWithCollectMobileVisibleGraphChangedWorktrees e
     this.hydrateHeadlessMobileSessionTabsFromWorkspaceSession(worktree.id)
     await this.refreshMobileSessionPtyRecords()
     this.restoreLivePairedRendererSessionOwnedMobileTerminals(worktree.id)
-    return this.getMobileSessionTabsForWorktree(worktree.id, clientNavigationId)
+    return this.getMobileSessionTabsForWorktree(worktree.id, clientNavigationId, options)
   }
 
   async listAllMobileSessionTabs(

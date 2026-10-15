@@ -23,6 +23,7 @@ import {
   startOrcadManagedTunnel
 } from './orcad-managed-tunnel'
 import { recoverInterruptedOrcadActivation } from './orcad-activation-recovery'
+import { wakeAlreadyActiveOrcad } from './orcad-already-active-wake'
 import { readOrcadActivationRecord } from './orcad-activation-record-store'
 import { resolveOrcadRemoteContext, type OrcadRemoteContext } from './orcad-remote-context'
 import { deployOrcad } from './orcad-remote-deploy'
@@ -200,6 +201,9 @@ async function deployOwnOrcad(
         isForceableOrcadDeferral(deployResult.code) ||
         deployResult.code === ORCAD_ACTIVATION_POLICY_REFUSED_CODE
     }
+  }
+  if (deployResult.outcome === 'already-active') {
+    await wakeAlreadyActiveOrcad(slot)
   }
   const reprobe = () =>
     probeManagedOrcadReadiness(context, localOrcadDir, deployResult.fullVersion, args.signal)

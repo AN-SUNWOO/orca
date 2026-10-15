@@ -1,6 +1,7 @@
 // Window parity: for each stored profile, the window's startup hydration of the session as stored
 // and of the shared Loader's rewrite of it (load then save) must show the same thing. Where they
-// differ today, the difference is listed below with the Loader rule that causes it.
+// differ today, the difference is listed below with the Loader rule that causes it: as work to
+// do, or as accepted with the reason it is not a bug.
 
 import { describe, expect, it, vi } from 'vitest'
 import type * as AgentStatusModule from '@/lib/agent-status'
@@ -28,7 +29,7 @@ createStoreSessionMockApi()
 
 const GIT = 'repo-1::/Users/dev/orca'
 const terminal = (tabId: string) =>
-  ['title', 'panes', 'focused pane', 'reattaches'].map(
+  ['phone and CLI title', 'panes', 'focused pane', 'reattaches'].map(
     (field) => `${GIT} terminal ${tabId} ${field}`
   )
 
@@ -40,32 +41,58 @@ type KnownDifference = {
   paths: string[]
 }
 
-/** Today's differences. Entries may only be removed: fix the rule, then delete its entry. */
+/** Differences to fix. Entries may only be removed: fix the rule, then delete its entry. */
 const KNOWN_DIFFERENCES: readonly KnownDifference[] = [
   {
     fixture: 'row without a tab-bar entry or a terminal',
     rule: 'ghost tab: the Loader gives every row a tab-bar entry; the window adopts only rows it can reattach',
     paths: [`${GIT} group 0 tabs`, `${GIT} tab tab-b`, ...terminal('tab-b')]
-  },
+  }
+]
+
+type AcceptedDifference = Omit<KnownDifference, 'paths'> & {
+  reason: string
+  /** Each differing view path with its stored and normalized values; absent means not shown. */
+  values: Record<string, { stored?: unknown; normalized?: unknown }>
+}
+
+/** Differences that are not bugs: the user sees the same thing, or the window is the outlier. */
+const ACCEPTED_DIFFERENCES: readonly AcceptedDifference[] = [
   {
     fixture: 'row terminal differs from its focused pane’s',
     rule: 'row.ptyId rewrite: the Loader sets the row terminal to its focused pane’s, which changes what the tab reattaches',
-    paths: [`${GIT} terminal tab-a reattaches`]
+    reason: 'the pane’s own terminal binding wins on mount, so the user sees the same terminal',
+    values: { [`${GIT} terminal tab-a reattaches`]: { stored: 'pty-stale', normalized: 'pty-a' } }
   },
   {
     fixture: 'row with no terminal while its pane has one',
     rule: 'row.ptyId rewrite: the Loader sets the row terminal to its focused pane’s, which changes what the tab reattaches',
-    paths: [`${GIT} terminal tab-a reattaches`]
+    reason: 'the pane’s own terminal binding wins on mount, so the user sees the same terminal',
+    values: { [`${GIT} terminal tab-a reattaches`]: { stored: null, normalized: 'pty-a' } }
   },
   {
     fixture: 'legacy surface tombstone on a pane still showing its terminal',
     rule: 'tombstones: the Loader closes a pane a legacy surface tombstone names; the window ignores the tombstone and shows the pane',
-    paths: [`${GIT} group 0 tabs`, `${GIT} tab tab-b`, ...terminal('tab-b')]
+    reason: 'the window is the outlier: main already retires panes these tombstones name',
+    values: {
+      [`${GIT} group 0 tabs`]: { stored: ['tab-a', 'tab-b'], normalized: ['tab-a'] },
+      [`${GIT} tab tab-b`]: {
+        stored: { kind: 'terminal', shows: 'tab-b', group: 0, label: 'Terminal 2' }
+      },
+      [`${GIT} terminal tab-b phone and CLI title`]: { stored: 'Terminal 2' },
+      [`${GIT} terminal tab-b panes`]: { stored: { pane: 'pty-b' } },
+      [`${GIT} terminal tab-b focused pane`]: { stored: 'root' },
+      [`${GIT} terminal tab-b reattaches`]: { stored: 'pty-b' }
+    }
   },
   {
     fixture: 'tab-bar label differing from the row title',
-    rule: 'label over title: the Loader writes the tab-bar label into the row title the window shows',
-    paths: [`${GIT} terminal tab-a title`]
+    rule: 'label over title: the Loader writes the tab-bar label into the row title',
+    reason:
+      'the desktop tab shows the label, which is unchanged; only phones and the CLI show the row title',
+    values: {
+      [`${GIT} terminal tab-a phone and CLI title`]: { stored: 'Terminal 1', normalized: 'vim' }
+    }
   }
 ]
 
@@ -102,10 +129,25 @@ describe('the window shows the same session before and after the shared Loader r
       }
       const differences = diffStartupWindowViews(storedView, normalizedView)
       const known = KNOWN_DIFFERENCES.filter((entry) => entry.fixture === name)
+      const accepted = ACCEPTED_DIFFERENCES.filter((entry) => entry.fixture === name)
       expect(
         differences.map((difference) => difference.path).sort(),
         `window differences (stored vs normalized):\n${JSON.stringify(differences, null, 2)}`
-      ).toEqual(known.flatMap((entry) => entry.paths).sort())
+      ).toEqual(
+        [
+          ...known.flatMap((entry) => entry.paths),
+          ...accepted.flatMap((entry) => Object.keys(entry.values))
+        ].sort()
+      )
+      // An accepted difference stays accepted only while it shows exactly the recorded values.
+      const acceptedValues = Object.assign({}, ...accepted.map((entry) => entry.values))
+      expect(
+        Object.fromEntries(
+          differences
+            .filter((difference) => difference.path in acceptedValues)
+            .map(({ path, stored, normalized }) => [path, { stored, normalized }])
+        )
+      ).toEqual(acceptedValues)
     }
   )
 
@@ -137,6 +179,8 @@ describe('the window shows the same session before and after the shared Loader r
 
   it('lists differences only for fixtures that exist', () => {
     const names = new Set(PROFILES.map((profile) => profile.name))
-    expect(KNOWN_DIFFERENCES.filter((entry) => !names.has(entry.fixture))).toEqual([])
+    expect(
+      [...KNOWN_DIFFERENCES, ...ACCEPTED_DIFFERENCES].filter((entry) => !names.has(entry.fixture))
+    ).toEqual([])
   })
 })

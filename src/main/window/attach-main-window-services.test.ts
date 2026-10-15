@@ -156,7 +156,8 @@ vi.mock('../macos-tcc-prompt-notice', () => ({
   releasePendingTccPromptNotice: releasePendingTccPromptNoticeMock
 }))
 
-import { attachMainWindowServices } from './attach-main-window-services'
+import { attachMainWindowServices, registerUpdaterHandlers } from './attach-main-window-services'
+import { registerUpdaterHandlers as registerWindowUpdaterHandlers } from './main-window-updater'
 
 type MockFn = ReturnType<typeof vi.fn>
 
@@ -198,6 +199,10 @@ async function fireReadyToShow(mainWindow: MainWindowStub): Promise<void> {
 }
 
 describe('attachMainWindowServices', () => {
+  it('exports the updater handlers exercised by the recovery tests', () => {
+    expect(registerUpdaterHandlers).toBe(registerWindowUpdaterHandlers)
+  })
+
   afterEach(() => {
     cancelHistoryGc()
   })

@@ -52,7 +52,7 @@
 1 src/main/runtime/client-hosted-browser-page-persistence.ts
 1 src/main/runtime/mobile-session-editor-projection.ts
 3 src/main/runtime/mobile-session-layout-projection.ts
-2 src/main/runtime/orca-runtime-adopt-terminal-orphans-from-inventory.ts
+2 src/main/runtime/terminal/adoption/adopt-terminal-orphans-from-inventory.ts
 2 src/main/runtime/session-lifecycle/projection/apply-mobile-session-tab-navigation.ts
 2 src/main/runtime/session-graph/session-graph-promotion.ts
 2 src/main/runtime/session-lifecycle/projection/build-headless-mobile-session-browser-tabs.ts

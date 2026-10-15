@@ -17,6 +17,7 @@ import type {
 } from './runtime-mobile-session-tab-contracts'
 import type { CliStatusCaller } from './orchestration-caller-status'
 import type { RuntimeHostDescriptor } from './runtime-host-descriptor'
+import type { TuiAgent } from './tui-agent'
 
 export type * from './runtime-mobile-session-tab-contracts'
 
@@ -262,6 +263,8 @@ export type RuntimeMobileSessionRetiredTerminalSurface = {
 
 export type RuntimeMobileSessionTabsResult = {
   worktree: string
+  /** Query-only truth about an executing launch that owns this workspace's first surface. */
+  initialSurfaceLaunch?: { launchId: string; agent: TuiAgent }
   publicationEpoch: string
   snapshotVersion: number
   navigationIntent?: 'follow'

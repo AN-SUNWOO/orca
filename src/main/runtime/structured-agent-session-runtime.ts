@@ -51,10 +51,7 @@ import {
 import type { NativeChatShellEnvironmentPolicy } from '../../shared/native-chat-shell-environment'
 import { createStructuredAgentEnvironmentResolvers } from './structured-agent-shell-environment'
 import type { ClaudeStructuredAuthPolicy } from '../claude-accounts/claude-structured-auth-policy'
-import {
-  STRUCTURED_AGENT_RUNTIME_REGISTRATIONS,
-  type StructuredAgentAdapterContext
-} from './structured-agent-runtime-registrations'
+import type { StructuredAgentAdapterContext } from './structured-agent-runtime-registration-types'
 import { createStructuredAgentSessionLifecycleDelivery } from './structured-agent-session-lifecycle-delivery'
 import { createStructuredAgentSessionDispatchFollowUps } from './structured-agent-session-dispatch-followups'
 import { agentModelCatalogStore } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
@@ -304,6 +301,8 @@ async function installOnJournal(
     }),
     host: () => host
   }
+  const { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } =
+    await import('./structured-agent-runtime-registrations')
   const registrations = STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map(
     ({ definition, createAdapter }) => ({ definition, adapter: createAdapter(context) })
   )

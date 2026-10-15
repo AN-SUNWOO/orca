@@ -42,6 +42,8 @@ export type MobileNativeChatSession = {
   hasMore: boolean
   /** Whether an older-history page is currently loading. */
   loadingEarlier: boolean
+  /** The last older-history page the reader asked for never arrived. */
+  loadEarlierFailed?: boolean
   /** Grow the window to page in older history. Given the first row a list draws from some
    *  messages, it reads on until that row changes. */
   loadEarlier: (
@@ -55,6 +57,8 @@ const PAGE = 60
 const MAX_MESSAGES = 2000
 
 type PageWindow = { nextLimit: number; pageLimit: number }
+/** 'end': no older history, or the page was superseded; 'failed': it never arrived. */
+type PageOutcome = 'more' | 'end' | 'failed'
 
 /** The next older page, or null once the window holds the most it may. */
 function nextPageWindow(limit: number, listLength: number): PageWindow | null {
@@ -116,6 +120,7 @@ export function useMobileNativeChatSession(args: {
   const [error, setError] = useState<string | undefined>(undefined)
   const [hasMore, setHasMore] = useState(false)
   const [loadingEarlier, setLoadingEarlier] = useState(false)
+  const [loadEarlierFailed, setLoadEarlierFailed] = useState(false)
   const loadingEarlierRef = useRef(false)
   const beforeOffsetRef = useRef<number | null>(null)
   // Stateful id-dedup merger: caches the id→index map so each live append frame
@@ -154,6 +159,7 @@ export function useMobileNativeChatSession(args: {
     loadingEarlierRef.current = false
     snapshotSeenRef.current = false
     setLoadingEarlier(false)
+    setLoadEarlierFailed(false)
     setList([])
     setError(undefined)
     setHasMore(false)
@@ -205,9 +211,13 @@ export function useMobileNativeChatSession(args: {
           // follows is still this subscription's base, not a reconnect replay.
           snapshotSeenRef.current = true
         }
-        if (applied.windowReplaced || frame.type === 'snapshot') {
-          // Why: any authoritative window (and any replay merge) invalidates an
-          // in-flight older-page request; stale results must not land on it.
+        if (
+          applied.windowReplaced ||
+          (frame.type === 'snapshot' && beforeOffsetRef.current === null)
+        ) {
+          // Why: a replaced window fences an in-flight older page, and any replay fences a
+          // cursorless page, which replaces the list. A cursor page survives a contiguous
+          // replay; one that re-cut the cursor fails the page's own cursor check.
           streamGenerationRef.current += 1
           loadingEarlierRef.current = false
           setLoadingEarlier(false)
@@ -217,6 +227,7 @@ export function useMobileNativeChatSession(args: {
           // overlapping reconnect replay keeps the paged-in history and limit.
           limitRef.current = INITIAL_LIMIT
           beforeOffsetRef.current = applied.beforeOffset ?? null
+          setLoadEarlierFailed(false)
           setHasMore(applied.hasMore ?? applied.messages.length >= INITIAL_LIMIT)
         }
         setMessages(applied.messages)
@@ -255,11 +266,11 @@ export function useMobileNativeChatSession(args: {
       // apply this read's result onto the new session (mirrors desktop's guard).
       const requestSessionId = sessionId
       const requestGeneration = streamGenerationRef.current
-      const isCurrentRead = (): boolean =>
+      const ownsLatch = (): boolean =>
         sessionIdRef.current === requestSessionId &&
         streamGenerationRef.current === requestGeneration
-      /** Lands one older page; true when it landed and older history remains. */
-      const readPage = async ({ nextLimit, pageLimit }: PageWindow): Promise<boolean> => {
+      /** Lands one older page from the then-current cursor. */
+      const readPage = async ({ nextLimit, pageLimit }: PageWindow): Promise<PageOutcome> => {
         const beforeOffset = beforeOffsetRef.current
         const response = await nativeChatSessionPageRead.request(client, {
           agent,
@@ -270,19 +281,23 @@ export function useMobileNativeChatSession(args: {
         })
         const accepted = nativeChatSessionPageRead.interpret(response)
         if (!accepted.accepted) {
-          return false
+          return 'failed'
         }
         // The read is `z.unknown()` because the reply is a union, so an accepted success can still
         // carry no result at all, or null; `'error' in` throws on either.
         const payload = accepted.value
         if (payload === null || typeof payload !== 'object') {
-          return false
+          return 'failed'
         }
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: main cast this payload unread; the reader hands back the same result.
         const result = payload as ReadSessionResult
-        // Drop a stale resolve from a session that swapped underneath us.
-        if ('error' in result || !isCurrentRead()) {
-          return false
+        if ('error' in result) {
+          return 'failed'
+        }
+        // Lands only on the window and cursor it was asked from; otherwise the window it
+        // read against is gone, and the reader pages again from the new one.
+        if (!ownsLatch() || beforeOffsetRef.current !== beforeOffset) {
+          return 'end'
         }
         limitRef.current = nextLimit
         let more: boolean
@@ -296,7 +311,7 @@ export function useMobileNativeChatSession(args: {
           more = result.messages.length >= nextLimit
         }
         setHasMore(more)
-        return more
+        return more ? 'more' : 'end'
       }
       let page = nextPageWindow(limitRef.current, mergerRef.current.list.length)
       if (!page) {
@@ -305,14 +320,18 @@ export function useMobileNativeChatSession(args: {
       }
       loadingEarlierRef.current = true
       setLoadingEarlier(true)
+      setLoadEarlierFailed(false)
       void (async () => {
+        let failed = false
         try {
           // A page counts messages, but the reader sees folded rows: a tool run with no words that
           // fills a page draws nothing, so one tap reads on until a new row is drawn.
           const drawn = firstDrawnRowId?.(mergerRef.current.list)
           while (page) {
+            const outcome = await readPage(page)
+            failed = outcome === 'failed'
             if (
-              !(await readPage(page)) ||
+              outcome !== 'more' ||
               !firstDrawnRowId ||
               firstDrawnRowId(mergerRef.current.list) !== drawn
             ) {
@@ -322,15 +341,15 @@ export function useMobileNativeChatSession(args: {
           }
           setHasMore(false)
         } catch {
-          // Nothing awaits this page, so a rejected request — a transport drop, or the client
-          // abandoning it at teardown — would otherwise reach the document as an unhandled
-          // rejection. Swallowed to match the operation's own skip policy: a page that never
-          // arrives leaves the window the subscription already delivered.
+          // Contained here, not raised: nothing awaits this page, so a transport drop or a
+          // teardown abandon would reach the document as an unhandled rejection.
+          failed = true
         } finally {
-          // A late page from a prior tab must not unlock the current tab's request.
-          if (isCurrentRead()) {
+          // A late page from a prior tab must not unlock or flag the current tab's request.
+          if (ownsLatch()) {
             loadingEarlierRef.current = false
             setLoadingEarlier(false)
+            setLoadEarlierFailed(failed)
           }
         }
       })()
@@ -355,6 +374,7 @@ export function useMobileNativeChatSession(args: {
     error,
     hasMore,
     loadingEarlier,
+    loadEarlierFailed,
     loadEarlier
   }
 }

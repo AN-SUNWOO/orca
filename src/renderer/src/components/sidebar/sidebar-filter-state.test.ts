@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  computeClearFilterActions,
-  isSleepingSweepExemptionNarrowingList,
-  sidebarHasActiveFilters
-} from './visible-worktrees'
+import { computeClearFilterActions, sidebarHasActiveFilters } from './sidebar-filter-actions'
+import { isSleepingSweepExemptionNarrowingList } from '../../../../shared/workspace-view/workspace-row-filters'
 import { isDefaultBranchWorkspace } from '../../../../shared/worktree/workspace-kinds'
 import type { Worktree } from '../../../../shared/worktree/types'
 
@@ -141,16 +138,16 @@ describe('sidebarHasActiveFilters', () => {
 
 describe('isSleepingSweepExemptionNarrowingList', () => {
   it('is false while sleeping workspaces are shown, even when opted out', () => {
-    expect(isSleepingSweepExemptionNarrowingList(true, false)).toBe(false)
+    expect(isSleepingSweepExemptionNarrowingList(false, false)).toBe(false)
   })
 
   it('is true only when the sweep is on and the exemption is opted out', () => {
-    expect(isSleepingSweepExemptionNarrowingList(false, false)).toBe(true)
-    expect(isSleepingSweepExemptionNarrowingList(false, true)).toBe(false)
+    expect(isSleepingSweepExemptionNarrowingList(true, false)).toBe(true)
+    expect(isSleepingSweepExemptionNarrowingList(true, true)).toBe(false)
   })
 
   it('treats a missing flag as the on default', () => {
-    expect(isSleepingSweepExemptionNarrowingList(false, undefined)).toBe(false)
+    expect(isSleepingSweepExemptionNarrowingList(true, undefined)).toBe(false)
   })
 })
 

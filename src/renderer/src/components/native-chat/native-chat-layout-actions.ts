@@ -1,9 +1,10 @@
 import type { AppState } from '@/store/types'
 import { useAppStore } from '@/store'
-import {
-  canMoveTabToNewPaneColumnFromState,
-  moveTabToNewPaneColumn
-} from '@/components/tab-bar/tab-move-to-pane-column'
+import { isTuiAgent } from '../../../../shared/tui-agent-config'
+import { structuredAgentSessionOwnerForTab } from '@/runtime/structured-agent-session-owner'
+import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
+import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
+import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
 import { requestActiveTerminalPaneSplit } from '@/components/tab-bar/request-active-terminal-pane-split'
 import type { NativeChatSplitDirection } from './native-chat-split-shortcut'
 
@@ -39,10 +40,26 @@ export function canRunNativeChatSplitTarget(
   if (!target) {
     return false
   }
-  return (
-    target.kind === 'terminal-pane' ||
-    canMoveTabToNewPaneColumnFromState(state, target.unifiedTabId, target.groupId)
-  )
+  return target.kind === 'terminal-pane' || findSplitSource(state, target) !== null
+}
+
+function findSplitSource(
+  state: Pick<AppState, 'groupsByWorktree' | 'unifiedTabsByWorktree'>,
+  target: Extract<NativeChatSplitTarget, { kind: 'workspace-tab' }>
+) {
+  for (const [worktreeId, tabs] of Object.entries(state.unifiedTabsByWorktree)) {
+    const tab = tabs.find(
+      (candidate) => candidate.id === target.unifiedTabId && candidate.groupId === target.groupId
+    )
+    if (
+      tab?.contentType === 'agent-session' &&
+      isTuiAgent(tab.agentSessionAgent) &&
+      state.groupsByWorktree[worktreeId]?.some((group) => group.id === target.groupId)
+    ) {
+      return { tab, worktreeId, agent: tab.agentSessionAgent }
+    }
+  }
+  return null
 }
 
 export function runNativeChatSplitTarget(
@@ -56,11 +73,42 @@ export function runNativeChatSplitTarget(
     })
     return true
   }
-  return moveTabToNewPaneColumn({
-    unifiedTabId: target.unifiedTabId,
-    groupId: target.groupId,
-    direction
-  })
+  const state = useAppStore.getState()
+  const source = findSplitSource(state, target)
+  if (!source) {
+    return false
+  }
+  const executionHostId = structuredAgentSessionOwnerForTab(state, source.tab)
+  if (!executionHostId) {
+    return false
+  }
+  const groupId = state.createEmptySplitGroup(source.worktreeId, target.groupId, direction)
+  if (!groupId) {
+    return false
+  }
+  try {
+    const launch = beginStructuredAgentSessionProvisionalLaunch({
+      plan: adoptAgentSessionLaunchVerdict({
+        route: 'structured-native-chat',
+        requestId: newAgentLaunchRequestId(),
+        agent: source.agent,
+        worktreeId: source.worktreeId,
+        executionHostId
+      }),
+      hooks: {},
+      targetGroupId: groupId
+    })
+    if (!launch) {
+      state.closeEmptyGroup(source.worktreeId, groupId)
+      return false
+    }
+    // The normal new-chat launch founds an idle conversation; sending starts the agent.
+    void launch.settlement.finally(() => state.closeEmptyGroup(source.worktreeId, groupId))
+    return true
+  } catch (error) {
+    state.closeEmptyGroup(source.worktreeId, groupId)
+    throw error
+  }
 }
 
 export function runActiveNativeChatSplit(

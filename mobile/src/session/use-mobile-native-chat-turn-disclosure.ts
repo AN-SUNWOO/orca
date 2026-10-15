@@ -13,7 +13,6 @@ import {
 } from '../../../src/shared/native-chat-turn-membership'
 import { nativeChatMessagesWaitingBehindLiveTurn } from '../../../src/shared/native-chat-messages-waiting-behind-live-turn'
 import { NATIVE_CHAT_STREAMING_ID } from '../../../src/shared/native-chat-streaming'
-import type { NativeChatReplyReveals } from '../../../src/shared/native-chat-reply-reveals'
 import {
   nativeChatRowsInDrawOrder,
   nativeChatTurnBarRows
@@ -22,7 +21,6 @@ import {
   useMobileNativeChatTurnStatus,
   type NativeChatTurnStatus
 } from './use-mobile-native-chat-turn-status'
-import { useMobileNativeChatReplyReveals } from './mobile-native-chat-reply-reveals'
 
 const EMPTY_TURN_IDS: ReadonlySet<string> = new Set()
 const NO_TURN_KEYS: readonly undefined[] = []
@@ -47,8 +45,6 @@ export type MobileNativeChatTurnRow = {
    *  toggle re-renders roster rows alone. */
   subagentGroupsOpen?: ReadonlySet<string>
   onToggleSubagentGroup: (groupId: string) => void
-  /** The same object every render of a chat, so it never disturbs a row's memo. */
-  replyReveals: NativeChatReplyReveals
 }
 
 /** The live activity line, when it draws, and whether the reader opened the block it discloses. */
@@ -208,7 +204,6 @@ export function useMobileNativeChatTurnDisclosure({
       },
     [expandedReasoning, line]
   )
-  const replyReveals = useMobileNativeChatReplyReveals(waiting.listMessages, scopeKey)
   const latestAssistantId = useMemo(
     () => waiting.listMessages.findLast((row) => row.role === 'assistant')?.id ?? null,
     [waiting.listMessages]
@@ -249,8 +244,7 @@ export function useMobileNativeChatTurnDisclosure({
         ...(message.blocks.some(isSubagentGroupBlock)
           ? { subagentGroupsOpen: openSubagentGroups }
           : {}),
-        onToggleSubagentGroup: toggleSubagentGroup,
-        replyReveals
+        onToggleSubagentGroup: toggleSubagentGroup
       }
     },
     [
@@ -270,8 +264,7 @@ export function useMobileNativeChatTurnDisclosure({
       toggleReasoning,
       openSubagentGroups,
       toggleSubagentGroup,
-      isWorking,
-      replyReveals
+      isWorking
     ]
   )
 

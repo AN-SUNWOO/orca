@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import {
   createNativeChatReplyRevealTracker,
-  trackNativeChatReplyRows,
-  type NativeChatReplyReveals
+  trackNativeChatReplyRows
 } from '../../../src/shared/native-chat-reply-reveals'
-import { NATIVE_CHAT_TEXT_REVEAL_DELAY_MS as D } from '../../../src/shared/native-chat-text-reveal'
-import { MobileNativeChatReducedMotionContext } from './mobile-native-chat-reply-reveals'
+import { NATIVE_CHAT_TEXT_REVEAL_DELAY_MS } from '../../../src/shared/native-chat-text-reveal'
+import {
+  MobileNativeChatReplyRevealsContext,
+  type MobileNativeChatReplyReveals
+} from './mobile-native-chat-reply-reveals'
 
 vi.mock('react-native', () => ({
   Image: 'Image',
@@ -25,14 +27,15 @@ vi.mock('../platform/clipboard', () => ({ useClipboardWriter: () => ({ writeText
 
 import { MobileNativeChatMessage } from './MobileNativeChatMessage'
 
+const DELAY = NATIVE_CHAT_TEXT_REVEAL_DELAY_MS
 const first = 'word '.repeat(40)
 const second = first + 'more '.repeat(40)
 
 describe('a growing reply on the phone', () => {
   let renderer: ReactTestRenderer | undefined
-  let reveals: NativeChatReplyReveals
+  let chat: MobileNativeChatReplyReveals
 
-  function render(text: string, reducedMotion = false): void {
+  function render(text: string): void {
     const message: NativeChatMessage = {
       id: 'a1',
       role: 'assistant',
@@ -43,14 +46,9 @@ describe('a growing reply on the phone', () => {
     const row = createElement(MobileNativeChatMessage, {
       message,
       mayStillGrow: true,
-      activeTurnIsWorking: true,
-      replyReveals: reveals
+      activeTurnIsWorking: true
     })
-    const tree = createElement(
-      MobileNativeChatReducedMotionContext.Provider,
-      { value: reducedMotion },
-      row
-    )
+    const tree = createElement(MobileNativeChatReplyRevealsContext.Provider, { value: chat }, row)
     act(() => {
       if (renderer) {
         renderer.update(tree)
@@ -59,58 +57,65 @@ describe('a growing reply on the phone', () => {
       }
     })
   }
-  const drawn = (): number => {
+  function drawn(): number {
     const markdown = renderer!.root.find((node) => String(node.type) === 'MobileMarkdown')
     return String(markdown.props.content).length
   }
-  const advance = (ms: number): void => {
+  function advance(ms: number): void {
     act(() => {
       vi.advanceTimersByTime(ms)
     })
   }
+  function remount(text: string): void {
+    act(() => renderer?.unmount())
+    renderer = undefined
+    render(text)
+  }
 
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.spyOn(performance, 'now').mockImplementation(() => Date.now())
     vi.stubGlobal('requestAnimationFrame', (step: () => void) => setTimeout(step, 16))
     vi.stubGlobal('cancelAnimationFrame', (frame: number) => clearTimeout(frame))
     // A reply that began while the chat was open.
     const tracker = createNativeChatReplyRevealTracker()
     trackNativeChatReplyRows(tracker, ['u1'], new Set(['u1']))
-    reveals = trackNativeChatReplyRows(tracker, ['u1', 'a1'], new Set(['u1', 'a1']))
+    const reveals = trackNativeChatReplyRows(tracker, ['u1', 'a1'], new Set(['u1', 'a1']))
+    chat = { ...reveals, reducedMotion: false }
   })
   afterEach(() => {
     act(() => renderer?.unmount())
     renderer = undefined
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
   it('reveals each chunk over time, and a remounted row resumes instead of replaying', () => {
     render(first)
     expect(drawn()).toBe('word'.length)
-    advance(D / 2)
+    advance(DELAY / 2)
     expect(drawn()).toBeGreaterThan('word'.length)
     expect(drawn()).toBeLessThan(first.length)
-    advance(D)
+    advance(DELAY)
     expect(drawn()).toBe(first.length)
 
     render(second)
-    advance(D / 2)
+    advance(DELAY / 2)
     const before = drawn()
     expect(before).toBeGreaterThan(first.length)
     expect(before).toBeLessThan(second.length)
     // The list recycles the row while it is still revealing.
-    act(() => renderer?.unmount())
-    renderer = undefined
-    render(second)
+    remount(second)
     expect(drawn()).toBeGreaterThanOrEqual(before)
     expect(drawn()).toBeLessThan(second.length)
-    advance(D)
+    advance(DELAY)
     expect(drawn()).toBe(second.length)
   })
 
   it('draws the text as it arrives with reduced motion', () => {
-    render(second, true)
+    chat = { ...chat, reducedMotion: true }
+    render(second)
     expect(drawn()).toBe(second.length)
   })
 })

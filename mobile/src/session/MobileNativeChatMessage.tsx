@@ -37,7 +37,6 @@ import {
   type MobileNativeChatVisualRender
 } from './mobile-native-chat-visual-context'
 import { MobileNativeChatPacedMarkdown } from './MobileNativeChatPacedMarkdown'
-import type { NativeChatReplyReveals } from '../../../src/shared/native-chat-reply-reveals'
 
 function Prose({
   block,
@@ -48,7 +47,7 @@ function Prose({
   onLongPress,
   renderVisual,
   growing = false,
-  replyReveals
+  paced = false
 }: {
   block: NativeChatBlock
   rowKey: string
@@ -56,9 +55,10 @@ function Prose({
   fontScale: number
   /** Assistant prose of a structured chat only. */
   renderVisual?: MobileNativeChatVisualRender
-  /** The reply may still be growing: it is paced, and a directive still being typed is held back. */
+  /** The reply may still be growing: a directive still being typed at its tail is held back. */
   growing?: boolean
-  replyReveals?: NativeChatReplyReveals
+  /** The reply's last prose: the one block that can still be written. */
+  paced?: boolean
   onOpenFile?: (relativePath: string) => void
   /** Android only: routes a long press on a link span to the row's actions sheet. */
   onLongPress?: () => void
@@ -92,7 +92,7 @@ function Prose({
         rowKey={rowKey}
         text={block.text}
         streaming={growing}
-        replyReveals={replyReveals}
+        paced={paced}
         renderVisual={renderVisual}
         rangeSelectable
         textScale={1.25 * fontScale}
@@ -142,8 +142,7 @@ function MobileNativeChatMessageImpl({
   onToggleReasoning,
   unsentNotice,
   subagentGroupsOpen,
-  onToggleSubagentGroup,
-  replyReveals
+  onToggleSubagentGroup
 }: {
   message: NativeChatMessage
   /** The newest assistant row of a live turn with no prompt open: its last text may still grow. */
@@ -176,8 +175,6 @@ function MobileNativeChatMessageImpl({
   /** The roster groups the reader opened, held by the transcript; only a roster row gets it. */
   subagentGroupsOpen?: ReadonlySet<string>
   onToggleSubagentGroup?: (groupId: string) => void
-  /** The list's reveals: the reply's last block is drawn at a reading pace while it grows. */
-  replyReveals?: NativeChatReplyReveals
 }): React.JSX.Element {
   // Another agent's message is set apart from the person's bubble, left-aligned and named.
   const attribution = agentMessageAttribution('Message from', message.from)
@@ -311,7 +308,7 @@ function MobileNativeChatMessageImpl({
                 renderVisual={message.role === 'assistant' ? renderVisual : undefined}
                 rowKey={message.id}
                 growing={block === growingBlock}
-                replyReveals={block === pacedBlock ? replyReveals : undefined}
+                paced={block === pacedBlock}
               />
             )
           )}

@@ -8,8 +8,10 @@ import { useMobileNativeChatStreamingBubble } from './use-mobile-native-chat-str
 import { useMobileNativeChatComposerTray } from './use-mobile-native-chat-composer-tray'
 import { useMobileNativeChatVisualRenderer } from './MobileNativeChatVisual'
 import { MobileNativeChatVisualContext } from './mobile-native-chat-visual-context'
-import { MobileNativeChatReducedMotionContext } from './mobile-native-chat-reply-reveals'
-import { useReducedMotionEnabled } from '../hooks/use-reduced-motion'
+import {
+  MobileNativeChatReplyRevealsContext,
+  useMobileNativeChatReplyReveals
+} from './mobile-native-chat-reply-reveals'
 
 type Props = {
   controller: MobileNativeChatController
@@ -86,15 +88,14 @@ export function MobileNativeChatOverlay({
     backgroundTasks: controller.nativeChatBackgroundTasks
   })
   const visuals = useMobileNativeChatVisualRenderer(controller.nativeChatVisualSource)
-  // Until the OS answers, text draws as it arrives.
-  const reducedMotion = useReducedMotionEnabled() !== false
+  const replyReveals = useMobileNativeChatReplyReveals(folded, streaming !== null, sendSurfaceId)
   if (!controller.showNativeChat) {
     return null
   }
   return (
     <View style={styles.overlay}>
       <MobileNativeChatVisualContext.Provider value={visuals}>
-        <MobileNativeChatReducedMotionContext.Provider value={reducedMotion}>
+        <MobileNativeChatReplyRevealsContext.Provider value={replyReveals}>
           <MobileNativeChatView
             messages={session.messages}
             folded={folded}
@@ -159,7 +160,7 @@ export function MobileNativeChatOverlay({
             sessionOptions={controller.nativeChatSessionOptions}
             keyboardInset={keyboardInset}
           />
-        </MobileNativeChatReducedMotionContext.Provider>
+        </MobileNativeChatReplyRevealsContext.Provider>
       </MobileNativeChatVisualContext.Provider>
     </View>
   )

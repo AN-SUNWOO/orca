@@ -5,8 +5,7 @@ import {
   startNativeChatTextReveal,
   type NativeChatTextRevealFrames
 } from '../../../src/shared/native-chat-text-reveal'
-import type { NativeChatReplyReveals } from '../../../src/shared/native-chat-reply-reveals'
-import { MobileNativeChatReducedMotionContext } from './mobile-native-chat-reply-reveals'
+import { MobileNativeChatReplyRevealsContext } from './mobile-native-chat-reply-reveals'
 
 const FRAMES: NativeChatTextRevealFrames = {
   now: () => performance.now(),
@@ -16,14 +15,16 @@ const FRAMES: NativeChatTextRevealFrames = {
 
 export type MobileNativeChatPacedText = { text: string; revealing: boolean }
 
-/** How much of a reply to draw now. Without its list, or with reduced motion, all of it. */
+/** How much of a reply to draw now: all of it unless `paced` in a chat with motion allowed. */
 export function useMobileNativeChatPacedText(
   rowKey: string,
   text: string,
   streaming: boolean,
-  list: NativeChatReplyReveals | undefined
+  paced: boolean
 ): MobileNativeChatPacedText {
-  const immediate = useContext(MobileNativeChatReducedMotionContext) || list === undefined
+  const chat = useContext(MobileNativeChatReplyRevealsContext)
+  const list = paced ? (chat ?? undefined) : undefined
+  const immediate = list === undefined || list.reducedMotion
   const [initial] = useState(() =>
     startNativeChatTextReveal(
       text,

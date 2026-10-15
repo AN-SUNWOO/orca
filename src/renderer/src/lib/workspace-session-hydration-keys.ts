@@ -159,8 +159,9 @@ export function collectWorktreeHydrationRepoIdsFromSession(
   // enumeration so hydrateWorkspaceSession can restore its main worktree from worktreesByRepo.
   addWorktreeRepoId(session.activeRepoId)
   for (const record of readStructuredAgentLaunchRecords()) {
-    if (record.executionHostId === 'local' && record.surfaceAddress)
+    if (record.executionHostId === 'local' && record.surfaceAddress) {
       addWorktreeRepoId(record.surfaceAddress.worktreeId)
+    }
   }
 
   return [...repoIds].filter(Boolean).sort()

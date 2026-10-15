@@ -9,7 +9,6 @@ import type {
 } from '@/lib/structured-agent-launch-settlement'
 import { useAppStore } from '@/store'
 import type { ExecutionHostId } from '../../../shared/execution-host'
-import type { TuiAgent } from '../../../shared/tui-agent'
 import {
   beginHostAdmittedStructuredLaunch,
   openDeclinedStructuredLaunchTerminal,
@@ -19,7 +18,6 @@ import {
 } from '@/lib/structured-agent-session-launch-admission'
 import {
   resolveStructuredAgentSessionOwner,
-  structuredAgentSessionFocusOwner,
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'

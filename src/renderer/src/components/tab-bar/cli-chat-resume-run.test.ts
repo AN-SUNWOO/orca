@@ -49,7 +49,7 @@ import {
 import {
   reserveStructuredLaunchSlot,
   restoreStructuredLaunchSurfaces,
-  resetStructuredLaunchSurfaceForTests
+  stopStructuredLaunchSlotTracking
 } from '@/lib/structured-agent-session-launch-surface'
 import { applyStructuredSessionTabSnapshots } from '@/runtime/local-structured-session-tabs-sync/snapshot-apply'
 import { resetLocalStructuredSessionVersionForTests } from '@/runtime/local-structured-session-tabs-sync/inventory-generation-fence'
@@ -67,6 +67,7 @@ import {
 import { isEmptyWorkspaceDefaultSurfacePending } from '@/lib/empty-workspace-default-surface-claims'
 import {
   clearWebSessionFocusIntent,
+  peekWebSessionFocusIntent,
   resetWebSessionFocusIntentForTests
 } from '@/runtime/web-session-focus-intent'
 import { structuredAgentSessionFocusOwner } from '@/runtime/structured-agent-session-owner'
@@ -102,7 +103,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   resetLocalStructuredSessionVersionForTests()
   resetWebSessionTabsSnapshotFreshnessForTests()
-  resetStructuredLaunchSurfaceForTests()
+  stopStructuredLaunchSlotTracking()
   localStorage.clear()
   resetStructuredAgentLaunchPersistenceForTests()
   resetStructuredAgentLaunchRegistryForTests()
@@ -293,7 +294,9 @@ describe('CLI identity resume through the existing launch owner', () => {
         split: { splitDirection: 'right', sourceGroupId: e.groupId }
       })
       clearWebSessionFocusIntent(structuredAgentSessionFocusOwner({ kind: 'local' }), 'wt-1')
-      if (first === 'inventory') applyStructuredSessionTabSnapshots([snapshot(sessionId)])
+      if (first === 'inventory') {
+        applyStructuredSessionTabSnapshots([snapshot(sessionId)])
+      }
       reply.resolve({ ok: true, value: { sessionId, fence: 1 } })
       await running
       expect(
@@ -349,7 +352,7 @@ describe('CLI identity resume through the existing launch owner', () => {
     writeStructuredAgentLaunchRecord(record)
     reserveStructuredLaunchSlot(record)
     const session = buildWorkspaceSessionPayload(useAppStore.getState())
-    resetStructuredLaunchSurfaceForTests()
+    stopStructuredLaunchSlotTracking()
     resetStructuredAgentLaunchPersistenceForTests()
     resetStructuredAgentLaunchRegistryForTests()
     useAppStore.setState(useAppStore.getInitialState(), true)
@@ -361,6 +364,9 @@ describe('CLI identity resume through the existing launch owner', () => {
     restoreStructuredLaunchSurfaces()
     applyStructuredSessionTabSnapshots([snapshot()])
     expect(mocks.call).not.toHaveBeenCalled()
+    expect(
+      peekWebSessionFocusIntent(structuredAgentSessionFocusOwner({ kind: 'local' }), 'wt-1')
+    ).toBeNull()
     expect(tabs()).toHaveLength(1)
     expect(getStructuredAgentSessionLaunchLifecycle('wt-1', 'reload-pending')).toBe(
       'visibility-unknown'

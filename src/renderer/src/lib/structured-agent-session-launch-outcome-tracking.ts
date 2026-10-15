@@ -73,7 +73,9 @@ export function trackLaunchSettlement(
       if (state.promise !== promise) {
         return
       }
-      if (state.cancelled) return
+      if (state.cancelled) {
+        return
+      }
       materializeStructuredLaunchSurface(state.intent)
       settleStructuredLaunchCallers(state.callers, 'published')
       notifyStructuredLaunchListeners()

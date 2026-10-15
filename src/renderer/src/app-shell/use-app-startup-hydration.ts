@@ -273,11 +273,11 @@ export function useAppStartupHydration(onOnboardingLoaded: (state: OnboardingSta
           await timeRendererStartupStep('recover-legacy-worker-terminals-pre-reconnect', () =>
             window.api.app.recoverLegacyWorkerTerminalsForRendererStartup()
           )
-          await timeRendererStartupStep('terminal-provider-snapshot-capabilities', () => {
-            return refreshTerminalProviderSnapshotCapabilities(
+          await timeRendererStartupStep('terminal-provider-snapshot-capabilities', () =>
+            refreshTerminalProviderSnapshotCapabilities(
               collectTerminalProviderSnapshotPtyIds(useAppStore.getState())
             )
-          })
+          )
           reconnectStarted = true
           await timeRendererStartupStep('reconnect-terminals', () =>
             actions.reconnectPersistedTerminals(abortController.signal)

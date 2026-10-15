@@ -56,32 +56,32 @@ export function captureStructuredLaunchSurfaceAddress(
 
 let stopTrackingSlots: (() => void) | undefined
 
-export function resetStructuredLaunchSurfaceForTests(): void {
+export function stopStructuredLaunchSlotTracking(): void {
   stopTrackingSlots?.()
   stopTrackingSlots = undefined
 }
 
 function trackSlotAddresses(): void {
   stopTrackingSlots ??= useAppStore.subscribe((state, previous) => {
-    if (state.groupsByWorktree === previous.groupsByWorktree) return
-    const records = readStructuredAgentLaunchRecords().filter(
-      (record) =>
-        record.surfaceAddress &&
-        record.executionHostId === 'local' &&
-        !state.unifiedTabsByWorktree[record.surfaceAddress.worktreeId]?.some(
-          (tab) => tab.id === structuredAgentSessionTabId(record.sessionId)
-        )
-    )
-    if (records.length === 0) resetStructuredLaunchSurfaceForTests()
-    for (const record of records) {
+    if (state.groupsByWorktree === previous.groupsByWorktree) {
+      return
+    }
+    let hasHiddenSlot = false
+    for (const record of readStructuredAgentLaunchRecords()) {
       const address = record.surfaceAddress
-      if (!address || record.executionHostId !== 'local') continue
+      if (!address || record.executionHostId !== 'local') {
+        continue
+      }
       const tabId = structuredAgentSessionTabId(record.sessionId)
-      if (state.unifiedTabsByWorktree[address.worktreeId]?.some((tab) => tab.id === tabId)) continue
+      if (state.unifiedTabsByWorktree[address.worktreeId]?.some((tab) => tab.id === tabId)) {
+        continue
+      }
+      hasHiddenSlot = true
       if (
         state.groupsByWorktree[address.worktreeId] === previous.groupsByWorktree[address.worktreeId]
-      )
+      ) {
         continue
+      }
       const group = state.groupsByWorktree[address.worktreeId]?.find((entry) =>
         entry.tabOrder.includes(tabId)
       )
@@ -91,19 +91,28 @@ function trackSlotAddresses(): void {
         precedingTabIds: group ? group.tabOrder.slice(0, group.tabOrder.indexOf(tabId)) : []
       }
       const launch = getStructuredLaunchStateBySessionId(record.sessionId)
-      if (launch) launch.intent.surfaceAddress = surfaceAddress
+      if (launch) {
+        launch.intent.surfaceAddress = surfaceAddress
+      }
       writeStructuredAgentLaunchRecord({ ...record, surfaceAddress })
+    }
+    if (!hasHiddenSlot) {
+      stopStructuredLaunchSlotTracking()
     }
   })
 }
 
 export function reserveStructuredLaunchSlot(launch: LaunchSurface): void {
   const address = launch.surfaceAddress
-  if (!address || launch.executionHostId !== 'local') return
+  if (!address || launch.executionHostId !== 'local') {
+    return
+  }
   const state = useAppStore.getState()
   const tabId = structuredAgentSessionTabId(launch.sessionId)
   const groups = state.groupsByWorktree[address.worktreeId] ?? []
-  if (groups.some((group) => group.tabOrder.includes(tabId))) return
+  if (groups.some((group) => group.tabOrder.includes(tabId))) {
+    return
+  }
   const { group, groupsByWorktree, activeGroupIdByWorktree } = ensureGroup(
     state.groupsByWorktree,
     state.activeGroupIdByWorktree,
@@ -128,7 +137,7 @@ export function reserveStructuredLaunchSlot(launch: LaunchSurface): void {
       (id) =>
         !state.unifiedTabsByWorktree[address.worktreeId]?.find((tab) => tab.id === id)?.isPinned
     )
-    order.splice(firstUnpinned < 0 ? order.length : firstUnpinned, 0, tabId)
+    order.splice(firstUnpinned === -1 ? order.length : firstUnpinned, 0, tabId)
   }
   trackSlotAddresses()
   useAppStore.setState({
@@ -152,9 +161,13 @@ export function reserveStructuredLaunchSlot(launch: LaunchSurface): void {
 export function removeStructuredLaunchSlot(worktreeId: string, sessionId: string): void {
   const state = useAppStore.getState()
   const tabId = structuredAgentSessionTabId(sessionId)
-  if (state.unifiedTabsByWorktree[worktreeId]?.some((tab) => tab.id === tabId)) return
+  if (state.unifiedTabsByWorktree[worktreeId]?.some((tab) => tab.id === tabId)) {
+    return
+  }
   const groups = state.groupsByWorktree[worktreeId] ?? []
-  if (!groups.some((group) => group.tabOrder.includes(tabId))) return
+  if (!groups.some((group) => group.tabOrder.includes(tabId))) {
+    return
+  }
   useAppStore.setState({
     groupsByWorktree: {
       ...state.groupsByWorktree,
@@ -207,13 +220,17 @@ export function openStructuredAgentSessionProvisionalTab(args: {
       (address?.worktreeId === args.worktreeId ? address.targetGroupId : args.targetGroupId),
     activate: args.activate !== false
   })
-  if (args.activate !== false) state.setActiveTabType('agent-session', args.worktreeId)
+  if (args.activate !== false) {
+    state.setActiveTabType('agent-session', args.worktreeId)
+  }
   return tab
 }
 
 export function materializeStructuredLaunchSurface(launch: LaunchSurface, activate?: false): void {
   const address = launch.surfaceAddress
-  if (!address || launch.executionHostId !== 'local') return
+  if (!address || launch.executionHostId !== 'local') {
+    return
+  }
   const state = useAppStore.getState()
   const owner = structuredAgentSessionFocusOwner({ kind: 'local' })
   const hostTabId = `agent-session:${launch.sessionId}`
@@ -228,7 +245,9 @@ export function materializeStructuredLaunchSurface(launch: LaunchSurface, activa
         focus.expectedCurrentLocalTabId ===
           resolveWebSessionVisibleTabId(state, address.worktreeId))
   })
-  if (activate !== false) clearWebSessionFocusIntentIfMatches(owner, address.worktreeId, hostTabId)
+  if (activate !== false) {
+    clearWebSessionFocusIntentIfMatches(owner, address.worktreeId, hostTabId)
+  }
 }
 
 export function restoreStructuredLaunchSurfaces(): void {
@@ -244,8 +263,9 @@ export function restoreStructuredLaunchSurfaces(): void {
       !record.surfaceAddress ||
       !validWorkspaces.has(record.surfaceAddress.worktreeId) ||
       getExecutionHostIdForWorktree(state, record.surfaceAddress.worktreeId) !== 'local'
-    )
+    ) {
       continue
+    }
     reserveStructuredLaunchSlot(record)
     materializeStructuredLaunchSurface(record, false)
   }

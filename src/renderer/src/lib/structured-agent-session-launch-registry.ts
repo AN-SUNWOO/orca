@@ -226,6 +226,9 @@ function markStructuredAgentSessionLaunchCancelledInternal(
 ): boolean {
   const alreadyCancelled = hasStructuredAgentLaunchCancellationTombstonePersisted(sessionId)
   const state = getStructuredLaunchStateBySessionId(sessionId)
+  const surfaceAddress =
+    state?.intent.surfaceAddress ??
+    getPersistedStructuredAgentLaunchRecord(sessionId)?.surfaceAddress
   if (matchesLaunchWorktree(state, worktreeId) && state) {
     // The launch's own owner outranks the caller's: it is the host the create was sent to.
     markStructuredAgentLaunchCancellation(
@@ -242,7 +245,9 @@ function markStructuredAgentSessionLaunchCancelledInternal(
   } else if (!alreadyCancelled) {
     markStructuredAgentLaunchCancellation(sessionId, executionHostId, alreadyCancelled)
   }
-  if (notify) removeStructuredLaunchSlot(worktreeId, sessionId)
+  if (notify && surfaceAddress) {
+    removeStructuredLaunchSlot(worktreeId, sessionId)
+  }
   if (!alreadyCancelled && notify) {
     notifyStructuredLaunchListeners()
   }

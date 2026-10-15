@@ -74,6 +74,7 @@ export function NativeChatResumeInCliButton({
           type="button"
           variant="ghost"
           size="icon-xs"
+          // oxlint-disable-next-line shadcn/no-restyle -- Reuses the terminal header control geometry and hover/active reveal.
           className="pane-title-split-trigger"
           aria-label={label}
           disabled={pending}

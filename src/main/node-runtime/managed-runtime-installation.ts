@@ -247,12 +247,7 @@ export class ManagedRuntimeInstallation {
       const archive = join(staging, basename(new URL(pin.url).pathname))
       let shownAt = 0
       await downloadVerifiedArchive(
-        {
-          label,
-          url: pin.url,
-          archiveSha256: pin.archiveSha256,
-          maxArchiveBytes: pin.archiveBytes
-        },
+        { ...pin, label, maxArchiveBytes: pin.archiveBytes },
         archive,
         this.deps.fetcher ?? getMainHttpClient().fetch,
         signal,

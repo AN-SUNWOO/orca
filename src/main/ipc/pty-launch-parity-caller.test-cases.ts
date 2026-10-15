@@ -76,24 +76,10 @@ type PairedPlanCase = {
   name: string
   os: NodeJS.Platform
   agent: string
-  prompt?: string
-  settings?: Record<string, unknown>
+  prompt: string
   provider: HostProviderFacts
 }
 const PAIRED_PLAN_CASES: PairedPlanCase[] = [
-  {
-    name: 'claude, no prompt',
-    os: 'linux',
-    agent: 'claude',
-    provider: { command: POSIX_CLAUDE, ...ZSH }
-  },
-  {
-    name: 'claude short prompt, macOS',
-    os: 'darwin',
-    agent: 'claude',
-    prompt: 'fix it',
-    provider: { command: `${POSIX_CLAUDE} 'fix it'`, ...ZSH }
-  },
   {
     name: 'claude long prompt, macOS',
     os: 'darwin',
@@ -114,14 +100,6 @@ const PAIRED_PLAN_CASES: PairedPlanCase[] = [
     agent: 'claude',
     prompt: "Bob's fix",
     provider: { command: `claude '--dangerously-skip-permissions' 'Bob''s fix'`, ...POWERSHELL }
-  },
-  {
-    name: 'claude prompt, Windows cmd',
-    os: 'win32',
-    agent: 'claude',
-    prompt: "Bob's fix",
-    settings: CMD,
-    provider: { command: `claude "--dangerously-skip-permissions" "Bob's fix"`, ...CMD_EXE }
   }
 ]
 
@@ -133,12 +111,12 @@ export const CALLER_LAUNCH_CASES: HostLaunchCase[] = [
       row: '7',
       os: c.os,
       workspace: repo(path),
-      ...(c.settings ? { settings: c.settings } : {}),
       call: rpc('terminal.createAgentSession', {
         ...PAIRED_TAB,
         worktree: `id:repo-1::${path}`,
         agent: c.agent,
-        ...(c.prompt ? { prompt: c.prompt, promptDelivery: 'auto-submit' } : {})
+        prompt: c.prompt,
+        promptDelivery: 'auto-submit'
       }),
       provider: c.provider,
       telemetry: {

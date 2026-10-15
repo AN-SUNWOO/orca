@@ -15,6 +15,9 @@ export type MobileNativeChatRowKeys = {
   keyOf: (message: NativeChatMessage) => string
   /** The key now drawing what a key of the last render drew; undefined once all of it left. */
   current: (key: string) => string | undefined
+  /** The folded message a key's row is drawn for, which sets where the row sits: a roster keeps its
+   *  key while the fold moves it to an older sibling's place. */
+  placement: (key: string) => string
 }
 
 type Sources = { identity: string[]; content: string[] }
@@ -159,12 +162,14 @@ export function useMobileNativeChatRowKeys(
   useLayoutEffect(() => {
     committed.current = assigned
   }, [assigned])
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    let idByKey: Map<string, string> | undefined
+    return {
       sourceHead: assigned.messages[0]?.id,
       keyOf: (message: NativeChatMessage) => assigned.keyById.get(message.id) ?? message.id,
-      current: (key: string) => (assigned.moved.has(key) ? assigned.moved.get(key) : key)
-    }),
-    [assigned]
-  )
+      current: (key: string) => (assigned.moved.has(key) ? assigned.moved.get(key) : key),
+      placement: (key: string) =>
+        (idByKey ??= new Map(Array.from(assigned.keyById, ([id, k]) => [k, id]))).get(key) ?? key
+    }
+  }, [assigned])
 }

@@ -31,7 +31,11 @@ describe('MobileNativeChatScrollHold', () => {
   }
 
   async function show(head: string, listRef: ReturnType<typeof scrollerAt>['listRef']) {
-    const rowKeys = { sourceHead: head, current: (key: string) => key }
+    const rowKeys = {
+      sourceHead: head,
+      current: (key: string) => key,
+      placement: (key: string) => key
+    }
     const element = createElement(
       Fragment,
       null,

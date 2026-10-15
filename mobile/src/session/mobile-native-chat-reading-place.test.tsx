@@ -7,14 +7,9 @@ import {
 } from 'react-test-renderer'
 import { expect, it, vi } from 'vitest'
 import { splitNativeChatBlocks } from '../../../src/shared/native-chat-tool-fold'
-import {
-  isSubagentGroupBlock,
-  type NativeChatBlock,
-  type NativeChatMessage
-} from '../../../src/shared/native-chat-types'
+import type { NativeChatBlock, NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
 import {
-  assignMobileNativeChatRowKeys,
   useMobileNativeChatRowKeys,
   type MobileNativeChatRowKeys
 } from './mobile-native-chat-row-keys'
@@ -68,8 +63,10 @@ type Element = {
 }
 
 const oldHostTail = (): NativeChatMessage[] => JSON.parse(JSON.stringify(chat))
+const from = (id: string) => oldHostTail().slice(chat.findIndex((m) => m.id === id))
 
-/** The page laid out with one 20-tall line per text, served as the list's scrollable node. */
+/** The page laid out with one 20-tall line per text, served as the list's scrollable node, which
+ *  counts the writes to its scroll position. */
 function page(tree: () => Node | Node[] | null) {
   const boxes = (): Box[] => {
     const out: Box[] = []
@@ -103,8 +100,19 @@ function page(tree: () => Node | Node[] | null) {
         : []
     )
   }
+  let scrollTop = 0
+  let writes = 0
   const node = {
-    scrollTop: 0,
+    get scrollTop(): number {
+      return scrollTop
+    },
+    set scrollTop(value: number) {
+      writes += 1
+      scrollTop = value
+    },
+    get writes(): number {
+      return writes
+    },
     clientHeight: 200,
     get scrollHeight(): number {
       return boxes()[0]?.bottom ?? 0
@@ -168,8 +176,11 @@ function mount(messages: NativeChatMessage[], options = { following: false, live
   })
   const scroller = page(() => renderer.toJSON())
   const listRef = { current: { getScrollableNode: () => scroller } }
-  const show = (next: NativeChatMessage[]) =>
+  const show = (next: NativeChatMessage[]): number => {
+    const before = scroller.writes
     act(() => renderer.update(h(Chat, { ...options, messages: next, listRef })))
+    return scroller.writes - before
+  }
   show(messages)
   const press = (id: string) =>
     act(() =>
@@ -185,30 +196,57 @@ function mount(messages: NativeChatMessage[], options = { following: false, live
 }
 
 it('keeps the line a reader was on, its run open, when older messages join the run from an old host', () => {
-  const chat0 = mount(chat.slice(chat.findIndex((m) => m.id === 'r21')))
-  chat0.press(mobileNativeChatRowId('a22'))
-  chat0.press('chat-member:call:c24')
-  const opened = chat0.lines('chat-member:call:c24')
-  chat0.scroller.scrollTop = chat0.scroller.top('chat-member:call:c24') + chat0.scroller.scrollTop
+  // On a line inside the run, or at the top beside Load earlier while the window opens on a result
+  // that the run's older calls take in.
+  for (const atTop of [false, true]) {
+    const chat0 = mount(from('r31'))
+    chat0.press(mobileNativeChatRowId('a32'))
+    chat0.press('chat-member:call:c34')
+    const opened = chat0.lines('chat-member:call:c34')
+    chat0.scroller.scrollTop += chat0.scroller.top('chat-member:call:c34')
+    // An old host ignores the cursor and sends the whole tail again: new objects, the same ids.
+    for (const [older, first] of [
+      ['r21', 'c32'],
+      ['u0', 'c22']
+    ] as const) {
+      if (atTop) {
+        chat0.scroller.scrollTop = 0
+      }
+      const line = `chat-member:call:${atTop ? first : 'c34'}`
+      const top = chat0.scroller.top(line)
+      expect(chat0.show(from(older))).toBeLessThanOrEqual(1)
+      expect(chat0.scroller.top(line)).toBe(top)
+    }
 
-  // An old host ignores the cursor and sends the whole tail again: new objects, the same ids.
-  chat0.show(oldHostTail())
+    // The run keeps its row, so the earlier turn sits above it and the run stays open.
+    const header = chat0.root().find((n) => n.props.testID === 'header')
+    expect(
+      header
+        .findAll((n) => String(n.props.testID).startsWith('chat-row:'))
+        .map((n) => n.props.testID)
+    ).toEqual(['u0', 'x0', 'u1'].map(mobileNativeChatRowId))
+    expect(chat0.lines('chat-member:call:c34')).toBe(opened)
+    expect(chat0.drawn('chat-member:call:c1')).toBe(1)
+    // The result row the window opened on is now drawn by the run.
+    expect(shownKeys.current('r21')).toBe('a32')
 
-  // The run keeps its row, so the earlier turn sits above it and the run stays open.
-  const header = chat0.root().find((n) => n.props.testID === 'header')
-  expect(
-    header.findAll((n) => String(n.props.testID).startsWith('chat-row:')).map((n) => n.props.testID)
-  ).toEqual(['u0', 'x0', 'u1'].map(mobileNativeChatRowId))
-  expect(chat0.scroller.top('chat-member:call:c24')).toBe(0)
-  expect(chat0.lines('chat-member:call:c24')).toBe(opened)
-  expect(chat0.drawn('chat-member:call:c1')).toBe(1)
-  // The result row the window opened on is now drawn by the run.
-  expect(shownKeys.current('r21')).toBe('a22')
+    // A reply and a send land after the run: what the reader had loaded stays drawn.
+    chat0.show([...oldHostTail(), say('done', 'assistant', 'Done'), say('ask', 'user', 'next')])
+    expect(chat0.drawn(mobileNativeChatRowId('a32'))).toBe(1)
+    expect(chat0.drawn('chat-member:call:c34')).toBe(1)
+  }
 
-  // A reply and a send land after the run: what the reader had loaded stays drawn.
-  chat0.show([...oldHostTail(), say('done', 'assistant', 'Done'), say('ask', 'user', 'next')])
-  expect(chat0.drawn(mobileNativeChatRowId('a22'))).toBe(1)
-  expect(chat0.drawn('chat-member:call:c24')).toBe(1)
+  // Collapsed, the run's header stays where it was, not in the result row's place.
+  const later = Array.from({ length: 10 }, (_, i) => say(`t${i}`, 'user', 'later'))
+  const closed = mount([...from('r21'), ...later])
+  const runTop = () =>
+    closed.scroller
+      .querySelectorAll(`[data-testid^="${mobileNativeChatRowId('a22')}"]`)[0]!
+      .querySelectorAll('[data-testid^="chat-member:run"]')[0]!
+      .getBoundingClientRect().top
+  const before = runTop()
+  closed.show([...oldHostTail(), ...later])
+  expect(runTop()).toBe(before)
 })
 
 it('at the cap, a trim and an append of equal height hold a parked reader and leave a following one to follow', () => {
@@ -227,8 +265,9 @@ it('at the cap, a trim and an append of equal height hold a parked reader and le
       m4: chat0.scroller.top(mobileNativeChatRowId('m4'))
     }
 
-    chat0.show(rows.slice(1))
+    const writes = chat0.show(rows.slice(1))
 
+    expect(writes).toBe(options.following ? 0 : 1)
     if (options.following) {
       expect(chat0.scroller.scrollTop).toBe(before.scrollTop)
     } else {
@@ -274,9 +313,16 @@ it('at the cap, a trim and an append of equal height hold a parked reader and le
     top.show([...source.slice(last), ...rows, say('done', 'assistant', 'Done')])
     expect(top.drawn(mobileNativeChatRowId(head))).toBe(0)
   }
+
+  // A trim takes the very line the reader is on: the next one keeps its place.
+  const reader = mount([...chat.slice(3, 15), ...rows])
+  reader.press(mobileNativeChatRowId('a1'))
+  reader.scroller.scrollTop += reader.scroller.top('chat-member:call:c1')
+  reader.show([...chat.slice(4, 15), ...rows, say('done', 'assistant', 'Done')])
+  expect(reader.scroller.top('chat-member:call:c2')).toBe(40)
 })
 
-it('a subagent roster keeps its key when an older sibling joins it and when its first sibling is trimmed', () => {
+it('a roster keeps its key when the fold moves it, and the rows the reader saw after it stay put', () => {
   const sibling = (id: string): NativeChatMessage => ({
     ...say(id, 'user', ''),
     role: 'system',
@@ -285,21 +331,21 @@ it('a subagent roster keeps its key when an older sibling joins it and when its 
       { type: 'subagent', id: `agent-${id}`, label: id, state: 'completed', groupId: 'turn-1' }
     ]
   })
-  const all = [
-    say('u', 'user', 'go'),
-    sibling('s1'),
-    sibling('s2'),
-    sibling('s3'),
-    say('t', 'assistant', 'Done')
-  ]
-  let previous: Parameters<typeof assignMobileNativeChatRowKeys>[0] = null
-  const rosterKey = (messages: NativeChatMessage[]): string | undefined => {
-    const rows = foldMobileNativeChatMessages(messages)
-    const { keyById } = assignMobileNativeChatRowKeys(previous, rows, messages)
-    previous = { rows, messages, keyById }
-    return keyById.get(rows.find((row) => row.blocks.some(isSubagentGroupBlock))!.id)
-  }
-  const key = rosterKey(all.slice(2))
-  expect(rosterKey(all)).toBe(key)
-  expect(rosterKey(all.slice(2))).toBe(key)
+  const said = (name: string) =>
+    Array.from({ length: 12 }, (_, i) => say(`${name}${i}`, i % 2 ? 'assistant' : 'user', name))
+  const all = [...said('old'), sibling('s1'), ...said('mid'), sibling('s2'), ...said('new')]
+  const chat0 = mount(all.slice(25))
+  const tops = (ids: string[]) => ids.map((id) => chat0.scroller.top(mobileNativeChatRowId(id)))
+  // The roster first on screen: an older sibling joining moves it up to that sibling's place.
+  chat0.scroller.scrollTop = 20
+  const below = tops(['new0', 'new5'])
+  expect(chat0.show(all)).toBeLessThanOrEqual(1)
+  expect(tops(['new0', 'new5'])).toEqual(below)
+  expect(chat0.drawn(mobileNativeChatRowId('s2'))).toBe(1)
+  // And back: a trim of the first sibling moves the roster down to the second's place.
+  chat0.scroller.scrollTop += chat0.scroller.top(mobileNativeChatRowId('s2'))
+  const after = tops(['mid0', 'mid5'])
+  expect(chat0.show(all.slice(13))).toBeLessThanOrEqual(1)
+  expect(tops(['mid0', 'mid5'])).toEqual(after)
+  expect(chat0.drawn(mobileNativeChatRowId('s2'))).toBe(1)
 })

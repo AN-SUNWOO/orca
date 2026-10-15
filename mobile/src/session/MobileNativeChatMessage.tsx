@@ -17,6 +17,7 @@ import {
 } from '../../../src/shared/native-chat-subagent-summary'
 import type { NativeChatBlock, NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileSourceCopyButton } from '../components/MobileSourceCopyButton'
+import { MobileMarkdown } from '../components/MobileMarkdown'
 import { nativeChatMessagePlainText } from './mobile-native-chat-message-plain-text'
 import { deriveNativeChatRowContent } from '../../../src/shared/native-chat-row-content'
 import { MobileNativeChatReasoningRow } from './MobileNativeChatReasoningRow'
@@ -36,29 +37,29 @@ import {
   MobileNativeChatVisualContext,
   type MobileNativeChatVisualRender
 } from './mobile-native-chat-visual-context'
-import { MobileNativeChatPacedMarkdown } from './MobileNativeChatPacedMarkdown'
+import { withoutPendingNativeChatVisualDirectiveTail } from '../../../src/shared/native-chat-visual-directive'
+import { MobileNativeChatPacedProse } from './MobileNativeChatPacedProse'
 
 function Prose({
   block,
-  rowKey,
+  text,
   invert,
   fontScale,
   onOpenFile,
   onLongPress,
   renderVisual,
   growing = false,
-  paced = false
+  revealing = false
 }: {
   block: NativeChatBlock
-  rowKey: string
+  text: string
   invert?: boolean
   fontScale: number
   /** Assistant prose of a structured chat only. */
   renderVisual?: MobileNativeChatVisualRender
   /** The reply may still be growing: a directive still being typed at its tail is held back. */
   growing?: boolean
-  /** The reply's last prose: the one block that can still be written. */
-  paced?: boolean
+  revealing?: boolean
   onOpenFile?: (relativePath: string) => void
   /** Android only: routes a long press on a link span to the row's actions sheet. */
   onLongPress?: () => void
@@ -88,11 +89,13 @@ function Prose({
       )
     }
     return (
-      <MobileNativeChatPacedMarkdown
-        rowKey={rowKey}
-        text={block.text}
-        streaming={growing}
-        paced={paced}
+      <MobileMarkdown
+        content={
+          renderVisual && (growing || revealing)
+            ? withoutPendingNativeChatVisualDirectiveTail(text)
+            : text
+        }
+        growing={revealing}
         renderVisual={renderVisual}
         rangeSelectable
         textScale={1.25 * fontScale}
@@ -213,8 +216,6 @@ function MobileNativeChatMessageImpl({
     message.role === 'assistant' && mayStillGrow && activeTurnIsWorking === true
       ? message.blocks.at(-1)
       : undefined
-  // Only the reply's last prose can still be written, so only it is paced and remembered.
-  const pacedBlock = message.role === 'assistant' ? drawnProse.at(-1) : undefined
 
   const statusRow = turnStatus ? (
     <MobileNativeChatTurnStatus
@@ -289,29 +290,36 @@ function MobileNativeChatMessageImpl({
               onLongPress={onLongPress}
             />
           ) : null}
-          {drawnProse.map((block, index) =>
-            isSubagentGroupBlock(block) && isRenderableSubagentGroup(block) ? (
-              <MobileNativeChatSubagentGroup
-                key={`subagent-group:${block.groupId}`}
-                block={block}
-                open={subagentGroupsOpen?.has(block.groupId) === true}
-                onToggle={onToggleSubagentGroup}
-              />
-            ) : isSystem ? null : (
-              <Prose
-                key={index}
-                block={block}
-                invert={isUser}
-                fontScale={fontScale}
-                onOpenFile={onOpenFile}
-                onLongPress={onLongPress}
-                renderVisual={message.role === 'assistant' ? renderVisual : undefined}
-                rowKey={message.id}
-                growing={block === growingBlock}
-                paced={block === pacedBlock}
-              />
-            )
-          )}
+          <MobileNativeChatPacedProse
+            rowKey={message.id}
+            blocks={drawnProse}
+            growingBlock={growingBlock}
+            paced={message.role === 'assistant'}
+          >
+            {(block, index, shown) =>
+              isSubagentGroupBlock(block) && isRenderableSubagentGroup(block) ? (
+                <MobileNativeChatSubagentGroup
+                  key={`subagent-group:${block.groupId}`}
+                  block={block}
+                  open={subagentGroupsOpen?.has(block.groupId) === true}
+                  onToggle={onToggleSubagentGroup}
+                />
+              ) : isSystem ? null : (
+                <Prose
+                  key={index}
+                  block={block}
+                  invert={isUser}
+                  fontScale={fontScale}
+                  onOpenFile={onOpenFile}
+                  onLongPress={onLongPress}
+                  renderVisual={message.role === 'assistant' ? renderVisual : undefined}
+                  text={shown.text}
+                  growing={block === growingBlock}
+                  revealing={shown.revealing}
+                />
+              )
+            }
+          </MobileNativeChatPacedProse>
           {showToolRun ? (
             <ToolRun
               // Why: a global toggle intentionally resets all per-run/per-line

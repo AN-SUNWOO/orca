@@ -41,17 +41,17 @@ describe('a growing reply on the phone', () => {
   let renderer: ReactTestRenderer | undefined
   let chat: MobileNativeChatReplyReveals
 
-  function render(text: string): void {
+  function render(text: string | string[], working = true): void {
     const message: NativeChatMessage = {
       id: 'a1',
       role: 'assistant',
       source: 'transcript',
       timestamp: null,
-      blocks: [{ type: 'text', text }]
+      blocks: (typeof text === 'string' ? [text] : text).map((part) => ({ type: 'text', text: part }))
     }
     const row = createElement(MobileNativeChatMessage, {
       message,
-      mayStillGrow: true,
+      mayStillGrow: working,
       activeTurnIsWorking: true
     })
     const tree = createElement(MobileNativeChatReplyRevealsContext.Provider, { value: chat }, row)
@@ -63,16 +63,20 @@ describe('a growing reply on the phone', () => {
       }
     })
   }
+  function contents(): string[] {
+    return renderer!.root
+      .findAll((node) => String(node.type) === 'MobileMarkdown')
+      .map((node) => String(node.props.content))
+  }
   function drawn(): number {
-    const markdown = renderer!.root.find((node) => String(node.type) === 'MobileMarkdown')
-    return String(markdown.props.content).length
+    return contents().join('').length
   }
   function advance(ms: number): void {
     act(() => {
       vi.advanceTimersByTime(ms)
     })
   }
-  function remount(text: string): void {
+  function remount(text: string | string[]): void {
     act(() => renderer?.unmount())
     renderer = undefined
     render(text)
@@ -114,6 +118,39 @@ describe('a growing reply on the phone', () => {
     // The list recycles the row while it is still revealing.
     remount(second)
     expect(drawn()).toBeGreaterThanOrEqual(before)
+    expect(drawn()).toBeLessThan(second.length)
+    advance(DELAY)
+    expect(drawn()).toBe(second.length)
+  })
+
+  it.each([false, true])('paces a second prose block after the first caught up: %s', (caughtUp) => {
+    render(first)
+    advance(caughtUp ? DELAY : DELAY / 2)
+    render([first, second])
+    if (!caughtUp) expect(contents()[0].length).toBeLessThan(first.length)
+    expect(contents()[1].length).toBeLessThan(second.length)
+    advance(DELAY / 2)
+    const before = drawn()
+    expect(before).toBeGreaterThan(first.length)
+    expect(before).toBeLessThan(first.length + second.length)
+    remount([first, second])
+    expect(drawn()).toBeGreaterThanOrEqual(before)
+    expect(drawn()).toBeLessThan(first.length + second.length)
+    advance(DELAY)
+    expect(contents()).toEqual([first, second])
+  })
+
+  it('does not replay read text when a question ends while the row is unmounted', () => {
+    render(first)
+    advance(DELAY)
+    render(first, false)
+    expect(chat.drawn.has('a1')).toBe(false)
+    act(() => renderer?.unmount())
+    renderer = undefined
+    // The question clears while the row remains outside the virtualized window.
+    render(first)
+    expect(drawn()).toBe(first.length)
+    render(second)
     expect(drawn()).toBeLessThan(second.length)
     advance(DELAY)
     expect(drawn()).toBe(second.length)

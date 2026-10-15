@@ -41,6 +41,7 @@ export function useMobileNativeChatPacedText(
     pace.current = receiveNativeChatText(pace.current, text, streaming, immediate, FRAMES.now())
     setShown(pace.current.shown)
     list?.drawn.set(rowKey, pace.current)
+    list?.begun.delete(rowKey)
   }, [text, streaming, immediate, list, rowKey])
 
   const behind = !immediate && shown < text.length

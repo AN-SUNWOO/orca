@@ -11,8 +11,8 @@ import {
   type AgentSessionAccountHome
 } from '../../shared/agent-session-account-home'
 import type {
-  AntigravityAccountState,
-  AntigravityChatSignInState
+  AntigravityChatSignInState,
+  AntigravityChatSignInStatus
 } from '../../shared/antigravity-account-types'
 import { createAcpAgentConnection, type AcpAgentConnection } from '../acp/acp-agent-connection'
 import {
@@ -31,20 +31,16 @@ import {
   closeAntigravitySignInOwner
 } from './antigravity-chat-account'
 
-// The server's own wait for the browser; a Link poll stays under a client's 30 s.
+// The server's own wait for the browser; a status poll stays under a client's 30 s.
 const FLOW_DEADLINE_MS = 300_000
-const LINK_WAIT_MS = 25_000
+const STATUS_WAIT_MS = 25_000
 const INVALID_LINK = {
   phase: 'failed',
   error: 'Antigravity returned an invalid Google sign-in link.'
 } as const
 
 type Phase = AntigravityChatSignInState['phase']
-type Flow = {
-  state: RevisionedState<AntigravityChatSignInState>
-  ended: AbortController
-  done: Promise<void>
-}
+type Flow = { id: string; ended: AbortController; done: Promise<void> }
 
 export type AntigravityChatSignInHost = {
   launchSources(): ReturnType<typeof structuredAgentHostLaunchSources>
@@ -54,6 +50,8 @@ export type AntigravityChatSignInHost = {
 }
 
 let flow: Flow | null = null
+// The latest flow's state, which every client follows by revision.
+const signIn = new RevisionedState<AntigravityChatSignInState | null>(null)
 
 const settled = (phase: Phase): boolean => phase !== 'starting' && phase !== 'waiting'
 
@@ -62,11 +60,12 @@ function publish(
   next: Omit<AntigravityChatSignInState, 'flowId'>,
   cleanupFailed = false
 ): void {
-  const { flowId, phase } = current.state.get().value
-  if (settled(phase) && !cleanupFailed) {
+  const shown = signIn.get().value
+  // A replaced flow was already shown cancelled, and its successor owns the state.
+  if (shown?.flowId !== current.id || (settled(shown.phase) && !cleanupFailed)) {
     return
   }
-  current.state.set({ flowId, ...next })
+  signIn.set({ flowId: current.id, ...next })
   if (settled(next.phase)) {
     current.ended.abort()
   }
@@ -81,18 +80,12 @@ export function startAntigravityChatSignIn(host: AntigravityChatSignInHost): { f
   if (previous) {
     publish(previous, { phase: 'cancelled' })
   }
-  const current: Flow = {
-    state: new RevisionedState<AntigravityChatSignInState>({
-      flowId: randomUUID(),
-      phase: 'starting'
-    }),
-    ended: new AbortController(),
-    done: Promise.resolve()
-  }
+  const current: Flow = { id: randomUUID(), ended: new AbortController(), done: Promise.resolve() }
   flow = current
+  signIn.set({ flowId: current.id, phase: 'starting' })
   // After the replaced flow has let go of the chats' starts.
   current.done = (previous?.done ?? Promise.resolve()).then(() => runFlow(current, host))
-  return { flowId: current.state.get().value.flowId }
+  return { flowId: current.id }
 }
 
 async function runFlow(current: Flow, host: AntigravityChatSignInHost): Promise<void> {
@@ -186,36 +179,24 @@ export function antigravitySignInUrl(line: string): string | null {
   return valid ? link : null
 }
 
-/** The flow's state once it differs from `shown`, or after a bounded wait that the caller's
- *  disconnect (`signal`) ends early; a replaced flow reads as cancelled. */
-export async function readAntigravityChatSignInLink(
-  flowId: string,
-  shown: Phase | undefined,
-  signal?: AbortSignal
-): Promise<AntigravityChatSignInState> {
-  const current = flow?.state.get().value.flowId === flowId ? flow : null
-  if (!current) {
-    return { flowId, phase: 'cancelled' }
-  }
-  const { value, revision } = current.state.get()
-  if (value.phase === shown && !settled(shown)) {
-    await current.state.waitForChange(revision, LINK_WAIT_MS, signal)
-  }
-  return current.state.get().value
-}
-
-export function cancelAntigravityChatSignIn(flowId: string): AntigravityChatSignInState {
-  if (flow?.state.get().value.flowId !== flowId) {
+export function cancelAntigravityChatSignIn(flowId: string): AntigravityChatSignInState | null {
+  if (flow?.id !== flowId) {
     throw new Error('That Antigravity sign-in is no longer running.')
   }
   publish(flow, { phase: 'cancelled' })
-  return flow.state.get().value
+  return signIn.get().value
 }
 
-/** `saved` is a stat of the server's own sign-in file; nothing reads it. */
+/** At once without `shown`, else once the revision passes it or after a bounded wait that the
+ *  caller's disconnect (`signal`) ends early. `saved` is a stat of the server's own sign-in file,
+ *  reread every time; nothing reads the file. */
 export async function readAntigravityChatSignInStatus(
-  accountHome: AgentSessionAccountHome
-): Promise<NonNullable<AntigravityAccountState['chatSignIn']>> {
+  accountHome: AgentSessionAccountHome,
+  shown?: number,
+  signal?: AbortSignal
+): Promise<AntigravityChatSignInStatus> {
+  await signIn.waitForChange(shown, STATUS_WAIT_MS, signal)
+  const { value, revision } = signIn.get()
   const token = join(
     requireLegacyAgentSessionAccountHome(accountHome).path,
     'antigravity-acp',
@@ -225,7 +206,5 @@ export async function readAntigravityChatSignInStatus(
     (file) => file.isFile(),
     () => false
   )
-  const running = flow && !settled(flow.state.get().value.phase) ? flow.state.get().value : null
-  // The running flow's id lets a client that comes back follow it and cancel it.
-  return { saved, signingIn: running !== null, ...(running && { flowId: running.flowId }) }
+  return { revision, saved, flow: value }
 }

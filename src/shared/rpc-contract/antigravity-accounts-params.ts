@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { ANTIGRAVITY_CHAT_SIGN_IN_PHASES } from '../antigravity-account-types'
 
 export const AntigravityAccountTargetParams = z
   .object({
@@ -15,10 +14,11 @@ export const AntigravityAccountMutationParams = z
   })
   .strict()
 
-export const AntigravityChatSignInFlowParams = z
-  .object({
-    flowId: z.string().min(1).max(64),
-    /** The phase the client already shows: the host answers once it differs. */
-    shown: z.enum(ANTIGRAVITY_CHAT_SIGN_IN_PHASES).optional()
-  })
-  .strict()
+export const AntigravityChatSignInFlowParams = z.strictObject({
+  flowId: z.string().min(1).max(64)
+})
+
+export const AntigravityChatSignInStatusParams = z.strictObject({
+  /** The revision the client shows: the host answers once it differs, or after a bounded wait. */
+  shown: z.number().int().nonnegative().optional()
+})

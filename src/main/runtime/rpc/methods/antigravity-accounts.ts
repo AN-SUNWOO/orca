@@ -3,12 +3,12 @@ import type { OrcaRuntimeService } from '../../orca-runtime'
 import {
   AntigravityAccountMutationParams,
   AntigravityAccountTargetParams,
-  AntigravityChatSignInFlowParams
+  AntigravityChatSignInFlowParams,
+  AntigravityChatSignInStatusParams
 } from '../../../../shared/rpc-contract/antigravity-accounts-params'
 import { getAntigravityAccountService } from '../../../antigravity/native-account-host'
 import {
   cancelAntigravityChatSignIn,
-  readAntigravityChatSignInLink,
   readAntigravityChatSignInStatus,
   startAntigravityChatSignIn
 } from '../../../antigravity/antigravity-chat-sign-in'
@@ -39,12 +39,7 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
     name: 'accounts.antigravityList',
     permission: 'workspace',
     params: AntigravityAccountTargetParams,
-    handler: async (target, { runtime }) => ({
-      ...(await getAntigravityAccountService(target).listAccounts()),
-      chatSignIn: await readAntigravityChatSignInStatus(
-        await runtime.resolveStructuredAgentAccountHome('antigravity')
-      )
-    })
+    handler: async (target) => getAntigravityAccountService(target).listAccounts()
   }),
   defineMethod({
     name: 'accounts.antigravityAddCurrent',
@@ -74,11 +69,15 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
     handler: async (_, { runtime }) => startAntigravityChatSignIn(chatSignInHost(runtime))
   }),
   defineMethod({
-    name: 'accounts.antigravityChatSignInLink',
+    name: 'accounts.antigravityChatSignInStatus',
     permission: 'accounts-admin',
-    params: AntigravityChatSignInFlowParams,
-    handler: async ({ flowId, shown }, { signal }) =>
-      readAntigravityChatSignInLink(flowId, shown, signal)
+    params: AntigravityChatSignInStatusParams,
+    handler: async ({ shown }, { runtime, signal }) =>
+      readAntigravityChatSignInStatus(
+        await runtime.resolveStructuredAgentAccountHome('antigravity'),
+        shown,
+        signal
+      )
   }),
   defineMethod({
     name: 'accounts.antigravityChatSignInCancel',

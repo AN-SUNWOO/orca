@@ -58,7 +58,8 @@ export function classifyRuntimeLongPoll(request: RpcRequest): RuntimeLongPollCla
   }
   // A status read naming the revision it shows waits up to 25 s for a newer one.
   if (
-    request.method === 'managedRuntime.status' &&
+    (request.method === 'managedRuntime.status' ||
+      request.method === 'accounts.antigravityChatSignInStatus') &&
     typeof request.params === 'object' &&
     request.params !== null &&
     'shown' in request.params &&
@@ -69,11 +70,7 @@ export function classifyRuntimeLongPoll(request: RpcRequest): RuntimeLongPollCla
   if (request.method === 'browser.clientHost.attach') {
     return 'browser-host'
   }
-  // Waits up to 25 s for the chat sign-in to change; a disconnect ends only that wait.
-  if (
-    request.method === 'terminal.wait' ||
-    request.method === 'accounts.antigravityChatSignInLink'
-  ) {
+  if (request.method === 'terminal.wait') {
     return 'wait'
   }
   // Agent-prompt submission waits for the PTY's lifecycle transition (up to

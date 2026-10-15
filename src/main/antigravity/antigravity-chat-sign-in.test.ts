@@ -14,7 +14,7 @@ import type { ConnectAcpAgent } from '../acp/acp-structured-connection'
 import { AcpScriptedAgent, deferred } from '../acp/acp-scripted-agent.test-support'
 import {
   antigravitySignInUrl,
-  readAntigravityChatSignInLink,
+  readAntigravityChatSignInStatus,
   startAntigravityChatSignIn
 } from './antigravity-chat-sign-in'
 
@@ -35,6 +35,7 @@ const PIN = {
   members: []
 }
 const folders: string[] = []
+const NO_SIGN_IN = { variable: 'GEMINI_HOME', path: join(tmpdir(), 'orca-agy-no-sign-in') }
 afterEach(async () => {
   vi.restoreAllMocks()
   await Promise.all(folders.splice(0).map((path) => rm(path, { recursive: true, force: true })))
@@ -84,9 +85,18 @@ async function signInAgainst(link: string, configure?: (connection: AcpAgentConn
   return { agent, folder, flowId, host, child, finishBrowser: () => browserDone.resolve() }
 }
 
+/** The flow's state once it leaves `phase`, followed by revision as a client does. */
+async function stateAfter(flowId: string, phase: string) {
+  let status = await readAntigravityChatSignInStatus(NO_SIGN_IN)
+  while (status.flow?.flowId === flowId && status.flow.phase === phase) {
+    status = await readAntigravityChatSignInStatus(NO_SIGN_IN, status.revision)
+  }
+  return status.flow
+}
+
 it('shows the server link, then reads signed in once the browser finishes', async () => {
   const { agent, folder, flowId, finishBrowser } = await signInAgainst(GOOGLE_LINK)
-  expect(await readAntigravityChatSignInLink(flowId, 'starting')).toEqual({
+  expect(await stateAfter(flowId, 'starting')).toEqual({
     flowId,
     phase: 'waiting',
     url: GOOGLE_LINK
@@ -98,7 +108,7 @@ it('shows the server link, then reads signed in once the browser finishes', asyn
     expect(process.platform === 'win32' || ((await stat(path)).mode & 0o777) === 0o700).toBe(true)
   }
   finishBrowser()
-  expect(await readAntigravityChatSignInLink(flowId, 'waiting')).toEqual({
+  expect(await stateAfter(flowId, 'waiting')).toEqual({
     flowId,
     phase: 'signedIn'
   })
@@ -107,7 +117,7 @@ it('shows the server link, then reads signed in once the browser finishes', asyn
 it('never shows a link that is not a Google sign-in back to this host', async () => {
   const foreign = GOOGLE_LINK.replace('accounts.google.com', 'accounts.example.com')
   const { flowId } = await signInAgainst(foreign)
-  const state = await readAntigravityChatSignInLink(flowId, 'starting')
+  const state = await stateAfter(flowId, 'starting')
   expect(state).toMatchObject({ flowId, phase: 'failed' })
   expect(JSON.stringify(state)).not.toContain('example')
   for (const link of [
@@ -124,9 +134,9 @@ it('retains an unclosed sign-in child for both launch entry points until its exi
   const old = await signInAgainst(GOOGLE_LINK, (connection) => {
     vi.spyOn(connection, 'close').mockImplementation(close)
   })
-  await readAntigravityChatSignInLink(old.flowId, 'starting')
+  await stateAfter(old.flowId, 'starting')
   old.finishBrowser()
-  expect((await readAntigravityChatSignInLink(old.flowId, 'waiting')).phase).toBe('failed')
+  expect((await stateAfter(old.flowId, 'waiting'))?.phase).toBe('failed')
   const launch = old.host.connect.mock.calls[0][0]
   const { env, cwd, envToDelete } = launch
   if (!env || !cwd || !envToDelete) {
@@ -135,7 +145,7 @@ it('retains an unclosed sign-in child for both launch entry points until its exi
   expect((await stat(env.TMPDIR)).isDirectory()).toBe(true)
   expect((await stat(cwd)).isDirectory()).toBe(true)
   const next = startAntigravityChatSignIn(old.host)
-  expect((await readAntigravityChatSignInLink(next.flowId, 'starting')).phase).toBe('failed')
+  expect((await stateAfter(next.flowId, 'starting'))?.phase).toBe('failed')
   expect(old.host.connect).toHaveBeenCalledTimes(1)
   const prepareChat = async () =>
     prepareAcpStructuredLaunch(
@@ -198,7 +208,7 @@ it('fails without downloading anything while the server is not installed', async
     stopLiveChats: async () => {},
     connect
   })
-  const state = await readAntigravityChatSignInLink(flowId, 'starting')
+  const state = await stateAfter(flowId, 'starting')
   expect(state).toMatchObject({ phase: 'failed', error: expect.stringContaining('not installed') })
   expect(connect).not.toHaveBeenCalled()
 })

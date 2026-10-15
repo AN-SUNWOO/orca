@@ -65,7 +65,8 @@ import {
 import {
   AntigravityAccountMutationParams,
   AntigravityAccountTargetParams,
-  AntigravityChatSignInFlowParams
+  AntigravityChatSignInFlowParams,
+  AntigravityChatSignInStatusParams
 } from './antigravity-accounts-params'
 import { ArtifactsDeleteParams, ListOptions, SourceRequest, WriteRequest } from './artifacts-params'
 import {
@@ -637,8 +638,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'accounts.addDataFromHome': AddDataAccountParams,
   'accounts.antigravityAddCurrent': AntigravityAccountTargetParams,
   'accounts.antigravityChatSignInCancel': AntigravityChatSignInFlowParams,
-  'accounts.antigravityChatSignInLink': AntigravityChatSignInFlowParams,
   'accounts.antigravityChatSignInStart': null,
+  'accounts.antigravityChatSignInStatus': AntigravityChatSignInStatusParams,
   'accounts.antigravityList': AntigravityAccountTargetParams,
   'accounts.antigravityRemove': AntigravityAccountMutationParams,
   'accounts.antigravitySelect': AntigravityAccountMutationParams,

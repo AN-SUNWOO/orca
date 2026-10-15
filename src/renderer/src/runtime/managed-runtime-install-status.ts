@@ -7,7 +7,8 @@ import { callRuntimeRpc } from './runtime-rpc-client'
  * What each host says about the runtime it installs for an agent, one entry per host runtime
  * instance and agent, so Settings and a chat read the same answer. While any surface observes
  * an entry, one status long-poll follows the host, idle included, so another client's change
- * shows up too.
+ * shows up too. A wait is never aborted: the host holds it until it answers either way, so a
+ * surface hidden and shown again reuses the one in flight rather than leaving another behind.
  */
 
 export type ManagedRuntimeInstallSubject = {
@@ -27,7 +28,10 @@ type Entry = {
   subject: ManagedRuntimeInstallSubject
   snapshot: ManagedRuntimeInstallSnapshot
   observers: number
-  stop: AbortController | null
+  following: boolean
+  failures: number
+  /** Ends the current retry pause early: on the last release, or when the host is back. */
+  wake: AbortController | null
 }
 
 const UNKNOWN: ManagedRuntimeInstallSnapshot = { kind: 'unknown' }
@@ -57,7 +61,7 @@ function entryFor(subject: ManagedRuntimeInstallSubject): Entry {
         entries.delete(otherKey)
       }
     }
-    entry = { subject, snapshot: UNKNOWN, observers: 0, stop: null }
+    entry = { subject, snapshot: UNKNOWN, observers: 0, following: false, failures: 0, wake: null }
     entries.set(key, entry)
   }
   return entry
@@ -87,36 +91,33 @@ function callHost(
   )
 }
 
-async function follow(entry: Entry, signal: AbortSignal): Promise<void> {
+async function follow(entry: Entry): Promise<void> {
   // Starts with a plain read, so a surface shown again reconciles before any wait.
   let shown: number | undefined
-  let failures = 0
-  while (!signal.aborted) {
+  entry.failures = 0
+  while (entry.observers > 0) {
     try {
       const params = shown === undefined ? {} : { shown }
       const state = await callHost(entry.subject, 'managedRuntime.status', params, {
-        signal,
         timeoutMs: STATUS_WAIT_TIMEOUT_MS
       })
-      if (signal.aborted) {
-        return
-      }
-      failures = 0
+      entry.failures = 0
       apply(entry, state)
       shown = entry.snapshot.kind === 'known' ? entry.snapshot.state.revision : state.revision
     } catch {
-      if (signal.aborted) {
-        return
-      }
       // A known answer stays through a blip; only a first read failing changes what is shown.
       if (entry.snapshot.kind !== 'known') {
         setSnapshot(entry, { kind: 'readFailed' })
       }
       shown = undefined
-      failures += 1
-      await delayUnlessAborted(Math.min(30_000, 1000 * 2 ** (failures - 1)), signal)
+      entry.failures += 1
+      const wake = new AbortController()
+      entry.wake = wake
+      await delayUnlessAborted(Math.min(30_000, 1000 * 2 ** (entry.failures - 1)), wake.signal)
+      entry.wake = null
     }
   }
+  entry.following = false
 }
 
 export function readManagedRuntimeInstall(
@@ -129,16 +130,24 @@ export function readManagedRuntimeInstall(
 export function observeManagedRuntimeInstall(subject: ManagedRuntimeInstallSubject): () => void {
   const entry = entryFor(subject)
   entry.observers += 1
-  if (!entry.stop) {
-    entry.stop = new AbortController()
-    void follow(entry, entry.stop.signal)
+  if (!entry.following) {
+    entry.following = true
+    void follow(entry)
   }
   return () => {
     entry.observers -= 1
     if (entry.observers === 0) {
-      entry.stop?.abort()
-      entry.stop = null
+      entry.wake?.abort()
     }
+  }
+}
+
+/** Retries a failed read at once, e.g. when the host answers again after an outage. */
+export function wakeManagedRuntimeInstall(subject: ManagedRuntimeInstallSubject): void {
+  const entry = entries.get(subjectKey(subject))
+  if (entry) {
+    entry.failures = 0
+    entry.wake?.abort()
   }
 }
 

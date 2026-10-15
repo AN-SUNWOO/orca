@@ -60,4 +60,9 @@ it('never reads a failed status read as not installed, nor rolls back to an olde
   await installManagedRuntime(subject)
   expect(readManagedRuntimeInstall(subject)).toEqual({ kind: 'known', state: state(2) })
   release()
+  // Hiding and showing again reuses the wait the host still holds instead of adding one.
+  const calls = call.mock.calls.length
+  observeManagedRuntimeInstall(subject)()
+  observeManagedRuntimeInstall(subject)()
+  expect(call.mock.calls.length).toBe(calls)
 })

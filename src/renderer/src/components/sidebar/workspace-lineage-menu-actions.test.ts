@@ -214,15 +214,17 @@ describe('hasSleepableWorkspaceActivity', () => {
       sortOrder: 0,
       createdAt: 0
     }
-    const activity = (slept: { tabId: string; sessionId: string }[]) => ({
+    const activity = (
+      slept: { tabId: string; sessionId: string }[]
+    ): Parameters<typeof hasSleepableWorkspaceActivity>[1] => ({
       tabsByWorktree: {},
       ptyIdsByTabId: {},
       browserTabsByWorktree: {},
       unifiedTabsByWorktree: { 'wt-1': [chat] },
       agentStatusByPaneKey: {},
-      explicitlySleptChatsByWorkspace: slept.length ? { 'local|wt-1': slept } : {},
+      explicitlySleptChatsByWorkspace: { 'local|wt-1': slept },
       chatOwnerState: {
-        worktreesByRepo: { 'repo-1': [{ id: 'wt-1', repoId: 'repo-1', hostId: 'local' as const }] }
+        worktreesByRepo: { 'repo-1': [{ id: 'wt-1', repoId: 'repo-1', hostId: 'local' }] }
       }
     })
     expect(hasSleepableWorkspaceActivity('wt-1', activity([]))).toBe(true)

@@ -214,14 +214,15 @@ export async function sleepWorktreesReportingFailures(
       const { workspaceId, executionHostId, token } = target
       const current = (): boolean =>
         isCurrentWorktreeSleepIntent(workspaceId, executionHostId, token)
-      const clearFailedChats = (failures: readonly { sessionId?: string }[]): void => {
+      const clearFailedChats = (failures?: readonly { sessionId?: string }[]): void => {
         if (!options.recordExplicitChatSleep || !current()) {
           return
         }
-        const failedSessionIds = new Set(failures.map((failure) => failure.sessionId))
-        const chats = failedSessionIds.has(undefined)
-          ? undefined
-          : capturedChats[index].filter((chat) => failedSessionIds.has(chat.sessionId))
+        const failed = failures?.map((failure) => failure.sessionId)
+        const chats =
+          !failed || failed.includes(undefined)
+            ? undefined
+            : capturedChats[index].filter((chat) => failed.includes(chat.sessionId))
         useAppStore.getState().clearWorkspaceChatsSlept(workspaceId, executionHostId, chats)
       }
       let stoppedSessionIds: string[] = []
@@ -241,7 +242,7 @@ export async function sleepWorktreesReportingFailures(
           errors.push(describeChatStopFailure())
         }
       } else {
-        clearFailedChats([{ reason: 'inventory-unavailable' }])
+        clearFailedChats()
         console.error('[sleep-worktree] native chat stop failed', {
           workspaceId,
           error: native.error

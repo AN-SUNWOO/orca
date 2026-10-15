@@ -105,6 +105,9 @@ describe('managedRuntimeInstallView', () => {
       removable: true
     })
     expect(removal({ phase: 'succeeded' }, 'chat').removable).toBe(false)
+    // A damaged copy is removable too, so a broken install never leaves Settings without an exit.
+    const damaged = { kind: 'known' as const, state: { ...idle, damaged: true, canRemove: true } }
+    expect(managedRuntimeInstallView(damaged, 'Fake', 'settings').removable).toBe(true)
     expect(shown({ available: false, version: null }, 'settings')).toEqual([
       'Fake is not available on this host.',
       null,

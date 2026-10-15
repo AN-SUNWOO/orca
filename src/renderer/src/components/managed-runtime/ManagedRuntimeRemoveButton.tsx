@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
+import { selectExecutionHostDisplayLabel } from '@/lib/execution-host-display-label'
+import { useAppStore } from '@/store'
+import { toRuntimeExecutionHostId } from '../../../../shared/execution-host'
+import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { Button } from '../ui/button'
 import {
   Dialog,
@@ -15,11 +19,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 /** Settings' delete of the runtime Orca downloaded, behind a confirmation: it stops running chats. */
 export function ManagedRuntimeRemoveButton(props: {
   agentLabel: string
+  host: RuntimeClientTarget
   disabled: boolean
   onRemove: () => void
 }): React.JSX.Element {
-  const { agentLabel, disabled, onRemove } = props
+  const { agentLabel, host, disabled, onRemove } = props
   const [confirming, setConfirming] = useState(false)
+  const hostLabel = useAppStore((state) =>
+    host.kind === 'environment'
+      ? selectExecutionHostDisplayLabel(state, toRuntimeExecutionHostId(host.environmentId))
+      : translate('components.managed-runtime.thisComputer', 'this computer')
+  )
   const label = translate('components.managed-runtime.remove', 'Remove downloaded runtime')
   return (
     <>
@@ -43,14 +53,14 @@ export function ManagedRuntimeRemoveButton(props: {
             <DialogTitle>
               {translate(
                 'components.managed-runtime.removeTitle',
-                'Remove {{agent}} from this host?',
-                { agent: agentLabel }
+                'Remove the downloaded {{agent}} runtime from {{host}}?',
+                { agent: agentLabel, host: hostLabel }
               )}
             </DialogTitle>
             <DialogDescription>
               {translate(
                 'components.managed-runtime.removeDescription',
-                'Running {{agent}} chats stop. Chat history is kept.',
+                'Running {{agent}} chats there stop. Chat history is kept.',
                 { agent: agentLabel }
               )}
             </DialogDescription>

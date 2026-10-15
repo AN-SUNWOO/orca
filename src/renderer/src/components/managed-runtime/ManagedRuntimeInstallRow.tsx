@@ -98,6 +98,7 @@ export function ManagedRuntimeInstallRow(props: {
           {removable ? (
             <ManagedRuntimeRemoveButton
               agentLabel={agentLabel}
+              host={subject.target}
               disabled={pending}
               onRemove={() => act(() => removeManagedRuntime(subject))}
             />

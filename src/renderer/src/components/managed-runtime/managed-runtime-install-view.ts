@@ -82,7 +82,8 @@ function settledView(
     progress: null,
     error,
     action: label === null ? null : { kind: 'install', label },
-    removable: surface === 'settings' && state.installedVersion !== null
+    // An older host without canRemove offers Remove only for a whole copy.
+    removable: surface === 'settings' && (state.canRemove ?? state.installedVersion !== null)
   })
   const install = translate('components.managed-runtime.install', 'Install {{agent}}', { agent })
   // A start already runs a working copy found outside Orca's releases; it needs no download.

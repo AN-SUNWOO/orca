@@ -1,4 +1,6 @@
-import { existsSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { admitTranscriptPath } from '../native-chat/transcript-path-admission'
+import { dirname } from 'node:path'
 import { homedir } from 'node:os'
 import { isLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import { getManagedDataAccountService } from '../managed-data-accounts/service'
@@ -6,7 +8,25 @@ import type { StructuredAgentTranscriptImport } from '../native-chat/structured-
 import { resolveOpenCodeDatabasePath } from './opencode-data-directory'
 import { environmentForStructuredOpenCodeAccountHome } from './opencode-structured-account-home'
 
+function accountDatabase(accountHome: Parameters<StructuredAgentTranscriptImport['findTranscript']>[0]['accountHome'], launchEnv: NodeJS.ProcessEnv) {
+  if (isLegacyAgentSessionAccountHome(accountHome)) return null
+  const env = environmentForStructuredOpenCodeAccountHome(accountHome, {
+    managedAccounts: getManagedDataAccountService(), baseEnvironment: launchEnv
+  })
+  return resolveOpenCodeDatabasePath(env,
+    (process.platform === 'win32' ? env.USERPROFILE : env.HOME) || homedir())
+}
+
 export const OPENCODE_TRANSCRIPT_IMPORT: StructuredAgentTranscriptImport = {
+  admitTranscriptPath: async ({ accountHome, transcriptPath, launchEnv }) => {
+    const dbPath = accountDatabase(accountHome, launchEnv)
+    if (!dbPath) return null
+    const [expected, actual] = await Promise.all([
+      admitTranscriptPath(dirname(dbPath), dbPath),
+      admitTranscriptPath(dirname(dbPath), transcriptPath)
+    ])
+    return expected && actual && expected.path === actual.path ? actual.path : null
+  },
   // The selected account, then the unmanaged environment this chat would launch with.
   accountHomeCandidates: ({ selectedAccountHome }) => [
     selectedAccountHome,
@@ -14,19 +34,14 @@ export const OPENCODE_TRANSCRIPT_IMPORT: StructuredAgentTranscriptImport = {
   ],
   // The database the account's OpenCode opens, which is the only one its chat can load from.
   findTranscript: async ({ providerSessionId, accountHome, launchEnv }) => {
-    if (isLegacyAgentSessionAccountHome(accountHome)) {
-      return null
-    }
-    const env = environmentForStructuredOpenCodeAccountHome(accountHome, {
-      managedAccounts: getManagedDataAccountService(),
-      baseEnvironment: launchEnv
-    })
-    const dbPath = resolveOpenCodeDatabasePath(
-      env,
-      (process.platform === 'win32' ? env.USERPROFILE : env.HOME) || homedir()
-    )
-    if (!dbPath || !existsSync(dbPath)) {
-      return null
+    const dbPath = accountDatabase(accountHome, launchEnv)
+    if (!dbPath) return null
+    try {
+      if (!(await stat(dbPath)).isFile()) return null
+    } catch (error) {
+      if (error instanceof Error && 'code' in error &&
+          (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return null
+      throw error
     }
     const { readOpenCodeTranscriptSignalViaWorker } =
       await import('../ai-vault/session-scanner-opencode-sqlite-worker-spawn')

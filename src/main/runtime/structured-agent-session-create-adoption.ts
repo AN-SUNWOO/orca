@@ -1,3 +1,7 @@
+import { stat } from 'node:fs/promises'
+import { agentSessionRefusalError, isAgentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
+import { prepareCodexAdoption } from '../native-chat/codex-adoption-preparation'
+import type { AiVaultSessionResumePreparation } from '../../shared/ai-vault-resume-preparation'
 import type { AgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
@@ -86,12 +90,56 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
   selectedAccountHome: AgentSessionAccountHome
   launchEnv: NodeJS.ProcessEnv
   workspaceCwd: string
+  resolveTranscriptPath?: () => string | undefined
+  prepareCodexResume?: AiVaultSessionResumePreparation
 }) {
-  return resolveStructuredAgentSessionAdoption({
-    providerSessionId: input.providerSessionId,
-    candidateAccountHomes: input.transcriptImport.accountHomeCandidates(input),
-    resolveTranscript: input.transcriptImport.findTranscript,
-    launchEnv: input.launchEnv,
-    workspaceCwd: input.workspaceCwd
-  })
+  try {
+    const transcriptPath = input.resolveTranscriptPath?.()
+    const candidates = input.transcriptImport.accountHomeCandidates(input)
+    const admitted = transcriptPath
+      ? await Promise.all(candidates.map(async (accountHome) => ({
+          accountHome,
+          path: await input.transcriptImport.admitTranscriptPath({
+            accountHome, transcriptPath, launchEnv: input.launchEnv
+          })
+        })))
+      : null
+    if (admitted && !admitted.some((candidate) => candidate.path)) {
+      throw new Error('The conversation account is not available on this host.')
+    }
+    const adoption = await resolveStructuredAgentSessionAdoption({
+      providerSessionId: input.providerSessionId,
+      candidateAccountHomes: admitted
+        ? admitted.filter((candidate) => candidate.path).map((candidate) => candidate.accountHome)
+        : candidates,
+      resolveTranscript: async (args) => {
+        const exact = transcriptPath && await input.transcriptImport.admitTranscriptPath({
+          ...args, transcriptPath
+        })
+        if (exact) {
+          try {
+            if ((await stat(exact)).isFile()) return exact
+          } catch (error) {
+            if (!(error instanceof Error && 'code' in error &&
+                (error.code === 'ENOENT' || error.code === 'ENOTDIR'))) throw error
+          }
+        }
+        const found = await input.transcriptImport.findTranscript({ ...args, strictErrors: true })
+        if (!found) return null
+        const path = await input.transcriptImport.admitTranscriptPath({ ...args, transcriptPath: found })
+        if (!path) throw new Error('The conversation path is outside its account storage.')
+        return path
+      },
+      launchEnv: input.launchEnv,
+      workspaceCwd: input.workspaceCwd
+    })
+    return input.agent === 'codex'
+      ? await prepareCodexAdoption(adoption, input.providerSessionId, input.prepareCodexResume, candidates)
+      : adoption
+  } catch (error) {
+    if (isAgentSessionRefusalError(error)) throw error
+    throw agentSessionRefusalError('agent_session_identity_required',
+      { reason: 'transcriptUnreadable' }, error instanceof Error ? error.message : String(error))
+  }
+
 }

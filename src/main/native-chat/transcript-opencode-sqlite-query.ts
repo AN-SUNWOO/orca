@@ -7,7 +7,8 @@ import {
 } from './transcript-opencode2-sqlite'
 import type { NativeChatMessage } from '../../shared/native-chat-types'
 import { openCodeTranscriptPageLimit } from '../../shared/opencode-transcript-page-limit'
-import { extractString, parseJsonObject } from '../ai-vault/session-scanner-values'
+import { columnExists } from '../opencode-usage/schema-helpers'
+import { asRecord, extractString, parseJsonObject } from '../ai-vault/session-scanner-values'
 import type SyncDatabase from '../sqlite/sync-database'
 
 type BindValue = SyncDatabase.BindValue
@@ -31,6 +32,7 @@ export type OpenCodeTranscriptPage = {
 }
 
 export type OpenCodeTranscriptSignal = {
+  cwd?: string | null
   messageCount: number
   partCount: number
   maxMessageRowId: number
@@ -112,7 +114,11 @@ export function readOpenCodeTranscriptSignal(
       sessionId,
       ...(agent === 'zcode' ? [sessionId] : [])
     )
+    const source = columnExists(db, 'session', 'directory')
+      ? asRecord(db.prepare('SELECT directory FROM session WHERE id = ?').get(sessionId))
+      : null
     return {
+      cwd: extractString(source?.directory),
       messageCount: messageRow?.message_count ?? 0,
       partCount: partRow?.part_count ?? 0,
       maxMessageRowId: messageRow?.max_message_rowid ?? 0,

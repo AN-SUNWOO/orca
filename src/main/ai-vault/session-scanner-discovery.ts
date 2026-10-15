@@ -234,6 +234,7 @@ export type SessionFileWalkOptions = {
   // Return false to skip descending into a directory; depth 0 is a child of
   // rootDir, so pruned subtrees are never stat'd or parsed.
   directoryPredicate?: (name: string, depth: number) => boolean
+  strictErrors?: boolean
   readDirectory?: (dirPath: string) => Promise<Dirent[]>
   signal?: AbortSignal
 }
@@ -271,7 +272,7 @@ export async function forEachSessionFile(
     options.signal?.throwIfAborted()
     // Why: a gate refusal means the scan could not run, not that the tree is
     // empty — swallowing it would misreport a stalled distro as "no transcript".
-    if (error instanceof WslTranscriptFsError) {
+    if (error instanceof WslTranscriptFsError || (options.strictErrors && !isMissingSidecarError(error))) {
       throw error
     }
     return

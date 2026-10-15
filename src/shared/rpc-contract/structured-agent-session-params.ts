@@ -116,7 +116,14 @@ export const AttachParams = z
  *  the provider child launches against; both are derived host-side from this id instead. */
 export const ResumeSource = z
   .object({
-    providerSessionId: Identifier('Invalid provider session id')
+    providerSessionId: Identifier('Invalid provider session id'),
+    cliSource: z
+      .object({
+        workspaceId: Identifier('Invalid workspace id'),
+        paneKey: Identifier('Invalid pane key')
+      })
+      .strict()
+      .optional()
   })
   .strict()
 

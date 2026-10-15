@@ -4,19 +4,20 @@ import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import { directoryTranscriptImport } from '../native-chat/structured-agent-cli-conversations'
 
 export const GROK_TRANSCRIPT_IMPORT = directoryTranscriptImport({
+  transcriptRoot: ({ accountHomePath }) => join(accountHomePath, 'sessions'),
   // The chat's own home, then the one Session History lists Grok's conversations from.
   accountHomeCandidates: ({ selectedAccountHomePath }) => [
     selectedAccountHomePath,
     resolveGrokHomeDir()
   ],
-  findTranscript: async ({ providerSessionId, accountHomePath, workspaceCwd }) => {
+  findTranscript: async ({ providerSessionId, accountHomePath, workspaceCwd, strictErrors }) => {
     const sessionsDir = join(accountHomePath, 'sessions')
     return (
       (await findGrokChatHistoryByCwd({
         sessionId: providerSessionId,
         cwd: workspaceCwd,
         sessionsDir
-      })) ?? resolveSessionFilePath('grok', providerSessionId, { grokSessionsDir: sessionsDir })
+      })) ?? resolveSessionFilePath('grok', providerSessionId, { grokSessionsDir: sessionsDir, strictErrors })
     )
   }
 })

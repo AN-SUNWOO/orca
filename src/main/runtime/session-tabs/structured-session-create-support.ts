@@ -1,3 +1,5 @@
+import type { StructuredAgentSessionResumeSource } from '../../../shared/structured-agent-session-create'
+import { structuredAgentCliSourcePath } from '../../native-chat/structured-agent-cli-source'
 import type { OrcaRuntimeWithRestoreStructuredAgentSessionTabsOnce as RestoreStructuredAgentSessionTabsOnceMethods } from './structured-session-tab-restoration'
 import { agentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
 import { OrcaRuntimeWithGetWorktreePs } from '../workspaces/workspace-process-listing'
@@ -27,7 +29,6 @@ import {
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 import type { AgentSessionAccountHome } from '../../../shared/agent-session-account-home'
 import type { StructuredAgentId } from '../../../shared/agent-session-provider-handle'
-import { readPiSessionHeader, samePiDirectory } from '../../pi/rpc-launch-resolution'
 
 export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithGetWorktreePs {
   protected abstract restoreStructuredAgentSessionTabsOnce(
@@ -150,7 +151,7 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     worktree: string
     agent: StructuredAgentId
     callerKey?: string
-    resumeFrom?: { providerSessionId: string }
+    resumeFrom?: StructuredAgentSessionResumeSource
   }): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
     if (input.resumeFrom) {
       requireUnownedStructuredAgentSessionAdoption({
@@ -202,7 +203,7 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
       worktree: string
       agent: StructuredAgentId
       callerKey?: string
-      resumeFrom?: { providerSessionId: string }
+      resumeFrom?: StructuredAgentSessionResumeSource
     },
     resolveAccountHome: (context: {
       launchEnv: NodeJS.ProcessEnv
@@ -238,32 +239,30 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     if (committedReplay) {
       return committedReplay
     }
+    const resumeFrom = input.resumeFrom
+    const workspaceCwd = resumeFrom ? (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path : ''
     const selectedAccountHome = await resolveAccountHome({ launchEnv, location })
     // Adopting pins the account home to wherever the conversation actually lives, which is not
     // necessarily the one a fresh create would pick: Codex resolves its rollout under
     // `accountHome.path`, and Claude reads its transcript under `<home>/projects`. Resuming under
     // the wrong home finds nothing and lands the user in a blank chat wearing the old chat's name.
     const adoption =
-      input.resumeFrom && transcriptImport
+      resumeFrom && transcriptImport
         ? await resolveStructuredAgentSessionAdoptionForCreate({
             settings,
             agent: input.agent,
             transcriptImport,
-            providerSessionId: input.resumeFrom.providerSessionId,
+            providerSessionId: resumeFrom.providerSessionId,
+            resolveTranscriptPath: () => structuredAgentCliSourcePath({
+              agent: input.agent, resumeFrom, workspaceId: location.workspaceId,
+              rows: this.getAgentProviderSessionRows()
+            }),
+            prepareCodexResume: this.prepareAiVaultSessionResumeFn ?? undefined,
             selectedAccountHome,
             launchEnv: await resolveHostStructuredAgentLaunchEnvironment(input.agent, settings),
-            workspaceCwd: (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path
+            workspaceCwd: workspaceCwd
           })
         : null
-    if (input.agent === 'pi' && adoption) {
-      const header = await readPiSessionHeader(adoption.transcriptPath)
-      const targetDirectory = (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path
-      if (!header || !(await samePiDirectory(header.cwd, targetDirectory))) {
-        throw agentSessionRefusalError('agent_session_identity_required', {
-          reason: 'transcriptNotFound'
-        })
-      }
-    }
     return {
       envelope: {
         sessionId: input.envelope.sessionId,
@@ -289,7 +288,11 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
                   ? adoption.transcriptPath
                   : input.resumeFrom.providerSessionId
               },
-              transcriptPath: adoption.transcriptPath
+              transcriptPath: adoption.transcriptPath,
+              source: {
+                providerSessionId: input.resumeFrom.providerSessionId,
+                workspaceCwd: workspaceCwd
+              }
             }
           }
         : {}),

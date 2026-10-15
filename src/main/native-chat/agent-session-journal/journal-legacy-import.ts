@@ -10,6 +10,7 @@
 // never be spliced into a sequence space that a structured session is also
 // writing; a later structured resume rolls the epoch again and rebuilds.
 
+import { adoptedTranscriptSourceObserver, validateAdoptedOpenCodeSource, type AdoptedTranscriptSource } from './adopted-transcript-source'
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import type { AgentType } from '../../../shared/agent-status-types'
@@ -44,6 +45,7 @@ import type { AgentSessionJournal } from './journal-store'
 export type LegacyImportOptions = ResolveSessionFileOptions & {
   /** Resolve directly to this file, skipping path discovery. */
   filePath?: string
+  source?: AdoptedTranscriptSource
   limits?: JournalPayloadLimits
   decodedMessageIdentities?: true
 }
@@ -127,6 +129,7 @@ export async function prepareLegacyTranscriptImport(input: {
       transcriptAgent,
       agent: input.agent,
       sessionId: input.sessionId,
+      source: options.source,
       decodedMessageIdentities: options.decodedMessageIdentities
     })
   } catch (err) {
@@ -148,6 +151,14 @@ async function prepareOpenCodeImport(input: {
   limits: JournalPayloadLimits
 }): Promise<{ ok: true; items: JournalReplacementItem[] } | { ok: false; error: string }> {
   const dbPath = input.options?.filePath
+  if (input.options?.source) {
+    if (!dbPath) return { ok: false, error: 'The conversation database is unavailable.' }
+    try {
+      await validateAdoptedOpenCodeSource(dbPath, input.options.source)
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  }
   const read = await readOpenCodeNativeChatTranscriptFull(
     input.sessionId,
     dbPath ? { resolveDbPath: async () => dbPath } : {}
@@ -201,7 +212,12 @@ async function decodeWithIdentities(input: {
   agent: AgentType
   sessionId: string
   decodedMessageIdentities?: true
+  source?: AdoptedTranscriptSource
 }): Promise<{ messages: NativeChatMessage[]; identities: AgentJournalItemIdentity[] }> {
+  const source = input.source ? await adoptedTranscriptSourceObserver({
+    agent: input.agent, filePath: input.filePath, source: input.source,
+    maxSourceBytes: MAX_LEGACY_IMPORT_SOURCE_BYTES
+  }) : null
   const tracker = createLegacyIdentityTracker({
     transcriptAgent: input.transcriptAgent,
     agent: input.agent,
@@ -219,6 +235,7 @@ async function decodeWithIdentities(input: {
     input.filePath,
     0,
     (line, fallbackId) => {
+      source?.observe(line)
       const trackedIdentity = tracker.identify(line, lineIndex)
       lineIndex += 1
       if (pi) {
@@ -243,6 +260,7 @@ async function decodeWithIdentities(input: {
     true,
     MAX_LEGACY_IMPORT_SOURCE_BYTES
   )
+  await source?.validate()
   if (pi) {
     return pi.project()
   }

@@ -1,3 +1,4 @@
+import { prepareAdoptedTranscript } from '../native-chat/agent-session-wire/structured-agent-session-adopted-import'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -489,18 +490,18 @@ describe('adopting a conversation recorded outside Orca', () => {
       expect(intent.accountHome).toEqual({ variable: 'PI_CODING_AGENT_DIR', path: accountHome })
       expect(intent.adopt).toEqual({
         providerHandle: { transport: 'jsonl-rpc', agent: 'pi', nativeId: file },
-        transcriptPath: file
+        transcriptPath: file,
+        source: { providerSessionId: '0198c2a4-7d1e-7c3a-9a4b-1f2e3d4c5b6a', workspaceCwd: '/repos/workspace-1' }
       })
 
       workspaceDirectory = '/different-folder'
-      await expect(
-        runtime.resolveStructuredAgentSessionCreateIntent({
+      const refused = await runtime.resolveStructuredAgentSessionCreateIntent({
           envelope: { sessionId: 'session-2', clientOperationId: 'operation-2' },
           worktree: 'id:workspace-1',
           agent: 'pi',
           resumeFrom: { providerSessionId: '0198c2a4-7d1e-7c3a-9a4b-1f2e3d4c5b6a' }
         })
-      ).rejects.toMatchObject({ refusal: { code: 'agent_session_identity_required' } })
+      expect(await prepareAdoptedTranscript(refused)).toMatchObject({ ok: false, refusal: { code: 'agent_session_identity_required' } })
     } finally {
       vi.unstubAllEnvs()
       await rm(accountHome, { recursive: true, force: true })

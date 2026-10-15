@@ -88,15 +88,17 @@ export function assignMobileNativeChatRowKeys(
     }
     const owners = blockOwners(messages)
     members = rows.map((row) => membersOf(row, owners))
-    // Newest first: an orphan result row merging into the run after it takes the run's key.
-    rows.forEach((row, at) => {
+    // Newest first, rows and members: when a cap trim splits a run, the run (not the orphan
+    // result above it) keeps the key, and an orphan merging into the run after it takes the run's.
+    for (let at = rows.length - 1; at >= 0; at -= 1) {
+      const row = rows[at]!
       const handed = keyById.has(row.id)
         ? undefined
         : members[at]!.map((m) => keyByMember.get(m)).find((k) => k !== undefined && !taken.has(k))
       if (handed !== undefined) {
         take(row, handed)
       }
-    })
+    }
   }
   for (const row of rows.filter((unkeyed) => !keyById.has(unkeyed.id))) {
     let key = row.id

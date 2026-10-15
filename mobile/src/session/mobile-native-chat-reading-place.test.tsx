@@ -222,4 +222,11 @@ it('at the cap, a trim and an append of equal height hold a parked reader and le
       expect(chat0.scroller.top(mobileNativeChatRowId('m4'))).toBe(before.m4)
     }
   }
+
+  // A trim that leaves the top run's first result alone above it keeps the run open on the reader.
+  const top = mount([...chat.slice(3), ...rows])
+  top.press(mobileNativeChatRowId('a1'))
+  top.scroller.scrollTop = top.scroller.top('chat-member:call:c5') + top.scroller.scrollTop
+  top.show([...chat.slice(4), ...rows, say('done', 'assistant', 'Done')])
+  expect(top.scroller.top('chat-member:call:c5')).toBe(0)
 })

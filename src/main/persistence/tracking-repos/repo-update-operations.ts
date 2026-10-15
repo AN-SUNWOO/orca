@@ -8,11 +8,13 @@ import { normalizeWorktreeVisibilitySourcePreferences } from '../../../shared/wo
 import type { GhAccountBinding } from '../../../shared/github/account-binding'
 import { invalidateGhAccountTokenCache } from '../../github/gh-account-token'
 import { sanitizeRepoUpdatesForPersistence } from './repo-sanitization'
-import { isFolderRepo } from '../../../shared/repo-kind'
-import { findExtraFolderWorkspaceIds } from '../../folder-workspace-meta-presence'
+import {
+  findWorkspacesHiddenByKindChange,
+  type KindChangeState
+} from './repo-kind-change-hidden-workspaces'
 
 export type RepoUpdateMutationOperations = {
-  state: Pick<PersistedState, 'repos' | 'projectGroups' | 'worktreeMeta'>
+  state: Pick<PersistedState, 'projectGroups'> & KindChangeState
   bumpLocalWorktreeScanGeneration: (repoId: string) => void
   syncProjectHostSetupCompatibilityState: () => void
   scheduleSave: () => void
@@ -52,31 +54,29 @@ export function findRepoRowForHostScopedWrite(
   return undefined
 }
 
-/**
- * Every writer of `kind` lands here, so this is where a type change that would hide workspaces is
- * refused. A Git project lists only `git worktree list`, and a listing that stops showing an id
- * purges that workspace's saved tabs.
- */
-function assertKindChangeKeepsFolderWorkspaces(
+// Every writer of `kind` lands here, so a type change that would hide workspaces is refused here.
+function assertKindChangeHidesNoWorkspaces(
+  state: KindChangeState,
   repo: Repo,
-  nextKind: Repo['kind'] | undefined,
-  worktreeMeta: PersistedState['worktreeMeta']
+  nextKind: Repo['kind'] | undefined
 ): void {
-  if (nextKind !== 'git' || !isFolderRepo(repo)) {
+  const count = findWorkspacesHiddenByKindChange(state, repo, nextKind).length
+  if (count === 0) {
     return
   }
-  const count = findExtraFolderWorkspaceIds(repo, worktreeMeta).length
-  if (count > 0) {
-    throw new Error(
-      `This folder project has ${count} other workspace${count === 1 ? '' : 's'} that a Git project can't show, so its type was not changed. Delete ${count === 1 ? 'that workspace' : 'those workspaces'} first, or keep it as a folder project.`
-    )
-  }
+  const them = count === 1 ? 'that workspace' : 'those workspaces'
+  const plural = count === 1 ? '' : 's'
+  throw new Error(
+    nextKind === 'git'
+      ? `This folder project has ${count} other workspace${plural} that a Git project can't show, so its type was not changed. Delete ${them} first, or keep it as a folder project.`
+      : `This Git project has ${count} workspace${plural} besides its main folder with saved tabs or details that a folder project can't show, so its type was not changed. Delete ${them} first, or keep it as a Git project.`
+  )
 }
 
 export class RepoUpdatePersistenceOperations {
   constructor(private readonly operations: RepoUpdateMutationOperations) {}
 
-  private get state(): Pick<PersistedState, 'repos' | 'projectGroups' | 'worktreeMeta'> {
+  private get state(): Pick<PersistedState, 'projectGroups'> & KindChangeState {
     return this.operations.state
   }
 
@@ -138,7 +138,7 @@ export class RepoUpdatePersistenceOperations {
     if (!repo) {
       return null
     }
-    assertKindChangeKeepsFolderWorkspaces(repo, updates.kind, this.state.worktreeMeta)
+    assertKindChangeHidesNoWorkspaces(this.state, repo, updates.kind)
     const previousGhAccount = repo.ghAccount
     const sanitizedUpdates = sanitizeRepoUpdatesForPersistence(updates)
     if (

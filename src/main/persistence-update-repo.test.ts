@@ -5,13 +5,14 @@ import {
   writeDataFile,
   makeRepo,
   makeProject,
-  makeProjectHostSetup
+  makeProjectHostSetup,
+  makeTerminalTab
 } from './persistence-test-harness'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { rmSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { getDefaultPersistedState } from '../shared/constants'
+import { getDefaultPersistedState, getDefaultWorkspaceSession } from '../shared/constants'
 
 import {
   getLocalWorktreeScanGeneration,
@@ -355,6 +356,31 @@ describe('Store', () => {
     expect(
       store.updateProjectHostSetup({ setupId: 'r1', updates: { kind: 'git' } })?.repo
     ).toMatchObject({ kind: 'git' })
+  })
+
+  // Folder mode lists only the main folder and its folder workspaces, so a linked worktree's tabs would purge.
+  it('refuses a Git-to-folder type change only while a linked worktree has saved tabs on that host', async () => {
+    const store = await createStore()
+    store.addRepo(makeRepo({ id: 'r1', path: '/repo', kind: 'git' }))
+    store.addRepo(
+      makeRepo({ id: 'r1', path: '/repo', kind: 'git', connectionId: 'box', executionHostId: 'ssh:box' })
+    )
+    const linked = 'r1::/repo-worktrees/feature'
+    const sessionWithTab = {
+      ...getDefaultWorkspaceSession(),
+      tabsByWorktree: { [linked]: [makeTerminalTab({ id: 'tab-1', worktreeId: linked })] }
+    }
+    store.setWorkspaceSession(sessionWithTab, 'ssh:box')
+    // Surviving rows from an earlier folder-to-Git switch: folder mode shows these again.
+    store.setWorktreeMeta('r1::/repo::workspace:11111111-1111-4111-8111-111111111111', {
+      displayName: 'Old folder workspace'
+    })
+
+    expect(store.updateRepo('r1', { kind: 'folder' }, 'local')?.kind).toBe('folder')
+    expect(() => store.updateRepo('r1', { kind: 'folder' }, 'ssh:box')).toThrow(
+      "This Git project has 1 workspace besides its main folder with saved tabs or details that a folder project can't show"
+    )
+    expect(store.getRepos().find((repo) => repo.executionHostId === 'ssh:box')?.kind).toBe('git')
   })
 
   it('deletes independent project host setup records without deleting the project', async () => {

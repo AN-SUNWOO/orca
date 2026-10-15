@@ -195,14 +195,28 @@ export abstract class OrcaRuntimeWithNotifySshStateChanged extends OrcaRuntimeWi
     setup?: CreateWorktreeResult['setup'],
     startup?: WorktreeStartupLaunch,
     defaultTabs?: CreateWorktreeResult['defaultTabs'],
-    navigationTarget?: RuntimeNavigationTarget
+    navigationTarget?: RuntimeNavigationTarget,
+    providesInitialSurface?: boolean
   ): void {
     const navigation = navigationTarget ?? 'host'
     if (navigationTargetsHost(navigation)) {
-      this.notifyHostActivateWorktree(repoId, worktreeId, setup, startup, defaultTabs)
+      this.notifyHostActivateWorktree(
+        repoId,
+        worktreeId,
+        setup,
+        startup,
+        defaultTabs,
+        providesInitialSurface
+      )
     }
     if (navigationTargetsClients(navigation)) {
-      this.notifyClientsActivateWorktree(repoId, worktreeId, startup, navigation)
+      this.notifyClientsActivateWorktree(
+        repoId,
+        worktreeId,
+        startup,
+        navigation,
+        providesInitialSurface
+      )
     }
   }
 
@@ -211,19 +225,36 @@ export abstract class OrcaRuntimeWithNotifySshStateChanged extends OrcaRuntimeWi
     worktreeId: string,
     setup?: CreateWorktreeResult['setup'],
     startup?: WorktreeStartupLaunch,
-    defaultTabs?: CreateWorktreeResult['defaultTabs']
+    defaultTabs?: CreateWorktreeResult['defaultTabs'],
+    providesInitialSurface?: boolean
   ): void {
-    this.notifier?.activateWorktree(repoId, worktreeId, setup, startup, defaultTabs)
+    this.notifier?.activateWorktree(
+      repoId,
+      worktreeId,
+      setup,
+      startup,
+      defaultTabs,
+      ...(providesInitialSurface ? ([true] as const) : [])
+    )
   }
 
   protected notifyClientsActivateWorktree(
     repoId: string,
     worktreeId: string,
     startup?: WorktreeStartupLaunch,
-    navigation: RuntimeNavigationTarget = 'clients'
+    navigation: RuntimeNavigationTarget = 'clients',
+    providesInitialSurface?: boolean
   ): void {
     this.emitClientEvent(
-      toRuntimeActivateWorktreeEvent(repoId, worktreeId, undefined, startup, undefined, navigation)
+      toRuntimeActivateWorktreeEvent(
+        repoId,
+        worktreeId,
+        undefined,
+        startup,
+        undefined,
+        navigation,
+        providesInitialSurface
+      )
     )
   }
 

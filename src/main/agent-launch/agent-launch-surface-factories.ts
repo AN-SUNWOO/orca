@@ -105,6 +105,9 @@ export class AgentLaunchStructuredSessionRefusedError extends Error {
 export type AgentLaunchWorkspaceFactory = {
   createWorktree(args: {
     create: Readonly<Record<string, unknown>>
+    /** Main-internal registration at the metadata boundary, before the workspace is announced. */
+    onWorkspaceCreated?: (worktreeId: string) => void
+    promisedAgentChat?: boolean
     /** Set only when the settled mode is a terminal agent: agent-first creation sequences the
      *  agent's startup command behind the setup runner, which is how a PTY launch gets its
      *  wait-for-setup gate for free. A structured launch has no startup command to sequence and
@@ -138,6 +141,8 @@ export type AgentLaunchWorkspaceFactory = {
     /** Reported by the create that built the startup command's typed line. */
     promptRodeLaunchCommand?: boolean
   }>
+  /** Leave a usable workspace when chat creation has an indeterminate outcome. */
+  createRecoveryShell?: (worktreeId: string) => Promise<void>
   /** A folder workspace has no startup terminal: the launch starts its agent there afterwards.
    *  Only `agent.launch` creates folders; callers that only create worktrees omit it. */
   createFolderWorkspace?(args: {

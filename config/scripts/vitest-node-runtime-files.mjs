@@ -99,7 +99,6 @@ export const NODE_RUNTIME_INCLUDE = [
   'src/main/codex/codex-shared-server-probe.test.ts',
   'src/main/opencode/opencode-launch-model-context-supervision.test.ts',
   'src/main/hermes/hermes-config-remote-adapter.test.ts',
-  'src/renderer/src/lib/monaco-languages/monarch-upstream-mdx-recursion.test.ts',
   'src/main/ipc/orca-profiles-switch-persistence.test.ts',
   'src/main/ipc/settings-delayed-response.test.ts',
   'src/main/runtime/structured-agent-session-startup-tab-restore.test.ts',

@@ -4,8 +4,10 @@ import { splitWebRuntimeTerminal } from '@/runtime/web-runtime-terminal-actions'
 import type { PtyTransport } from './pty-transport-types'
 import { resolveSplitCwd, type PaneCwdMap } from './resolve-split-cwd'
 import { recordCreatedTerminalPaneSplit } from './terminal-pane-split-completion'
+import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/layout-owner-switch'
+import { splitThroughLayoutOwner } from './terminal-pane-split-through-layout-owner'
 
-export function splitTerminalPaneWithInheritedCwd(args: {
+type SplitArgs = {
   worktreeId: string
   tabId: string
   manager: PaneManager
@@ -16,7 +18,9 @@ export function splitTerminalPaneWithInheritedCwd(args: {
   pane: ManagedPane
   direction: 'vertical' | 'horizontal'
   source: TerminalPaneSplitSource
-}): void {
+}
+
+export function splitTerminalPaneWithInheritedCwd(args: SplitArgs): void {
   const ptyId = args.paneTransports.get(args.pane.id)?.getPtyId() ?? null
   if (
     splitWebRuntimeTerminal(ptyId, args.direction, args.source, {
@@ -27,13 +31,36 @@ export function splitTerminalPaneWithInheritedCwd(args: {
   ) {
     return
   }
+  // Switch point: main writes the split and mints the new pane's id; the window then mounts it.
+  if (
+    ORCA_LAYOUT_OWNER_IS_MAIN &&
+    splitThroughLayoutOwner(
+      {
+        worktreeId: args.worktreeId,
+        tabId: args.tabId,
+        leafId: args.pane.leafId,
+        direction: args.direction
+      },
+      (leafId) => splitLocally(args, ptyId, leafId)
+    )
+  ) {
+    return
+  }
+  splitLocally(args, ptyId)
+}
+
+function splitLocally(args: SplitArgs, ptyId: string | null, leafId?: string): void {
   const manager = args.getManager ? args.getManager() : args.manager
   if (!manager) {
     return
   }
+  const placement = leafId ? { leafId } : {}
   const cached = args.paneCwdMap.get(args.pane.id)
   if (cached?.confirmed && cached.cwd) {
-    const createdPane = manager.splitPane(args.pane.id, args.direction, { cwd: cached.cwd })
+    const createdPane = manager.splitPane(args.pane.id, args.direction, {
+      ...placement,
+      cwd: cached.cwd
+    })
     recordCreatedTerminalPaneSplit(createdPane, {
       source: args.source,
       direction: args.direction
@@ -49,7 +76,7 @@ export function splitTerminalPaneWithInheritedCwd(args: {
       sourcePtyId: ptyId,
       fallbackCwd: args.fallbackCwd
     })
-  const createdPane = manager.splitPane(paneId, args.direction, { cwdPromise })
+  const createdPane = manager.splitPane(paneId, args.direction, { ...placement, cwdPromise })
   recordCreatedTerminalPaneSplit(createdPane, {
     source: args.source,
     direction: args.direction

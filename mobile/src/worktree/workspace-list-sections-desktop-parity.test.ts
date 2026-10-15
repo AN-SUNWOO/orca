@@ -1,3 +1,4 @@
+import { NO_WORKSPACE_ROW_FILTERS } from '../../../src/shared/workspace-view/workspace-row-filters'
 import { describe, expect, it } from 'vitest'
 import { getRepoExecutionHostId } from '../../../src/shared/execution-host'
 import {
@@ -56,7 +57,7 @@ function headers(catalog: ReturnType<typeof buildProjectSectionCatalog>) {
   return buildSections(
     rows(),
     'recent',
-    { filterRepoIds: new Set(), hideSleeping: false, hideDefaultBranch: false },
+    { ...NO_WORKSPACE_ROW_FILTERS },
     '',
     'repo',
     new Set(),

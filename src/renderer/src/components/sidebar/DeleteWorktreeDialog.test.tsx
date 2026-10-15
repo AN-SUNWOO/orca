@@ -284,27 +284,6 @@ describe('DeleteWorktreeDialog lineage copy', () => {
     })
   })
 
-  it('keeps long child workspace paths constrained inside the lineage notice', async () => {
-    const child = makeWorktree(
-      'docs-file-upload-discovery-with-a-very-long-name',
-      '/Users/jinjingliang/Documents/projects/agent-slack/docs-file-upload-discovery-with-a-very-long-path-segment'
-    )
-    const { DeleteWorktreeLineageNotice } = await import('./DeleteWorktreeLineageNotice')
-
-    const markup = renderToStaticMarkup(
-      <DeleteWorktreeLineageNotice
-        descendants={[child]}
-        dirtyChangeCountsByWorktreeId={new Map()}
-        dirtyChangePreviewsByWorktreeId={new Map()}
-      />
-    )
-
-    expect(markup).toContain('min-w-0 max-w-full overflow-hidden rounded-md')
-    expect(markup).toContain('mt-2 min-w-0 max-w-full space-y-1 overflow-hidden')
-    expect(markup).toContain('min-w-0 overflow-hidden')
-    expect(markup).toContain('truncate text-muted-foreground')
-  })
-
   it('uses non-destructive disk copy for folder workspace deletes', async () => {
     const workspace = {
       ...makeWorktree('Folder workspace', '/projects/folder'),

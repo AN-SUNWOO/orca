@@ -51,6 +51,7 @@ jobs:
       package: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package }}
       package_windows: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package_windows }}
       layout_oracle: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.layout_oracle }}
+      verify_fast_path: ${{ steps.verify_fast_path.outputs.canonical }}
       e2e_should_run: ${{ steps.e2e_filter.outputs.should_run }}
       test_files: ${{ steps.e2e_filter.outputs.test_files }}
       e2e_run_changed: ${{ steps.e2e_filter.outputs.e2e_run_changed }}
@@ -135,6 +136,33 @@ jobs:
             MOBILE_CI_ARGS=(--mobile-ci-tools --daemon-init-test-support)
           fi
           printf '%s\n' "$CHANGED" | node config/scripts/pr-code-change-scope.mjs "${MOBILE_CI_ARGS[@]}" | tee -a "$GITHUB_OUTPUT"
+
+      # Actions comparisons ignore case; validate exact routing before allowing a skipped gate.
+      - name: Validate aggregate routing
+        id: verify_fast_path
+        env:
+          STATIC_ANALYSIS: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.static_analysis }}
+          TYPECHECK: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.typecheck }}
+          GIT_COMPATIBILITY: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.git_compatibility }}
+          CODEX_INDEX_HEAL_CONTRACT: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.codex_index_heal_contract }}
+          XTERM_PATCH_SYNC: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.xterm_patch_sync }}
+          SHELL_CONTRACTS: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.shell_contracts }}
+          TEST: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.test }}
+          MOBILE_WEB_APP: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.mobile_web_app }}
+          CROSS_VERSION_WIRE: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.cross-version-wire }}
+          MANAGED_HOOK_NODE18: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.managed_hook_node18 }}
+          PACKAGE: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package }}
+          PACKAGE_WINDOWS: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package_windows }}
+          LAYOUT_ORACLE: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.layout_oracle }}
+        run: |
+          canonical=1
+          for selected in "$STATIC_ANALYSIS" "$TYPECHECK" "$GIT_COMPATIBILITY" "$CODEX_INDEX_HEAL_CONTRACT" "$XTERM_PATCH_SYNC" "$SHELL_CONTRACTS" "$TEST" "$MOBILE_WEB_APP" "$CROSS_VERSION_WIRE" "$MANAGED_HOOK_NODE18" "$PACKAGE" "$PACKAGE_WINDOWS" "$LAYOUT_ORACLE"; do
+            case "$selected" in
+              true|false) ;;
+              *) canonical=0 ;;
+            esac
+          done
+          echo "canonical=$canonical" >> "$GITHUB_OUTPUT"
 
       # Reuse the path-detector checkout instead of queuing another runner.
       - name: Filter changed E2E specs
@@ -1352,6 +1380,7 @@ jobs:
           src/shared/__tests__/process-host/windows-command-line.win32.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.win32.test.ts
+          src/shared/omp-fresh-launch-cmd.win32.test.ts
           src/main/agent-hooks/windows-hook-payload-delivery.test.ts
           src/main/agent-hooks/managed-hook-stdin-lifecycle.test.ts
           src/main/jcode/hook-gate-script.test.ts
@@ -1499,7 +1528,62 @@ jobs:
 
   verify:
     name: PR checks passed
-    if: ${{ !cancelled() }}
+    # GitHub accepts skipped required jobs; only mismatches need a runner to fail with details.
+    if: >-
+      !cancelled() && !(
+        needs.code_paths.result == 'success' &&
+        needs.code_paths.outputs.verify_fast_path == '1' &&
+        (needs.code_paths.outputs.static_analysis == 'true' || needs.code_paths.outputs.static_analysis == 'false') &&
+        (needs.code_paths.outputs.typecheck == 'true' || needs.code_paths.outputs.typecheck == 'false') &&
+        (
+          ((needs.code_paths.outputs.static_analysis == 'true' || needs.code_paths.outputs.typecheck == 'true') && needs.preflight.result == 'success') ||
+          (needs.code_paths.outputs.static_analysis == 'false' && needs.code_paths.outputs.typecheck == 'false' && needs.preflight.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.git_compatibility == 'true' && needs.git_compatibility.result == 'success') ||
+          (needs.code_paths.outputs.git_compatibility == 'false' && needs.git_compatibility.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.codex_index_heal_contract == 'true' && needs.codex_index_heal_contract.result == 'success') ||
+          (needs.code_paths.outputs.codex_index_heal_contract == 'false' && needs.codex_index_heal_contract.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.xterm_patch_sync == 'true' && needs.xterm_patch_sync.result == 'success') ||
+          (needs.code_paths.outputs.xterm_patch_sync == 'false' && needs.xterm_patch_sync.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.shell_contracts == 'true' && needs.shell_contracts.result == 'success') ||
+          (needs.code_paths.outputs.shell_contracts == 'false' && needs.shell_contracts.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.test == 'true' && needs.test.result == 'success') ||
+          (needs.code_paths.outputs.test == 'false' && needs.test.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.mobile_web_app == 'true' && needs.mobile_web_app.result == 'success') ||
+          (needs.code_paths.outputs.mobile_web_app == 'false' && needs.mobile_web_app.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs['cross-version-wire'] == 'true' && needs['cross-version-wire'].result == 'success') ||
+          (needs.code_paths.outputs['cross-version-wire'] == 'false' && needs['cross-version-wire'].result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.managed_hook_node18 == 'true' && needs.managed_hook_node18.result == 'success') ||
+          (needs.code_paths.outputs.managed_hook_node18 == 'false' && needs.managed_hook_node18.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.package == 'true' && needs.package.result == 'success') ||
+          (needs.code_paths.outputs.package == 'false' && needs.package.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.package_windows == 'true' && needs.package_windows.result == 'success') ||
+          (needs.code_paths.outputs.package_windows == 'false' && needs.package_windows.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.layout_oracle == 'true' && needs.layout_oracle.result == 'success') ||
+          (needs.code_paths.outputs.layout_oracle == 'false' && needs.layout_oracle.result == 'skipped')
+        )
+      )
     needs:
       - code_paths
       - preflight
@@ -1514,7 +1598,7 @@ jobs:
       - package
       - package_windows
       - layout_oracle
-    # Evaluating job results only needs the lightweight container runner.
+    # Only failures and noncanonical routing allocate this runner.
     runs-on: ubuntu-slim
     timeout-minutes: 5
 

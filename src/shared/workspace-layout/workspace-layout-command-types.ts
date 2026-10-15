@@ -156,6 +156,14 @@ export type LayoutCommandResult = {
   renamedTabIds?: Record<string, string>
 }
 
+/** A command applied to a stored layout: its result, or why it changed nothing. */
+export type LayoutApplyOutcome =
+  | { ok: true; result: LayoutCommandResult }
+  | { ok: false; code: LayoutRefusalCode }
+
+/** `layout.apply`'s reply. `host_not_owned`: a paired server owns that workspace's layout. */
+export type LayoutApplyReply = LayoutApplyOutcome | { ok: false; code: 'host_not_owned' }
+
 export type LayoutContext = {
   mintId: () => string
   /** Pane ids must be UUIDs (pane keys and PTY env carry them). */

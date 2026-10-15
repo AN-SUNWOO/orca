@@ -1,6 +1,10 @@
 import { useCallback, useMemo, useRef } from 'react'
 import { encodeNativeChatTranscriptIdentity } from '../../../src/shared/native-chat-transcript-retention'
 import { projectStructuredAgentSessionMessages } from '../../../src/shared/structured-agent-session-message-projection'
+import {
+  projectStructuredQuestionMessages,
+  structuredQuestionTranscript
+} from '../../../src/shared/structured-agent-question-projection'
 import { withNativeChatCutTurnNotices } from '../../../src/shared/native-chat-cut-turn-notice'
 import { tuiAgentDisplayName } from '../../../src/shared/tui-agent-display-names'
 import { isStructuredAgentSessionMainAgentWorking } from '../../../src/shared/structured-agent-session-main-agent-working'
@@ -152,7 +156,12 @@ export function useMobileStructuredAgentSession(args: {
   const messages = useMemo(
     // A message the host recorded and then rejected stays where it was sent, as not sent.
     () =>
-      projectStructuredAgentSessionMessages(transcriptItems, sends.optimistic, state.submissions),
+      projectStructuredAgentSessionMessages(
+        transcriptItems,
+        sends.optimistic,
+        state.submissions,
+        projectStructuredQuestionMessages
+      ),
     [transcriptItems, sends.optimistic, state.submissions]
   )
   const turnId = runningStructuredAgentSessionTurnId(state)
@@ -299,11 +308,11 @@ export function useMobileStructuredAgentSession(args: {
     turnIndicator,
     ...turnTiming,
     sendWithOutcome,
-    cancel: () => {
-      void stopPress.track(() => requestCancel())
-    },
+    cancel: () => void stopPress.track(() => requestCancel()),
     cancelPrompt: (prompt?: { itemId: string; expectedRevision: number }) =>
       requestCancel(prompt ?? pendingStructuredPromptIdentity(stateRef.current)),
+    receipts: structuredQuestionTranscript(transcriptItems).receipts,
+    actionablePromptIds: state.actionablePromptIds,
     permission: projectStructuredPermission(approvalPrompt),
     question: projectStructuredQuestion(questionPrompt, groupedDraft),
     respondPermission,

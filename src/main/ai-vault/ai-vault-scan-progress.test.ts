@@ -1,10 +1,12 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AI_VAULT_SCAN_PROGRESS_INTERVAL_MS,
+  noteAiVaultScanFileFound,
   noteAiVaultScanProgress,
+  noteAiVaultScanWorkChanged,
   trackAiVaultScanProgress
 } from './ai-vault-scan-progress'
 import { scanAiVaultSessions } from './session-scanner'
@@ -15,6 +17,7 @@ import { isolatedScanRoots, writeJsonlFile } from './session-scanner-test-fixtur
 let tempRoots: string[] = []
 
 afterEach(async () => {
+  vi.useRealTimers()
   resetSessionParseCacheForTests()
   await Promise.all(tempRoots.map((root) => rm(root, { recursive: true, force: true })))
   tempRoots = []
@@ -33,7 +36,7 @@ function steppingClock(): () => number {
 }
 
 describe('scan progress reporting', () => {
-  it('reports at most once per interval, and only after the counter moved', () => {
+  it('limits units-only reports to an advancing counter and one-second cadence', () => {
     let now = 0
     const reports: number[] = []
     const controller = new AbortController()
@@ -69,6 +72,34 @@ describe('scan progress reporting', () => {
     noteAiVaultScanProgress(new AbortController().signal)
     noteAiVaultScanProgress(undefined)
     expect(reports).toEqual([])
+  })
+
+  it('publishes trailing files when the next read stalls without extending work units', () => {
+    vi.useFakeTimers()
+    const signal = new AbortController().signal
+    const reports: { units: number; files: number }[] = []
+    const stop = trackAiVaultScanProgress(
+      signal,
+      (units, work) => reports.push({ units, files: work.agents[0]?.files ?? 0 }),
+      () => Date.now()
+    )
+    noteAiVaultScanProgress(signal)
+    for (let index = 0; index < 16; index++) {
+      noteAiVaultScanFileFound(signal, 'codex', {
+        path: `/sessions/${index}.jsonl`,
+        dev: 1,
+        ino: index + 1
+      })
+    }
+    noteAiVaultScanProgress(signal)
+    noteAiVaultScanWorkChanged(signal)
+    vi.advanceTimersByTime(AI_VAULT_SCAN_PROGRESS_INTERVAL_MS)
+
+    expect(reports).toEqual([
+      { units: 1, files: 0 },
+      { units: 2, files: 16 }
+    ])
+    stop()
   })
 
   it('counts every chunk a long transcript read consumes', async () => {
@@ -129,6 +160,8 @@ describe('scan progress reporting', () => {
     expect(result.sessions).toHaveLength(3)
     // Two directory listings, a stat batch, then a chunk and a parse per file.
     expect(reports.length).toBeGreaterThanOrEqual(2 + 1 + 3 * 2)
-    expect(reports).toEqual(reports.map((_, index) => index + 1))
+    expect([...new Set(reports)]).toEqual(
+      Array.from({ length: Math.max(...reports) }, (_, index) => index + 1)
+    )
   })
 })

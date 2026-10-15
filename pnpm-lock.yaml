@@ -269,6 +269,9 @@ importers:
         specifier: ~4.6.5
         version: 4.6.5
     devDependencies:
+      '@actions/expressions':
+        specifier: 0.3.61
+        version: 0.3.61
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -689,6 +692,10 @@ importers:
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@18.19.130)(happy-dom@20.14.5)(msw@2.14.3(@types/node@18.19.130)(typescript@7.0.2))(rolldown-vite@7.3.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@18.19.130)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
 packages:
+
+  '@actions/expressions@0.3.61':
+    resolution: {integrity: sha512-Ig+tXELvTjlqxQAWBQnLNn2dPpNraLMdSnT+vDzDPmJtbNUhIAH/Z9kVT8pZ8UtJi9vUGs8hwHE8JFJmbOnLEA==}
+    engines: {node: '>= 20'}
 
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
@@ -8044,6 +8051,8 @@ ignoredOptionalDependencies:
   - '@anthropic-ai/claude-agent-sdk-win32-x64'
 
 snapshots:
+
+  '@actions/expressions@0.3.61': {}
 
   '@adobe/css-tools@4.5.0': {}
 

@@ -1,6 +1,7 @@
 import type { SessionSearchScanRoots } from '../ai-vault-search/session-search-scan-roots'
 import type { ChildProcess } from 'node:child_process'
 import { createAiVaultScanCancelledError } from './ai-vault-scan-cancellation'
+import type { AiVaultServiceScanListener } from './session-scanner-service-request-deadline'
 import {
   AI_VAULT_SERVICE_PROTOCOL_VERSION,
   aiVaultServiceLane,
@@ -143,10 +144,12 @@ export function createAiVaultServicePendingCall(
   signal: AbortSignal | undefined,
   resolve: (value: unknown) => void,
   reject: (error: Error) => void,
-  cancel: (call: AiVaultServicePendingCall) => void
+  cancel: (call: AiVaultServicePendingCall) => void,
+  scanListener?: AiVaultServiceScanListener
 ): AiVaultServicePendingCall {
   const call: AiVaultServicePendingCall = {
     request,
+    scanListener,
     lane: aiVaultServiceLane(request.operation),
     signal,
     resolve,
@@ -292,6 +295,7 @@ export type AiVaultServicePendingCall = {
   startRetried: boolean
   /** Highest progress counter the child reported for this scan. */
   progressUnits: number
+  scanListener?: AiVaultServiceScanListener
 }
 
 export type AiVaultServiceReadyWaiter = {

@@ -2,6 +2,7 @@ import type { ExecutionHostId } from '../../../src/shared/execution-host'
 import type { AgentWorkingMode } from '../../../src/shared/agent-status-types'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import type { ProjectSectionRepo } from '../../../src/shared/project-section-grouping'
+import type { WorkspaceRowFilters } from '../../../src/shared/workspace-view/workspace-row-filters'
 
 export type Worktree = {
   sectionListKey?: string
@@ -30,8 +31,13 @@ export type Worktree = {
   isArchived?: boolean
   isMainWorktree?: boolean
   hasHostSidebarActivity?: boolean
-  /** The paired desktop's "Hide other-client workspaces" hides this row. */
+  /** The paired desktop calls this row another client's (its "Hide other-client workspaces" rule). */
   desktopOtherClient?: true
+  /** Workspace options facts the host stamps (RuntimeWorktreePsSummary); older hosts send none. */
+  defaultBranch?: boolean
+  automationCreated?: true
+  cliCreated?: true
+  detachedHead?: true
   worktreeInstanceId?: string
   lineageWorktreeInstanceId?: string
   parentWorktreeInstanceId?: string
@@ -58,13 +64,8 @@ export type Worktree = {
   agents?: RuntimeWorktreeAgentRow[]
 }
 
-export type FilterState = {
-  filterRepoIds: Set<string>
-  hideSleeping: boolean
-  hideDefaultBranch: boolean
-  /** Absent means on: #8873's exemption must fail open on older host payloads. */
-  alwaysShowDefaultBranch?: boolean
-}
+/** The desktop's Workspace options filters, one shared value. */
+export type FilterState = WorkspaceRowFilters
 
 /** A repo as Project sections read it: the desktop's catalog record, or one a row stands in for. */
 // repoIcon stays unread wire data until drawn (readMobileRepoIcon).

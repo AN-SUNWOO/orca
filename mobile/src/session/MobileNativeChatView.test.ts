@@ -99,6 +99,7 @@ type Overrides = {
   status?: Parameters<typeof MobileNativeChatView>[0]['status']
   error?: string
   readFailedFinally?: boolean
+  actionablePromptIds?: readonly string[]
 }
 
 function assistantTurn(id: string, text: string): NativeChatMessage {
@@ -812,6 +813,13 @@ describe('MobileNativeChatView', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('tells a row whether the host still waits on the prompt it stands for', async () => {
+    const rows = [assistantTurn('asked', 'Tea or coffee?'), assistantTurn('open', 'Which branch?')]
+    await render({ messages: rows, folded: rows, actionablePromptIds: ['open'] })
+    expect(renderedRow('asked').props.awaiting).toBe(false)
+    expect(renderedRow('open').props.awaiting).toBe(true)
   })
 
   it('renders an accepted optimistic image send without a queued state', async () => {

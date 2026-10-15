@@ -220,8 +220,7 @@ export function NativeChatStructuredSession(
     optionPickerRequest,
     setOptionPickerRequest,
     onError: reportComposerError,
-    onSubmitted: revealLatest,
-    queuedMessages: submits.queuedMessages
+    onSubmitted: revealLatest
   })
 
   // Said once: on the pane when the failure took it, else in the composer's notices.
@@ -345,13 +344,20 @@ export function NativeChatStructuredSession(
               key={props.sessionId}
               goal={controller.threadGoal.goal}
               pending={controller.threadGoal.pending}
+              hostChanges={controller.threadGoal.hostChanges}
+              sendUnavailable={structuredTransport.sendOut || controller.isWorking}
               isVisible={props.isVisible}
               runningTurn={
                 controller.turnId === null
                   ? null
                   : { startedAt: controller.workingStartedAt ?? null }
               }
-              onChange={(change) => void controller.threadGoal?.change(change)}
+              onChange={(change) => {
+                if (change.kind === 'clear' && !controller.threadGoal?.hostChanges) {
+                  structuredTransport.onSubmitted?.()
+                }
+                void controller.threadGoal?.change(change)
+              }}
             />
           ) : null}
           {/* Prompt cards take the composer's slot, below the background-task dock. */}

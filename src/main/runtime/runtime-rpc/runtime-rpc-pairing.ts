@@ -106,7 +106,6 @@ export class RuntimeRpcPairing extends RuntimeRpcNetworkExposure {
       ? new MobileRelayHostCatalog({
           hosts,
           hostLabelOverrides: () => getHostDisplayLabelOverrides(this.runtime.getClientSettings()),
-          hidesWorkspacesFromOtherDevices: () => this.runtime.hidesWorkspacesFromOtherDevices(),
           getWorkspaceSession: (hostId) => this.runtime.getWorkspaceSessionForHost(hostId)
         })
       : null

@@ -17,7 +17,6 @@ import type {
   AgentSessionJournalIdentity
 } from '../../../shared/agent-session-journal-types'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
-import { currentAgentSessionThreadGoalBySequence } from '../../../shared/agent-session-thread-goal'
 import type { AgentSessionContextUsage } from '../../../shared/agent-session-context-usage'
 import { latestStructuredAgentContextFacts } from '../../../shared/structured-agent-session-context-usage'
 import {
@@ -77,6 +76,7 @@ import type { JournalStepWriter } from './journal-step-writer'
 import type { JournalStopMarks } from './journal-stop-marks'
 import type { JournalContextController } from './journal-context-controller'
 import type { JournalStopAcceptor } from './journal-stop-acceptance'
+import { journalThreadGoalSource, type JournalThreadGoalSource } from './journal-thread-goal-source'
 
 export { AgentSessionJournalError } from './journal-write-guards'
 
@@ -184,9 +184,7 @@ export class AgentSessionJournal {
   /** A conversation's open, which always follows the chat stopping (a quit, a crash or a close):
    *  a card it finds waits for a turn from where this handle opened, derived with nothing written,
    *  unless an earlier mark already holds it. The mark that follows records the same start. */
-  holdReopenFromOpen(): void {
-    this.reopen.holdFromOpen(this.openedThrough)
-  }
+  holdReopenFromOpen = (): void => this.reopen.holdFromOpen(this.openedThrough)
 
   /** Refuses every later write and resolves once the admitted ones have landed. Holds no
    *  connection, so there is nothing to release and nothing that can fail. */
@@ -247,9 +245,12 @@ export class AgentSessionJournal {
   newestTurn = (): AgentJournalTurnLifecycle | null =>
     newestStructuredAgentSessionTurnBySequence(this.state.items.values())
 
+  /** The latest goal and its row, for a provider revising accounting after restart. */
+  threadGoalSource = (): JournalThreadGoalSource =>
+    journalThreadGoalSource(this.state.items.values())
+
   /** The latest goal the whole journal records, not only a client's loaded page. */
-  threadGoal = (): AgentJournalThreadGoal | null =>
-    currentAgentSessionThreadGoalBySequence(this.state.items.values()) ?? null
+  threadGoal = (): AgentJournalThreadGoal | null => this.threadGoalSource().goal
 
   /** The newest context facts the whole journal records, not only a client's loaded page. */
   contextUsage = (): AgentSessionContextUsage =>

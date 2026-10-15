@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 import { MobileNativeChatView, type MobileNativeChatInputLockReason } from './MobileNativeChatView'
 import { foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
 import type { MobileNativeChatImageAttachments } from './use-mobile-native-chat-image-attachments'
@@ -55,7 +55,12 @@ export function MobileNativeChatOverlay({
   keyboardInset
 }: Props): React.JSX.Element | null {
   const session = controller.nativeChatSession
-  const folded = useMemo(() => foldMobileNativeChatMessages(session.messages), [session.messages])
+  // The page keys its history split and its place-hold on row ids; a native list holds its own place.
+  const olderPageMayLoad = Platform.OS === 'web' && session.hasMore
+  const folded = useMemo(
+    () => foldMobileNativeChatMessages(session.messages, olderPageMayLoad),
+    [session.messages, olderPageMayLoad]
+  )
   const streaming = useMobileNativeChatStreamingBubble(
     folded,
     controller.nativeChatStreamingText,

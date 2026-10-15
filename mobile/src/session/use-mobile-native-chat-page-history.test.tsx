@@ -1,6 +1,8 @@
 import { createElement, type ReactElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { NativeChatBlock, NativeChatMessage } from '../../../src/shared/native-chat-types'
+import { foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
 import { useMobileNativeChatPageHistory } from './use-mobile-native-chat-page-history'
 
 const platform = vi.hoisted(() => ({ OS: 'web' }))
@@ -79,6 +81,45 @@ describe('useMobileNativeChatPageHistory', () => {
 
     expect(history?.listRows).toEqual(rows('p', 'q'))
     expect(headerRows()).toEqual([])
+  })
+
+  it('keeps every row it drew when the older page holds the start of the tool run it began in', async () => {
+    const message = (
+      id: string,
+      role: NativeChatMessage['role'],
+      ...blocks: NativeChatBlock[]
+    ): NativeChatMessage => ({ id, role, blocks, timestamp: null, source: 'transcript' })
+    const text = (value: string): NativeChatBlock => ({ type: 'text', text: value })
+    const call = (n: number): NativeChatBlock => ({
+      type: 'tool-call',
+      name: 'Read',
+      input: {},
+      callId: `c${n}`
+    })
+    const result = (n: number): NativeChatBlock => ({
+      type: 'tool-result',
+      output: 'ok',
+      callId: `c${n}`
+    })
+    const chat = [
+      message('ask', 'user', text('fix it')),
+      message('look', 'assistant', text('Looking.'), call(1)),
+      message('r1', 'user', result(1)),
+      message('read', 'assistant', call(2)),
+      message('r2', 'user', result(2)),
+      message('done', 'assistant', text('Fixed.')),
+      message('thanks', 'user', text('thanks'))
+    ]
+    // The page starts mid-run, at a result whose call, and whose assistant row, it doesn't have.
+    await show(foldMobileNativeChatMessages(chat.slice(2), true))
+    const drawn = history?.listRows.map((row) => row.id)
+
+    await show(foldMobileNativeChatMessages(chat))
+
+    // The place-hold finds the reader's row by id, and the list keeps its rows at their indexes.
+    expect(drawn).toEqual(['done', 'thanks'])
+    expect(history?.listRows.map((row) => row.id)).toEqual(drawn)
+    expect(headerRows().map((row) => row.id)).toEqual(['ask', 'look'])
   })
 
   it('leaves a native list all its rows: it holds its own place', async () => {

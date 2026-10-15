@@ -134,17 +134,35 @@ export function foldToolMessages(messages: readonly NativeChatMessage[]): Native
     if (message.role === 'assistant') {
       mutableAssistantIndex = output.length - 1
       clonedAssistantIndex = -1
-    } else if (
-      !isSubagentRosterMessage(message) &&
-      !isBackgroundTaskMessage(message) &&
-      !isUndrawnProviderFrameMessage(message) &&
-      (!isNoiseMessage(message) || isInterruptionBoundary(message))
-    ) {
+    } else if (endsToolRun(message)) {
       mutableAssistantIndex = -1
       clonedAssistantIndex = -1
     }
   }
   return sources.project(output)
+}
+
+/** A drawn row that isn't an assistant's: the tool messages after it start a run of their own. */
+function endsToolRun(message: NativeChatMessage): boolean {
+  return (
+    !isSubagentRosterMessage(message) &&
+    !isBackgroundTaskMessage(message) &&
+    !isUndrawnProviderFrameMessage(message) &&
+    (!isNoiseMessage(message) || isInterruptionBoundary(message))
+  )
+}
+
+/** The first message that is drawn, and drawn the same by `foldToolMessages` whatever comes before
+ *  it: it can't join an earlier run, and it starts or ends one itself. -1 when no message is. */
+export function firstToolFoldBoundary(messages: readonly NativeChatMessage[]): number {
+  return messages.findIndex(
+    (message) =>
+      message.unpairedToolResults === true ||
+      (!isToolOnlyMessage(message) &&
+        !isHarnessSidecarToolMessage(message) &&
+        !isNoiseMessage(message) &&
+        (message.role === 'assistant' || endsToolRun(message)))
+  )
 }
 
 export function splitNativeChatBlocks(blocks: readonly NativeChatBlock[]): {

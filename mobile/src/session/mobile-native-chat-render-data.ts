@@ -6,7 +6,7 @@ import {
 import { isRootAgentJournalItem } from '../../../src/shared/agent-session-journal-producer'
 import { stripNoiseMessages } from '../../../src/shared/native-chat-noise'
 import { isWordlessProviderFrameMessage } from '../../../src/shared/native-chat-provider-frame-summary'
-import { foldToolMessages } from '../../../src/shared/native-chat-tool-fold'
+import { firstToolFoldBoundary, foldToolMessages } from '../../../src/shared/native-chat-tool-fold'
 import { foldSubagentItems } from '../../../src/shared/native-chat-subagent-items'
 import { isImageRefBlock, type NativeChatMessage } from '../../../src/shared/native-chat-types'
 import {
@@ -55,7 +55,8 @@ export type MobileNativeChatPendingItem = {
 }
 
 export function foldMobileNativeChatMessages(
-  messages: readonly NativeChatMessage[]
+  messages: readonly NativeChatMessage[],
+  olderPageMayLoad = false
 ): NativeChatMessage[] {
   // The conversation only: a subagent's rows are that subagent's, and mobile shows
   // each spawn as its roster row (one line per child) rather than the child's own rows.
@@ -63,17 +64,17 @@ export function foldMobileNativeChatMessages(
   // image-ref blocks instead of rendering as raw `[Image: …]` text. An unrecognised event
   // with no words of its own is stored, not drawn; mobile draws no task list, so a plan update
   // goes too, before folding, so it never splits a tool run.
-  return stripNoiseMessages(
-    foldToolMessages(
-      foldSubagentItems(
-        normalizeImageTranscriptMessages(
-          messages.filter(
-            (message) => isRootAgentJournalItem(message) && !isWordlessProviderFrameMessage(message)
-          )
-        )
+  const rows = foldSubagentItems(
+    normalizeImageTranscriptMessages(
+      messages.filter(
+        (message) => isRootAgentJournalItem(message) && !isWordlessProviderFrameMessage(message)
       )
     )
   )
+  // A page can start inside a tool run that the older page's assistant row takes over, which
+  // would replace the rows it drew. Until that page loads, start where the fold can't regroup.
+  const start = olderPageMayLoad ? firstToolFoldBoundary(rows) : 0
+  return stripNoiseMessages(foldToolMessages(start > 0 ? rows.slice(start) : rows))
 }
 
 /** Assemble the folded transcript, streaming text, and optimistic user echoes. */

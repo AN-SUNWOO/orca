@@ -7,11 +7,12 @@ const platform = vi.hoisted(() => ({ OS: 'web' }))
 
 vi.mock('react-native', () => ({ Platform: platform }))
 
-/** A message row 100 tall: its id, its top before the update and after it (null: gone). */
-type Row = [id: string, before: number, after: number | null]
+/** An element 100 tall: a message row's id (null: the Load earlier control, a turn's status row or
+ *  the live line, which carry none), its top before the update and after it (null: gone). */
+type Row = [id: string | null, before: number, after: number | null]
 
-/** A 600 tall view, 40 from the top of its content, over the given message rows. Every read
- *  builds fresh elements, as a redrawn row would be. */
+/** A 600 tall view, 40 from the top of its content, over the given elements in document order.
+ *  Every read builds fresh elements, as a redrawn row would be. */
 function scrollerOver(rows: Row[], scrollTop = 40) {
   let landed = false
   const node = {
@@ -19,15 +20,26 @@ function scrollerOver(rows: Row[], scrollTop = 40) {
     scrollHeight: 3_500,
     clientHeight: 600,
     getBoundingClientRect: () => ({ top: 0, bottom: 600 }),
-    querySelectorAll: () =>
-      rows.flatMap(([id, before, after]) => {
+    querySelectorAll: (selector: string) => {
+      const prefix = /^\[data-testid\^="([^"]+)"\]$/.exec(selector)?.[1]
+      if (prefix === undefined) {
+        throw new Error(`unexpected selector ${selector}`)
+      }
+      return rows.flatMap(([id, before, after]) => {
         const top = landed ? after : before
-        if (top === null) {
+        const testId = id === null ? null : mobileNativeChatRowId(id)
+        if (top === null || !testId?.startsWith(prefix)) {
           return []
         }
         const box = { top, bottom: top + 100 }
-        return [{ getAttribute: () => mobileNativeChatRowId(id), getBoundingClientRect: () => box }]
+        return [
+          {
+            getAttribute: (name: string) => (name === 'data-testid' ? testId : null),
+            getBoundingClientRect: () => box
+          }
+        ]
       })
+    }
   }
   // The first read is the snapshot before the update; later ones see it landed.
   let reads = 0
@@ -60,9 +72,12 @@ describe('MobileNativeChatScrollHold', () => {
 
   it('holds the first message on screen, not output landing below it too', async () => {
     const { node, listRef } = scrollerOver([
-      ['above', -200, 1_800],
-      ['reading', -50, 1_950],
-      ['live', 300, 2_800]
+      [null, -250, 1_750],
+      ['above', -150, 1_850],
+      [null, -50, 1_950],
+      ['reading', 50, 2_050],
+      ['live', 150, 2_800],
+      [null, 250, 2_900]
     ])
     await show('a', listRef)
 

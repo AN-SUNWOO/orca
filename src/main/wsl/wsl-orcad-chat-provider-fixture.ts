@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { shellEscape } from '../ssh/ssh-connection-utils'
@@ -49,7 +50,17 @@ export async function installWslChatFixture(lane: WslChatHost) {
       }
     }
   })
-  return { home, root }
+  const group = await lane.rpc<{ group: { id: string } }>('projectGroup.create', {
+    name: 'WSL chat lane'
+  })
+  const folderPath = `${root}/folder project`
+  await lane.guest(`mkdir -p ${shellEscape(folderPath)}`)
+  const folder = await lane.rpc<{ folderWorkspace: { id: string } }>('folderWorkspace.create', {
+    projectGroupId: group.group.id,
+    folderPath,
+    name: 'WSL folder chat'
+  })
+  return { home, root, folderPath, folderWorktree: folderWorkspaceKey(folder.folderWorkspace.id) }
 }
 
 export const WslChatProviderReport = z.object({

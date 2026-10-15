@@ -13,7 +13,6 @@ import {
   subscribeRemoteRuntimeRequest,
   type RemoteRuntimeSubscription
 } from '../../shared/remote-runtime-client'
-import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { claudeSessionIdForOrcaSession } from '../claude/claude-structured-session-id'
 import { packagedClaudeChatScenario } from '../orcad/orcad-structured-chat-scenario'
 import { shellEscape } from '../ssh/ssh-connection-utils'
@@ -274,12 +273,7 @@ async function exerciseChat(lane: ChatLane, root: string, worktree: string, cwd:
       sessionId,
       providerId,
       cwd,
-      attachment: attachment.path,
-      streamed: true,
-      approved: true,
-      cancelled: true,
-      reconnected: true,
-      resumed: true
+      attachment: attachment.path
     }
   } finally {
     subscription?.close()
@@ -289,17 +283,7 @@ async function exerciseChat(lane: ChatLane, root: string, worktree: string, cwd:
 
 /** Same cross-process contract for git and folder projects, in each imported distro. */
 export async function proveWslStructuredChat(lane: ChatLane) {
-  const { home, root } = await installWslChatFixture(lane)
-  const group = await lane.rpc<{ group: { id: string } }>('projectGroup.create', {
-    name: 'WSL chat lane'
-  })
-  const folderPath = `${root}/folder project`
-  await lane.guest(`mkdir -p ${shellEscape(folderPath)}`)
-  const folder = await lane.rpc<{ folderWorkspace: { id: string } }>('folderWorkspace.create', {
-    projectGroupId: group.group.id,
-    folderPath,
-    name: 'WSL folder chat'
-  })
+  const { home, root, folderPath, folderWorktree } = await installWslChatFixture(lane)
   return {
     git: await exerciseChat(
       lane,
@@ -307,11 +291,6 @@ export async function proveWslStructuredChat(lane: ChatLane) {
       `path:${home}/wsl-orcad-lane-repo`,
       `${home}/wsl-orcad-lane-repo`
     ),
-    folder: await exerciseChat(
-      lane,
-      root,
-      folderWorkspaceKey(folder.folderWorkspace.id),
-      folderPath
-    )
+    folder: await exerciseChat(lane, root, folderWorktree, folderPath)
   }
 }

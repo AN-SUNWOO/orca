@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { worktree } from './worktree-list-groups-test-fixtures'
+import { withRepoHostOwnership } from '@/store/slices/worktrees/listing/worktree-host-ownership'
+import type * as Owner from '@/runtime/structured-agent-session-owner'
 
 type SleepTestState = {
   activeWorktreeId: string | null
@@ -34,7 +37,7 @@ const mocks = vi.hoisted(() => {
   return {
     state,
     call: vi.fn().mockResolvedValue({ stoppedSessionIds: ['session-1'] }),
-    target: vi.fn(() => ({ kind: 'local' })),
+    target: vi.fn<(host: string) => unknown>(() => ({ kind: 'local' })),
     suspend: vi.fn().mockResolvedValue(null),
     toast: vi.fn()
   }
@@ -57,6 +60,7 @@ import {
 import {
   clearWorktreeSleepIntent,
   forgetWorktreeSleepIntent,
+  hasWorktreeSleepTeardown,
   hasWorktreeSleepIntent
 } from '@/lib/worktree-sleep-intent'
 
@@ -69,6 +73,29 @@ function deferred<T>() {
 }
 
 describe('workspace sleep flow', () => {
+  it('keeps paired SSH execution identity through selection, intent and teardown', async () => {
+    const owner = await vi.importActual<typeof Owner>('@/runtime/structured-agent-session-owner')
+    mocks.target.mockImplementationOnce(owner.structuredAgentSessionTargetForHost)
+    const target = withRepoHostOwnership(
+      { ...worktree, hostId: 'ssh:target' as const },
+      'runtime:hub'
+    )
+    mocks.state.activeWorktreeId = target.id
+    mocks.state.activeWorkspaceExecutionHostId = 'ssh:target'
+    mocks.state.shutdownWorktreeTerminals.mockImplementationOnce(async () => {
+      expect(mocks.state.activeWorktreeId).toBeNull()
+      expect(hasWorktreeSleepTeardown(target.id, 'ssh:target')).toBe(true)
+    })
+    const result = await runSleepWorktrees([target])
+    expect(result[0]).toMatchObject({
+      executionHostId: 'ssh:target',
+      completed: true
+    })
+    expect(hasWorktreeSleepIntent(target.id, 'ssh:target')).toBe(true)
+    expect(hasWorktreeSleepIntent(target.id, 'runtime:hub')).toBe(false)
+    expect(mocks.call).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     vi.stubGlobal('window', {
       api: { ephemeralVm: { suspendWorkspace: mocks.suspend } }

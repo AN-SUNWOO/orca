@@ -19,6 +19,7 @@ import {
 } from '../../../../shared/execution-host'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import { resolveWorktreeOperationRouteResult } from '@/lib/worktree-operation-route'
+import { routeForOwner } from '@/lib/worktree-owner-route'
 import {
   findIndexedFolderWorkspaceOwner,
   findIndexedProjectGroupOwner
@@ -105,14 +106,14 @@ function resolveSleepTarget(
     const host = parseExecutionHostId(explicit)
     return host ? { workspaceId, executionHostId: host.id } : null
   }
+  const ownerRoute = typeof target === 'string' ? null : routeForOwner(target)
+  const selectedHost =
+    parseExecutionHostId(ownerRoute?.executionHostId)?.id ??
+    (ownerRoute?.runtimeEnvironmentId
+      ? toRuntimeExecutionHostId(ownerRoute.runtimeEnvironmentId)
+      : undefined)
   const scope = parseWorkspaceKey(workspaceId)
   if (scope?.type === 'folder') {
-    const selectedHost =
-      typeof target === 'string'
-        ? undefined
-        : target.runtimeOwnerEnvironmentId?.trim()
-          ? toRuntimeExecutionHostId(target.runtimeOwnerEnvironmentId.trim())
-          : parseExecutionHostId(target.hostId)?.id
     const folder = findIndexedFolderWorkspaceOwner(
       state.folderWorkspaces,
       scope.folderWorkspaceId,
@@ -133,15 +134,8 @@ function resolveSleepTarget(
     )
     return { workspaceId, executionHostId }
   }
-  if (typeof target !== 'string') {
-    const runtimeOwner = target.runtimeOwnerEnvironmentId?.trim()
-    if (runtimeOwner) {
-      return { workspaceId, executionHostId: toRuntimeExecutionHostId(runtimeOwner) }
-    }
-    const stamped = parseExecutionHostId(target.hostId)
-    if (stamped) {
-      return { workspaceId, executionHostId: stamped.id }
-    }
+  if (selectedHost) {
+    return { workspaceId, executionHostId: selectedHost }
   }
   const route = resolveWorktreeOperationRouteResult(state, workspaceId)
   return route.kind === 'resolved' && route.route.executionHostId

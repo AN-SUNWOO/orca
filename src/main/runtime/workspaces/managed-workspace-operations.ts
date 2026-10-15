@@ -218,19 +218,7 @@ export abstract class OrcaRuntimeWithListManagedWorktrees extends OrcaRuntimeWit
     worktreeSelector: string,
     hostId?: ExecutionHostId
   ): Promise<{ worktreeId: string; executionHostId: ExecutionHostId }> {
-    const explicitId = this.getValidatedExplicitWorktreeIdSelector(worktreeSelector)
-    const worktree =
-      hostId && explicitId
-        ? (await this.listResolvedWorktrees()).find(
-            (candidate) =>
-              candidate.id === explicitId &&
-              getWorktreeExecutionHostId(candidate, this.store?.getRepo(candidate.repoId)) ===
-                hostId
-          )
-        : await this.resolveWorktreeSelector(worktreeSelector)
-    if (!worktree) {
-      throw new Error('selector_not_found')
-    }
+    const worktree = await this.resolveWorktreeSelector(worktreeSelector, hostId)
     const executionHostId = getWorktreeExecutionHostId(
       worktree,
       this.store?.getRepo(worktree.repoId)

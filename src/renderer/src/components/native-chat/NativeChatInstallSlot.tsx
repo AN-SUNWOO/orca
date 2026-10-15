@@ -16,20 +16,28 @@ const NONE: NativeChatInstallSlotState = { kind: 'none' }
 const RESERVED: NativeChatInstallSlotState = { kind: 'reserved' }
 
 /** Install takes the composer's place while the chat's host has nothing to run, its install
- *  included; anything runnable, or a status the host could not report, leaves the composer. */
+ *  included; anything runnable, or a status the host could not report, leaves the composer. Until
+ *  the host says whether it provides the program, the slot stays reserved. */
 export function useNativeChatInstallSlot(
   target: RuntimeClientTarget,
   agent: string,
   shown: boolean
 ): NativeChatInstallSlotState {
   const observation = useManagedRuntimeInstall(target, agent, shown)
-  if (observation.kind === 'inactive' || observation.snapshot.kind === 'readFailed') {
+  if (observation.kind === 'inactive') {
     return NONE
   }
-  if (observation.snapshot.kind === 'unknown') {
+  if (observation.kind === 'pending') {
     return RESERVED
   }
-  return observation.snapshot.state.source === null ? { kind: 'install', observation } : NONE
+  const { snapshot } = observation
+  if (snapshot.kind === 'readFailed') {
+    return NONE
+  }
+  if (snapshot.kind === 'unknown') {
+    return RESERVED
+  }
+  return snapshot.state.source === null ? { kind: 'install', observation } : NONE
 }
 
 export function NativeChatInstallSlot(props: {

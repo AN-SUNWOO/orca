@@ -247,12 +247,10 @@ export function NativeChatStructuredSession(
     failure: provisionalLaunch.failure,
     failureRows: startFailures.filter((fact) => isClaudeSignInFailureKind(fact.kind)).length
   })
-  // The install row already says why a start found nothing to run.
-  const installSaysLaunch =
-    installSlot.kind === 'install' &&
-    provisionalLaunch.failure?.details?.reason === 'runtimeNotInstalled'
+  // Nothing starts until the install lands, so a start failure's "send again" or Retry can't help;
+  // the install row says what to do.
   const notices = structuredSessionNotices({
-    launch: installSaysLaunch ? { ...launch, lifecycle: null } : launch,
+    launch: installSlot.kind === 'install' ? { ...launch, lifecycle: null } : launch,
     agentLabel,
     sessionError,
     composerError: composerError ?? continuation.continueError,

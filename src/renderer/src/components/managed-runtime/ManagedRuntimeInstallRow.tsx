@@ -59,7 +59,7 @@ export function ManagedRuntimeInstallRow(props: {
     >
       <div className="min-w-0 flex-1 space-y-1">
         {chat ? (
-          <p className="font-medium text-foreground">
+          <p className="font-semibold text-foreground">
             {translate(
               'components.managed-runtime.chatTitle',
               'Install {{agent}} to start chatting.',

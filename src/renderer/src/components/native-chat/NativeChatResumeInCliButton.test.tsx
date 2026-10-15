@@ -32,13 +32,9 @@ beforeEach(() => {
   mocks.resolveSwitch.mockReturnValue({ action: 'resume-in-new-cli', worktreeId: 'worktree-1' })
 })
 
-it.each([
-  { groupSurvives: true, launches: 1 },
-  { groupSurvives: false, launches: 0 }
-])('uses the clicked pane during history lookup (survives=$groupSurvives)', async ({
-  groupSurvives,
-  launches
-}) => {
+it.each([true, false])('finishes Resume after source chat closes (pane survives=%s)', async (
+  groupSurvives
+) => {
   const state = {
     groupsByWorktree: { 'worktree-1': [{ id: 'chat-group' }] },
     unifiedTabsByWorktree: { 'worktree-1': [{ id: 'chat-tab' }, { id: 'sibling-tab' }] }
@@ -51,7 +47,7 @@ it.each([
   mocks.lookup.mockImplementation(
     async (_subject: unknown, _list: unknown, options: { isCancelled: () => boolean }) => {
       await history
-      expect(options.isCancelled()).toBe(!groupSurvives)
+      expect(options.isCancelled()).toBe(false)
       return { id: 'saved-row' }
     }
   )
@@ -75,12 +71,10 @@ it.each([
   releaseHistory()
 
   await waitFor(() => expect(button).not.toBeDisabled())
-  await waitFor(() => expect(mocks.resume).toHaveBeenCalledTimes(launches))
-  if (groupSurvives) {
-    expect(mocks.resume).toHaveBeenCalledWith(
-      { id: 'saved-row' },
-      'worktree-1',
-      'chat-group'
-    )
-  }
+  await waitFor(() => expect(mocks.resume).toHaveBeenCalledOnce())
+  expect(mocks.resume).toHaveBeenCalledWith(
+    { id: 'saved-row' },
+    'worktree-1',
+    'chat-group'
+  )
 })

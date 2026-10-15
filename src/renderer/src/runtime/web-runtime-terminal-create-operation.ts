@@ -14,16 +14,20 @@ import { runRemoteAgentSessionLaunch } from './remote-agent-session-launch'
 import { unwrapRuntimeRpcResult } from './runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 import { resolveWebRuntimeSessionEnvironmentId } from './web-runtime-session-workspace-routing'
+import { recordWebSessionFocusIntent } from './web-session-focus-intent'
 import {
   forgetWebSessionTerminalPlacement,
+  recordWebSessionTerminalPlacement,
   webTerminalPlacementParentTabId
 } from './web-session-terminal-placement'
 import { toHostSessionTabId } from '../../../shared/terminal-surface-id'
 import {
   captureRuntimeEnvironmentCall,
   captureWebSessionIntentOwner,
-  isWebRuntimeSessionActive
+  isWebRuntimeSessionActive,
+  matchesWebSessionIntentOwner
 } from './web-runtime-session-environment'
+import { refreshWebRuntimeSessionTabsSnapshot } from './web-runtime-session-snapshot'
 import type {
   CreatedAgentTerminalIdentity,
   CreatedWebRuntimeSessionTerminal,
@@ -39,10 +43,7 @@ import {
   createdTerminalLeafId,
   readCreatedAgentTerminalIdentity
 } from './web-runtime-terminal-identity'
-import { publishWebRuntimeTerminalPlacement } from './web-runtime-terminal-placement-settlement'
-import { isAgentLaunchDestinationLive } from '@/lib/agent-launch-destination'
-import { retireWebRuntimeTerminalForLostDestination } from './web-runtime-terminal-lost-destination-retirement'
-import { createLegacyWebRuntimeTerminal } from './web-runtime-terminal-legacy-create'
+import { settleWebRuntimeTerminalPlacement } from './web-runtime-terminal-placement-settlement'
 
 export async function createWebRuntimeSessionTerminalResult(
   args: CreateWebRuntimeSessionTerminalArgs
@@ -65,13 +66,6 @@ export async function createWebRuntimeSessionTerminalResult(
   const intentOwner = captureWebSessionIntentOwner(environmentId)
   const callEnvironment = captureRuntimeEnvironmentCall(environmentId, intentOwner.pairingRevision)
 
-  if (
-    args.strictDestination &&
-    !isAgentLaunchDestinationLive(args.worktreeId, args.targetGroupId)
-  ) {
-    return { outcome: { status: 'abandoned' } }
-  }
-
   let workspaceSelectionRollback: WebRuntimeSessionWorkspaceSelectionRollback | null = null
   if (args.selectWorktree !== false) {
     const previous = readActiveWorkspaceSelection()
@@ -87,14 +81,6 @@ export async function createWebRuntimeSessionTerminalResult(
   let hostCreated = false
   let createdTabId: string | undefined
   let createdLeafId: string | undefined
-  const retireIfDestinationGone = (): Promise<CreatedWebRuntimeSessionTerminal | null> =>
-    retireWebRuntimeTerminalForLostDestination({
-      ...args,
-      environmentId,
-      intentOwner,
-      createdTabId,
-      workspaceSelectionRollback
-    })
   try {
     const agent = args.launchAgent ?? args.agent
     const agentArgsOverride =
@@ -220,10 +206,6 @@ export async function createWebRuntimeSessionTerminalResult(
       createdLeafId = legacyAlreadyPlacedInGroup
         ? created.terminal.leafId
         : createdTerminalLeafId(created.terminal)
-      const abandoned = await retireIfDestinationGone()
-      if (abandoned) {
-        return abandoned
-      }
       if (args.targetGroupId && createdTabId && !legacyAlreadyPlacedInGroup) {
         await callEnvironment({
           method: 'session.tabs.move',
@@ -237,31 +219,76 @@ export async function createWebRuntimeSessionTerminalResult(
         })
       }
     } else {
-      const created = await createLegacyWebRuntimeTerminal(args, callEnvironment)
+      const response = await callEnvironment({
+        method: 'session.tabs.createTerminal',
+        params: {
+          worktree: toRuntimeWorktreeSelector(args.worktreeId),
+          afterTabId: args.afterTabId ? toHostSessionTabId(args.afterTabId) : undefined,
+          targetGroupId: args.targetGroupId,
+          command: args.command,
+          cwd: args.cwd,
+          ...(args.env ? { env: args.env } : {}),
+          ...(args.envToDelete ? { envToDelete: args.envToDelete } : {}),
+          startupCommandDelivery: args.startupCommandDelivery,
+          ...(args.launchConfig ? { launchConfig: args.launchConfig } : {}),
+          ...(args.launchToken ? { launchToken: args.launchToken } : {}),
+          ...(args.viewMode ? { viewMode: args.viewMode } : {}),
+          // Why: old hosts understand activate:false; new hosts use select/navigation for caller-local focus.
+          activate: false,
+          select: args.activate !== false,
+          navigation: 'caller'
+        },
+        timeoutMs: 15_000
+      })
+      const created = unwrapRuntimeRpcResult(
+        response as RuntimeRpcResponse<RuntimeMobileSessionCreateTerminalResult>
+      )
       hostCreated = true
       createdTabId = created.tab.id
       createdLeafId = created.tab.leafId
-      const abandoned = await retireIfDestinationGone()
-      if (abandoned) {
-        return abandoned
-      }
     }
-    await publishWebRuntimeTerminalPlacement(args, environmentId, intentOwner, createdTabId, createdLeafId)
-    const abandoned = await retireIfDestinationGone()
-    if (abandoned) {
-      return abandoned
+    if (args.targetGroupId && createdTabId) {
+      // Why: the host drops client-minted group ids, so this client's own record is what
+      // lands the mirrored tab in the requested pane under client-owned placement.
+      recordWebSessionTerminalPlacement({
+        environmentId,
+        worktreeId: args.worktreeId,
+        hostTabId: webTerminalPlacementParentTabId(createdTabId),
+        groupId: args.targetGroupId
+      })
+    }
+    if (args.activate !== false && createdTabId && matchesWebSessionIntentOwner(intentOwner)) {
+      // Why: record focus intent so the reconcile follows the snapshot's active
+      // tab to THIS new terminal, instead of sticky-keeping the prior tab.
+      recordWebSessionFocusIntent(intentOwner, args.worktreeId, createdTabId, createdLeafId)
+    }
+    const placementTabId =
+      createdTabId && (args.targetGroupId || args.afterTabId) ? createdTabId : undefined
+    await refreshWebRuntimeSessionTabsSnapshot(environmentId, args.worktreeId, {
+      expectedEnvironmentPairingRevision: intentOwner.pairingRevision,
+      // Why: the publication can beat the RPC response; replay it once after caller intent exists.
+      acceptCurrentSnapshot:
+        Boolean(createdTabId) && (args.activate !== false || Boolean(placementTabId)),
+      // Why: a placement record needs a post-create list; a deduped in-flight one can predate it.
+      ...(placementTabId ? { afterCurrentInFlight: true } : {})
+    })
+    if (placementTabId) {
+      await settleWebRuntimeTerminalPlacement(
+        environmentId,
+        args.worktreeId,
+        webTerminalPlacementParentTabId(placementTabId),
+        {
+          groupId: args.targetGroupId,
+          afterTabId: args.afterTabId,
+          activate: args.activate !== false
+        }
+      )
     }
     return {
       outcome: { status: 'created' },
       ...(createdTabId ? { hostTabId: createdTabId } : {})
     }
   } catch (error) {
-    if (hostCreated) {
-      const abandoned = await retireIfDestinationGone()
-      if (abandoned) {
-        return abandoned
-      }
-    }
     const message = error instanceof Error ? error.message : String(error)
     console.warn(
       hostCreated

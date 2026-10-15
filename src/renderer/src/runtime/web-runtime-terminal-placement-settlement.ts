@@ -1,62 +1,14 @@
 import { insertUnifiedTabAfterAnchor } from '../lib/unified-tab-anchor-insertion'
-import { isAgentLaunchDestinationLive } from '../lib/agent-launch-destination'
 import { useAppStore } from '../store'
-import { recordWebSessionFocusIntent } from './web-session-focus-intent'
 import {
   forgetWebSessionTerminalPlacement,
-  recordWebSessionTerminalPlacement,
   webTerminalPlacementParentTabId
 } from './web-session-terminal-placement'
-import { matchesWebSessionIntentOwner } from './web-runtime-session-environment'
-import { refreshWebRuntimeSessionTabsSnapshot } from './web-runtime-session-snapshot'
-import type { WebSessionIntentOwner } from './web-session-intent-owner'
-import type { CreateWebRuntimeSessionTerminalArgs } from './web-runtime-session-types'
 import {
   isWebTerminalSurfaceTabId,
   toHostSessionTabId,
   toWebTerminalSurfaceTabId
 } from '../../../shared/terminal-surface-id'
-
-export async function publishWebRuntimeTerminalPlacement(
-  args: CreateWebRuntimeSessionTerminalArgs,
-  environmentId: string,
-  intentOwner: WebSessionIntentOwner,
-  createdTabId?: string,
-  createdLeafId?: string
-): Promise<void> {
-  if (args.targetGroupId && createdTabId) {
-    recordWebSessionTerminalPlacement({
-      environmentId,
-      worktreeId: args.worktreeId,
-      hostTabId: webTerminalPlacementParentTabId(createdTabId),
-      groupId: args.targetGroupId
-    })
-  }
-  if (args.activate !== false && createdTabId && matchesWebSessionIntentOwner(intentOwner)) {
-    recordWebSessionFocusIntent(intentOwner, args.worktreeId, createdTabId, createdLeafId)
-  }
-  const placementTabId =
-    createdTabId && (args.targetGroupId || args.afterTabId) ? createdTabId : undefined
-  await refreshWebRuntimeSessionTabsSnapshot(environmentId, args.worktreeId, {
-    expectedEnvironmentPairingRevision: intentOwner.pairingRevision,
-    acceptCurrentSnapshot:
-      Boolean(createdTabId) && (args.activate !== false || Boolean(placementTabId)),
-    ...(placementTabId ? { afterCurrentInFlight: true } : {})
-  })
-  if (placementTabId) {
-    await settleWebRuntimeTerminalPlacement(
-      environmentId,
-      args.worktreeId,
-      webTerminalPlacementParentTabId(placementTabId),
-      {
-        groupId: args.targetGroupId,
-        afterTabId: args.afterTabId,
-        activate: args.activate !== false,
-        ...(args.strictDestination ? { strictDestination: true } : {})
-      }
-    )
-  }
-}
 
 /** Snapshots key mirrored terminals by the parent tab, so an unknown `parent::leaf` anchor resolves to its parent. */
 function anchorUnifiedTabId(worktreeId: string, afterTabId: string): string {
@@ -73,7 +25,7 @@ export async function settleWebRuntimeTerminalPlacement(
   environmentId: string,
   worktreeId: string,
   hostTabId: string,
-  placement: { groupId?: string; afterTabId?: string; activate: boolean; strictDestination?: boolean }
+  placement: { groupId?: string; afterTabId?: string; activate: boolean }
 ): Promise<void> {
   const unifiedTabId = toWebTerminalSurfaceTabId(hostTabId)
   const findTab = () =>
@@ -83,16 +35,7 @@ export async function settleWebRuntimeTerminalPlacement(
   try {
     const deadline = Date.now() + 10_000
     while (!findTab() && Date.now() < deadline) {
-      if (
-        placement.strictDestination &&
-        !isAgentLaunchDestinationLive(worktreeId, placement.groupId)
-      ) {
-        return
-      }
       await new Promise((resolve) => setTimeout(resolve, 250))
-    }
-    if (placement.strictDestination && !isAgentLaunchDestinationLive(worktreeId, placement.groupId)) {
-      return
     }
     const tab = findTab()
     if (!tab) {

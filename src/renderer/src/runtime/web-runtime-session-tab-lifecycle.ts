@@ -21,10 +21,8 @@ import { toHostSessionTabId } from '../../../shared/terminal-surface-id'
 import {
   captureRuntimeEnvironmentCall,
   captureWebSessionIntentOwner,
-  isWebRuntimeSessionActive,
-  matchesWebSessionIntentOwner
+  isWebRuntimeSessionActive
 } from './web-runtime-session-environment'
-import type { WebSessionIntentOwner } from './web-session-intent-owner'
 import { refreshWebRuntimeSessionTabsSnapshot } from './web-runtime-session-snapshot'
 
 export async function activateWebRuntimeSessionTab(args: {
@@ -73,8 +71,6 @@ export async function closeWebRuntimeSessionTab(args: {
   worktreeId: string
   tabId: string
   environmentId?: string | null
-  intentOwner?: WebSessionIntentOwner
-  requireConfirmedClose?: boolean
   reason: RuntimeSessionTabCloseReason
   publicationEpoch?: string | null
   terminalHandle?: string | null
@@ -96,8 +92,6 @@ async function callWebRuntimeSessionTabMethod(
     worktreeId: string
     tabId: string
     environmentId?: string | null
-    intentOwner?: WebSessionIntentOwner
-    requireConfirmedClose?: boolean
     reason?: RuntimeSessionTabCloseReason
     publicationEpoch?: string | null
     terminalHandle?: string | null
@@ -109,15 +103,7 @@ async function callWebRuntimeSessionTabMethod(
   if (!environmentId || !isWebRuntimeSessionActive(environmentId)) {
     return 'failed'
   }
-  if (
-    args.intentOwner &&
-    ((args.requireConfirmedClose && args.intentOwner.pairingRevision === undefined) ||
-      args.intentOwner.environmentId !== environmentId ||
-      !matchesWebSessionIntentOwner(args.intentOwner))
-  ) {
-    return 'failed'
-  }
-  const intentOwner = args.intentOwner ?? captureWebSessionIntentOwner(environmentId)
+  const intentOwner = captureWebSessionIntentOwner(environmentId)
   const callEnvironment = captureRuntimeEnvironmentCall(environmentId, intentOwner.pairingRevision)
   const closeIntentTabIds = new Set<string>()
   let activationHostTabId: string | null = null
@@ -214,9 +200,6 @@ async function callWebRuntimeSessionTabMethod(
       await refreshWebRuntimeSessionTabsSnapshot(environmentId, args.worktreeId, {
         expectedEnvironmentPairingRevision: intentOwner.pairingRevision
       })
-      if (args.requireConfirmedClose && result?.refused === true) {
-        return 'failed'
-      }
     }
     return 'applied'
   } catch (error) {

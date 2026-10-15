@@ -4,7 +4,6 @@ import { tuiAgentToAgentKind } from '@/lib/telemetry'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { createWebRuntimeSessionTerminal } from '@/runtime/web-runtime-terminal-creation'
 import { isWebRuntimeSessionActive } from '@/runtime/web-runtime-session-environment'
-import { isAgentLaunchDestinationLive } from '@/lib/agent-launch-destination'
 import type { AiVaultAgent } from '../../../shared/ai-vault-types'
 import type {
   AgentProviderSessionMetadata,
@@ -27,13 +26,8 @@ export function launchAiVaultSessionInNewTab(args: {
   launchConfig?: SleepingAgentLaunchConfig
   providerSession?: AgentProviderSessionMetadata
   targetGroupId?: string
-  /** Pane-scoped callers abandon the launch if their named destination disappears. */
-  strictDestination?: boolean
   splitDirection?: TabSplitDirection
 }): LaunchAiVaultSessionInNewTabResult {
-  if (args.strictDestination && !isAgentLaunchDestinationLive(args.worktreeId, args.targetGroupId)) {
-    return { tabId: null, runtimeLaunch: Promise.resolve({ status: 'abandoned' }) }
-  }
   const store = useAppStore.getState()
   let targetGroupId = args.targetGroupId
   // Why before both paths: the runtime path used to return first and drop the split (#22791).
@@ -57,7 +51,6 @@ export function launchAiVaultSessionInNewTab(args: {
       ...(args.launchConfig ? { launchConfig: args.launchConfig } : {}),
       ...(args.providerSession ? { providerSession: args.providerSession } : {}),
       ...(args.launchConfig ? { agentArgs: args.launchConfig.agentArgs } : {}),
-      ...(args.strictDestination ? { strictDestination: true } : {}),
       activate: true
     })
     const observedRuntimeLaunch = runtimeLaunch.then((outcome) => {

@@ -17,7 +17,6 @@ import {
   stubTerminalCreateEnvironment
 } from './web-runtime-session-test-harness'
 import { stubRuntimeEnvironmentBridge } from './runtime-environment-bridge-fixture'
-import { replaceRuntimeEnvironmentRevisions } from './runtime-environment-revision'
 
 const mocks = vi.hoisted(() => ({
   getState: vi.fn(),
@@ -96,63 +95,7 @@ describe('createWebRuntimeSessionTerminal', () => {
   })
 
   afterEach(() => {
-    replaceRuntimeEnvironmentRevisions([])
     resetTerminalCreateEnvironment()
-  })
-
-  it.each([
-    { pairedHostChanged: false, status: 'abandoned' },
-    { pairedHostChanged: true, status: 'failed' }
-  ])('settles a closed destination on its original host ($pairedHostChanged)', async ({
-    pairedHostChanged,
-    status
-  }) => {
-    replaceRuntimeEnvironmentRevisions([{ id: ENVIRONMENT_ID, createdAt: 1 }])
-    const state = mocks.getState()
-    state.groupsByWorktree = { [WORKTREE_ID]: [{ id: 'chat-group' }] }
-    let releaseCreate: () => void = () => undefined
-    const createReply = new Promise<void>((resolve) => {
-      releaseCreate = resolve
-    })
-    const runtimeCall = vi.fn(async (request: { method: string }) => {
-      if (request.method === 'session.tabs.createTerminal') {
-        await createReply
-        return { id: 'create', ok: true, result: { tab: { id: 'host-tab-1' } } }
-      }
-      if (request.method === 'session.tabs.close') {
-        return { id: 'close', ok: true, result: { closed: true } }
-      }
-      return { id: 'list', ok: true, result: makeSnapshot() }
-    })
-    stubRuntimeEnvironmentBridge({ call: runtimeCall })
-
-    const launch = createWebRuntimeSessionTerminal({
-      worktreeId: WORKTREE_ID,
-      environmentId: ENVIRONMENT_ID,
-      targetGroupId: 'chat-group',
-      strictDestination: true
-    })
-    await vi.waitFor(() =>
-      expect(runtimeCall).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'session.tabs.createTerminal' })
-      )
-    )
-    state.groupsByWorktree[WORKTREE_ID] = []
-    if (pairedHostChanged) {
-      replaceRuntimeEnvironmentRevisions([{ id: ENVIRONMENT_ID, createdAt: 2 }])
-    }
-    releaseCreate()
-
-    expect((await launch).status).toBe(status)
-    const closes = runtimeCall.mock.calls.filter(([request]) => request.method === 'session.tabs.close')
-    expect(closes).toHaveLength(pairedHostChanged ? 0 : 1)
-    if (!pairedHostChanged) {
-      expect(closes[0]?.[0]).toMatchObject({
-        selector: ENVIRONMENT_ID,
-        expectedEnvironmentPairingRevision: 1,
-        params: { tabId: 'host-tab-1', reason: 'user' }
-      })
-    }
   })
 
   it('keeps same-ID local and runtime worktrees on the selected runtime owner', async () => {

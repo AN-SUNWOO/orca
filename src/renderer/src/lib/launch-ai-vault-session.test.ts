@@ -15,14 +15,10 @@ const runtimeMocks = vi.hoisted(() => ({
   isWebRuntimeSessionActive: vi.fn(() => false)
 }))
 
-const mockGroupsByWorktree: Record<string, { id: string }[]> = {
-  'wt-1': [{ id: 'group-1' }]
-}
 const mockState = {
   createTab: mockCreateTab,
   createEmptySplitGroup: mockCreateEmptySplitGroup,
   closeEmptyGroup: mockCloseEmptyGroup,
-  groupsByWorktree: mockGroupsByWorktree,
   setActiveTabType: mockSetActiveTabType,
   setTabBarOrder: mockSetTabBarOrder,
   tabsByWorktree: {} as Record<string, { id: string }[]>,
@@ -70,7 +66,6 @@ describe('launchAiVaultSessionInNewTab', () => {
     runtimeMocks.isWebRuntimeSessionActive.mockReturnValue(false)
     runtimeMocks.createWebRuntimeSessionTerminal.mockResolvedValue({ status: 'created' })
     mockState.tabsByWorktree = {}
-    mockState.groupsByWorktree = { 'wt-1': [{ id: 'group-1' }] }
     mockState.openFiles = []
     mockState.browserTabsByWorktree = {}
     mockState.tabBarOrderByWorktree = {}
@@ -105,23 +100,6 @@ describe('launchAiVaultSessionInNewTab', () => {
     expect(mockSetActiveTabType).toHaveBeenCalledExactlyOnceWith('terminal', 'wt-1')
     expect(mockSetTabBarOrder).toHaveBeenCalledWith('wt-1', ['tab-1'])
     expect(result).toEqual({ tabId: 'tab-1', groupId: 'group-1' })
-  })
-
-  it('abandons a named pane that disappeared before the prepared resume commits', async () => {
-    mockState.groupsByWorktree['wt-1'] = []
-    const result = launchAiVaultSessionInNewTab({
-      agent: 'claude',
-      worktreeId: 'wt-1',
-      targetGroupId: 'group-1',
-      strictDestination: true,
-      command: 'claude --resume session-1'
-    })
-
-    expect(mockCreateTab).not.toHaveBeenCalled()
-    expect(runtimeMocks.createWebRuntimeSessionTerminal).not.toHaveBeenCalled()
-    if (result.tabId === null) {
-      await expect(result.runtimeLaunch).resolves.toEqual({ status: 'abandoned' })
-    }
   })
 
   it('queues configured resume startup details for agent history resumes', () => {
@@ -186,7 +164,6 @@ describe('launchAiVaultSessionInNewTab', () => {
       agent: 'codex',
       worktreeId: 'wt-1',
       targetGroupId: 'group-1',
-      strictDestination: true,
       command: "codex resume 'session-1'",
       env: { CODEX_PROFILE: 'runtime' },
       envToDelete: ['CODEX_HOME', 'ORCA_CODEX_HOME'],
@@ -203,7 +180,6 @@ describe('launchAiVaultSessionInNewTab', () => {
       worktreeId: 'wt-1',
       environmentId: 'env-1',
       targetGroupId: 'group-1',
-      strictDestination: true,
       agentSessionKind: 'resume',
       launchAgent: 'codex',
       command: "codex resume 'session-1'",

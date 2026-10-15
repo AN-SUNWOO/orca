@@ -292,9 +292,6 @@ export default function AiVaultSessionDropLayer({
                 )
                 return
               }
-              if (outcome.status === 'abandoned') {
-                return
-              }
               showQueuedToast()
             })
             return

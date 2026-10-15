@@ -167,7 +167,8 @@ describe('a growing reply on the phone', () => {
   it('draws completed prose in full on first mount beside a running tool', () => {
     render(first, true, true)
     expect(contents()).toEqual([first])
-    expect(renderer!.root.findByType('ToolRun').props.blocks[0].state).toBe('running')
+    const tool = renderer!.root.find((node) => String(node.type) === 'ToolRun')
+    expect(tool.props.blocks[0].state).toBe('running')
   })
 
   it('draws the text as it arrives with reduced motion', () => {

@@ -84,8 +84,7 @@ export async function launchStructuredAgentSession(
   onHostSeed?: StructuredLaunchHostSeedListener,
   priorCreateOutcomeUnknown = false
 ): Promise<StructuredAgentLaunchReceipt> {
-  // A resume's owner must answer even when a fresh launch is unavailable.
-  const hostSeed = intent.params.resumeFrom ? undefined : await requireHostCreateSupport(intent)
+  const hostSeed = await requireHostCreateSupport(intent)
   if (intent.target.kind !== 'local') {
     onHostSeed?.(hostSeed)
   }

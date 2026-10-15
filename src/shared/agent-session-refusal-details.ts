@@ -116,12 +116,7 @@ export const AGENT_SESSION_REFUSAL_REASONS = {
   ],
   execution_owner_reconciling: ['hostReconciling', 'recordUnreadable'],
   agent_session_checkpoint_stale: ['fenceStale', 'leaseMoved', 'recordMissing'],
-  agent_session_identity_required: [
-    'recordMissing',
-    'transcriptNotFound',
-    'transcriptEmpty',
-    'transcriptUnreadable'
-  ],
+  agent_session_identity_required: ['recordMissing', 'transcriptNotFound', 'transcriptUnreadable'],
   agent_session_operation_conflict: ['fingerprintMismatch', 'operationIdReused', 'handoffInFlight'],
   agent_session_operation_expired: ['operationExpired'],
   agent_session_operation_capacity: ['operationCapacity'],

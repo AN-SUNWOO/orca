@@ -65,6 +65,10 @@ export type LegacyImportResult =
     }
   | { ok: false; error: string }
 
+type PreparedLegacyImport =
+  | { ok: true; items: JournalReplacementItem[]; sourceEmpty: boolean }
+  | { ok: false; error: string }
+
 export async function importLegacyTranscriptIntoJournal(input: {
   journal: AgentSessionJournal
   agent: AgentType
@@ -89,7 +93,7 @@ export async function prepareLegacyTranscriptImport(input: {
   agent: AgentType
   sessionId: string
   options?: LegacyImportOptions
-}): Promise<{ ok: true; items: JournalReplacementItem[] } | { ok: false; error: string }> {
+}): Promise<PreparedLegacyImport> {
   const options = input.options ?? {}
   const limits = options.limits ?? DEFAULT_JOURNAL_PAYLOAD_LIMITS
   // OMP is a Pi fork that kept Pi's session format, so OMP's decoder reads Pi's sessions too.
@@ -122,7 +126,7 @@ export async function prepareLegacyTranscriptImport(input: {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 
-  let decoded: { messages: NativeChatMessage[]; identities: AgentJournalItemIdentity[] }
+  let decoded: Awaited<ReturnType<typeof decodeWithIdentities>>
   try {
     decoded = await decodeWithIdentities({
       filePath,
@@ -139,7 +143,8 @@ export async function prepareLegacyTranscriptImport(input: {
   if (decoded.identities.length !== decoded.messages.length) {
     return { ok: false, error: 'Legacy transcript identity coverage is incomplete' }
   }
-  return { ok: true, items: replacementItems(decoded.messages, decoded.identities, limits) }
+  const items = replacementItems(decoded.messages, decoded.identities, limits)
+  return { ok: true, items, sourceEmpty: decoded.consumedBytes === 0 }
 }
 
 /** OpenCode keeps conversations in a database (`filePath` names it), read by the reader its
@@ -149,7 +154,7 @@ async function prepareOpenCodeImport(input: {
   sessionId: string
   options?: LegacyImportOptions
   limits: JournalPayloadLimits
-}): Promise<{ ok: true; items: JournalReplacementItem[] } | { ok: false; error: string }> {
+}): Promise<PreparedLegacyImport> {
   const dbPath = input.options?.filePath
   if (input.options?.source) {
     if (!dbPath) {
@@ -174,7 +179,8 @@ async function prepareOpenCodeImport(input: {
     sessionId: input.sessionId,
     recordId: message.id
   }))
-  return { ok: true, items: replacementItems(read.messages, identities, input.limits) }
+  const items = replacementItems(read.messages, identities, input.limits)
+  return { ok: true, items, sourceEmpty: read.sourceEmpty === true }
 }
 
 function replacementItems(
@@ -215,8 +221,12 @@ async function decodeWithIdentities(input: {
   sessionId: string
   decodedMessageIdentities?: true
   source?: AdoptedTranscriptSource
-}): Promise<{ messages: NativeChatMessage[]; identities: AgentJournalItemIdentity[] }> {
-  const source = input.source ? await adoptedTranscriptSourceObserver({
+}): Promise<{
+  messages: NativeChatMessage[]
+  identities: AgentJournalItemIdentity[]
+  consumedBytes: number
+}> {
+  const source = input.source ? adoptedTranscriptSourceObserver({
     agent: input.agent, filePath: input.filePath, source: input.source,
     maxSourceBytes: MAX_LEGACY_IMPORT_SOURCE_BYTES
   }) : null
@@ -232,7 +242,7 @@ async function decodeWithIdentities(input: {
 
   // Count raw bytes while reading: the source can grow after the stat check.
   const stream = createReadStream(input.filePath)
-  const { messages } = await decodeTranscriptStream(
+  const { messages, consumedBytes } = await decodeTranscriptStream(
     stream,
     input.filePath,
     0,
@@ -262,11 +272,13 @@ async function decodeWithIdentities(input: {
     true,
     MAX_LEGACY_IMPORT_SOURCE_BYTES
   )
-  await source?.validate()
-  if (pi) {
-    return pi.project()
+  if (consumedBytes > 0) {
+    await source?.validate()
   }
-  return { messages, identities }
+  if (pi) {
+    return { ...pi.project(), consumedBytes }
+  }
+  return { messages, identities, consumedBytes }
 }
 
 /**

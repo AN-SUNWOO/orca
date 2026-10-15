@@ -29,7 +29,7 @@ export function assertAdoptedSourceIdentity(
 }
 
 /** Metadata is observed from the same lines that become the imported journal. */
-export async function adoptedTranscriptSourceObserver(input: {
+export function adoptedTranscriptSourceObserver(input: {
   agent: AgentType
   filePath: string
   source: AdoptedTranscriptSource
@@ -39,18 +39,6 @@ export async function adoptedTranscriptSourceObserver(input: {
     input.agent === 'claude' || input.agent === 'codex' ? sessionIdFromFileName(input.filePath) : null
   let cwd: string | null = null
   let sawCodexMetadata = false
-  if (input.agent === 'grok') {
-    const summaryPath = join(dirname(input.filePath), 'summary.json')
-    if (!(await admitTranscriptPath(dirname(input.filePath), summaryPath))) {
-      throw new Error('The conversation summary is outside its storage directory.')
-    }
-    const { buffer } = await readNodeFileWithinLimit(summaryPath, input.maxSourceBytes, {
-      regularFileOnly: true
-    })
-    const summary = asRecord(asRecord(JSON.parse(buffer.toString('utf8')))?.info)
-    sessionId = extractString(summary?.id) ?? sessionIdFromFileName(dirname(input.filePath))
-    cwd = extractString(summary?.cwd)
-  }
   return {
     observe(line: string) {
       const record = parseJsonObject(line)
@@ -70,6 +58,18 @@ export async function adoptedTranscriptSourceObserver(input: {
       }
     },
     async validate() {
+      if (input.agent === 'grok') {
+        const summaryPath = join(dirname(input.filePath), 'summary.json')
+        if (!(await admitTranscriptPath(dirname(input.filePath), summaryPath))) {
+          throw new Error('The conversation summary is outside its storage directory.')
+        }
+        const { buffer } = await readNodeFileWithinLimit(summaryPath, input.maxSourceBytes, {
+          regularFileOnly: true
+        })
+        const summary = asRecord(asRecord(JSON.parse(buffer.toString('utf8')))?.info)
+        sessionId = extractString(summary?.id) ?? sessionIdFromFileName(dirname(input.filePath))
+        cwd = extractString(summary?.cwd)
+      }
       if (input.agent === 'pi' && sessionIdFromFileName(input.filePath) !== sessionId) {
         throw new Error('The saved conversation header does not match its file identity.')
       }

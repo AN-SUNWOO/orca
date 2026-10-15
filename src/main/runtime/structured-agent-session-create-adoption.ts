@@ -1,7 +1,9 @@
 import { stat } from 'node:fs/promises'
 import { agentSessionRefusalError, isAgentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import { prepareCodexAdoption } from '../native-chat/codex-adoption-preparation'
-import type { AiVaultSessionResumePreparation } from '../../shared/ai-vault-resume-preparation'
+import type { NativeCodexResumePreparation } from '../codex/codex-ai-vault-session-resume'
+import type { StructuredAgentSessionResumeSource } from '../../shared/structured-agent-session-create'
+import type { StructuredAgentCliSourceEvidence } from '../native-chat/structured-agent-cli-source'
 import type { AgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
@@ -20,6 +22,15 @@ import type {
   StructuredAgentTranscriptImport,
   StructuredAgentTranscriptImportSettings
 } from '../native-chat/structured-agent-cli-conversations'
+
+export type StructuredAgentSessionCreateIntentInput = {
+  envelope: { sessionId: string; clientOperationId: string }
+  worktree: string
+  agent: StructuredAgentId
+  callerKey?: string
+  resumeFrom?: StructuredAgentSessionResumeSource
+  structuredAgentCliSourceEvidence?: StructuredAgentCliSourceEvidence
+}
 
 export function resolveCommittedStructuredAgentSessionAdoptionIntent(input: {
   host: StructuredAgentSessionHost | null
@@ -91,31 +102,31 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
   launchEnv: NodeJS.ProcessEnv
   workspaceCwd: string
   resolveTranscriptPath?: () => string | undefined
-  prepareCodexResume?: AiVaultSessionResumePreparation
+  prepareCodexResume?: NativeCodexResumePreparation
 }) {
   try {
     const transcriptPath = input.resolveTranscriptPath?.()
     const candidates = input.transcriptImport.accountHomeCandidates(input)
-    const admitted = transcriptPath
-      ? await Promise.all(candidates.map(async (accountHome) => ({
-          accountHome,
-          path: await input.transcriptImport.admitTranscriptPath({
-            accountHome, transcriptPath, launchEnv: input.launchEnv
-          })
-        })))
-      : null
-    if (admitted && !admitted.some((candidate) => candidate.path)) {
+    let admitted: { accountHome: AgentSessionAccountHome; path: string } | null = null
+    if (transcriptPath) {
+      for (const accountHome of candidates) {
+        const path = await input.transcriptImport.admitTranscriptPath({
+          accountHome, transcriptPath, launchEnv: input.launchEnv
+        })
+        if (path) {
+          admitted = { accountHome, path }
+          break
+        }
+      }
+    }
+    if (transcriptPath && !admitted) {
       throw new Error('The conversation account is not available on this host.')
     }
     const adoption = await resolveStructuredAgentSessionAdoption({
       providerSessionId: input.providerSessionId,
-      candidateAccountHomes: admitted
-        ? admitted.filter((candidate) => candidate.path).map((candidate) => candidate.accountHome)
-        : candidates,
+      candidateAccountHomes: admitted ? [admitted.accountHome] : candidates,
       resolveTranscript: async (args) => {
-        const exact = transcriptPath && await input.transcriptImport.admitTranscriptPath({
-          ...args, transcriptPath
-        })
+        const exact = admitted?.path
         if (exact) {
           try {
             if ((await stat(exact)).isFile()) {

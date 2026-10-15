@@ -24,7 +24,6 @@ export function isAgentSessionCreateAdmissionRefusal(
       refusal.details?.reason === 'conversationHeldElsewhere') ||
     (refusal.code === 'agent_session_identity_required' &&
       (refusal.details?.reason === 'transcriptNotFound' ||
-        refusal.details?.reason === 'transcriptEmpty' ||
         refusal.details?.reason === 'transcriptUnreadable'))
   )
 }

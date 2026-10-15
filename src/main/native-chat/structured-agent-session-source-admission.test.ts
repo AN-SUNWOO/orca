@@ -10,7 +10,7 @@ import type { AgentSessionAttachParams } from './agent-session-wire/structured-a
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import { prepareLegacyTranscriptImport } from './agent-session-journal/journal-legacy-import'
 import { prepareCodexAdoption } from './codex-adoption-preparation'
-import { prepareLegacySharedCodexSessionResume } from '../codex/codex-legacy-session-resume'
+import { codexAiVaultSessionResumePreparation } from '../codex/codex-ai-vault-session-resume'
 import * as codexHomes from '../codex/codex-home-paths'
 
 let root: string
@@ -52,6 +52,17 @@ it('creates from the host hook path when Claude filename differs, then checks ac
       providerSession: { key: 'session_id', id, transcriptPath } }]
   })
   const importer = CLAUDE_CLI_CONVERSATIONS.transcriptImport!
+  const selectedAccountHome = { variable: 'CLAUDE_CONFIG_DIR', path: root }
+  vi.spyOn(importer, 'accountHomeCandidates').mockReturnValue([
+    selectedAccountHome, { ...selectedAccountHome, path: join(root, 'locked-account') }
+  ])
+  const admit = importer.admitTranscriptPath.bind(importer)
+  const admission = vi.spyOn(importer, 'admitTranscriptPath').mockImplementation((args) => {
+    if (!('path' in args.accountHome) || args.accountHome.path !== root) {
+      throw Object.assign(new Error('Account inaccessible'), { code: 'EACCES' })
+    }
+    return admit(args)
+  })
   const find = vi.spyOn(importer, 'findTranscript')
   const adoption = await resolveStructuredAgentSessionAdoptionForCreate({
     settings: {}, agent: 'claude', transcriptImport: importer, providerSessionId: id,
@@ -59,6 +70,7 @@ it('creates from the host hook path when Claude filename differs, then checks ac
     launchEnv: {}, workspaceCwd: root, resolveTranscriptPath: sourcePath
   })
   expect(adoption.transcriptPath).toBe(transcriptPath)
+  expect(admission).toHaveBeenCalledOnce()
   expect(find).not.toHaveBeenCalled()
   expect(await prepareAdoptedTranscript(params('claude', adoption.transcriptPath))).toMatchObject({ ok: true })
   const wrongDirectory = params('claude', adoption.transcriptPath)
@@ -78,11 +90,28 @@ it('creates from the host hook path when Claude filename differs, then checks ac
     selectedAccountHome: { variable: 'CLAUDE_CONFIG_DIR', path: root },
     launchEnv: {}, workspaceCwd: root, resolveTranscriptPath: () => escaped
   })).rejects.toMatchObject({ refusal: { details: { reason: 'transcriptUnreadable' } } })
+  admission.mockRejectedValueOnce(Object.assign(new Error('Selected account inaccessible'), { code: 'EACCES' }))
+  await expect(resolveStructuredAgentSessionAdoptionForCreate({
+    settings: {}, agent: 'claude', transcriptImport: importer, providerSessionId: id,
+    selectedAccountHome, launchEnv: {}, workspaceCwd: root, resolveTranscriptPath: sourcePath
+  })).rejects.toMatchObject({ refusal: { details: { reason: 'transcriptUnreadable' } } })
   expect(find).not.toHaveBeenCalled()
 })
 
+it.each(['claude', 'codex', 'grok', 'omp', 'pi'] as const)('retains empty versus unreadable source facts for %s', async (agent) => {
+  const transcript = join(root, `${id}.jsonl`)
+  await writeFile(transcript, '')
+  expect(await prepareAdoptedTranscript(params(agent, transcript))).toMatchObject({ ok: false,
+    refusal: { details: { reason: 'transcriptNotFound' } } })
+  for (const content of ['{broken json}\n', '{"type":"future_record"}\n']) {
+    await writeFile(transcript, content)
+    expect(await prepareAdoptedTranscript(params(agent, transcript))).toMatchObject({ ok: false,
+      refusal: { details: { reason: 'transcriptUnreadable' } } })
+  }
+})
+
 it('checks canonical provider metadata during the existing import, including Codex copied parent metadata', async () => {
-  const codex = await file(join(root, 'rollout.jsonl'), [
+  const codex = await file(join(root, `${id}.jsonl`), [
     { type: 'session_meta', payload: { id } },
     { type: 'session_meta', payload: { id: 'copied-parent' } },
     { type: 'response_item', payload: { type: 'message', role: 'user', content: 'hello' } }
@@ -103,24 +132,37 @@ it('checks canonical provider metadata during the existing import, including Cod
   await rm(join(root, id, 'summary.json'))
   expect(await prepareAdoptedTranscript(params('grok', grok))).toMatchObject({ ok: false,
     refusal: { details: { reason: 'transcriptUnreadable' } } })
-  await writeFile(codex, '{malformed json')
+  await file(codex, [{ type: 'session_meta', payload: { id } }])
   expect(await prepareLegacyTranscriptImport({ agent: 'codex', sessionId: id,
-    options: { filePath: codex, source: { providerSessionId: id, workspaceCwd: root } } })).toMatchObject({ ok: false })
+    options: { filePath: codex } })).toMatchObject({ ok: true, items: [], sourceEmpty: false })
+  expect(await prepareAdoptedTranscript(params('codex', codex))).toMatchObject({ ok: false,
+    refusal: { details: { reason: 'transcriptUnreadable' } } })
 })
 
 it('materializes legacy Codex into the system home and pins a verified selected account alias', async () => {
-  const legacy = join(root, 'legacy')
+  const legacy = codexHomes.getOrcaManagedCodexHomePath()
   const system = join(root, 'system')
+  const historyOnly = join(root, 'history-only')
   const selected = join(root, 'codex-accounts', 'selected', 'home')
   const suffix = join('sessions', '2026', '10', '15', `rollout-stamp-${id}.jsonl`)
   const transcriptPath = await file(join(legacy, suffix), [{ type: 'session_meta', payload: { id } }])
   vi.spyOn(codexHomes, 'getSystemCodexHomePath').mockReturnValue(system)
   const source = { accountHome: { variable: 'CODEX_HOME' as const, path: legacy }, transcriptPath }
-  const migrated = await prepareCodexAdoption(source, id,
-    (args) => prepareLegacySharedCodexSessionResume(args, {
-      legacyCodexHomePath: legacy, systemCodexHomePath: system, isHostSystemDefaultRealHomeSelected: () => true
-    }), [source.accountHome])
+  const prepare = codexAiVaultSessionResumePreparation(() => ({
+    runtimeHome: {
+      isHostSystemDefaultRealHomeSelected: () => true,
+      resolveSelectedHostAccountCodexHomePathForResume: () => null,
+      getHostCodexHomePathsForSessionDiscovery: () => [legacy]
+    },
+    systemCodexHomePath: historyOnly, preparePinnedLaunchHome: async () => {}
+  }))
+  const migrated = await prepareCodexAdoption(source, id, prepare, [source.accountHome])
   expect(migrated).toEqual({ accountHome: { variable: 'CODEX_HOME', path: system }, transcriptPath: join(system, suffix) })
+  await expect(prepareLegacyTranscriptImport({ agent: 'codex', sessionId: id,
+    options: { filePath: join(historyOnly, suffix) } })).resolves.toMatchObject({ ok: false })
+  await prepare({ agent: 'codex', sessionId: id, filePath: transcriptPath, codexHome: legacy, executionHostId: 'local' })
+  expect(await prepareLegacyTranscriptImport({ agent: 'codex', sessionId: id,
+    options: { filePath: join(historyOnly, suffix) } })).toMatchObject({ ok: true })
   await file(join(selected, suffix), [{ type: 'session_meta', payload: { id } }])
   expect(await prepareCodexAdoption(migrated, id, async () => ({ useRealCodexHome: false, substituteCodexHome: selected }),
     [{ variable: 'CODEX_HOME', path: selected }])).toEqual({ accountHome: { variable: 'CODEX_HOME', path: selected }, transcriptPath: join(selected, suffix) })

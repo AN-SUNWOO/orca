@@ -150,7 +150,7 @@ describe('a structured chat launch on a paired server', () => {
     expectNoChatCommitted()
   })
 
-  it('sends a resume to create even when the fresh-launch probe would decline', async () => {
+  it('leaves no destination when the server declines a resume', async () => {
     mocks.createSupport.mockResolvedValue({ supported: false })
     const onHostDeclined = vi.fn()
     const launch = beginStructuredAgentSessionProvisionalLaunch({
@@ -158,12 +158,10 @@ describe('a structured chat launch on a paired server', () => {
       hooks: {},
       onHostDeclined
     })
-    await vi.waitFor(() =>
-      expect(useAppStore.getState().unifiedTabsByWorktree[WORKTREE]).toHaveLength(1)
-    )
-    expect(mocks.createSupport).not.toHaveBeenCalled()
+    await expect(launch?.settlement).resolves.toMatchObject({ kind: 'failed' })
+    expect(mocks.createSupport).toHaveBeenCalledOnce()
     expect(onHostDeclined).not.toHaveBeenCalled()
-    launch?.cancel()
+    expectNoChatCommitted()
   })
 
   // The picker shows what create will run: the server's saved selection, not this machine's.

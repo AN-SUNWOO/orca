@@ -22,6 +22,7 @@ import type { StructuredPromptDeliveryResult } from '@/lib/structured-agent-sess
 import type { LaunchAgentInNewTabArgs } from '@/lib/launch-agent-in-new-tab'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
+import { StructuredAgentSessionCreateRefusalError } from './structured-agent-session-launch-errors'
 
 /** What a host's "no" opens instead: the terminal the launch would have opened had it known. */
 export type StructuredLaunchTerminal = {
@@ -160,14 +161,11 @@ export function beginHostAdmittedStructuredLaunch(args: {
   const releaseHold = holdEmptyWorkspaceDefaultSurfaceForLaunch(args.worktreeId)
   const settlement = (async (): Promise<StructuredAgentLaunchSettlement> => {
     try {
-      // Resuming asks create for the existing owner before fresh-launch prerequisites.
-      const asked: StructuredLaunchAdmission = plan.resumeFrom
-        ? { kind: 'admitted' }
-        : await admitStructuredLaunchOnHost(
-            args.target,
-            toRuntimeWorktreeSelector(args.worktreeId),
-            plan.agent
-          )
+      const asked = await admitStructuredLaunchOnHost(
+        args.target,
+        toRuntimeWorktreeSelector(args.worktreeId),
+        plan.agent
+      )
       if (isCancelled()) {
         resolveDelivery(NOT_DELIVERED)
         return { kind: 'cancelled', sessionId: null }
@@ -190,6 +188,15 @@ export function beginHostAdmittedStructuredLaunch(args: {
         }
       }
       if (admission.kind === 'declined') {
+        if (plan.resumeFrom) {
+          resolveDelivery(NOT_DELIVERED)
+          return {
+            kind: 'failed',
+            error: new StructuredAgentSessionCreateRefusalError(
+              'structured_agent_session_unsupported'
+            )
+          }
+        }
         // The notice explains a server's refusal; on this machine the terminal opening is the answer.
         if (paired) {
           notifyHostDeclined(plan.agent)

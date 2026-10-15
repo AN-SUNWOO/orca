@@ -1,5 +1,7 @@
-import type { StructuredAgentSessionResumeSource } from '../../../shared/structured-agent-session-create'
-import { structuredAgentCliSourcePath } from '../../native-chat/structured-agent-cli-source'
+import {
+  captureStructuredAgentCliSource,
+  structuredAgentCliSourcePathFromEvidence
+} from '../../native-chat/structured-agent-cli-source'
 import type { OrcaRuntimeWithRestoreStructuredAgentSessionTabsOnce as RestoreStructuredAgentSessionTabsOnceMethods } from './structured-session-tab-restoration'
 import { agentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
 import { OrcaRuntimeWithGetWorktreePs } from '../workspaces/workspace-process-listing'
@@ -7,7 +9,8 @@ import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-w
 import {
   resolveCommittedStructuredAgentSessionAdoptionIntent,
   requireUnownedStructuredAgentSessionAdoption,
-  resolveStructuredAgentSessionAdoptionForCreate
+  resolveStructuredAgentSessionAdoptionForCreate,
+  type StructuredAgentSessionCreateIntentInput
 } from '../structured-agent-session-create-adoption'
 import { isNativeLocalLocation, LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 import { getLocalProjectWorktreeGitOptions } from '../../project-runtime-git-options'
@@ -146,13 +149,9 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     return (await this.resolveRuntimeFileTarget(worktreeSelector)).worktree.path
   }
 
-  async resolveStructuredAgentSessionCreateIntent(input: {
-    envelope: { sessionId: string; clientOperationId: string }
-    worktree: string
-    agent: StructuredAgentId
-    callerKey?: string
-    resumeFrom?: StructuredAgentSessionResumeSource
-  }): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
+  async resolveStructuredAgentSessionCreateIntent(
+    input: StructuredAgentSessionCreateIntentInput
+  ): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
     if (input.resumeFrom) {
       requireUnownedStructuredAgentSessionAdoption({
         host: getStructuredAgentSessionHost(),
@@ -161,6 +160,10 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
         selfSessionId: input.envelope.sessionId
       })
     }
+    const structuredAgentCliSourceEvidence = input.structuredAgentCliSourceEvidence ??
+      (input.resumeFrom?.cliSource
+        ? captureStructuredAgentCliSource(() => this.getAgentProviderSessionRows())
+        : undefined)
     const hostLaunchDirectory = isFloatingWorkspaceSelector(input.worktree)
       ? (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path
       : undefined
@@ -175,7 +178,10 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
         reason: 'hostUnsupported'
       })
     }
-    const resolved = await this.resolveStructuredAgentSessionIntent(input, resolveAccountHome)
+    const resolved = await this.resolveStructuredAgentSessionIntent(
+      { ...input, structuredAgentCliSourceEvidence },
+      resolveAccountHome
+    )
     return hostLaunchDirectory ? { ...resolved, hostLaunchDirectory } : resolved
   }
 
@@ -198,13 +204,7 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
   }
 
   protected async resolveStructuredAgentSessionIntent(
-    input: {
-      envelope: { sessionId: string; clientOperationId: string }
-      worktree: string
-      agent: StructuredAgentId
-      callerKey?: string
-      resumeFrom?: StructuredAgentSessionResumeSource
-    },
+    input: StructuredAgentSessionCreateIntentInput,
     resolveAccountHome: (context: {
       launchEnv: NodeJS.ProcessEnv
       location: {
@@ -253,9 +253,9 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
             agent: input.agent,
             transcriptImport,
             providerSessionId: resumeFrom.providerSessionId,
-            resolveTranscriptPath: () => structuredAgentCliSourcePath({
+            resolveTranscriptPath: () => structuredAgentCliSourcePathFromEvidence({
               agent: input.agent, resumeFrom, workspaceId: location.workspaceId,
-              rows: this.getAgentProviderSessionRows()
+              evidence: input.structuredAgentCliSourceEvidence
             }),
             prepareCodexResume: this.prepareAiVaultSessionResumeFn ?? undefined,
             selectedAccountHome,

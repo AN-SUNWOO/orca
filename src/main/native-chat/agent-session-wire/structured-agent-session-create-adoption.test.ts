@@ -146,18 +146,18 @@ it('refuses concurrent founding under a tab another chat already owns', async ()
   expect(rig.adapter.acquire).not.toHaveBeenCalled()
 })
 
-it.each(['missing', 'empty'] as const)(
+it.each(['missing', 'empty', 'malformed'] as const)(
   'refuses %s history before founding anything',
   async (source) => {
     const params = await adoptedParams()
     await (source === 'missing'
       ? rm(join(rig.root, 'rollout.jsonl'))
-      : writeFile(join(rig.root, 'rollout.jsonl'), ''))
+      : writeFile(join(rig.root, 'rollout.jsonl'), source === 'empty' ? '' : '{broken json}\n'))
     expect(await rig.host.create(CALLER, params)).toMatchObject({
       ok: false,
       refusal: {
         code: 'agent_session_identity_required',
-        details: { reason: source === 'missing' ? 'transcriptUnreadable' : 'transcriptEmpty' },
+        details: { reason: source === 'empty' ? 'transcriptNotFound' : 'transcriptUnreadable' },
         createAttemptRefusedBeforeCommit: true
       }
     })

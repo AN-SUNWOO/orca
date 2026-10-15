@@ -286,7 +286,8 @@ describe('Cmd+J quick action context', () => {
             entityId: 'session-1',
             groupId: 'group-1',
             worktreeId: 'wt-1',
-            contentType: 'agent-session'
+            contentType: 'agent-session',
+            agentSessionAgent: 'codex'
           }
         ]
       },

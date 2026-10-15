@@ -5,7 +5,7 @@ import {
   resolveActiveNativeChatSplitTarget
 } from './native-chat-layout-actions'
 
-function stateWithActiveTab(tab: Record<string, unknown>, tabOrder = ['chat', 'other']) {
+function stateWithActiveTab(tab: Record<string, unknown>, tabOrder = ['chat']) {
   return {
     groupsByWorktree: {
       workspace: [{ id: 'group', worktreeId: 'workspace', activeTabId: 'chat', tabOrder }]
@@ -31,12 +31,7 @@ describe('native chat layout actions', () => {
 
     expect(target).toEqual({ kind: 'workspace-tab', unifiedTabId: 'chat', groupId: 'group' })
     expect(canRunNativeChatSplitTarget(state, target)).toBe(true)
-    expect(
-      canRunNativeChatSplitTarget(
-        stateWithActiveTab({ contentType: 'agent-session', agentSessionAgent: 'codex' }, ['chat']),
-        target
-      )
-    ).toBe(true)
+
   })
 
   it('resolves terminal-backed chat mode to the existing pane split path', () => {

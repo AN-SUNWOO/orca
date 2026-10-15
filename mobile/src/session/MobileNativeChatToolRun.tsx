@@ -21,6 +21,7 @@ import type { NativeChatBlock } from '../../../src/shared/native-chat-types'
 import { nativeChatToolLineIdentity } from '../../../src/shared/native-chat-tool-line-identity'
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-native-chat-message-styles'
+import { mobileNativeChatMemberId } from './MobileNativeChatScrollHold'
 
 const TOOL_PAIR_REVEAL_PAGE = 6
 const MAX_TOOL_RUN_DIFF_ROWS = 240
@@ -72,11 +73,13 @@ function ResultBody({
  *  expandable line. `defaultExpanded` lets the group toggle open every line. */
 function ToolLine({
   pair,
+  line,
   defaultExpanded,
   diffLineLimit,
   onOpenFile
 }: {
   pair: ToolPair
+  line: string
   defaultExpanded: boolean
   diffLineLimit: number
   onOpenFile?: (relativePath: string) => void
@@ -101,7 +104,7 @@ function ToolLine({
   const filePath = inputDisplay?.filePath ?? null
   const openable = filePath !== null && onOpenFile !== undefined
   return (
-    <View>
+    <View testID={mobileNativeChatMemberId(line)}>
       <Pressable
         style={styles.toolLine}
         onPress={() => hasDetail && setExpanded((v) => !v)}
@@ -165,6 +168,20 @@ function PulsingText({
   )
 }
 
+function firstLine(blocks: readonly NativeChatBlock[]): string | null {
+  const [pair] = pairToolBlocks(blocks, 1)
+  return pair ? nativeChatToolLineIdentity(pair.call ?? pair.result!, new Map(), true) : null
+}
+
+/** How many lines now come before `line`; none when it left the run. */
+function linesAbove(blocks: readonly NativeChatBlock[], line: string): number {
+  const seen = new Map<string, number>()
+  const at = pairToolBlocks(blocks).findIndex(
+    (pair) => nativeChatToolLineIdentity(pair.call ?? pair.result!, seen, true) === line
+  )
+  return Math.max(at, 0)
+}
+
 /** A run of a message's tool calls/results, collapsed to a one-line summary that
  *  expands to the individual inline tool lines. `defaultExpanded` lets the global
  *  toolbar toggle drive every run at once while still allowing per-run override. */
@@ -184,16 +201,29 @@ export function ToolRun({
   onOpenFile?: (relativePath: string) => void
 }): React.JSX.Element {
   const [open, setOpen] = useState(defaultExpanded)
-  const [visibleCount, setVisibleCount] = useState(TOOL_PAIR_REVEAL_PAGE)
+  // `requested` is what Show more asked for; `before` the lines older calls added above the open
+  // run's first line, so the lines the reader was on stay shown.
+  const [reveal, setReveal] = useState(() => ({
+    requested: TOOL_PAIR_REVEAL_PAGE,
+    before: 0,
+    first: defaultExpanded ? firstLine(blocks) : null
+  }))
+  const first = open ? firstLine(blocks) : null
+  if (first !== reveal.first) {
+    const before = first && reveal.first ? reveal.before + linesAbove(blocks, reveal.first) : 0
+    setReveal({ ...reveal, before, first })
+  }
+  const shown = reveal.before + reveal.requested
   const pairs = useMemo(
-    () => (open ? pairToolBlocks(blocks, visibleCount + 1) : []),
-    [blocks, open, visibleCount]
+    () => (open ? pairToolBlocks(blocks, shown + 1) : []),
+    [blocks, open, shown]
   )
-  const visiblePairs = pairs.slice(0, visibleCount)
+  const visiblePairs = pairs.slice(0, shown)
   const seen = new Map<string, number>()
+  // What the reader asked to see sets each diff's share, not lines an older page added.
   const diffLineLimit = Math.max(
     1,
-    Math.floor(MAX_TOOL_RUN_DIFF_ROWS / (visiblePairs.length * 2 || 1))
+    Math.floor(MAX_TOOL_RUN_DIFF_ROWS / (Math.min(visiblePairs.length, reveal.requested) * 2 || 1))
   )
   let callCount = 0
   let resultCount = 0
@@ -211,7 +241,7 @@ export function ToolRun({
   // shares that word and ran none.
   const ActiveToolIcon = activeCall && isShellActivityToolCall(activeCall) ? SquareTerminal : Wrench
   return (
-    <View style={styles.toolRun}>
+    <View style={styles.toolRun} testID={mobileNativeChatMemberId('run')}>
       <View style={styles.toolRunHeader}>
         {activeCall ? (
           <Pressable
@@ -244,32 +274,39 @@ export function ToolRun({
       </View>
       {open ? (
         <View style={styles.toolRunBody}>
-          {visiblePairs.map((pair) => (
-            <ToolLine
-              key={nativeChatToolLineIdentity(pair.call ?? pair.result!, seen, true)}
-              pair={pair}
-              defaultExpanded={expandChildren}
-              diffLineLimit={diffLineLimit}
-              onOpenFile={onOpenFile}
-            />
-          ))}
+          {visiblePairs.map((pair) => {
+            const line = nativeChatToolLineIdentity(pair.call ?? pair.result!, seen, true)
+            return (
+              <ToolLine
+                key={line}
+                pair={pair}
+                line={line}
+                defaultExpanded={expandChildren}
+                diffLineLimit={diffLineLimit}
+                onOpenFile={onOpenFile}
+              />
+            )
+          })}
           {pairs.length > visiblePairs.length ? (
             <Pressable
               style={styles.toolLine}
               accessibilityRole="button"
-              accessibilityState={{ expanded: visibleCount > TOOL_PAIR_REVEAL_PAGE }}
-              onPress={() => setVisibleCount((count) => count + TOOL_PAIR_REVEAL_PAGE)}
+              accessibilityState={{ expanded: reveal.requested > TOOL_PAIR_REVEAL_PAGE }}
+              onPress={() =>
+                setReveal((r) => ({ ...r, requested: r.requested + TOOL_PAIR_REVEAL_PAGE }))
+              }
               hitSlop={6}
             >
               <Text style={styles.toolPreview}>Show more</Text>
             </Pressable>
           ) : null}
-          {visiblePairs.length > TOOL_PAIR_REVEAL_PAGE ? (
+          {/* Only what Show more added: lines an older page added are the reader's. */}
+          {visiblePairs.length > reveal.before + TOOL_PAIR_REVEAL_PAGE ? (
             <Pressable
               style={styles.toolLine}
               accessibilityRole="button"
               accessibilityState={{ expanded: true }}
-              onPress={() => setVisibleCount(TOOL_PAIR_REVEAL_PAGE)}
+              onPress={() => setReveal((r) => ({ ...r, requested: TOOL_PAIR_REVEAL_PAGE }))}
               hitSlop={6}
             >
               <Text style={styles.toolPreview}>Show less</Text>

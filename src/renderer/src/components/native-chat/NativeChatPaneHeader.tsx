@@ -62,10 +62,8 @@ export function NativeChatPaneHeader({
           <TooltipTrigger asChild>
             <Button
               type="button"
-              variant="ghost"
+              variant="pane-title"
               size="icon-xs"
-              // oxlint-disable-next-line shadcn/no-restyle -- Reuses the terminal header control geometry and hover/active reveal.
-              className="pane-title-split-trigger"
               aria-label={split}
               onClick={(event) => {
                 event.stopPropagation()
@@ -85,10 +83,8 @@ export function NativeChatPaneHeader({
             <TooltipTrigger asChild>
               <Button
                 type="button"
-                variant="ghost"
+                variant="pane-title-close"
                 size="icon-xs"
-                // oxlint-disable-next-line shadcn/no-restyle -- Reuses the terminal header control geometry and hover/active reveal.
-                className="pane-title-close"
                 aria-label={close}
                 onClick={(event) => {
                   event.stopPropagation()

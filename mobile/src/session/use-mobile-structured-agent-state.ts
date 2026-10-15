@@ -305,7 +305,11 @@ export function useMobileStructuredAgentState(args: {
   const readBackFromRef = useRef<string | null>(null)
   const loadingEarlier = olderPages === 'loading'
   useEffect(() => {
-    if (drawsNothingFrom === null || loadingEarlier || readBackFromRef.current === drawsNothingFrom) {
+    if (
+      drawsNothingFrom === null ||
+      loadingEarlier ||
+      readBackFromRef.current === drawsNothingFrom
+    ) {
       return
     }
     readBackFromRef.current = drawsNothingFrom

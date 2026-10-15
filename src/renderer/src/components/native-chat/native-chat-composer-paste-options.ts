@@ -12,6 +12,8 @@ export type UseNativeChatComposerPasteArgs = {
    *  remote host, or the attached path names a file the agent cannot read. */
   resolveAttachmentOwner: () => NativeChatAttachmentOwner
   attachResolvedPaths: (paths: string[], connectionId?: string | null) => void
+  /** Files a file manager copied attach through the composer's drop route. */
+  attachCopiedFiles: (paths: string[]) => void
   beginPendingImageAttachment: (previewUrl?: string, pendingName?: string) => string | null
   resolvePendingImageAttachment: (id: string, path: string, connectionId?: string | null) => void
   /** Supplies a pending chip's thumbnail. */

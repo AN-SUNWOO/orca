@@ -176,7 +176,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       ? !hasPty || !onStop
       : sendHeld || (draft.trim() === '' && imageAttachments.length === 0)
 
-    const { pickAttachments, resolveAttachmentOwner } = useNativeChatFileDrops({
+    const { pickAttachments, attachExternalPaths, resolveAttachmentOwner } = useNativeChatFileDrops({
       paneKey,
       draftScopeKey,
       targetPtyId,
@@ -209,6 +209,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       disabled,
       resolveAttachmentOwner,
       attachResolvedPaths,
+      attachCopiedFiles: attachExternalPaths,
       beginPendingImageAttachment: attachments.beginPendingImageAttachment,
       // Settles into the scope cache, which outlives a composer a prompt card unmounted.
       resolvePendingImageAttachment: attachments.pendingChips.resolve,

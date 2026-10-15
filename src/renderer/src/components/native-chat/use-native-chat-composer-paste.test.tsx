@@ -9,7 +9,8 @@ const mocks = vi.hoisted(() => ({
   readClipboardText: vi.fn(),
   readClipboardImageThumbnail: vi.fn(),
   clipboardHasImage: vi.fn(),
-  readClipboardFilePaths: vi.fn()
+  readClipboardFilePaths: vi.fn(),
+  getPathForFile: vi.fn()
 }))
 
 vi.mock('@/i18n/i18n', () => ({
@@ -34,7 +35,8 @@ vi.stubGlobal('window', {
       readClipboardImageThumbnail: mocks.readClipboardImageThumbnail,
       clipboardHasImage: mocks.clipboardHasImage,
       readClipboardFilePaths: mocks.readClipboardFilePaths
-    }
+    },
+    fs: { getPathForFile: mocks.getPathForFile }
   }
 })
 vi.stubGlobal('URL', {
@@ -98,6 +100,7 @@ type ProbeArgs = {
   disabled: boolean
   resolveAttachmentOwner: () => NativeChatAttachmentOwner
   attachResolvedPaths: (paths: string[], connectionId?: string | null) => void
+  attachCopiedFiles: (paths: string[]) => void
   beginPendingImageAttachment: (previewUrl?: string) => string | null
   resolvePendingImageAttachment: (id: string, path: string, connectionId?: string | null) => void
   revealPendingImageAttachment: (id: string, previewUrl?: string) => void
@@ -119,6 +122,7 @@ async function renderProbe(args: {
   disabled?: boolean
   resolveAttachmentOwner: () => NativeChatAttachmentOwner
   attachResolvedPaths?: (paths: string[], connectionId?: string | null) => void
+  attachCopiedFiles?: (paths: string[]) => void
   store?: ReturnType<typeof createChipStore>
   insertTypedText?: (text: string) => boolean
   setNotice?: (notice: string | null) => void
@@ -142,6 +146,7 @@ async function renderProbe(args: {
           disabled,
           resolveAttachmentOwner: args.resolveAttachmentOwner,
           attachResolvedPaths: args.attachResolvedPaths ?? (() => {}),
+          attachCopiedFiles: args.attachCopiedFiles ?? (() => {}),
           beginPendingImageAttachment: args.agent === 'omp' ? () => null : store.begin,
           resolvePendingImageAttachment: store.resolve,
           revealPendingImageAttachment: store.reveal,
@@ -186,6 +191,7 @@ beforeEach(() => {
   mocks.readClipboardImageThumbnail.mockResolvedValue(null)
   mocks.clipboardHasImage.mockResolvedValue(true)
   mocks.readClipboardFilePaths.mockResolvedValue([])
+  mocks.getPathForFile.mockReturnValue('')
   mocks.saveClipboardImageAsTempFile.mockResolvedValue(null)
 })
 
@@ -742,41 +748,50 @@ describe('file-manager copies', () => {
     expect(insertTypedText).not.toHaveBeenCalled()
   })
 
+  it('attaches pasted files that have local paths as a drop would, typing nothing', async () => {
+    mocks.getPathForFile.mockImplementation((file: File) => `/Users/me/${file.name}`)
+    const insertTypedText = vi.fn(() => true)
+    const attachCopiedFiles = vi.fn()
+    const probe = await renderProbe({
+      resolveAttachmentOwner: () => ({ kind: 'local' }),
+      insertTypedText,
+      attachCopiedFiles
+    })
+    const files = [png('shot.png'), new File(['pdf'], 'b.pdf', { type: 'application/pdf' })]
+    await act(async () => probe.latest().handlePaste(fileCopyEvent(files, 'shot.png\nb.pdf')))
+    expect(attachCopiedFiles).toHaveBeenCalledExactlyOnceWith([
+      '/Users/me/shot.png',
+      '/Users/me/b.pdf'
+    ])
+    expect(insertTypedText).not.toHaveBeenCalled()
+    expect(mocks.saveClipboardImageAsTempFile).not.toHaveBeenCalled()
+  })
+
   describe('from the app menu (macOS Cmd+V)', () => {
     it.each([
-      ['a single file', 'shot.png', ['/Users/me/Desktop/shot.png']],
-      ['several files', 'a.png\rb.pdf', ['/Users/me/a.png', '/Users/me/b.pdf']]
-    ])('attaches %s without typing the Finder label', async (_label, text, paths) => {
-      mocks.readClipboardText.mockResolvedValue(text)
-      mocks.readClipboardFilePaths.mockResolvedValue(paths)
-      mocks.saveClipboardImageAsTempFile.mockResolvedValue('/tmp/shot.png')
-      const insertTypedText = vi.fn(() => true)
-      const attachResolvedPaths = vi.fn()
-      const store = createChipStore()
-      const probe = await renderProbe({
-        resolveAttachmentOwner: () => ({ kind: 'local' }),
-        insertTypedText,
-        attachResolvedPaths,
-        store
-      })
-      await act(async () => probe.latest().pasteFromClipboard())
-      expect(insertTypedText).not.toHaveBeenCalled()
-      expect(store.chips[0]).toMatchObject({ path: '/tmp/shot.png', pending: false })
-      expect(attachResolvedPaths).not.toHaveBeenCalled()
-    })
-
-    it('types the label when no image came with the files', async () => {
-      mocks.clipboardHasImage.mockResolvedValue(false)
-      mocks.readClipboardText.mockResolvedValue('notes.txt')
-      mocks.readClipboardFilePaths.mockResolvedValue(['/Users/me/notes.txt'])
-      const insertTypedText = vi.fn(() => true)
-      const probe = await renderProbe({
-        resolveAttachmentOwner: () => ({ kind: 'local' }),
-        insertTypedText
-      })
-      await act(async () => probe.latest().pasteFromClipboard())
-      expect(insertTypedText).toHaveBeenCalledExactlyOnceWith('notes.txt')
-    })
+      ['a single file', 'shot.png', ['/Users/me/Desktop/shot.png'], true],
+      ['several files', 'a.png\rb.pdf', ['/Users/me/a.png', '/Users/me/b.pdf'], true],
+      ['a file with no image rendition', 'notes.txt', ['/Users/me/notes.txt'], false]
+    ])(
+      'attaches %s as a drop would, without typing the Finder label',
+      async (_label, text, paths, hasImage) => {
+        mocks.readClipboardText.mockResolvedValue(text)
+        mocks.readClipboardFilePaths.mockResolvedValue(paths)
+        mocks.clipboardHasImage.mockResolvedValue(hasImage)
+        const insertTypedText = vi.fn(() => true)
+        const attachCopiedFiles = vi.fn()
+        const probe = await renderProbe({
+          resolveAttachmentOwner: () => ({ kind: 'local' }),
+          insertTypedText,
+          attachCopiedFiles
+        })
+        await act(async () => probe.latest().pasteFromClipboard())
+        expect(attachCopiedFiles).toHaveBeenCalledExactlyOnceWith(paths)
+        expect(insertTypedText).not.toHaveBeenCalled()
+        // The copied file itself is attached, never the bitmap rendition beside it.
+        expect(mocks.saveClipboardImageAsTempFile).not.toHaveBeenCalled()
+      }
+    )
 
     it('types unrelated text at once, and when the file list cannot be read', async () => {
       mocks.readClipboardText.mockResolvedValue('see attached')
@@ -795,27 +810,5 @@ describe('file-manager copies', () => {
       await act(async () => probe.latest().pasteFromClipboard())
       expect(insertTypedText).toHaveBeenLastCalledWith('shot.png')
     })
-
-    it.each([
-      [true, 0, 1],
-      [false, 1, 0]
-    ])(
-      'on a remote runtime, image presence %s decides between the refusal and the label',
-      async (hasImage, inserts, notices) => {
-        mocks.readClipboardText.mockResolvedValue('shot.png')
-        mocks.readClipboardFilePaths.mockResolvedValue(['/Users/me/shot.png'])
-        mocks.clipboardHasImage.mockResolvedValue(hasImage)
-        const insertTypedText = vi.fn(() => true)
-        const setNotice = vi.fn()
-        const probe = await renderProbe({
-          resolveAttachmentOwner: () => ({ kind: 'remote' }),
-          insertTypedText,
-          setNotice
-        })
-        await act(async () => probe.latest().pasteFromClipboard())
-        expect(insertTypedText).toHaveBeenCalledTimes(inserts)
-        expect(setNotice.mock.calls.filter(([notice]) => notice !== null)).toHaveLength(notices)
-      }
-    )
   })
 })

@@ -6,6 +6,7 @@ import { setNativeChatPasteFailure } from './native-chat-composer-notice'
 import { NATIVE_CHAT_CONTEXT_PASTE_MAX_BYTES } from './native-chat-composer-target'
 import { nativeChatPasteUnavailableNotice } from '@/lib/native-chat-paste-request'
 import {
+  clipboardEventCopiedFilePaths,
   clipboardEventImageFile,
   clipboardEventPromptText,
   readClipboardPasteText,
@@ -31,6 +32,7 @@ export function useNativeChatComposerPaste({
   caret,
   resolveAttachmentOwner,
   attachResolvedPaths,
+  attachCopiedFiles,
   beginPendingImageAttachment,
   resolvePendingImageAttachment,
   revealPendingImageAttachment,
@@ -132,6 +134,17 @@ export function useNativeChatComposerPaste({
       if (event.defaultPrevented) {
         return
       }
+      const copiedFilePaths = clipboardEventCopiedFilePaths(event)
+      if (copiedFilePaths.length > 0) {
+        event.preventDefault()
+        if (canPaste()) {
+          setNotice(null)
+          attachCopiedFiles(copiedFilePaths)
+        } else {
+          showPasteUnavailable()
+        }
+        return
+      }
       const imageFile = clipboardEventImageFile(event)
       const text = clipboardEventPromptText(event, imageFile !== null)
       if (!imageFile && !text) {
@@ -194,6 +207,7 @@ export function useNativeChatComposerPaste({
       })()
     },
     [
+      attachCopiedFiles,
       canPaste,
       caret,
       dropImagePaste,
@@ -220,33 +234,32 @@ export function useNativeChatComposerPaste({
         showPasteUnavailable()
       }
     }
-    // Text belongs to the editor even when the attachment host is unavailable.
-    // Text that only labels copied files waits for the image outcome instead.
-    const textRead = readClipboardPasteText(NATIVE_CHAT_CONTEXT_PASTE_MAX_BYTES)
-      .then((read) => {
-        if (!read.labelsFiles) {
-          insertText(read.text)
-        }
-        return read
-      })
-      .catch((error) => {
-        if (canPaste()) {
-          setNativeChatPasteFailure(setNotice, error)
-        }
-        return null
-      })
     void (async () => {
+      const read = await readClipboardPasteText(NATIVE_CHAT_CONTEXT_PASTE_MAX_BYTES).catch(
+        (error) => {
+          if (canPaste()) {
+            setNativeChatPasteFailure(setNotice, error)
+          }
+          return null
+        }
+      )
+      // A file manager's copy pastes the files themselves, exactly as dropping them does.
+      if (read && read.copiedFilePaths.length > 0) {
+        if (canPaste()) {
+          attachCopiedFiles(read.copiedFilePaths)
+        }
+        return
+      }
+      // Text belongs to the editor even when the attachment host is unavailable.
+      insertText(read?.text ?? '')
       const owner = resolveAttachmentOwner()
       if (!ownerAcceptsClipboardImage(owner)) {
-        const read = await textRead
         // Probe only when no text was typed: in a browser each clipboard read can prompt the user.
-        if (!read || (read.text !== '' && !read.labelsFiles)) {
+        if (!read || read.text !== '') {
           return
         }
         const hasImage = await window.api.ui.clipboardHasImage().catch(() => null)
-        if (!hasImage) {
-          insertText(read.text)
-        } else if (canPaste()) {
+        if (hasImage && canPaste()) {
           setNotice(
             owner.kind === 'remote'
               ? nativeChatLocalAttachmentUnsupportedNotice()
@@ -262,10 +275,6 @@ export function useNativeChatComposerPaste({
         return null
       })
       if (hasImage !== true) {
-        const read = await textRead
-        if (read?.labelsFiles) {
-          insertText(read.text)
-        }
         return
       }
       if (!canPaste()) {
@@ -284,25 +293,18 @@ export function useNativeChatComposerPaste({
             revealPendingImageAttachment?.(pendingId, thumbnail.dataUrl)
           }
         })
-      const saved = await saveClipboardImageForOwner(owner, async () => {
-        const read = await textRead
-        return Boolean(read?.text) && read?.labelsFiles !== true
-      })
+      const saved = await saveClipboardImageForOwner(owner, async () => Boolean(read?.text))
       if (keepStoreUploadAfterUnmount(pendingId, saved)) {
         return
       }
       if (!canPaste() || saved.status !== 'saved') {
         dropImagePaste(pendingId)
-        // A file's label is typed only when no image came with it.
-        const read = saved.status === 'empty' ? await textRead : null
-        if (read?.labelsFiles) {
-          insertText(read.text)
-        }
         return
       }
       settleImagePaste(pendingId, saved.tempPath, owner)
     })()
   }, [
+    attachCopiedFiles,
     beginPendingImageAttachment,
     revealPendingImageAttachment,
     canPaste,

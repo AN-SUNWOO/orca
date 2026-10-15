@@ -62,14 +62,45 @@ export function clipboardEventPromptText(
   return textOnlyLabelsCopiedFiles(text, names) ? '' : text
 }
 
-/** The clipboard's text for a paste with no event, and whether it only labels copied files. */
+/** The files a paste event copied, resolved the way a drop resolves its files; empty unless
+ *  every file has a local path and the event's text only labels them. */
+export function clipboardEventCopiedFilePaths(event: ClipboardEventLike): string[] {
+  const files = Array.from(event.clipboardData?.files ?? [])
+  const fs = window.api?.fs
+  // The web fallback proxy fabricates methods absent from the concrete namespace.
+  const getPathForFile = fs && 'getPathForFile' in fs ? fs.getPathForFile : undefined
+  if (files.length === 0 || !getPathForFile) {
+    return []
+  }
+  const paths: string[] = []
+  for (const file of files) {
+    let path = ''
+    try {
+      path = getPathForFile(file)
+    } catch {
+      // A pasted bitmap has no file behind it.
+    }
+    if (!path) {
+      return []
+    }
+    paths.push(path)
+  }
+  return copiesOnlyFiles(event.clipboardData?.getData('text/plain') ?? '', paths) ? paths : []
+}
+
+function copiesOnlyFiles(text: string, filePaths: readonly string[]): boolean {
+  return filePaths.length > 0 && (text === '' || textOnlyLabelsCopiedFiles(text, filePaths))
+}
+
+/** The clipboard's text for a paste with no event, and the files a file manager copied when
+ *  the text only labels them. */
 export async function readClipboardPasteText(
   maxBytes: number
-): Promise<{ text: string; labelsFiles: boolean }> {
+): Promise<{ text: string; copiedFilePaths: string[] }> {
   const [text, filePaths] = await Promise.all([
     window.api.ui.readClipboardText({ maxBytes }),
-    // Bookkeeping only: without the file list the text is typed as-is.
+    // Without the file list the text is typed as-is.
     window.api.ui.readClipboardFilePaths().catch(() => [])
   ])
-  return { text, labelsFiles: text !== '' && textOnlyLabelsCopiedFiles(text, filePaths) }
+  return { text, copiedFilePaths: copiesOnlyFiles(text, filePaths) ? filePaths : [] }
 }

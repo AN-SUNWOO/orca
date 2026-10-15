@@ -40,9 +40,9 @@ function Composer({ attach, notice }: { attach: () => void; notice: () => void }
     attachResolvedPaths: attach,
     pendingChips: {
       begin: () => null,
-      resolve: () => {},
+      resolve: () => false,
       drop: () => false,
-      attachReferences: () => {}
+      attachReferences: () => false
     },
     setNotice: notice
   })

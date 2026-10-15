@@ -37,7 +37,7 @@ export function useNativeChatStructuredComposerTransport(args: {
   )
   return useMemo((): NativeChatStructuredComposerTransport => {
     const threadGoal = controller.threadGoal
-    const setThreadGoalObjective = threadGoal
+    const setThreadGoalObjective = threadGoal?.hostChanges
       ? (objective: string) => threadGoal.change({ kind: 'set', objective })
       : null
     return {

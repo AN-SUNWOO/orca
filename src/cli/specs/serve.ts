@@ -29,7 +29,7 @@ export const SERVE_COMMAND_SPECS: CommandSpec[] = [
       'Exits with code 3, without starting anything, when another Orca already serves this profile or cannot be shown to have stopped.',
       'On macOS, after Orca serve aborts at startup (it could not register with Launch Services), later runs from the same environment refuse for 30 minutes with exit code 78. Use --force to try anyway.',
       '--supervise is for service managers (launchd, systemd). Orca serve then restarts the server itself with growing delays instead of exiting when it stops, waits while an update replaces the app, and waits while another Orca serves this profile. After 6 failures in 15 minutes it gives up and exits with code 0 so the manager stops too, and later supervised runs refuse until a new build is installed or --force is passed. Not available on Windows yet.',
-      'Experimental and off by default: set ORCA_TERMINAL_PROCESS_CEILING=<n> (64 or more) before the terminal host starts to have the OS cap how many processes all terminals together may run (Linux, through a systemd user slice; needs a user manager that outlives logout) or each terminal may run (Windows). `orca serve` reports the ceiling as on or off, with the reason.'
+      'Experimental and off by default: set ORCA_TERMINAL_PROCESS_CEILING=<n> (64 or more) before the terminal host starts to have the OS cap how many processes each terminal may run (Linux, through a systemd user scope per terminal, which needs a user manager that outlives logout; Windows, through a job per terminal). `orca serve` reports the ceiling as on or off, with the reason.'
     ],
     examples: [
       'orca serve',

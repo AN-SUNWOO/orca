@@ -301,6 +301,7 @@ export function NativeChatStructuredSession(
                   journalItems={controller.journalItems}
                   journalSubmissions={controller.submissions}
                   journalLatestTurn={controller.latestTurn}
+                  journalHostWork={controller.hostWork}
                   subagentRoster={controller.subagentRoster}
                   railOutline={controller.railOutline}
                   isVisible={props.isVisible}
@@ -344,13 +345,20 @@ export function NativeChatStructuredSession(
               key={props.sessionId}
               goal={controller.threadGoal.goal}
               pending={controller.threadGoal.pending}
+              hostChanges={controller.threadGoal.hostChanges}
+              sendUnavailable={structuredTransport.sendOut || controller.isWorking}
               isVisible={props.isVisible}
               runningTurn={
                 controller.turnId === null
                   ? null
                   : { startedAt: controller.workingStartedAt ?? null }
               }
-              onChange={(change) => void controller.threadGoal?.change(change)}
+              onChange={(change) => {
+                if (change.kind === 'clear' && !controller.threadGoal?.hostChanges) {
+                  structuredTransport.onSubmitted?.()
+                }
+                void controller.threadGoal?.change(change)
+              }}
             />
           ) : null}
           {/* Prompt cards take the composer's slot, below the background-task dock. */}

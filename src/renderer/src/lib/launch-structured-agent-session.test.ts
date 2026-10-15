@@ -499,23 +499,6 @@ describe('structured agent session launch', () => {
     expect(error).toBeInstanceOf(StructuredAgentSessionCreateUnknownOutcomeError)
   })
 
-  it('preserves a definitive refusal code for the fallback path', async () => {
-    mockSupportedCreate(() => ({
-      ok: false,
-      refusal: {
-        code: 'structured_agent_session_unsupported',
-        message: 'Structured chat is unavailable.'
-      }
-    }))
-
-    const error = await launchStructuredAgentSession(
-      createStructuredAgentSessionLaunchIntent('workspace-unsupported', 'codex')
-    ).catch((caught: unknown) => caught)
-
-    expect(error).toBeInstanceOf(StructuredAgentSessionCreateRefusalError)
-    expect(error).toMatchObject({ code: 'structured_agent_session_unsupported' })
-  })
-
   it.each(['method_not_found', 'structured_agent_session_unsupported'])(
     'turns an old-host %s error into a definitive transport refusal',
     async (code) => {

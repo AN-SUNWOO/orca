@@ -6,6 +6,7 @@
 import { test } from './helpers/orca-app'
 import {
   runAgentClicksScenario,
+  runAgentCrossSiteFrameScenario,
   runAgentKeysScenario,
   runAgentShortcutsScenario
 } from './helpers/browser-agent-focus-scenarios'
@@ -29,4 +30,11 @@ test('agent shortcut keys stay in the page instead of running Orca shortcuts', a
 }) => {
   test.setTimeout(120_000)
   await runAgentShortcutsScenario(orcaPage)
+})
+
+test('agent keys and text reach a focused cross-site frame without moving the user’s focus', async ({
+  orcaPage
+}) => {
+  test.setTimeout(120_000)
+  await runAgentCrossSiteFrameScenario(orcaPage)
 })

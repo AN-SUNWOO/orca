@@ -1,6 +1,7 @@
 // Window parity: for each stored profile, the window's startup hydration of the session as stored
 // and of the shared Loader's rewrite of it (load then save) must show the same thing. Where they
-// differ today, the difference is listed below with the Loader rule that causes it.
+// differ today, the difference is listed below with the Loader rule that causes it: as work to
+// do, or as accepted with the reason it is not a bug.
 
 import { describe, expect, it, vi } from 'vitest'
 import type * as AgentStatusModule from '@/lib/agent-status'
@@ -12,6 +13,11 @@ import { WORKSPACE_LAYOUT_PROFILES } from '../../../shared/workspace-layout/work
 import { saveWorkspaceLayout } from '../../../shared/workspace-layout/workspace-layout-save'
 import { createStoreSessionMockApi } from '../store/slices/store-session-test-harness'
 import { createTestStore } from '../store/slices/store-test-helpers'
+import {
+  ACCEPTED_DIFFERENCES,
+  GIT,
+  KNOWN_DIFFERENCES
+} from './startup-window-parity-differences.test-fixture'
 import {
   bootWindowFromPartitions,
   diffStartupWindowViews,
@@ -25,49 +31,6 @@ vi.mock('@/lib/agent-status', async (importOriginal) => {
 })
 
 createStoreSessionMockApi()
-
-const GIT = 'repo-1::/Users/dev/orca'
-const terminal = (tabId: string) =>
-  ['title', 'panes', 'focused pane', 'reattaches'].map(
-    (field) => `${GIT} terminal ${tabId} ${field}`
-  )
-
-type KnownDifference = {
-  fixture: string
-  /** The Loader rule that makes the window show something else. */
-  rule: string
-  /** View paths that differ; see `projectStartupWindowView`. */
-  paths: string[]
-}
-
-/** Today's differences. Entries may only be removed: fix the rule, then delete its entry. */
-const KNOWN_DIFFERENCES: readonly KnownDifference[] = [
-  {
-    fixture: 'row without a tab-bar entry or a terminal',
-    rule: 'ghost tab: the Loader gives every row a tab-bar entry; the window adopts only rows it can reattach',
-    paths: [`${GIT} group 0 tabs`, `${GIT} tab tab-b`, ...terminal('tab-b')]
-  },
-  {
-    fixture: 'row terminal differs from its focused pane’s',
-    rule: 'row.ptyId rewrite: the Loader sets the row terminal to its focused pane’s, which changes what the tab reattaches',
-    paths: [`${GIT} terminal tab-a reattaches`]
-  },
-  {
-    fixture: 'row with no terminal while its pane has one',
-    rule: 'row.ptyId rewrite: the Loader sets the row terminal to its focused pane’s, which changes what the tab reattaches',
-    paths: [`${GIT} terminal tab-a reattaches`]
-  },
-  {
-    fixture: 'legacy surface tombstone on a pane still showing its terminal',
-    rule: 'tombstones: the Loader closes a pane a legacy surface tombstone names; the window ignores the tombstone and shows the pane',
-    paths: [`${GIT} group 0 tabs`, `${GIT} tab tab-b`, ...terminal('tab-b')]
-  },
-  {
-    fixture: 'tab-bar label differing from the row title',
-    rule: 'label over title: the Loader writes the tab-bar label into the row title the window shows',
-    paths: [`${GIT} terminal tab-a title`]
-  }
-]
 
 /** The shared Loader's round trip, as main would persist it. */
 function normalize(hostId: ExecutionHostId, session: WorkspaceSessionState): WorkspaceSessionState {
@@ -102,10 +65,25 @@ describe('the window shows the same session before and after the shared Loader r
       }
       const differences = diffStartupWindowViews(storedView, normalizedView)
       const known = KNOWN_DIFFERENCES.filter((entry) => entry.fixture === name)
+      const accepted = ACCEPTED_DIFFERENCES.filter((entry) => entry.fixture === name)
       expect(
         differences.map((difference) => difference.path).sort(),
         `window differences (stored vs normalized):\n${JSON.stringify(differences, null, 2)}`
-      ).toEqual(known.flatMap((entry) => entry.paths).sort())
+      ).toEqual(
+        [
+          ...known.flatMap((entry) => entry.paths),
+          ...accepted.flatMap((entry) => Object.keys(entry.values))
+        ].sort()
+      )
+      // An accepted difference stays accepted only while it shows exactly the recorded values.
+      const acceptedValues = Object.assign({}, ...accepted.map((entry) => entry.values))
+      expect(
+        Object.fromEntries(
+          differences
+            .filter((difference) => difference.path in acceptedValues)
+            .map(({ path, stored, normalized }) => [path, { stored, normalized }])
+        )
+      ).toEqual(acceptedValues)
     }
   )
 
@@ -137,6 +115,8 @@ describe('the window shows the same session before and after the shared Loader r
 
   it('lists differences only for fixtures that exist', () => {
     const names = new Set(PROFILES.map((profile) => profile.name))
-    expect(KNOWN_DIFFERENCES.filter((entry) => !names.has(entry.fixture))).toEqual([])
+    expect(
+      [...KNOWN_DIFFERENCES, ...ACCEPTED_DIFFERENCES].filter((entry) => !names.has(entry.fixture))
+    ).toEqual([])
   })
 })

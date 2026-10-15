@@ -1,5 +1,5 @@
 import { resolveStructuredWorkerAuthority } from '../../structured-worker-authority'
-import { OrcaRuntimeWithAdoptTerminalOrphansFromInventory } from '../../orca-runtime-adopt-terminal-orphans-from-inventory'
+import { OrcaRuntimeWithAdoptTerminalOrphansFromInventory } from '../adoption/adopt-terminal-orphans-from-inventory'
 import type {
   RuntimeTerminalAgentStatus,
   RuntimeTerminalInteractiveWait,

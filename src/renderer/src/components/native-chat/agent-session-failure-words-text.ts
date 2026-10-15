@@ -11,6 +11,7 @@ import {
 import { AVAILABILITY_PIECES } from './agent-session-availability-words-text'
 import { ATTACHMENT_FAILURE_PIECES } from './agent-session-failure-attachment-words-text'
 import { STOP_FAILURE_PIECES } from './agent-session-failure-stop-words-text'
+import { PROVIDER_EXIT_PIECES } from './agent-session-provider-exit-words-text'
 import { PROVIDER_RETRY_PIECES } from './agent-session-provider-retry-words-text'
 
 // The pieces a refusal notice says too keep the notice's keys, so each has one translation.
@@ -150,18 +151,7 @@ const PIECES: Record<AgentSessionFailureCopyId, (values: AgentSessionFailureCopy
         'components.native-chat.failureWords.chooseClaudeAccountThenSend',
         COPY.chooseClaudeAccountThenSend
       ),
-    providerExitedRow: (values) =>
-      translate(
-        'components.native-chat.failureWords.providerExitedRow',
-        COPY.providerExitedRow,
-        values
-      ),
-    providerExitedRejection: (values) =>
-      translate(
-        'components.native-chat.failureWords.providerExitedRejection',
-        COPY.providerExitedRejection,
-        values
-      ),
+    ...PROVIDER_EXIT_PIECES,
     providerRejected: (values) =>
       translate(
         'components.native-chat.failureWords.providerRejected',

@@ -55,7 +55,12 @@ export function MobileNativeChatOverlay({
   keyboardInset
 }: Props): React.JSX.Element | null {
   const session = controller.nativeChatSession
-  const folded = useMemo(() => foldMobileNativeChatMessages(session.messages), [session.messages])
+  // The chat is drawn only with a resolved agent; the fallback never reaches the screen.
+  const agent = controller.nativeChatAgent ?? ''
+  const folded = useMemo(
+    () => foldMobileNativeChatMessages(session.messages, agent),
+    [session.messages, agent]
+  )
   const streaming = useMobileNativeChatStreamingBubble(
     folded,
     controller.nativeChatStreamingText,
@@ -99,6 +104,8 @@ export function MobileNativeChatOverlay({
           workingStartedAt={controller.nativeChatWorkingStartedAt}
           settledTurns={controller.nativeChatSettledTurns}
           turnJournal={controller.nativeChatTurnJournal}
+          receipts={controller.nativeChatReceipts}
+          actionablePromptIds={controller.nativeChatActionablePromptIds}
           streaming={streaming}
           onStop={controller.handleNativeChatStop}
           ask={controller.nativeChatAsk}

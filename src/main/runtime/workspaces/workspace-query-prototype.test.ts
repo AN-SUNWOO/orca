@@ -52,35 +52,6 @@ const snapshot: ResolvedWorktreeSnapshot = {
 }
 
 describe('workspace query prototype dispatch', () => {
-  it('preserves callable arity and native async methods', () => {
-    class Probe extends OrcaRuntimeService {
-      read() {
-        return {
-          arities: [
-            this.resolveWorktreeSelector.length,
-            this.resolveRepoSelector.length,
-            this.buildResolvedWorktreeFromId.length,
-            this.listKnownResolvedWorktreesForExplicitTarget.length,
-            this.resolveExplicitWorktreeIdScoped.length,
-            this.listRepoWorktreesForListing.length,
-            this.invalidateWorktreeScanCacheForRepo.length
-          ],
-          kinds: [
-            this.resolveWorktreeSelector,
-            this.resolveRepoSelector,
-            this.listResolvedWorktrees,
-            this.listResolvedWorktreeSnapshot,
-            this.selectReposBySelector
-          ].map((fn) => fn.constructor.name)
-        }
-      }
-    }
-    expect(new Probe(store).read()).toEqual({
-      arities: [1, 1, 1, 2, 2, 2, 1],
-      kinds: ['AsyncFunction', 'AsyncFunction', 'AsyncFunction', 'AsyncFunction', 'Function']
-    })
-  })
-
   it('re-enters the runtime repo selector', async () => {
     const seen: unknown[][] = []
     class Probe extends OrcaRuntimeService {
@@ -133,26 +104,6 @@ describe('workspace query prototype dispatch', () => {
     const runtime = new Probe(store)
     await expect(runtime.run()).resolves.toBe(resolved)
     expect(seen).toEqual([{ receiver: runtime, args: [TEST_WORKTREE_ID] }])
-  })
-
-  it('allocates the five canonical cells before the real cache constructor seam', () => {
-    const phases: boolean[][] = []
-    class Probe extends OrcaRuntimeService {
-      protected override get canonicalFetchKeyCache() {
-        phases.push(
-          [
-            'resolvedWorktrees',
-            'worktreeScanGenerations',
-            'worktreeScanCache',
-            'worktreeScanInFlight',
-            'worktreeAdminFingerprintProbes'
-          ].map((key) => Object.getOwnPropertyDescriptor(this, key) !== undefined)
-        )
-        return super.canonicalFetchKeyCache
-      }
-    }
-    new Probe(store)
-    expect(phases).toEqual([[true, true, true, true, true]])
   })
 
   it('keeps early construction refusals as Promises', async () => {

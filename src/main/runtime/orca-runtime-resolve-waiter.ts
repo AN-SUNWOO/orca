@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithDeliverPendingMessages } from './orca-runtime-deliver-pending-messages'
+import { OrcaRuntimeWithDeliverPendingMessages } from './orchestration/mail/terminal-message-delivery'
 import type { TerminalWaiter } from './runtime-terminal-contracts'
 import type { RuntimeTerminalWait } from '../../shared/runtime-terminal-contracts'
 import type { BrowserWindow } from 'electron'

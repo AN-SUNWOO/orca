@@ -477,6 +477,39 @@ describe('NativeChatQuestionCard', () => {
     expect(document.activeElement).toBe(container.querySelector('[role="group"]'))
   })
 
+  it('puts the keyboard in the answer field when typing is the only answer', () => {
+    render(
+      { questions: [{ question: 'Type your answer:', multiSelect: false, options: [] }] },
+      vi.fn(),
+      true,
+      true
+    )
+
+    expect(document.activeElement).toBe(container.querySelector('input'))
+  })
+
+  it('moves the keyboard into the answer field when a number key advances to a typed-only question', () => {
+    vi.useFakeTimers()
+    container.setAttribute('data-native-chat-root', 'true')
+    render(
+      {
+        questions: [
+          tabsOrSpaces.questions[0]!,
+          { question: 'Anything else?', multiSelect: false, options: [] }
+        ]
+      },
+      vi.fn(),
+      true,
+      true
+    )
+
+    pressKey({ key: '1' }, document.activeElement!)
+    passAutoAdvanceBeat()
+
+    expect(cardTitle()).toBe('Anything else?')
+    expect(document.activeElement).toBe(container.querySelector('input'))
+  })
+
   it('picks from a number key pressed anywhere inside its own chat pane', () => {
     vi.useFakeTimers()
     const onAnswer = vi.fn()

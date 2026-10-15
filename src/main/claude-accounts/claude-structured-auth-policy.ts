@@ -13,10 +13,7 @@ export type ClaudeStructuredAuthPolicy = {
 /**
  * The only supported way to build a structured launch's auth policy.
  *
- * It exists as a named function rather than an inline object at the wiring site so
- * that the settings-to-policy mapping is testable on its own: the one production
- * wiring lives in a `@ts-nocheck` file, where neither the compiler nor a type test
- * can see a dropped field.
+ * Kept separate from runtime wiring so the settings-to-policy mapping can be tested directly.
  *
  * Structured Claude always spawns a native local-host child — the launch resolver
  * refuses any record with a remote execution host or a WSL distro — so the host

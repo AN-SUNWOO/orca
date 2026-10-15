@@ -164,6 +164,7 @@ beforeEach(() => {
   mocks.closeTunnel.mockResolvedValue(undefined)
   mocks.ensureTunnel.mockResolvedValue(undefined)
   mocks.localVersion.mockReturnValue(VERSION)
+  mocks.wake.mockResolvedValue({ outcome: 'serving' })
 })
 
 afterEach(() => rmSync(userDataPath, { recursive: true, force: true }))
@@ -386,12 +387,65 @@ describe('createManagedOrcadEnvironment', () => {
       expect(mocks.deploy).toHaveBeenCalledOnce()
     })
 
-    it('keeps the deploy path, without a wake, for a host already on this build', async () => {
+    it('keeps the deploy path for a host already on this build, waking it after', async () => {
+      mocks.localVersion.mockReturnValue(OTHER)
+      mocks.deploy.mockImplementationOnce(async () => {
+        mocks.events.push('deploy')
+        return { outcome: 'already-active', fullVersion: OTHER }
+      })
+      mocks.wake.mockImplementationOnce(async () => {
+        mocks.events.push('wake')
+        return { outcome: 'serving' }
+      })
+      mocks.probe.mockImplementation(async () => {
+        mocks.events.push('probe')
+        return readiness()
+      })
+      await expect(deploy()).resolves.toMatchObject({ outcome: 'already-current' })
+      expect(mocks.events.filter((event) => event !== 'flush' && event !== 'connect')).toEqual([
+        'deploy',
+        'wake',
+        'probe'
+      ])
+    })
+
+    it('a host this build ran, rebooted or killed since, starts it and registers (#27284)', async () => {
       mocks.localVersion.mockReturnValue(OTHER)
       mocks.deploy.mockResolvedValueOnce({ outcome: 'already-active', fullVersion: OTHER })
-      await expect(deploy()).resolves.toMatchObject({ outcome: 'already-current' })
-      expect(mocks.wake).not.toHaveBeenCalled()
-      expect(mocks.deploy).toHaveBeenCalledOnce()
+      mocks.wake.mockResolvedValueOnce({ outcome: 'started', readiness: readiness() })
+      await expect(deploy()).resolves.toMatchObject({
+        outcome: 'already-current',
+        activeVersion: OTHER
+      })
+      expect(mocks.wake.mock.calls[0]?.[0]).toMatchObject({ port: 6_768, remoteHome: '/home/dev' })
+      expect(listEnvironments(userDataPath)).toHaveLength(1)
+    })
+
+    it('starts nothing over an unverifiable slot on this build, and registers nothing', async () => {
+      mocks.localVersion.mockReturnValue(OTHER)
+      mocks.deploy.mockResolvedValueOnce({ outcome: 'already-active', fullVersion: OTHER })
+      mocks.wake.mockResolvedValueOnce({ outcome: 'unverifiable' })
+      mocks.probe.mockRejectedValueOnce(new Error('orcad process state is unverifiable.'))
+      await expect(deploy()).rejects.toThrow('unverifiable')
+      expect(listEnvironments(userDataPath)).toEqual([])
+    })
+
+    it('surfaces an abandoned update the wake could not recover on this build', async () => {
+      mocks.localVersion.mockReturnValue(OTHER)
+      mocks.deploy.mockResolvedValueOnce({ outcome: 'already-active', fullVersion: OTHER })
+      mocks.wake.mockResolvedValueOnce({ outcome: 'recovery-refused', reason: 'needs Recover' })
+      await expect(deploy()).rejects.toThrow('needs Recover')
+      expect(mocks.probe).not.toHaveBeenCalled()
+      expect(listEnvironments(userDataPath)).toEqual([])
+    })
+
+    it('pairs with a build a rebooted host stopped, after starting it (#28833)', async () => {
+      // A reboot leaves the record naming a slot whose process is gone; only a started server
+      // can count terminals, so the update check after pairing decides the update, not a guess.
+      mocks.wake.mockResolvedValueOnce({ outcome: 'started', readiness: readiness() })
+      const result = await deploy()
+      expect(mocks.deploy).not.toHaveBeenCalled()
+      expect(result).toMatchObject({ outcome: 'already-current', activeVersion: OTHER })
     })
 
     it('registers nothing and stops nothing when the running build is unverifiable', async () => {

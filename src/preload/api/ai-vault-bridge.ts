@@ -14,6 +14,11 @@ import type {
 import type { AiVaultSessionTitlesArgs } from '../../shared/ai-vault-session-title'
 import type { AiVaultPrepareSessionResumeArgs } from '../../shared/ai-vault-resume-preparation'
 import type { PreloadApi } from '../api-types'
+import {
+  AI_VAULT_SCAN_PROGRESS_CHANNEL,
+  type AiVaultScanProgress,
+  type AiVaultScanProgressUpdate
+} from '../../shared/ai-vault-scan-progress'
 
 function searchClient(
   executionHostScope?: ExecutionHostScope
@@ -56,5 +61,13 @@ export const aiVaultApi = {
     const listener = (_event: Electron.IpcRendererEvent) => callback()
     ipcRenderer.on('aiVault:windowFocused', listener)
     return () => ipcRenderer.removeListener('aiVault:windowFocused', listener)
+  },
+  getScanProgress: (scanKey: string): Promise<AiVaultScanProgress | null> =>
+    ipcRenderer.invoke('aiVault:getScanProgress', scanKey),
+  onScanProgress: (callback: (update: AiVaultScanProgressUpdate) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, update: AiVaultScanProgressUpdate) =>
+      callback(update)
+    ipcRenderer.on(AI_VAULT_SCAN_PROGRESS_CHANNEL, listener)
+    return () => ipcRenderer.removeListener(AI_VAULT_SCAN_PROGRESS_CHANNEL, listener)
   }
 } satisfies PreloadApi['aiVault']

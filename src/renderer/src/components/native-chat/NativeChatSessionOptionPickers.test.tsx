@@ -633,8 +633,7 @@ describe('NativeChatSessionOptionPickers', () => {
     expect(described('Med')).toBe('Medium')
     expect(described('XHigh')).toBe('Extra high Deepest reasoning')
     expect(described('Max')).toBeNull()
-    // The pill has the room for the whole name.
-    expect(pill('Model Opus 4.8, Effort Medium')).not.toBeNull()
+    expect(pill('Model Opus 4.8, Effort Med')?.textContent).toBe('Opus 4.8Med')
   })
 
   it('shows a pick at once and holds every write control until it settles', async () => {

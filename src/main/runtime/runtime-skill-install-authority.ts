@@ -13,7 +13,7 @@ import { getRepoIdFromWorktreeId } from '../../shared/worktree/id'
 import type { SkillInstallDestinationAuthority } from '../skills/skill-install-destinations'
 import {
   resolveEnvironmentSkillProviderRoots,
-  resolveWslGrokSkillProviderRoot,
+  resolveWslSkillProviderRoots,
   withClaudeSkillProviderRoot
 } from '../skills/skill-provider-runtime-roots'
 import type { SkillInstallRequest, SkillProviderRootOverrides } from './runtime-skill-types'
@@ -84,13 +84,8 @@ export async function resolveSkillProviderRoots(
   if (destination.scope !== 'global') {
     return {}
   }
-  const grok = destination.wslDistro
-    ? await resolveWslGrokSkillProviderRoot(destination.wslDistro)
-    : null
   const roots = destination.wslDistro
-    ? grok
-      ? { grok }
-      : {}
+    ? await resolveWslSkillProviderRoots(destination.wslDistro)
     : resolveEnvironmentSkillProviderRoots()
   const config = host.getClaudeConfigDirectory?.(
     destination.wslDistro

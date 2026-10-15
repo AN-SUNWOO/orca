@@ -3,6 +3,12 @@ import { NATIVE_CHAT_ROOT_SELECTOR } from '@/lib/native-chat-paste-request'
 
 /** A prompt card marks itself with this while it wants focus (`shouldFocus`). */
 const PROMPT_CARD_WANTS_FOCUS_SELECTOR = '[data-native-chat-prompt-card-focus]'
+const PROMPT_CARD_FOCUS_TARGET_SELECTOR = '[data-native-chat-prompt-card-focus-target]'
+
+function focusPromptCard(card: HTMLElement): void {
+  const target = card.querySelector<HTMLElement>(PROMPT_CARD_FOCUS_TARGET_SELECTOR) ?? card
+  target.focus()
+}
 
 /** Hands focus to the pane's shown prompt card that wants it, as the card would have taken it
  *  had focus been free; false when there is none or `keep` is already a control inside it. */
@@ -10,10 +16,10 @@ export function focusNativeChatPromptCard(root: Element, keep: Element | null): 
   const card = Array.from(
     root.querySelectorAll<HTMLElement>(PROMPT_CARD_WANTS_FOCUS_SELECTOR)
   ).find((candidate) => !candidate.closest('[hidden], [inert]'))
-  if (!card || card.contains(keep)) {
+  if (!card || (keep !== card && card.contains(keep))) {
     return false
   }
-  card.focus()
+  focusPromptCard(card)
   return true
 }
 
@@ -43,12 +49,13 @@ export function useNativeChatPromptCardFocus(
     // The pane's find bar and an open queued-message editor are surfaces of their own: a card
     // arriving mid-query or mid-edit does not take their keys.
     if (
+      card &&
       shouldFocus &&
       isInNativeChatPaneOf(card, active) &&
-      !card?.contains(active) &&
+      (active === card || !card.contains(active)) &&
       !active?.closest('[data-native-chat-find-bar], [data-queued-message-editor]')
     ) {
-      card?.focus()
+      focusPromptCard(card)
     }
   }, [cardRef, shouldFocus, step])
 }

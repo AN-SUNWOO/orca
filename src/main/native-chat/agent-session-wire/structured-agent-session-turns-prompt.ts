@@ -100,6 +100,14 @@ export async function performPrompt(
     return held ? { ok: true, value: held } : validated
   }
   const { prompt } = validated
+  const work = contextStructuredAgentSessionCurrentWork(ctx)
+  if (!work.isCurrentItem(input.itemId)) {
+    // The agent that asked has ended: an answer would reach whichever agent runs now, or none.
+    return invalid(
+      'promptOwnerEnded',
+      `Item ${input.itemId} was raised by an agent that has ended.`
+    )
+  }
   const choice = readPromptChoice(prompt, input)
   if (!choice) {
     return invalid(
@@ -135,10 +143,7 @@ export async function performPrompt(
           identity,
           { ...prompt, resolution },
           // A revision: the prompt keeps the turn it was raised in.
-          {
-            fence: ctx.fence,
-            turnScope: contextStructuredAgentSessionCurrentWork(ctx).turnScope()
-          },
+          { fence: ctx.fence, turnScope: work.turnScope() },
           // The answer's identity commits here, before the adapter tells the provider.
           ctx.operationReceipt
         )

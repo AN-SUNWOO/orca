@@ -2912,6 +2912,7 @@
         "notSignedIn": "{{agent}} is not signed in.",
         "previousExitUnverifiable": "Couldn't stop {{agent}} from before.",
         "providerExitedRejection": "{{agent}} stopped before this message was sent.",
+        "providerExitedAnswer": "{{agent}} has stopped, so your answer was not sent. Send a message to continue.",
         "providerExitedRow": "{{agent}} stopped while this response was in progress. You can continue in this conversation.",
         "providerRateLimited": "{{agent}} is rate-limited and retrying.",
         "providerRejected": "{{agent}} didn't accept this message.",
@@ -2938,8 +2939,11 @@
         "writeFailed": "Orca couldn't hand this message to the agent, so it was not sent."
       },
       "notices": {
+        "compaction": "Context compacted",
+        "contextCleared": "Context cleared",
         "historyItemTooLarge": "This part of the chat was too large to show.",
-        "historyRepaired": "Part of this chat's history couldn't be loaded."
+        "historyRepaired": "Part of this chat's history couldn't be loaded.",
+        "plan": "Plan"
       },
       "question": {
         "other": "Other…"
@@ -2947,6 +2951,14 @@
       "queuedMessages": {
         "sendConfirmBody_one": "You are about to send a message. Do you want to clear the {{count}} message previously queued?",
         "sendConfirmBody_other": "You are about to send a message. Do you want to clear the {{count}} messages previously queued?"
+      },
+      "receipt": {
+        "cancelled": "Cancelled",
+        "cancelledBy": "Cancelled on {{device}}",
+        "emptyAnswer": "Empty answer",
+        "resolved": "Resolved",
+        "resolver": "Answered on {{device}}",
+        "unavailable": "Selected answer unavailable"
       },
       "state": {
         "empty": {

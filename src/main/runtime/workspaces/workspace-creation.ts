@@ -21,6 +21,7 @@ import { trackRuntimeWorkspaceCreate } from '../../workspace-create-telemetry'
 import { assertOpenCodeModelLaunchPreferencesAbsent } from '../../opencode/opencode-model-startup-plan'
 import { resolveWorktreeCreateAgentStartup } from '../runtime-worktree-agent-startup'
 import type { RuntimeWorkspaceCreateEvents } from '../../workspace-create-telemetry'
+import { createdWorkspaceActivationCallbacks } from './workspace-create-activation'
 import { assertWslMoveRepoWritable } from '../../persistence/moving-wsl-projects/wsl-move-scope-guard'
 
 export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWorktreeTerminalProvisioningHost {
@@ -98,6 +99,10 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
         draftStartup?.agent ??
         (requestedAgentEnabled ? requestedAgent : undefined))
     const effectiveDraftPaste = args.startupDraftPaste ?? draftStartup?.draftPaste
+    const activationCallbacks = createdWorkspaceActivationCallbacks(
+      this.notifyActivateWorktree.bind(this),
+      args.navigation
+    )
     // Match IPC routing: executionHostId-only SSH repos must not create locally.
     const createRoute = resolveWorktreeCreateRoute(repo)
     if (isFolderRepo(repo)) {
@@ -109,6 +114,8 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
         startupFollowup: effectiveStartupFollowup,
         startupLaunchRuntime,
         createdWithAgent: effectiveCreatedWithAgent,
+        promisedAgentChat: args.promisedAgentChat,
+        onWorkspaceCreated: args.onWorkspaceCreated,
         draftPaste: effectiveDraftPaste,
         deps: {
           store: this.store,
@@ -120,15 +127,7 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
           invalidateResolvedWorktrees: () => this.invalidateResolvedWorktreeCache(),
           notifyWorktreesChanged: (repoId) => this.notifyWorktreesChanged(repoId),
           emitCreated: (event) => this.emitWorktreeLifecycle(event),
-          activate: (repoId, worktreeId, setup, startup) =>
-            this.notifyActivateWorktree(
-              repoId,
-              worktreeId,
-              setup,
-              startup,
-              undefined,
-              args.navigation
-            )
+          activate: activationCallbacks.folder
         }
       })
     }
@@ -158,8 +157,10 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
         this.getOrStartRemoteTrackingBaseRefresh(path, base, ...options),
       fetchRemote: (path, remote, ...options) =>
         this.fetchRemoteWithCache(path, remote, ...options),
-      onWorktreeMetadataPersisted: (persistedWorktree) =>
-        this.recordCreatedWorktreeLineage(persistedWorktree, lineageResolution),
+      onWorktreeMetadataPersisted: (persistedWorktree) => {
+        args.onWorkspaceCreated?.(persistedWorktree.id)
+        return this.recordCreatedWorktreeLineage(persistedWorktree, lineageResolution)
+      },
       rearm,
       timing
     })
@@ -223,6 +224,7 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
       startupFollowup: effectiveStartupFollowup,
       startupLaunchRuntime,
       createdWithAgent: effectiveCreatedWithAgent,
+      promisedAgentChat: args.promisedAgentChat,
       draftPaste: effectiveDraftPaste,
       warning,
       ports: {
@@ -232,15 +234,7 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
         pasteDraft: (handle, draft) => this.pasteStartupDraftWhenReady(handle, draft),
         sendFollowup: (handle, followup) => this.sendStartupFollowupWhenReady(handle, followup),
         provision: (options) => this.provisionManagedWorktreeTerminals(options, worktree),
-        activate: (repoId, worktreeId, startup, failedSetup, failedDefaultTabs) =>
-          this.notifyActivateWorktree(
-            repoId,
-            worktreeId,
-            failedSetup,
-            startup,
-            failedDefaultTabs,
-            args.navigation
-          )
+        activate: activationCallbacks.local
       }
     })
     warning = terminalWarning

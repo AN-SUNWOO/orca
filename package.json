@@ -107,7 +107,9 @@
     "build:web": "pnpm run build:packages && node config/scripts/run-vite-web-build.mjs && node config/scripts/verify-web-build.mjs",
     "build:web-from-renderer": "node config/scripts/project-renderer-web-client.mjs && node config/scripts/verify-web-build.mjs",
     "build:mobile-web": "node config/scripts/build-mobile-web-app-bundle.mjs && node config/scripts/verify-mobile-web-app-bundle.mjs",
-    "build:desktop": "pnpm run typecheck && pnpm run build:wsl-guest && pnpm run build:cli && pnpm run build:electron-vite && pnpm run verify:built-skills-cli && pnpm run build:web-from-renderer && pnpm run build:mobile-web",
+    "build:desktop": "pnpm run typecheck && pnpm run build:desktop:assets",
+    "build:desktop:ci": "pnpm run typecheck:ci --bun-concurrency=2 --bun-threads=2 && pnpm run build:desktop:assets",
+    "build:desktop:assets": "pnpm run build:wsl-guest && pnpm run build:cli && pnpm run build:electron-vite && pnpm run verify:built-skills-cli && pnpm run build:web-from-renderer && pnpm run build:mobile-web",
     "build": "pnpm run build:desktop && pnpm run build:native",
     "build:release": "pnpm run build:wsl-guest && pnpm run build:native && pnpm run verify:computer-native && pnpm run build:cli && pnpm run build:electron-vite && pnpm run verify:built-skills-cli && pnpm run build:web-from-renderer && pnpm run build:mobile-web",
     "build:release:javascript": "pnpm run build:cli && pnpm run build:electron-vite && pnpm run verify:built-skills-cli && pnpm run build:web-from-renderer && pnpm run build:mobile-web",
@@ -210,6 +212,7 @@
     "zod": "~4.6.5"
   },
   "devDependencies": {
+    "@actions/expressions": "0.3.61",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
@@ -270,7 +273,7 @@
     "devalue": "6.0.2",
     "diff": "8.0.4",
     "dompurify": "3.4.16",
-    "electron": "43.7.5",
+    "electron": "43.7.8",
     "electron-builder": "26.15.3",
     "electron-builder-squirrel-windows": "26.15.3",
     "electron-vite": "^5.0.0",

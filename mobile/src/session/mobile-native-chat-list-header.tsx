@@ -22,7 +22,7 @@ export function mobileNativeChatListHeader(
       )}
       {loadEarlierFailed && !loadingEarlier ? (
         <Text style={styles.loadEarlierFailedText}>
-          Couldn't load earlier messages. Tap to try again.
+          {"Couldn't load earlier messages. Tap to try again."}
         </Text>
       ) : null}
     </Pressable>

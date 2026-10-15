@@ -156,7 +156,7 @@ describe('CLI identity resume through the existing launch owner', () => {
       expect(tabs()).toEqual([])
       expect([...structuredLaunchStates()]).toEqual([])
       expect(mocks.toast.mock.calls.at(-1)?.[0]).toMatch(
-        reason === 'transcriptUnreadable' ? /history.*could not/i : /hasn't saved/
+        reason === 'transcriptUnreadable' ? /couldn't open.*history/i : /hasn't saved/
       )
     }
   })

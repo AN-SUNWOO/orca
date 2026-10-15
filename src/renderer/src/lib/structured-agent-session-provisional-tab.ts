@@ -21,6 +21,7 @@ import {
 } from '@/lib/structured-agent-session-launch-admission'
 import {
   resolveStructuredAgentSessionOwner,
+  structuredAgentSessionFocusOwner,
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
@@ -30,7 +31,6 @@ import {
   peekWebSessionFocusIntent,
   resolveWebSessionVisibleTabId
 } from '@/runtime/web-session-focus-intent'
-import { structuredAgentSessionFocusOwner } from '@/runtime/structured-agent-session-owner'
 import {
   deleteStructuredLaunchStateIfCurrent,
   getStructuredLaunchStateBySessionId,

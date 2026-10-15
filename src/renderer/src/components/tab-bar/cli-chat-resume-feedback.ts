@@ -16,6 +16,14 @@ export async function reportCliChatResumeFailure(
 ): Promise<void> {
   const refusal =
     error instanceof StructuredAgentSessionCreateRefusalError ? error.refusal : undefined
+  if (refusal?.details?.reason === 'terminalStopUnconfirmed') {
+    toast.error('The terminal agent could not be confirmed stopped. Retry from the chat after it exits.')
+    return
+  }
+  if (error instanceof Error && error.message.startsWith('Exit the agent in the terminal first')) {
+    toast.error(error.message)
+    return
+  }
   if (
     refusal?.code === 'agent_session_conflict' ||
     refusal?.code === 'agent_session_ownership_unknown'
@@ -25,12 +33,12 @@ export async function reportCliChatResumeFailure(
       await activateAiVaultStructuredSession({ structuredSession: owner }, undefined, target)
       return
     }
-    toast.error(
-      translate(
-        'auto.components.right.sidebar.AiVaultPanel.resumeInChatConflict',
-        'Another chat is already holding this conversation.'
-      )
-    )
+    toast.error(owner
+      ? translate(
+          'auto.components.right.sidebar.AiVaultPanel.resumeInChatConflict',
+          'Another chat is already holding this conversation.'
+        )
+      : `${agentLabel(source.agent)} is still running in a terminal. Exit it there, then switch to chat.`)
     return
   }
   if (refusal?.code === 'agent_session_identity_required') {

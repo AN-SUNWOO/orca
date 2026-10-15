@@ -16,7 +16,10 @@ import { SESSION_TAB_MARKDOWN_METHODS } from './session-tab-markdown-methods'
 import { SESSION_TAB_MUTATION_METHODS } from './session-tab-mutation-methods'
 import { createSessionTabsRetirementProofDelta } from './session-tabs-retirement-proof-delta'
 import { restoreStructuredTabsIfSupported } from './structured-session-tab-restore'
-import { assertLegacyAiVaultResumeCommandAllowed } from '../../../ai-vault/structured-session-ownership'
+import {
+  assertLegacyAiVaultResumeCommandAllowed,
+  withLegacyResumeCommandAdmission
+} from '../../../ai-vault/structured-session-ownership'
 import { SessionTabsUnsubscribeAllParams } from '../../../../shared/rpc-contract/session-tabs-params'
 import { SESSION_TABS_SPLIT_GROUP_PLACEMENT_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
 
@@ -55,6 +58,7 @@ export const SESSION_TAB_METHODS = [
       params,
       { runtime, signal, clientKind, pairedDeviceId, clientCapabilities }
     ) => {
+      return withLegacyResumeCommandAdmission(params.command, async () => {
       if (params.command) {
         await assertLegacyAiVaultResumeCommandAllowed(params.command, () =>
           runtime.ensureStructuredAgentSessionHost()
@@ -93,6 +97,7 @@ export const SESSION_TAB_METHODS = [
         // Why: a dead client connection must cancel the surface wait instead
         // of running down the timeout and rolling back a live tab (#7718).
         signal
+      })
       })
     }
   }),

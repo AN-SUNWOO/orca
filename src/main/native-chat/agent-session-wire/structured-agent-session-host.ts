@@ -49,6 +49,7 @@ import { structuredAgentSessionRestartResumeSurfaces } from './structured-agent-
 import * as conversation from './structured-agent-session-host-delivery'
 import { wireStructuredAgentSessionQueuedMessages } from './structured-agent-session-queued-wiring'
 import * as sessionLogger from './structured-agent-session-logger'
+import { openStructuredAgentSessionConversationJournal } from './structured-agent-session-conversation-open'
 export type { StructuredAgentSessionHostDeps } from './structured-agent-session-host-types'
 
 export class StructuredAgentSessionHost {
@@ -218,7 +219,21 @@ export class StructuredAgentSessionHost {
   private readonly tabs = sessionTabs.createStructuredAgentSessionTabSurface(
     this,
     this.sessions,
-    (sessionId) => this.clientDelivery.forgetStatus(sessionId)
+    (sessionId) => this.clientDelivery.forgetStatus(sessionId),
+    (sessionId, task) => this.serialize(sessionId, task),
+    async (sessionId) => {
+      const record = this.deps.store.getRecord(sessionId)
+      if (!record) {
+        return false
+      }
+      const opened = await openStructuredAgentSessionConversationJournal(this.deps, record)
+        .catch(() => null)
+      if (!opened) {
+        return false
+      }
+      const empty = opened.session.journal.cursor().sequence === 0
+      return (await opened.session.journal.close().then(() => true, () => false)) && empty
+    }
   )
   listSessionTabs = this.tabs.listSessionTabs
   getPersistedVisibleSessionTabIndex = this.tabs.getPersistedVisibleSessionTabIndex

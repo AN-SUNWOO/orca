@@ -22,6 +22,7 @@ import {
   type StructuredAgentRuntimeRegistration
 } from '../runtime/structured-agent-runtime-registrations'
 import { commandName, commandProgramIndex, shellCommands } from './shell-command-words'
+import { withStructuredConversationAdmission } from '../runtime/structured-agent-conversation-admission-lane'
 
 /** Whether the client a projection answers opens a chat of this agent from its history row. A row
  *  owned by a chat it cannot open is hidden from it: resuming that row in a terminal is refused. */
@@ -173,6 +174,36 @@ export async function assertLegacyAiVaultResumeCommandAllowed(
       refuseLegacyWriter(ownership)
     }
   }
+}
+
+/** Managed resume commands share the host's chat handoff lane until their write is accepted. */
+export function withLegacyResumeCommandAdmission<T>(
+  command: string | undefined,
+  task: () => Promise<T>
+): Promise<T> {
+  const invocations = command ? parseResumeInvocations(command) : []
+  const targets = [...new Map(invocations.flatMap((item) => item.target ? [[
+    item.provider + '\0' + item.target,
+    { provider: item.provider, target: item.target }
+  ] as const] : [])).values()].sort((a, b) =>
+    (a.provider + a.target).localeCompare(b.provider + b.target)
+  )
+  const run = (index: number): Promise<T> => index === targets.length
+    ? task()
+    : withStructuredConversationAdmission(
+        targets[index].provider, targets[index].target, () => run(index + 1)
+      )
+  return run(0)
+}
+
+export function withLegacyResumePreparationAdmission<T>(
+  args: AiVaultPrepareSessionResumeArgs,
+  task: () => Promise<T>
+): Promise<T> {
+  const owner = args.fork ? null : historyRowOwner(args.agent)
+  return owner && args.sessionId
+    ? withStructuredConversationAdmission(owner, args.sessionId, task)
+    : task()
 }
 
 /** The chat that owns the row a resume or fork names; null when none does. */

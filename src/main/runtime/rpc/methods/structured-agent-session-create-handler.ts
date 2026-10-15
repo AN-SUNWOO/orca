@@ -18,6 +18,7 @@ import {
   structuredAgentSessionCreateIntentFingerprint
 } from './structured-agent-session-create'
 import { resolveUncommittedStructuredCreate } from './structured-agent-session-precommit-refusal'
+import { withStructuredConversationAdmission } from '../../structured-agent-conversation-admission-lane'
 
 /**
  * The attach-shaped entries take the location from the client instead of resolving it from a
@@ -64,9 +65,9 @@ export async function handleStructuredAgentSessionCreate(
       reason: 'requestMalformed'
     })
   }
-  // Everything up to `attach` is pre-commit, and answers with a refusal rather than a throw so
-  // a client can tell "nothing was created" from "the outcome is unknown".
-  const prepared = await resolveUncommittedStructuredCreate(async () => {
+  const create = async () => {
+    // The host keeps preparation and the terminal stop under one conversation lane.
+    const prepared = await resolveUncommittedStructuredCreate(async () => {
     if ('worktree' in params) {
       const conflict = agentSessionFingerprintConflict(
         params.envelope,
@@ -98,14 +99,18 @@ export async function handleStructuredAgentSessionCreate(
     }
     const { host, attachParams } = await resolveClientSuppliedAttach(params, ctx)
     return { host, attachParams, tab: null }
-  })
-  if ('refusal' in prepared) {
-    return { ok: false, refusal: prepared.refusal }
+    })
+    if ('refusal' in prepared) {
+      return { ok: false, refusal: prepared.refusal }
+    }
+    return commitStructuredAgentSessionCreate({
+      runtime: ctx.runtime,
+      caller: callerFor(ctx),
+      prepared,
+      activate: true
+    })
   }
-  return commitStructuredAgentSessionCreate({
-    runtime: ctx.runtime,
-    caller: callerFor(ctx),
-    prepared,
-    activate: true
-  })
+  return 'worktree' in params && params.resumeFrom
+    ? withStructuredConversationAdmission(params.agent, params.resumeFrom.providerSessionId, create)
+    : create()
 }

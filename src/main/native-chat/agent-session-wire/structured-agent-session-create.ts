@@ -8,7 +8,11 @@ import {
   type AgentSessionMutationResult
 } from '../../../shared/agent-session-wire'
 import type { StructuredAgentSessionCaller } from './structured-agent-session-host-types'
-import { isAgentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
+import {
+  AgentSessionRefusalError,
+  agentSessionRefusalError,
+  isAgentSessionRefusalError
+} from '../../../shared/agent-session-wire-refusals'
 import { journalOpenRefusalError } from '../agent-session-journal/journal-open-failure'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 import { reserveRequestFor, type AgentSessionAttachParams } from './structured-agent-session-attach'
@@ -30,12 +34,25 @@ import { observedReceipt } from './structured-agent-session-operation-settlement
 import { attachStructuredAgentSession } from './structured-agent-session-attach-orchestration'
 import { readAgentSessionHydrationPage } from './agent-session-history-page'
 import { resolveAgentSessionReplayOutcome } from './structured-agent-session-replay-outcome'
+import type { CliSourceStopHost } from '../../runtime/structured-agent-cli-stop'
+import {
+  captureCliSourceProcessIdentities,
+  inspectCliSourceWriters,
+  probeCliSourceSurvivors,
+  stopCliSourceAndJudge
+} from '../../runtime/structured-agent-cli-stop'
+import type { StructuredAgentSessionResumeSource } from '../../../shared/structured-agent-session-create'
 
 export type StructuredAgentSessionCreateOptions = {
   firstMessage?: { clientMessageId: string; body: AgentJournalMessageItem }
   hostLaunchDirectory?: string
   /** Called after the durable create, before delivery can start the agent. */
   publishTab?: () => Promise<void>
+  cliSourceStop?: {
+    host: CliSourceStopHost
+    resumeFrom: StructuredAgentSessionResumeSource
+    workspaceId: string
+  }
 }
 
 /** Founds a chat and its opening message; only the delivery loop acquires the agent. */
@@ -102,7 +119,7 @@ async function foundConversation(
   if (!prior && isFloatingWorkspaceId(params.location.workspaceId) && !launchDirectory) {
     throw new Error('floating_agent_session_launch_directory_unavailable')
   }
-  const request = reserveRequestFor({
+  const baseRequest = reserveRequestFor({
     sessionId,
     params,
     callerKey,
@@ -120,6 +137,9 @@ async function foundConversation(
       ...(await pinnedAgentSessionLaunchEnv(deps.resolveLaunchEnv, params))
     }
   })
+  const request = options.cliSourceStop
+    ? { ...baseRequest, adoptionHandoff: true }
+    : baseRequest
   const candidate = store.founding.prepare(request)
   if (!hostCanStartRecord(deps, candidate.record)) {
     return {
@@ -150,7 +170,7 @@ async function foundConversation(
             )
     }
   }
-  const prepared = replayed
+  let prepared = replayed
     ? { ok: true as const, items: null }
     : await prepareAdoptedTranscript(params)
   if (!prepared.ok) {
@@ -178,8 +198,66 @@ async function foundConversation(
   const { session } = opened
   const fence = candidate.record.lease.runtimeFence
   let committed = replayed
+  let reservedAdoption = false
+  let cancelledBeforeStop = false
   try {
     if (!replayed) {
+      if (options.cliSourceStop) {
+        const source = options.cliSourceStop
+        const priorSurvivors = prior?.adoptionSurvivors
+        const pane = !priorSurvivors?.length
+          ? await inspectCliSourceWriters(source.host, {
+              agent: params.agent,
+              resumeFrom: source.resumeFrom,
+              workspaceId: source.workspaceId
+            })
+          : null
+        // Why: the complete ConPTY job tree is daemon-owned and not yet available to this host.
+        if (pane && process.platform === 'win32') {
+          throw agentSessionRefusalError('agent_session_conflict', {
+            reason: 'conversationHeldElsewhere'
+          })
+        }
+        await store.founding.reserveAdoption(request)
+        reservedAdoption = true
+        if (priorSurvivors?.length) {
+          const survivors = await probeCliSourceSurvivors(priorSurvivors)
+          if (survivors.length > 0) {
+            await store.founding.adoptionSurvivors(request, survivors)
+            throw agentSessionRefusalError('agent_session_conflict', {
+              reason: 'terminalStopUnconfirmed'
+            })
+          }
+        } else if (pane) {
+          let identities: Awaited<ReturnType<typeof captureCliSourceProcessIdentities>>
+          try {
+            identities = await captureCliSourceProcessIdentities(source.host, pane.ptyId)
+            await store.founding.adoptionSurvivors(request, identities)
+          } catch {
+              const refusal = {
+                code: 'agent_session_conflict' as const,
+                details: { reason: 'conversationHeldElsewhere' as const },
+                message: 'The terminal process could not be verified. Exit it there, then retry.'
+              }
+              await store.founding.cancelAdoptionBeforeStop(request, refusal)
+              cancelledBeforeStop = true
+              throw agentSessionRefusalError(refusal.code, refusal.details)
+          }
+          const survivors = await stopCliSourceAndJudge(
+            source.host, pane.workspaceId, pane.ptyId, identities
+          )
+          if (survivors.length > 0) {
+            await store.founding.adoptionSurvivors(request, survivors)
+            throw agentSessionRefusalError('agent_session_conflict', {
+              reason: 'terminalStopUnconfirmed'
+            })
+          }
+        }
+        prepared = await prepareAdoptedTranscript(params)
+        if (!prepared.ok) {
+          throw new AgentSessionRefusalError(prepared.refusal)
+        }
+      }
       await importAdoptedTranscript(
         params,
         { journal: session.journal, unconfirmedClientMessageIds: [] },
@@ -217,10 +295,17 @@ async function foundConversation(
           }
         )
         if (!sent.ok) {
+          if (options.cliSourceStop) {
+            await store.founding.failAdoption(request, sent.refusal)
+          }
           return sent
         }
       } else {
-        await store.founding.commit(request)
+        if (options.cliSourceStop) {
+          await store.founding.completeAdoption(request)
+        } else {
+          await store.founding.commit(request)
+        }
       }
       committed = true
     }
@@ -268,6 +353,29 @@ async function foundConversation(
     }
     context.wakeDelivery?.(sessionId)
     return result
+  } catch (error) {
+    if (!reservedAdoption && options.cliSourceStop && isAgentSessionRefusalError(error)) {
+      return {
+        ok: false,
+        refusal: { ...error.refusal, createAttemptRefusedBeforeCommit: true }
+      }
+    }
+    if (reservedAdoption && !committed && !cancelledBeforeStop) {
+      const refusal = isAgentSessionRefusalError(error)
+        ? error.refusal
+        : {
+            code: 'agent_session_conflict' as const,
+            details: { reason: 'terminalStopUnconfirmed' as const },
+            message: 'The terminal agent could not be confirmed stopped.'
+          }
+      await store.founding.failAdoption(request, refusal)
+      if (!isAgentSessionRefusalError(error)) {
+        throw agentSessionRefusalError('agent_session_conflict', {
+          reason: 'terminalStopUnconfirmed'
+        })
+      }
+    }
+    throw error
   } finally {
     if (!committed && !existing) {
       await session.journal.close()

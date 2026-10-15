@@ -5,6 +5,9 @@ import {
 } from '../../shared/agent-session-wire-refusals'
 import { agentSessionOperationKey } from '../../shared/agent-session-operation-ledger'
 import { foundAgentSessionRecord } from './agent-session-record-founding'
+import { agentSessionExecutionLocationsEqual } from '../../shared/agent-session-record'
+import { agentSessionAccountHomesEqual } from '../../shared/agent-session-account-home'
+import { agentSessionProviderHandleRoot } from '../../shared/agent-session-provider-handle'
 import {
   assertAdoptedConversationUnowned,
   assertReservedTabUnheld,
@@ -43,7 +46,27 @@ export function commitAgentSessionFounding(
     throw agentSessionRefusalError('execution_owner_reconciling', { reason: 'recordUnreadable' })
   }
   if (state.records.has(request.sessionId)) {
-    throw agentSessionRefusalError('agent_session_conflict', { reason: 'sessionExists' })
+    const existing = state.records.get(request.sessionId)
+    if (
+      !request.adoptionHandoff ||
+      !existing ||
+      existing.adoptionSurvivors === undefined ||
+      existing.lease.ownerProcess !== null ||
+      existing.provider !== request.provider ||
+      !agentSessionAccountHomesEqual(existing.accountHome, request.accountHome) ||
+      !agentSessionExecutionLocationsEqual(existing.location, request.location) ||
+      !request.adoptedHandleLink ||
+      existing.providerHandleChain.length !== 1 ||
+      agentSessionProviderHandleRoot(existing.providerHandleChain[0].handle) !==
+        agentSessionProviderHandleRoot(request.adoptedHandleLink.handle)
+    ) {
+      throw agentSessionRefusalError('agent_session_conflict', { reason: 'sessionExists' })
+    }
+    assertAdoptedConversationUnowned(state, request)
+    assertReservedTabUnheld(state, request)
+    state.operations.set(agentSessionOperationKey(decision.row.callerKey, decision.row.operationId), decision.row)
+    setAgentSessionTabVisibility(state, request.sessionId, true, request.surfaceTabId)
+    return { record: existing, disposition: 'created', operationRow: decision.row }
   }
   try {
     assertAdoptedConversationUnowned(state, request)
@@ -59,11 +82,17 @@ export function commitAgentSessionFounding(
   assertReservedTabUnheld(state, request)
   const founded = foundAgentSessionRecord(request, request)
   const record = request.adoptedHandleLink
-    ? { ...founded, providerHandleChain: [request.adoptedHandleLink] }
+    ? {
+        ...founded,
+        providerHandleChain: [request.adoptedHandleLink],
+        ...(request.adoptionHandoff ? { adoptionSurvivors: [] } : {})
+      }
     : founded
   const operationRow = {
     ...decision.row,
-    outcome: { status: 'succeeded' as const, sessionId: request.sessionId }
+    outcome: request.adoptionHandoff
+      ? { status: 'pending' as const }
+      : { status: 'succeeded' as const, sessionId: request.sessionId }
   }
   state.records.set(request.sessionId, record)
   state.operations.set(

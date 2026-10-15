@@ -143,6 +143,7 @@ const REASON_WORDS = {
     identityMismatch: codeWords('hostFinding'),
     sessionExists: codeWords('retry'),
     conversationHeldElsewhere: codeWords('retry'),
+    terminalStopUnconfirmed: codeWords('retry'),
     tabIdTaken: codeWords('retry')
   },
   execution_owner_reconciling: {

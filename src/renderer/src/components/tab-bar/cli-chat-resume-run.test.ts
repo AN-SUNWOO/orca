@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
   return {
     ...state,
     sourceCapability: vi.fn(),
+    stopCapability: vi.fn(),
     createCapability: vi.fn(),
     call: vi.fn(),
     toast: vi.fn(),
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('./cli-chat-resume-source', () => ({ resolveCliChatResumeSource: () => mocks.source }))
 vi.mock('@/runtime/structured-agent-session-client', () => ({
   supportsStructuredAgentSessionCliSource: mocks.sourceCapability,
+  supportsStructuredAgentSessionCliSourceStop: mocks.stopCapability,
   supportsStructuredAgentSessionCreateMessage: mocks.createCapability,
   callStructuredAgentSession: (...args: unknown[]) =>
     args[1] === 'agentSession.createSupport'
@@ -115,6 +117,7 @@ beforeEach(() => {
   useAppStore.setState({ activeWorktreeId: 'wt-1' })
   mocks.source = SOURCE
   mocks.sourceCapability.mockResolvedValue(true)
+  mocks.stopCapability.mockResolvedValue(true)
   mocks.createCapability.mockResolvedValue(true)
   mocks.call.mockImplementation(
     async (_target, method, params: StructuredAgentSessionCreateParams) => {
@@ -154,6 +157,18 @@ function seedTabs() {
 }
 
 describe('CLI identity resume through the existing launch owner', () => {
+  it('sends stop consent only after confirmation to a host advertising the stop capability', async () => {
+    await runCliChatResume(SOURCE, false, true)
+    expect(mocks.call.mock.calls[0][2].resumeFrom.cliSource.stopRunningAgent).toBe(true)
+
+    mocks.call.mockClear()
+    resetStructuredAgentLaunchRegistryForTests()
+    mocks.stopCapability.mockResolvedValue(false)
+    await runCliChatResume(SOURCE, false, true)
+    expect(mocks.call).not.toHaveBeenCalled()
+    expect(mocks.toast.mock.calls.at(-1)?.[0]).toMatch(/exit the agent in the terminal first/i)
+  })
+
   it('shares pending, sends only an advertised source, and survives source closure after dispatch', async () => {
     const reply = deferred<unknown>()
     mocks.call.mockReturnValue(reply.promise)

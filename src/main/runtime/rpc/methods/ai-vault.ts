@@ -18,7 +18,8 @@ import { describeAiVaultScanError } from '../../../../shared/ai-vault-scan-error
 import {
   assertLegacyAiVaultResumeAllowed,
   projectStructuredAiVaultSessions,
-  searchWithStructuredOwners
+  searchWithStructuredOwners,
+  withLegacyResumePreparationAdmission
 } from '../../../ai-vault/structured-session-ownership'
 import {
   ensureStructuredAgentSessionHostUnlessRefused,
@@ -138,6 +139,7 @@ export const AI_VAULT_METHODS = [
         // client-provided runtime/SSH stamp escape that host boundary.
         executionHostId: LOCAL_EXECUTION_HOST_ID
       }
+      return withLegacyResumePreparationAdmission(args, async () => {
       if (!isWslUncPath(args.filePath)) {
         const ensureHost = () => runtime.ensureStructuredAgentSessionHost()
         await (args.codexHome === null && !args.fork
@@ -148,6 +150,7 @@ export const AI_VAULT_METHODS = [
       return (
         (await copyStructuredChatConversation(args)) ?? runtime.prepareAiVaultSessionResume(args)
       )
+      })
     }
   })
 ]

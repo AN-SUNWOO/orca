@@ -18167,6 +18167,13 @@
       "empty": "No users found"
     },
     "native-chat": {
+      "switch": { "action": "Switch to Chat (closes terminal)" },
+      "stopAndSwitch": {
+        "action": "Stop and Switch to Chat (closes terminal)",
+        "title": "Stop {{agent}} and continue in chat?",
+        "description": "This closes the terminal and stops the current step. Everything saved so far stays in the conversation.",
+        "confirm": "Stop and Switch"
+      },
       "reasoning": "Reasoning",
       "failureWords": {
         "theAgent": "The agent",

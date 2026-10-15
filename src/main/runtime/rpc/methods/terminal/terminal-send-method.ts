@@ -1,4 +1,7 @@
-import { assertLegacyAiVaultResumeCommandAllowed } from '../../../../ai-vault/structured-session-ownership'
+import {
+  assertLegacyAiVaultResumeCommandAllowed,
+  withLegacyResumeCommandAdmission
+} from '../../../../ai-vault/structured-session-ownership'
 import { InvalidArgumentError, defineMethod } from '../../core'
 import { isTerminalQueryReply } from '../../../../../shared/terminal-query-reply'
 import { assertTerminalAgentSendable } from '../../terminal-agent-send-guard'
@@ -35,7 +38,9 @@ export const TERMINAL_SEND_METHODS = [
         markMutationEffectPossible,
         replayedMutationReceipt
       }
-    ) => {
+    ) => withLegacyResumeCommandAdmission(
+      [params.text, params.resolvedLaunchDraft?.text].filter(Boolean).join('\n'),
+      async () => {
       await assertTerminalSendTextWithinLimit(params.text)
       await assertTerminalSendTextWithinLimit(params.resolvedLaunchDraft?.text)
       if (params.text) {
@@ -293,6 +298,7 @@ export const TERMINAL_SEND_METHODS = [
       }
       // Why: deliberate mobile input takes the floor (drives `* → mobile{clientId}`); clientless sends fall back to the current mobile driver.
       return { send: result }
-    }
+      }
+    )
   })
 ]

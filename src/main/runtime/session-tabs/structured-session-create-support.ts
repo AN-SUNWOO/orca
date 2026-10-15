@@ -13,6 +13,7 @@ import {
   type StructuredAgentSessionCreateIntentInput
 } from '../structured-agent-session-create-adoption'
 import { isNativeLocalLocation, LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
+import { agentSessionExecutionLocationsEqual } from '../../../shared/agent-session-record'
 import { getLocalProjectWorktreeGitOptions } from '../../project-runtime-git-options'
 import type { AgentSessionAttachParams } from '../../native-chat/agent-session-wire/structured-agent-session-attach'
 import {
@@ -31,9 +32,32 @@ import {
 } from '../../../shared/floating-workspace-worktree'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 import type { AgentSessionAccountHome } from '../../../shared/agent-session-account-home'
-import type { StructuredAgentId } from '../../../shared/agent-session-provider-handle'
+import {
+  agentSessionProviderHandleRoot,
+  type StructuredAgentId
+} from '../../../shared/agent-session-provider-handle'
+import type { CliSourceStopHost } from '../structured-agent-cli-stop'
 
 export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithGetWorktreePs {
+  cliSourceStopHost(): CliSourceStopHost {
+    return {
+      rows: () => this.getAgentProviderSessionRows(),
+      resolvePane: (paneKey, workspaceId) => this.resolveTerminalPane(paneKey, workspaceId),
+      sleeping: (workspaceId) => [...this.terminalSleepStateByWorktreeId.values()].some(
+        (state) => state.worktreeId === workspaceId &&
+          (state.phase === 'sleeping' || state.phase === 'partial')
+      ),
+      presence: (paneKey) => this.checkHookAgentPresenceFn?.(paneKey) ?? Promise.resolve(null),
+      shellForeground: (ptyId) => this.ptyController?.confirmShellForeground?.(ptyId) ?? Promise.resolve(false),
+      rootPid: async (ptyId) => {
+        const processes = await this.ptyController?.listProcesses?.(LOCAL_EXECUTION_HOST_ID)
+        return processes?.find((entry) => entry.id === ptyId)?.rootProcessId ?? null
+      },
+      stop: (workspaceId, ptyId) => this.stopExactTerminalsForWorktree(
+        `id:${workspaceId}`, [ptyId], { targetOnly: true, keepHistory: false }
+      )
+    }
+  }
   protected abstract restoreStructuredAgentSessionTabsOnce(
     ...args: Parameters<
       RestoreStructuredAgentSessionTabsOnceMethods['restoreStructuredAgentSessionTabsOnce']
@@ -240,8 +264,11 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
       return committedReplay
     }
     const resumeFrom = input.resumeFrom
+    const unfinished = host?.deps.store.getRecord(input.envelope.sessionId)
+    const reservation = unfinished?.adoptionSurvivors !== undefined ? unfinished : null
     const workspaceCwd = resumeFrom ? (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path : ''
-    const selectedAccountHome = await resolveAccountHome({ launchEnv, location })
+    const selectedAccountHome = reservation?.accountHome ??
+      await resolveAccountHome({ launchEnv, location })
     // Adopting pins the account home to wherever the conversation actually lives, which is not
     // necessarily the one a fresh create would pick: Codex resolves its rollout under
     // `accountHome.path`, and Claude reads its transcript under `<home>/projects`. Resuming under
@@ -253,16 +280,35 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
             agent: input.agent,
             transcriptImport,
             providerSessionId: resumeFrom.providerSessionId,
-            resolveTranscriptPath: () => structuredAgentCliSourcePathFromEvidence({
-              agent: input.agent, resumeFrom, workspaceId: location.workspaceId,
-              evidence: input.structuredAgentCliSourceEvidence
-            }),
+            resolveTranscriptPath: () => reservation ? undefined :
+              structuredAgentCliSourcePathFromEvidence({
+                agent: input.agent, resumeFrom, workspaceId: location.workspaceId,
+                evidence: input.structuredAgentCliSourceEvidence
+              }),
             prepareCodexResume: this.prepareAiVaultSessionResumeFn ?? undefined,
             selectedAccountHome,
             launchEnv: await resolveHostStructuredAgentLaunchEnvironment(input.agent, settings),
             workspaceCwd: workspaceCwd
           })
         : null
+    const adoptedHandle = adoption && transcriptImport
+      ? {
+          transport: definition.handleTransport,
+          agent: definition.agent,
+          nativeId: transcriptImport.handleNamesTranscript
+            ? adoption.transcriptPath
+            : resumeFrom!.providerSessionId
+        }
+      : null
+    if (reservation && (
+      !agentSessionExecutionLocationsEqual(reservation.location, location) ||
+      !adoptedHandle ||
+      !reservation.providerHandleChain[0] ||
+      agentSessionProviderHandleRoot(reservation.providerHandleChain[0].handle) !==
+        agentSessionProviderHandleRoot(adoptedHandle)
+    )) {
+      throw agentSessionRefusalError('agent_session_conflict', { reason: 'identityMismatch' })
+    }
     return {
       envelope: {
         sessionId: input.envelope.sessionId,
@@ -273,7 +319,7 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
       location,
       provider: input.agent,
       agent: input.agent,
-      accountHome: adoption ? adoption.accountHome : selectedAccountHome,
+      accountHome: reservation?.accountHome ?? (adoption ? adoption.accountHome : selectedAccountHome),
       ...(options ? { options } : {}),
       ...(input.resumeFrom && adoption
         ? {
@@ -281,13 +327,7 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
             // `providerHandle` alone must not: `agentSession.ensure` already passes one today
             // without adopting anything.
             adopt: {
-              providerHandle: {
-                transport: definition.handleTransport,
-                agent: definition.agent,
-                nativeId: transcriptImport!.handleNamesTranscript
-                  ? adoption.transcriptPath
-                  : input.resumeFrom.providerSessionId
-              },
+              providerHandle: reservation?.providerHandleChain[0].handle ?? adoptedHandle!,
               transcriptPath: adoption.transcriptPath,
               source: {
                 providerSessionId: input.resumeFrom.providerSessionId,

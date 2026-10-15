@@ -157,3 +157,57 @@ describe('chat tab table', () => {
     expect(store.getSessionTabId('session-alpha')).toBe('tab-restored')
   })
 })
+
+describe('reserved terminal adoption', () => {
+  const handle = {
+    linkId: 'adopted-1',
+    handle: { transport: 'claude-sdk', agent: 'claude', nativeId: 'provider-1' },
+    origin: 'adopted' as const,
+    mintedAtFence: 1,
+    observedAt: NOW
+  }
+
+  it('keeps survivors and the old refusal across a later operation, then releases the fence', async () => {
+    const store = await open()
+    const first = reserveRequest({ adoptedHandleLink: handle, adoptionHandoff: true })
+    await store.founding.reserveAdoption(first)
+    const survivor = { pid: 4242, platform: 'linux' as const, startTime: 'old-start' }
+    await store.founding.adoptionSurvivors(first, [survivor])
+    await store.founding.failAdoption(first, {
+      code: 'agent_session_conflict',
+      details: { reason: 'terminalStopUnconfirmed' },
+      message: 'Terminal exit could not be confirmed.'
+    })
+    expect(store.getRecord(first.sessionId)?.adoptionSurvivors).toEqual([survivor])
+    expect(store.founding.prepare(first).operationRow.outcome).toMatchObject({
+      status: 'failed', details: { reason: 'terminalStopUnconfirmed' }
+    })
+
+    const next = reserveRequest({
+      adoptedHandleLink: handle,
+      adoptionHandoff: true,
+      operation: { callerKey: 'client-1', operationId: operationId(), fingerprint: 'fp-2' }
+    })
+    await store.founding.reserveAdoption(next)
+    await store.founding.completeAdoption(next)
+    expect(store.getRecord(first.sessionId)?.adoptionSurvivors).toBeUndefined()
+    expect(store.founding.prepare(first).operationRow.outcome).toMatchObject({ status: 'failed' })
+  })
+
+  it('abandons only the exact unlaunched and unimported reservation on close', async () => {
+    const store = await open()
+    const request = reserveRequest({ adoptedHandleLink: handle, adoptionHandoff: true })
+    await store.founding.reserveAdoption(request)
+    const tabId = store.getSessionTabId(request.sessionId) ?? 'missing-tab'
+    expect(await store.founding.abandonUnlaunchedAdoptionReservation(
+      request.sessionId, 'wrong-tab', true
+    )).toBe(false)
+    expect(await store.founding.abandonUnlaunchedAdoptionReservation(
+      request.sessionId, tabId, false
+    )).toBe(false)
+    expect(await store.founding.abandonUnlaunchedAdoptionReservation(
+      request.sessionId, tabId, true
+    )).toBe(true)
+    expect(store.getRecord(request.sessionId)).toBeNull()
+  })
+})

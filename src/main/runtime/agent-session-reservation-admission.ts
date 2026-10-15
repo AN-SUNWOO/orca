@@ -68,6 +68,8 @@ export type AgentSessionReserveRequest = {
   /** Set only when this create adopts an existing provider conversation. Seeds the handle chain so
    *  the adapter resumes; without it a new record has never proved a thread and starts a fresh one. */
   adoptedHandleLink?: AgentSessionProviderHandleLink
+  /** A terminal adoption remains fenced until its captured writers are proven gone. */
+  adoptionHandoff?: boolean
   /** Null when the session does not exist yet; otherwise the fence the caller last observed. */
   expectedFence: number | null
   /** A supplier is invoked only when this operation wins a new reservation. */
@@ -187,6 +189,9 @@ export function applyAgentSessionReservation(
     }
     assertReservedTabUnheld(state, request)
     return { record: createAgentSessionRecord(request, reservation), disposition: 'created' }
+  }
+  if (existing.adoptionSurvivors !== undefined) {
+    throw agentSessionRefusalError('agent_session_conflict', { reason: 'terminalStopUnconfirmed' })
   }
   if (
     !agentSessionExecutionLocationsEqual(existing.location, request.location) ||

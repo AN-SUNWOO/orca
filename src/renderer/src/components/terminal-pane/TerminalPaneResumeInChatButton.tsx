@@ -1,11 +1,16 @@
 import { useShallow } from 'zustand/react/shallow'
+import { useState } from 'react'
 import { MessagesSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import { resolveCliChatResumeSource } from '../tab-bar/cli-chat-resume-source'
+import {
+  cliChatResumeNeedsConfirmation,
+  resolveCliChatResumeSource
+} from '../tab-bar/cli-chat-resume-source'
 import { runCliChatResume, useCliChatResumePending } from '../tab-bar/cli-chat-resume-run'
+import { StopAndSwitchToChatDialog } from '../tab-bar/StopAndSwitchToChatDialog'
 
 export function TerminalPaneResumeInChatButton({
   tabId,
@@ -16,6 +21,7 @@ export function TerminalPaneResumeInChatButton({
   worktreeId: string
   paneKey: string
 }): React.JSX.Element {
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const source = useAppStore(
     useShallow((state) =>
       resolveCliChatResumeSource(state, {
@@ -25,12 +31,16 @@ export function TerminalPaneResumeInChatButton({
     )
   )
   const pending = useCliChatResumePending(source)
+  const needsConfirmation = useAppStore((state) =>
+    source ? cliChatResumeNeedsConfirmation(state, source) : true
+  )
   const label = translate(
-    'auto.components.right.sidebar.AiVaultSessionRow.resumeInNewNativeChat',
-    'Resume in New Native Chat'
+    needsConfirmation ? 'components.native-chat.stopAndSwitch.action' : 'components.native-chat.switch.action',
+    needsConfirmation ? 'Stop and Switch to Chat (closes terminal)' : 'Switch to Chat (closes terminal)'
   )
 
   return (
+    <>
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -45,7 +55,11 @@ export function TerminalPaneResumeInChatButton({
           onClick={(event) => {
             event.stopPropagation()
             if (source) {
-              void runCliChatResume(source, true)
+              if (needsConfirmation) {
+                setConfirmOpen(true)
+              } else {
+                void runCliChatResume(source, true)
+              }
             }
           }}
         >
@@ -56,5 +70,15 @@ export function TerminalPaneResumeInChatButton({
         {label}
       </TooltipContent>
     </Tooltip>
+    {source ? <StopAndSwitchToChatDialog
+      source={source}
+      open={confirmOpen}
+      onCancel={() => setConfirmOpen(false)}
+      onConfirm={() => {
+        setConfirmOpen(false)
+        void runCliChatResume(source, true, true)
+      }}
+    /> : null}
+    </>
   )
 }

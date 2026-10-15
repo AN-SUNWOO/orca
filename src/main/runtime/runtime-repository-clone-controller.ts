@@ -24,6 +24,7 @@ import { getRepoName } from '../git/repo'
 import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
 import type { RuntimeStore } from './runtime-store-contract'
 import { runtimeRepoMatchesExecutionHost } from './runtime-worktree-selection'
+import { findExtraFolderWorkspaceIds } from '../folder-workspace-meta-presence'
 
 type RuntimeRepositoryCloneDependencies = {
   getStore: () => RuntimeStore | null
@@ -154,7 +155,11 @@ export class RuntimeRepositoryCloneController {
 
     const existing = findSaved()
     if (existing) {
-      if (isFolderRepo(existing)) {
+      // A folder project with other workspaces stays a folder project: a Git project can't show them.
+      if (
+        isFolderRepo(existing) &&
+        findExtraFolderWorkspaceIds(existing, store.getAllWorktreeMeta()).length === 0
+      ) {
         const updated = store.updateRepo(existing.id, { kind: 'git' })
         if (updated) {
           await prepareLocalWorktreeRootForRepo(store, updated)

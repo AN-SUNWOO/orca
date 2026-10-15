@@ -336,6 +336,27 @@ describe('Store', () => {
     ).toThrow('Repo-backed project host setup paths must be changed by re-importing the project.')
   })
 
+  // STA-10638: a Git project can't list folder workspaces, so the next refresh purged their tabs.
+  it('refuses a folder-to-Git type change while the project has other folder workspaces', async () => {
+    const store = await createStore()
+    store.addRepo(makeRepo({ id: 'r1', path: '/repo', kind: 'folder', displayName: 'Repo' }))
+    const workspaceId = 'r1::/repo::workspace:11111111-1111-4111-8111-111111111111'
+    store.setWorktreeMeta(workspaceId, { displayName: 'Second workspace' })
+
+    expect(() =>
+      store.updateProjectHostSetup({
+        setupId: 'r1',
+        updates: { kind: 'git', displayName: 'Renamed' }
+      })
+    ).toThrow("This folder project has 1 other workspace that a Git project can't show")
+    expect(store.getRepo('r1')).toMatchObject({ kind: 'folder', displayName: 'Repo' })
+
+    store.removeWorktreeMeta(workspaceId)
+    expect(
+      store.updateProjectHostSetup({ setupId: 'r1', updates: { kind: 'git' } })?.repo
+    ).toMatchObject({ kind: 'git' })
+  })
+
   it('deletes independent project host setup records without deleting the project', async () => {
     const independentProject = makeProject({
       id: 'cloud-project',

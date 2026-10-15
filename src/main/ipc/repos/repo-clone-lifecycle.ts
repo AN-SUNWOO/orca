@@ -25,6 +25,7 @@ import { invalidateAuthorizedRootsCache } from '../registered-worktree-roots-cac
 import { emitRepoAdded } from './repo-added-telemetry'
 import { notifyReposChanged } from './repos-changed-notification'
 import { runWithClonePathLock } from './clone-path-lock'
+import { findExtraFolderWorkspaceIds } from '../../folder-workspace-meta-presence'
 
 type ActiveCloneMetadata = {
   path: string
@@ -252,7 +253,11 @@ export function registerRepoCloneHandlers(mainWindow: BrowserWindow, store: Stor
           // Why: check after clone (path didn't exist before); reuse+upgrade a folder repo clone landed into instead of duplicating.
           const existing = findSaved()
           if (existing) {
-            if (isFolderRepo(existing)) {
+            // A folder project with other workspaces stays a folder project: a Git project can't show them.
+            if (
+              isFolderRepo(existing) &&
+              findExtraFolderWorkspaceIds(existing, store.getAllWorktreeMeta()).length === 0
+            ) {
               const updated = store.updateRepo(existing.id, {
                 kind: 'git',
                 projectHostSetupMethod: 'cloned'

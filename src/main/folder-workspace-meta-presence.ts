@@ -41,3 +41,16 @@ export function isRemovedFolderWorkspaceInstance(
       : store.getWorktreeMeta(worktreeId)
   return !meta
 }
+
+/**
+ * The extra workspaces a folder project lists: its `worktreeMeta` rows keyed
+ * `repoId::path::workspace:<uuid>`. Only the folder listing projects them, so a Git project
+ * can't show them, and any listing that stops showing an id has its saved tabs purged.
+ */
+export function findExtraFolderWorkspaceIds(
+  repo: Pick<Repo, 'id' | 'path'>,
+  metaById: Record<string, WorktreeMeta>
+): string[] {
+  const prefix = `${repo.id}::${repo.path}${FOLDER_WORKSPACE_INSTANCE_SEPARATOR}`
+  return Object.keys(metaById).filter((worktreeId) => worktreeId.startsWith(prefix))
+}

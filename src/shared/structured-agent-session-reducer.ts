@@ -1,3 +1,4 @@
+import type { AgentSessionCurrentRequestsMarker } from './agent-session-current-requests-wire'
 import {
   hostClockField,
   replacePage,
@@ -5,8 +6,9 @@ import {
   liveItemsWithinWindow
 } from './structured-agent-session-history-state'
 import {
-  applyCurrentRequestsPart,
-  detachedCurrentRequests,
+  currentRequestsAfterEvent,
+  currentRequestsState,
+  applyCurrentRequestsMarker,
   type AgentSessionCurrentRequestsState
 } from './agent-session-current-requests'
 import type {
@@ -92,7 +94,12 @@ export type StructuredAgentSessionState = AgentSessionCurrentRequestsState & {
 
 export type StructuredAgentSessionAction =
   | { type: 'loading' }
-  | { type: 'requests-detached' }
+  | { type: 'requests-marker'; marker: AgentSessionCurrentRequestsMarker }
+  | {
+      type: 'requests-complete'
+      marker: AgentSessionCurrentRequestsMarker
+      items: AgentJournalRenderItem[]
+    }
   | { type: 'error'; message: string; refusal?: AgentSessionRefusalReference }
   /** `opensSubscription`: the first frame of a new subscription, which states the roster even
    *  when it resumes from a cursor; a host that omits it there has none to report. */
@@ -126,18 +133,18 @@ export function reduceStructuredAgentSession(
   action: StructuredAgentSessionAction,
   receivedAt: number = Date.now()
 ): StructuredAgentSessionState {
-  if (action.type === 'requests-detached') {
-    return {
-      ...state,
-      ...detachedCurrentRequests(state),
-      status: state.requestTransfer ? 'ready' : state.status
-    }
+  if (action.type === 'requests-marker') {
+    return { ...state, ...applyCurrentRequestsMarker(state, action.marker) }
+  }
+  if (action.type === 'requests-complete') {
+    return action.marker.version === state.requestMarker?.version
+      ? { ...state, currentRequests: action.items, requestAuthority: action.marker }
+      : state
   }
   if (action.type === 'loading') {
     // Keep the last transcript visible while a reconnect rehydrates the stream.
     return {
       ...state,
-      ...detachedCurrentRequests(state),
       status: 'loading',
       error: undefined,
       readRefusal: undefined
@@ -146,7 +153,6 @@ export function reduceStructuredAgentSession(
   if (action.type === 'error') {
     return {
       ...state,
-      ...detachedCurrentRequests(state),
       status: 'error',
       error: action.message,
       readRefusal: action.refusal
@@ -155,18 +161,7 @@ export function reduceStructuredAgentSession(
   if (action.type === 'history-page') {
     return {
       ...replacePage(action.page, action.page.fence ?? null, state.backgroundTasks, state.activity),
-      ...(state.epoch === action.page.epoch
-        ? {
-            currentRequests: state.currentRequests,
-            requestVersion: state.requestVersion,
-            requestTransfer: state.requestTransfer
-          }
-        : {}),
-      ...(state.epoch === action.page.epoch &&
-      state.requestTransfer &&
-      state.currentRequests === undefined
-        ? { status: 'loading' as const }
-        : {}),
+      ...currentRequestsState(state),
       commands: state.commands,
       // Live subscription state stays authoritative over a possibly stale history answer.
       ...queuePublicationField(state, action.page),
@@ -199,22 +194,10 @@ export function reduceStructuredAgentSession(
   }
   const event = action.event
   if (event.type === 'end') {
-    return {
-      ...state,
-      ...detachedCurrentRequests(state),
-      status: state.requestTransfer ? 'ready' : state.status
-    }
+    return state
   }
   if (event.type === 'snapshot' || event.type === 'reset') {
-    const requests = applyCurrentRequestsPart(
-      state.epoch === event.page.epoch ? detachedCurrentRequests(state) : {},
-      event.currentRequests,
-      JSON.stringify([
-        event.page.epoch,
-        (event.page.liveCursor ?? event.page.window.nextCursor).sequence,
-        event.fence
-      ])
-    )
+    const requests = currentRequestsAfterEvent(state, event, true)
     return {
       ...replacePage(
         event.page,
@@ -223,8 +206,7 @@ export function reduceStructuredAgentSession(
         event.activity
       ),
       ...requests,
-      status:
-        requests.requestTransfer && requests.currentRequests === undefined ? 'loading' : 'ready',
+      status: 'ready',
       commands: event.commands,
       // A snapshot omits the list when unchanged since the last frame sent to this subscriber.
       ...queuePublicationField(event, event.page, state),
@@ -237,15 +219,7 @@ export function reduceStructuredAgentSession(
   if (state.cursor && event.batch.cursor.sequence < state.cursor.sequence) {
     return state
   }
-  const requests = applyCurrentRequestsPart(
-    action.opensSubscription ? detachedCurrentRequests(state) : state,
-    event.currentRequests,
-    JSON.stringify([
-      event.batch.cursor.epoch,
-      event.batch.cursor.sequence,
-      event.fence ?? state.fence
-    ])
-  )
+  const requests = currentRequestsAfterEvent(state, event, action.opensSubscription === true)
   const backgroundTasks =
     event.backgroundTasks !== undefined
       ? admitAgentSessionBackgroundTaskState(event.backgroundTasks, state.backgroundTasks)
@@ -280,8 +254,8 @@ export function reduceStructuredAgentSession(
     state.status === 'ready' &&
     state.error === undefined &&
     requests.currentRequests === state.currentRequests &&
-    requests.requestTransfer === state.requestTransfer &&
-    requests.requestVersion === state.requestVersion
+    requests.requestMarker === state.requestMarker &&
+    requests.requestAuthority === state.requestAuthority
   ) {
     return state
   }
@@ -298,9 +272,7 @@ export function reduceStructuredAgentSession(
   const lostTurnRow = outsideWindow.some((item) => readAgentJournalTurn(item.body) !== null)
   return {
     ...state,
-    currentRequests: requests.currentRequests,
-    requestTransfer: requests.requestTransfer,
-    requestVersion: requests.requestVersion,
+    ...requests,
     cursor: event.batch.cursor,
     fence: event.fence ?? state.fence,
     items,
@@ -311,8 +283,7 @@ export function reduceStructuredAgentSession(
       event.batch.submissions.length === 0 && event.batch.removedItemIds.length === 0
         ? state.submissions
         : mergeSubmissions(state.submissions, event.batch.submissions, items),
-    status:
-      requests.requestTransfer && requests.currentRequests === undefined ? 'loading' : 'ready',
+    status: 'ready',
     error: undefined,
     readRefusal: undefined,
     commands: event.commands !== undefined ? event.commands : state.commands,

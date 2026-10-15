@@ -1,71 +1,80 @@
+import { randomUUID } from 'node:crypto'
 import type { AgentJournalRenderItem } from '../../../shared/agent-session-journal-types'
-import type { AgentSessionSubscribeEvent } from '../../../shared/agent-session-wire'
-import { emptyAgentSessionBatch } from './agent-session-empty-batch'
-import type { AgentSessionPublishedWork } from './agent-session-published-work'
+import type {
+  AgentSessionCurrentRequestsMarker,
+  AgentSessionCurrentRequestsPiece,
+  AgentSessionCurrentRequestsRead
+} from '../../../shared/agent-session-current-requests-wire'
+import { AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY } from '../../../shared/agent-session-current-requests-capability'
+import type { StructuredAgentSessionCurrentWorkJournal } from './structured-agent-session-current-work'
 
 export type CurrentRequestsSubscriber = {
-  currentRequests?: AgentJournalRenderItem[]
-  requestVersion?: number
+  readsCurrentRequests?: boolean
+  requestVersion?: string
 }
 
-// Six escaped bytes per UTF-16 unit still leave ample room inside a 640 KiB frame.
-const REQUEST_PART_UNITS = 48 * 1024
-const serializedRequests = new WeakMap<AgentJournalRenderItem[], string>()
+type Projection = {
+  identity: string
+  marker: AgentSessionCurrentRequestsMarker
+  items: AgentJournalRenderItem[]
+  json?: string
+}
+const projections = new WeakMap<StructuredAgentSessionCurrentWorkJournal, Projection>()
+// Even six escaped bytes per UTF-16 unit leave room for the RPC and phone envelopes.
+const REQUEST_PIECE_UNITS = 24 * 1024
 
-/** Full records on independent empty batches, never the lossy history-row formatter. */
-export function emitCurrentRequests(
-  subscriber: CurrentRequestsSubscriber,
-  event: AgentSessionSubscribeEvent,
-  work: Pick<AgentSessionPublishedWork, 'actionablePrompts' | 'viewKey'> | undefined,
-  emit: (event: AgentSessionSubscribeEvent) => void
-): void {
-  if (!work || event.type === 'end') {
-    emit(event)
-    return
-  }
-  const requests = work.actionablePrompts()
+export function currentRequestsProjection(
+  journal: StructuredAgentSessionCurrentWorkJournal,
+  sessionId: string,
+  work: { actionablePrompts: () => AgentJournalRenderItem[]; viewKey: () => string }
+): Projection {
+  const items = work.actionablePrompts()
+  const epoch = journal.cursor().epoch
+  const previous = projections.get(journal)
+  const identity = previous?.identity ?? randomUUID()
+  const owner = `${identity}:${work.viewKey()}`
   if (
-    event.type === 'batch' &&
-    subscriber.currentRequests?.length === requests.length &&
-    requests.every((item, index) => item === subscriber.currentRequests?.[index])
+    previous?.items === items &&
+    previous.marker.epoch === epoch &&
+    previous.marker.owner === owner &&
+    previous.marker.sessionId === sessionId
   ) {
-    emit(event)
-    return
+    return previous
   }
-  let json = serializedRequests.get(requests)
-  if (json === undefined) {
-    json = JSON.stringify(requests)
-    serializedRequests.set(requests, json)
-  }
-  const count = Math.ceil(json.length / REQUEST_PART_UNITS) + 1
-  const id = (subscriber.requestVersion ?? 0) + 1
-  const cursor =
-    event.type === 'batch'
-      ? event.batch.cursor
-      : (event.page.liveCursor ?? event.page.window.nextCursor)
-  for (let index = 0; index < count; index++) {
-    const currentRequests = {
-      id,
-      view: work.viewKey(),
-      index,
-      count,
-      json:
-        index === 0 ? '' : json.slice((index - 1) * REQUEST_PART_UNITS, index * REQUEST_PART_UNITS)
+  const projection: Projection = {
+    identity,
+    items,
+    marker: {
+      contract: AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY,
+      sessionId,
+      epoch,
+      publisher: identity,
+      revision: (previous?.marker.revision ?? 0) + 1,
+      owner,
+      version: randomUUID()
     }
-    emit(
-      index === 0
-        ? { ...event, currentRequests }
-        : {
-            type: 'batch',
-            sessionId: event.sessionId,
-            batch: emptyAgentSessionBatch(cursor),
-            ...(event.fence === undefined ? {} : { fence: event.fence }),
-            ...(event.hostNow === undefined ? {} : { hostNow: event.hostNow }),
-            ...(event.type === 'batch' && event.hasNewer ? { hasNewer: true as const } : {}),
-            currentRequests
-          }
-    )
   }
-  subscriber.currentRequests = requests
-  subscriber.requestVersion = id
+  projections.set(journal, projection)
+  return projection
+}
+
+/** Only the current projection is retained; superseded cursors restart at its version. */
+export function readCurrentRequestsPiece(
+  projection: Projection,
+  request: AgentSessionCurrentRequestsRead
+): AgentSessionCurrentRequestsPiece {
+  if (request.version !== projection.marker.version) {
+    return { marker: projection.marker, json: '', nextCursor: 0, restart: true }
+  }
+  const json = (projection.json ??= JSON.stringify(projection.items))
+  const cursor = request.cursor ?? 0
+  if (!Number.isSafeInteger(cursor) || cursor < 0 || cursor >= json.length) {
+    throw new Error('Invalid current-request cursor')
+  }
+  const end = Math.min(cursor + REQUEST_PIECE_UNITS, json.length)
+  return {
+    marker: projection.marker,
+    json: json.slice(cursor, end),
+    nextCursor: end === json.length ? null : end
+  }
 }

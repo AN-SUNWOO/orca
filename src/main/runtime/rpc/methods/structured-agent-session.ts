@@ -1,3 +1,7 @@
+import {
+  clientReadsCurrentRequests,
+  STRUCTURED_AGENT_SESSION_CURRENT_REQUESTS_METHODS
+} from './structured-agent-session-current-requests'
 // `agentSession.*` — the structured session RPC surface.
 //
 // Every method here is gated on the client advertising
@@ -171,6 +175,7 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
       // Resolves once the conversation is open and the opening snapshot (or the missed batch) is
       // emitted; a close that raced the open disposes what it bound.
       dispose = await host.subscribe({
+        readsCurrentRequests: clientReadsCurrentRequests(ctx),
         id: subscriptionId,
         sessionId: params.sessionId,
         emit: (event) =>
@@ -213,5 +218,6 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
   ...STRUCTURED_AGENT_SESSION_TURN_COMPLETION_METHODS,
   ...STRUCTURED_AGENT_SESSION_THREAD_GOAL_METHODS,
   ...STRUCTURED_AGENT_SESSION_CONVERSATION_OUTLINE_METHODS,
+  ...STRUCTURED_AGENT_SESSION_CURRENT_REQUESTS_METHODS,
   ...STRUCTURED_AGENT_SESSION_OPTIONS_READ_METHODS
 ]

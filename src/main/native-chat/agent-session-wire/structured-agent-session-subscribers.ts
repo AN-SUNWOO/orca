@@ -38,6 +38,7 @@ export type AgentSessionSubscribeInput = {
   cursor?: AgentJournalCursor
   /** Every frame to fit a phone's bridge frame; the RPC sets it for every phone. */
   boundedFrames?: boolean
+  readsCurrentRequests?: boolean
 }
 
 export type Subscriber = CurrentRequestsSubscriber & {
@@ -97,6 +98,7 @@ export class AgentSessionSubscribers {
     emit: AgentSessionSubscriberEmit
     cursor?: AgentJournalCursor
     boundedFrames?: boolean
+    readsCurrentRequests?: boolean
   }): () => void {
     const liveCursor = input.journal.cursor()
     const subscriber: Subscriber = {
@@ -105,6 +107,7 @@ export class AgentSessionSubscribers {
       emit: input.emit,
       cursor: input.cursor ?? { epoch: liveCursor.epoch, sequence: 0 },
       fence: input.fence,
+      readsCurrentRequests: input.readsCurrentRequests === true,
       boundedFrames: input.boundedFrames === true
     }
     const session = this.bySession.get(input.sessionId) ?? new Map<string, Subscriber>()

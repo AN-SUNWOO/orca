@@ -1,3 +1,4 @@
+import { createAgentSessionCurrentRequestsReader } from '../../../shared/agent-session-current-requests-reader'
 import { afterEach, expect, it, vi } from 'vitest'
 import { AGENT_JOURNAL_THREAD_SCOPE } from '../../../shared/agent-session-journal-types'
 import { MOBILE_BRIDGE_MAX_FRAME_BYTES } from '../../../shared/mobile-bridge-frame-bytes'
@@ -96,24 +97,46 @@ it('keeps full child requests answerable outside the bounded transcript and clea
   const coalescer = createStructuredAgentSessionEventCoalescer((event) => {
     state = reduceStructuredAgentSession(state, { type: 'event', event })
   })
+  const reader = createAgentSessionCurrentRequestsReader({
+    read: (request) => current.host.readCurrentRequests(request),
+    complete: (marker, items) => {
+      state = reduceStructuredAgentSession(state, { type: 'requests-complete', marker, items })
+    },
+    replaceMarker: (marker) => {
+      state = reduceStructuredAgentSession(state, { type: 'requests-marker', marker })
+    },
+    error: (error) => {
+      throw error
+    }
+  })
   const emit = (event: Parameters<typeof coalescer.push>[0]) => {
     expect(Buffer.byteLength(JSON.stringify(event))).toBeLessThan(MOBILE_BRIDGE_MAX_FRAME_BYTES)
     coalescer.push(event)
+    if (event.type !== 'end' && event.currentRequests) {
+      reader.observe(event.currentRequests)
+    }
   }
   const close = await current.host.subscribe({
     id: 'visible',
     sessionId: SESSION,
     boundedFrames: true,
+    readsCurrentRequests: true,
     emit
   })
-  expect(state.currentRequests?.map((item) => item.itemId)).toEqual([
-    approval.itemId,
-    question.itemId
-  ])
+  await vi.waitFor(() =>
+    expect(state.currentRequests?.map((item) => item.itemId)).toEqual([
+      approval.itemId,
+      question.itemId
+    ])
+  )
+  const requestVersion = state.requestMarker?.version
   const cursor = state.cursor
-  if (!cursor) throw new Error('expected hydrated cursor')
+  if (!cursor) {
+    throw new Error('expected hydrated cursor')
+  }
   close()
-  for (let ordinal = 0; ordinal < 205; ordinal++) {
+  reader.invalidate()
+  for (let ordinal = 0; ordinal < 605; ordinal++) {
     await journal.appendItem(
       { provider: 'codex', threadId: THREAD, turnId: 'root-output', ordinal },
       {
@@ -124,14 +147,21 @@ it('keeps full child requests answerable outside the bounded transcript and clea
       { fence: 1, ownerFence: 1, turnScope: AGENT_JOURNAL_THREAD_SCOPE }
     )
   }
+  expect(current.host.currentWork(SESSION)?.requestProjection(SESSION).marker.version).toBe(
+    requestVersion
+  )
   await current.host.subscribe({
     id: 'reopened',
     sessionId: SESSION,
     boundedFrames: true,
+    readsCurrentRequests: true,
     cursor,
     emit
   })
   coalescer.flush()
+  await vi.waitFor(() =>
+    expect(state.requestAuthority?.version).toEqual(state.requestMarker?.version)
+  )
   expect(state.items.length).toBeLessThanOrEqual(200)
   expect(
     state.items.some((item) => item.itemId === approval.itemId || item.itemId === question.itemId)
@@ -167,5 +197,6 @@ it('keeps full child requests answerable outside the bounded transcript and clea
   await vi.waitFor(() => expect(state.currentRequests).toEqual([]))
   expect(journal.cursor()).toEqual(beforeExit)
   expect(pendingStructuredSessionPrompts(state.items, state.currentRequests)).toEqual([])
+  reader.invalidate()
   coalescer.dispose()
 })

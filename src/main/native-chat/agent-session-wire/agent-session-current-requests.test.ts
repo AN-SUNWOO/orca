@@ -1,120 +1,139 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import type { AgentJournalRenderItem } from '../../../shared/agent-session-journal-types'
-import type { AgentSessionSubscribeEvent } from '../../../shared/agent-session-wire'
+import { createAgentSessionCurrentRequestsReader } from '../../../shared/agent-session-current-requests-reader'
+import type {
+  AgentSessionCurrentRequestsMarker,
+  AgentSessionCurrentRequestsPiece
+} from '../../../shared/agent-session-current-requests-wire'
+import { AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY } from '../../../shared/agent-session-current-requests-capability'
 import {
   EMPTY_STRUCTURED_AGENT_SESSION,
   reduceStructuredAgentSession,
   type StructuredAgentSessionState
 } from '../../../shared/structured-agent-session-reducer'
-import { pendingStructuredSessionPrompts } from '../../../renderer/src/components/native-chat/structured-agent-session-message-projection'
-import {
-  emitCurrentRequests,
-  type CurrentRequestsSubscriber
-} from './agent-session-current-requests'
+import { readCurrentRequestsPiece } from './agent-session-current-requests'
 
-it('publishes only complete versions, discards interrupted transfers, and preserves old-host fallback', () => {
-  const prompt: AgentJournalRenderItem = {
-    itemId: 'child-approval' + 'x'.repeat(9000),
-    revision: 4,
-    sequence: 1,
-    observedAt: 10,
-    body: {
-      kind: 'approval',
-      title: 'Inspect?',
-      detail: '\\"😀'.repeat(50_000),
-      options: [{ id: 'yes', label: 'Yes' }],
-      resolution: {
-        state: 'pending',
-        selectedOptionId: null,
-        resolvedBy: null,
-        resolvedAt: null
-      }
-    }
+const marker: AgentSessionCurrentRequestsMarker = {
+  contract: AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY,
+  publisher: 'host',
+  revision: 1,
+  sessionId: 's',
+  epoch: 'e',
+  owner: 'host:fence-1',
+  version: 'v1'
+}
+const prompt: AgentJournalRenderItem = {
+  itemId: 'child',
+  revision: 1,
+  sequence: 1,
+  observedAt: 10,
+  body: {
+    kind: 'approval',
+    title: 'Inspect?',
+    detail: '\\"😀'.repeat(800_000),
+    options: [{ id: 'yes', label: 'Allow' }],
+    resolution: { state: 'pending', selectedOptionId: null, resolvedBy: null, resolvedAt: null }
   }
-  let state: StructuredAgentSessionState = {
-    ...EMPTY_STRUCTURED_AGENT_SESSION,
-    epoch: 'e',
-    cursor: { epoch: 'e', sequence: 10 },
-    items: [prompt]
-  }
-  expect(pendingStructuredSessionPrompts(state.items, state.currentRequests)).toEqual([prompt])
-  const batch = {
-    type: 'batch' as const,
-    actionablePromptIds: [prompt.itemId],
-    sessionId: 's',
-    fence: 1,
-    batch: {
-      cursor: state.cursor,
-      items: [],
-      removedItemIds: [],
-      submissions: []
-    }
-  }
-  const subscriber: CurrentRequestsSubscriber = {}
-  const frames: AgentSessionSubscribeEvent[] = []
-  emitCurrentRequests(
-    subscriber,
-    batch,
-    { actionablePrompts: () => [prompt], viewKey: () => '1' },
-    (event) =>
-      frames.push(...boundedFrames(event, { queued: undefined, backgroundTasks: undefined }))
-  )
-  expect(frames.length).toBeGreaterThan(1)
-  expect(frames[0]).not.toHaveProperty('actionablePromptIds')
-  for (const event of frames.slice(0, -1)) {
-    state = reduceStructuredAgentSession(state, { type: 'event', event })
-    expect(state.currentRequests).toBeUndefined()
-  }
-  state = reduceStructuredAgentSession(state, {
-    type: 'event',
-    event: { type: 'end' }
+}
+
+it('pulls a greater-than-frame record and greater-than-window collection losslessly with one piece in flight', async () => {
+  const items = [prompt]
+  const projection = { identity: 'host', items, marker }
+  let inFlight = 0
+  let maximum = 0
+  const complete = vi.fn()
+  const error = vi.fn()
+  const reader = createAgentSessionCurrentRequestsReader({
+    read: async (request) => {
+      maximum = Math.max(maximum, ++inFlight)
+      await Promise.resolve()
+      const piece = readCurrentRequestsPiece(projection, request)
+      expect(Buffer.byteLength(JSON.stringify({ id: 'rpc', result: piece }))).toBeLessThan(
+        200 * 1024
+      )
+      inFlight--
+      return piece
+    },
+    complete,
+    error,
+    replaceMarker: vi.fn()
   })
-  expect(state.requestTransfer).toBeUndefined()
-  state = reduceStructuredAgentSession(state, {
-    type: 'event',
-    event: frames.at(-1)!
+  reader.observe(marker)
+  await vi.waitFor(() => expect(complete).toHaveBeenCalledWith(marker, items))
+  expect(maximum).toBe(1)
+  expect(error).not.toHaveBeenCalled()
+  reader.invalidate()
+})
+
+it('retires positive owner changes, rejects late reads, and relinquishes authority on unsupported openings', async () => {
+  let resolve: ((piece: AgentSessionCurrentRequestsPiece) => void) | undefined
+  const complete = vi.fn()
+  const reader = createAgentSessionCurrentRequestsReader({
+    read: () =>
+      new Promise((done) => {
+        resolve = done
+      }),
+    complete,
+    replaceMarker: vi.fn(),
+    error: vi.fn()
   })
-  expect(state.currentRequests).toBeUndefined()
-  for (const event of frames) state = reduceStructuredAgentSession(state, { type: 'event', event })
-  expect(state.currentRequests).toEqual([prompt])
-  const page = {
-    sessionId: 's',
-    epoch: 'e',
-    direction: 'tail' as const,
-    items: [],
-    removedItemIds: [],
-    submissions: [],
-    window: { oldest: null, newest: null, nextCursor: state.cursor! },
-    liveCursor: state.cursor!,
-    hasOlder: true,
-    hasNewer: false
-  }
-  state = reduceStructuredAgentSession(state, { type: 'history-page', page })
-  expect(state.currentRequests).toEqual([prompt])
-  const clear: AgentSessionSubscribeEvent[] = []
-  emitCurrentRequests(
-    subscriber,
-    batch,
-    { actionablePrompts: () => [], viewKey: () => 'released' },
-    (event) => clear.push(event)
-  )
-  for (const event of clear) state = reduceStructuredAgentSession(state, { type: 'event', event })
-  expect(pendingStructuredSessionPrompts([prompt], state.currentRequests)).toEqual([])
-  for (const event of frames) state = reduceStructuredAgentSession(state, { type: 'event', event })
-  expect(state.currentRequests).toEqual([])
-  state = reduceStructuredAgentSession(state, {
-    type: 'event',
-    event: {
-      type: 'snapshot',
+  reader.observe(marker)
+  reader.invalidate()
+  resolve?.({ marker, json: JSON.stringify([]), nextCursor: null })
+  await Promise.resolve()
+  expect(complete).not.toHaveBeenCalled()
+  for (const items of [[], [prompt]]) {
+    let state: StructuredAgentSessionState = {
+      ...EMPTY_STRUCTURED_AGENT_SESSION,
+      epoch: 'e',
+      fence: 1,
+      cursor: { epoch: 'e', sequence: 1 },
+      items: [prompt],
+      currentRequests: items,
+      requestMarker: marker,
+      requestAuthority: marker
+    }
+    const replacement = { ...marker, owner: 'host:fence-2', version: 'v2', revision: 2 }
+    state = reduceStructuredAgentSession(state, { type: 'requests-marker', marker: replacement })
+    expect(state.currentRequests).toEqual([])
+    state = reduceStructuredAgentSession(state, {
+      type: 'requests-complete',
+      marker,
+      items: [prompt]
+    })
+    expect(state.currentRequests).toEqual([])
+    const batch = {
+      type: 'batch' as const,
       sessionId: 's',
       fence: 2,
-      page: {
-        ...page,
-        epoch: 'next',
-        liveCursor: { epoch: 'next', sequence: 0 }
-      }
+      batch: { cursor: { epoch: 'e', sequence: 1 }, items: [], removedItemIds: [], submissions: [] }
     }
-  })
-  expect(state.currentRequests).toBeUndefined()
-  expect(state.requestTransfer).toBeUndefined()
+    state = reduceStructuredAgentSession(state, {
+      type: 'event',
+      event: batch,
+      opensSubscription: true
+    })
+    expect(state.currentRequests).toBeUndefined()
+    state = reduceStructuredAgentSession(state, { type: 'requests-marker', marker: replacement })
+    state = reduceStructuredAgentSession(state, {
+      type: 'event',
+      event: {
+        type: 'snapshot',
+        sessionId: 's',
+        fence: 2,
+        page: {
+          sessionId: 's',
+          epoch: 'e',
+          direction: 'tail',
+          items: [prompt],
+          removedItemIds: [],
+          submissions: [],
+          hasOlder: false,
+          hasNewer: false,
+          window: { oldest: null, newest: null, nextCursor: { epoch: 'e', sequence: 1 } }
+        }
+      }
+    })
+    expect(state.currentRequests).toBeUndefined()
+  }
 })

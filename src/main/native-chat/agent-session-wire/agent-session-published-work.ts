@@ -13,7 +13,12 @@ import type { StructuredAgentSessionCurrentWork } from './structured-agent-sessi
  *  Absent, a page states the raw record and no prompt ids, as an older host did. */
 export type AgentSessionPublishedWork = Pick<
   StructuredAgentSessionCurrentWork,
-  'publishedLatestTurn' | 'actionablePromptIds' | 'actionablePrompts' | 'working' | 'viewKey'
+  | 'publishedLatestTurn'
+  | 'actionablePromptIds'
+  | 'actionablePrompts'
+  | 'working'
+  | 'viewKey'
+  | 'requestProjection'
 >
 
 type PublishedWorkFields = Pick<
@@ -25,9 +30,10 @@ function publishedWorkFields(
   latestTurn: AgentSessionHistoryPage['latestTurn'],
   work: AgentSessionPublishedWork
 ): PublishedWorkFields {
+  const ids = work.actionablePromptIds()
   return {
     latestTurn: work.publishedLatestTurn(latestTurn ?? null),
-    actionablePromptIds: work.actionablePromptIds(),
+    ...(Buffer.byteLength(JSON.stringify(ids)) <= 8 * 1024 ? { actionablePromptIds: ids } : {}),
     working: work.working()
   }
 }

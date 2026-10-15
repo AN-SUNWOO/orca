@@ -1,4 +1,3 @@
-import { emitCurrentRequests } from './agent-session-current-requests'
 import type { AgentSessionPublishedWork } from './agent-session-published-work'
 import type { Subscriber } from './structured-agent-session-subscribers'
 // Which per-emit fields ride one subscriber frame: the provider command catalog,
@@ -142,24 +141,36 @@ export function subscriberQueuedMessagesChanged(
   )
 }
 
-/** Dedup advances only after delivery, including a complete current-request transfer. */
+/** Publication contains only a version; read completion supplies payload delivery credit. */
 export function emitSubscriberFrame(
   hooks: SubscriberFieldHooks,
   subscriber: Subscriber,
   event: AgentSessionSubscribeEvent,
   options?: { withholdQueued?: boolean; currentWork?: AgentSessionPublishedWork }
 ): void {
-  let history = true
-  emitCurrentRequests(subscriber, event, options?.currentWork, (frame) => {
-    if (!history) {
-      subscriber.emit(frame)
-      return
-    }
-    history = false
-    const built = buildSubscriberFrame(hooks, subscriber, frame, options?.withholdQueued === true)
-    for (const outgoing of built.frames) subscriber.emit(outgoing)
-    subscriber.commands = built.commands
-    if (built.attachedQueued) subscriber.queuePublication = built.queued
-    if (built.backgroundTasks !== undefined) subscriber.backgroundTasks = built.backgroundTasks
-  })
+  const marker =
+    event.type !== 'end' && subscriber.readsCurrentRequests
+      ? options?.currentWork?.requestProjection(subscriber.sessionId).marker
+      : undefined
+  const includeMarker =
+    marker && (event.type !== 'batch' || marker.version !== subscriber.requestVersion)
+  const built = buildSubscriberFrame(
+    hooks,
+    subscriber,
+    includeMarker ? { ...event, currentRequests: marker } : event,
+    options?.withholdQueued === true
+  )
+  for (const outgoing of built.frames) {
+    subscriber.emit(outgoing)
+  }
+  if (includeMarker) {
+    subscriber.requestVersion = marker.version
+  }
+  subscriber.commands = built.commands
+  if (built.attachedQueued) {
+    subscriber.queuePublication = built.queued
+  }
+  if (built.backgroundTasks !== undefined) {
+    subscriber.backgroundTasks = built.backgroundTasks
+  }
 }

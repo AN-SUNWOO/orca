@@ -1,109 +1,76 @@
 import { agentSessionCurrentContextRows } from './agent-session-context-clear'
 import type { AgentJournalRenderItem } from './agent-session-journal-types'
-import { isAdmissibleAgentJournalRenderItem } from './agent-session-journal-schemas'
-
-/** Optional data on existing batches; old readers ignore it and old hosts omit it. */
-export type AgentSessionCurrentRequestsPart = {
-  id: number
-  view: string
-  index: number
-  count: number
-  json: string
-}
-
-type RequestChunk = { json: string; previous?: RequestChunk }
+import type { AgentSessionSubscribeEvent } from './agent-session-wire'
+import type { AgentSessionCurrentRequestsMarker } from './agent-session-current-requests-wire'
+import { AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY } from './agent-session-current-requests-capability'
 
 export type AgentSessionCurrentRequestsState = {
   currentRequests?: AgentJournalRenderItem[]
-  requestVersion?: number
-  requestTransfer?: {
-    id: number
-    view: string
-    cursor: string
-    count: number
-    received: number
-    last?: RequestChunk
-  }
+  requestMarker?: AgentSessionCurrentRequestsMarker
+  /** Qualification survives contact loss alongside the last complete answer. */
+  requestAuthority?: AgentSessionCurrentRequestsMarker
 }
 
-/** An interrupted stream retains its last complete answer; contact loss is not resolution. */
-export function detachedCurrentRequests(
+export function currentRequestsState(
   state: AgentSessionCurrentRequestsState
 ): AgentSessionCurrentRequestsState {
   return {
     currentRequests: state.currentRequests,
-    requestVersion: undefined,
-    requestTransfer: undefined
+    requestMarker: state.requestMarker,
+    requestAuthority: state.requestAuthority
   }
 }
 
-export function applyCurrentRequestsPart(
+export function applyCurrentRequestsMarker(
   state: AgentSessionCurrentRequestsState,
-  part: AgentSessionCurrentRequestsPart | undefined,
-  cursor: string
+  marker: AgentSessionCurrentRequestsMarker
 ): AgentSessionCurrentRequestsState {
-  if (!part) return state
-  if (
-    !Number.isSafeInteger(part.id) ||
-    part.id <= (state.requestVersion ?? 0) ||
-    !Number.isSafeInteger(part.index) ||
-    !Number.isSafeInteger(part.count) ||
-    part.index < 0 ||
-    part.count <= part.index ||
-    typeof part.json !== 'string' ||
-    (state.requestTransfer !== undefined && part.id < state.requestTransfer.id)
-  )
+  if (marker.contract !== AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY) {
     return state
-  const transfer: AgentSessionCurrentRequestsState['requestTransfer'] =
-    part.index === 0
-      ? { id: part.id, view: part.view, cursor, count: part.count, received: 0 }
-      : state.requestTransfer
+  }
+  const prior = state.requestMarker ?? state.requestAuthority
+  if (prior?.publisher === marker.publisher && marker.revision <= prior.revision) {
+    return currentRequestsState(state)
+  }
+  const sameOwner =
+    prior?.publisher === marker.publisher &&
+    prior.owner === marker.owner &&
+    prior.epoch === marker.epoch &&
+    prior.sessionId === marker.sessionId
+  return {
+    currentRequests: sameOwner ? state.currentRequests : [],
+    requestAuthority: sameOwner ? state.requestAuthority : undefined,
+    requestMarker: marker
+  }
+}
+
+/** Openings assert support; an omitted field later only means unchanged. */
+export function currentRequestsAfterEvent(
+  state: AgentSessionCurrentRequestsState & { fence: number | null; epoch: string | null },
+  event: Exclude<AgentSessionSubscribeEvent, { type: 'end' }>,
+  opensSubscription: boolean
+): AgentSessionCurrentRequestsState {
+  if (event.currentRequests) {
+    return applyCurrentRequestsMarker(state, event.currentRequests)
+  }
+  if (opensSubscription) {
+    return currentRequestsState({})
+  }
+  const epoch = event.type === 'batch' ? event.batch.cursor.epoch : event.page.epoch
   if (
-    !transfer ||
-    transfer.id !== part.id ||
-    transfer.view !== part.view ||
-    transfer.cursor !== cursor ||
-    transfer.count !== part.count ||
-    transfer.received !== part.index
-  )
-    return state
-  const last = { json: part.json, previous: transfer.last }
-  if (transfer.received + 1 !== part.count) {
-    return {
-      ...state,
-      requestTransfer: { ...transfer, received: transfer.received + 1, last }
-    }
+    state.requestMarker &&
+    (epoch !== state.epoch || (event.fence !== undefined && event.fence !== state.fence))
+  ) {
+    return { currentRequests: [], requestMarker: undefined, requestAuthority: undefined }
   }
-  const chunks: string[] = []
-  for (let chunk: RequestChunk | undefined = last; chunk; chunk = chunk.previous)
-    chunks.push(chunk.json)
-  try {
-    const value: unknown = JSON.parse(chunks.reverse().join(''))
-    if (!Array.isArray(value) || !value.every(isAdmissibleAgentJournalRenderItem))
-      return { ...state, requestTransfer: undefined }
-    if (
-      !value.every(
-        (item) =>
-          (item.body.kind === 'approval' || item.body.kind === 'question') &&
-          item.body.resolution.state === 'pending'
-      )
-    )
-      return { ...state, requestTransfer: undefined }
-    return {
-      currentRequests: value,
-      requestVersion: part.id,
-      requestTransfer: undefined
-    }
-  } catch {
-    return { ...state, requestTransfer: undefined }
-  }
+  return currentRequestsState(state)
 }
 
 export type AgentSessionCurrentRequest = AgentJournalRenderItem & {
   body: Extract<AgentJournalRenderItem['body'], { kind: 'approval' | 'question' }>
 }
 
-/** Once published, the host's complete list owns controls; history remains only the fallback. */
+/** Complete operational records own controls independently of historical pages. */
 export function selectAgentSessionCurrentRequests(state: {
   items: readonly AgentJournalRenderItem[]
   currentRequests?: readonly AgentJournalRenderItem[]

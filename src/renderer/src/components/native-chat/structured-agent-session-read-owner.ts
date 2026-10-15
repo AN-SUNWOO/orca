@@ -10,8 +10,7 @@ import {
   EMPTY_STRUCTURED_AGENT_SESSION,
   oldestStructuredAgentSessionCursor,
   reduceStructuredAgentSession,
-  type StructuredAgentSessionAction,
-  type StructuredAgentSessionState
+  type StructuredAgentSessionAction
 } from '../../../../shared/structured-agent-session-reducer'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
@@ -22,25 +21,14 @@ import {
 } from './structured-agent-session-older-page-read'
 import { startStructuredAgentSessionReadTransport } from './structured-agent-session-read-transport'
 
-export type StructuredAgentSessionReadSnapshot = {
-  state: StructuredAgentSessionState
-  loadingOlder: boolean
-  /** Bumped whenever older-page reads are invalidated (open, snapshot, reset, dispose). */
-  olderHistoryGeneration: number
-  providerSession?: AgentProviderSessionMetadata
-  /** Whether `state` is the host's present: false from when reading stops or contact is lost
-   *  until the read has caught up again. */
-  current: boolean
-}
-
-export type StructuredAgentSessionReadOwner = {
-  publishCreated: (page: AgentSessionHistoryPage) => void
-  activate: () => () => void
-  dispose: () => void
-  getSnapshot: () => StructuredAgentSessionReadSnapshot
-  loadOlder: () => Promise<NativeChatOlderPageResult>
-  subscribe: (listener: () => void) => () => void
-}
+import type {
+  StructuredAgentSessionReadSnapshot,
+  StructuredAgentSessionReadOwner
+} from './structured-agent-session-read-owner-contract'
+export type {
+  StructuredAgentSessionReadSnapshot,
+  StructuredAgentSessionReadOwner
+} from './structured-agent-session-read-owner-contract'
 
 import {
   adoptStructuredReadOwner,
@@ -94,18 +82,14 @@ function createReadOwner(
       snapshot.current ||
       (action.type === 'event' &&
         action.event.type !== 'end' &&
-        !(action.event.type === 'batch' && action.event.hasNewer) &&
-        state.requestTransfer === undefined)
+        !(action.event.type === 'batch' && action.event.hasNewer))
     if (state !== snapshot.state || current !== snapshot.current) {
       setSnapshot({ ...snapshot, state, current })
     }
   }
   const markStale = (): void => {
-    const state = reduceStructuredAgentSession(snapshot.state, {
-      type: 'requests-detached'
-    })
-    if (snapshot.current || snapshot.state.requestTransfer) {
-      setSnapshot({ ...snapshot, state, current: false })
+    if (snapshot.current) {
+      setSnapshot({ ...snapshot, current: false })
     }
   }
   const setProviderSession = (providerSession: AgentProviderSessionMetadata | undefined): void => {
@@ -212,6 +196,7 @@ function createReadOwner(
       apply({ type: 'loading' })
     }
     const transport = startStructuredAgentSessionReadTransport({
+      applyRequests: apply,
       applyEvent: (event, options) => apply({ type: 'event', event, ...options }),
       applyError: (message, refusal) => {
         // Once loaded, a failure with no host refusal attached is treated as lost contact: the

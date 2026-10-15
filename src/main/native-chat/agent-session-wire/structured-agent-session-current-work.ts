@@ -1,3 +1,4 @@
+import { currentRequestsProjection } from './agent-session-current-requests'
 // The host's one operational projection of a chat's current work: the live generation's running
 // turn, the prompts it raised that still wait on the person, the sends it owes, and the queued
 // sends this process may hand over. Every host reader asks here; none keeps a rule of its own.
@@ -215,7 +216,9 @@ export class StructuredAgentSessionCurrentWork {
         this.isCurrentItem(itemId)
       ) {
         const item = this.journal.item(itemId)
-        if (item) items.push(item)
+        if (item) {
+          items.push(item)
+        }
       }
     })
     items.sort(compareAgentJournalItems)
@@ -226,6 +229,10 @@ export class StructuredAgentSessionCurrentWork {
         : items
     promptProjections.set(this.journal, { ...cursor, fence: this.liveFence, items: stable })
     return stable
+  }
+
+  requestProjection(sessionId: string) {
+    return currentRequestsProjection(this.journal, sessionId, this)
   }
 
   actionablePromptIds(): string[] {

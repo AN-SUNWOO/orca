@@ -1,5 +1,5 @@
 import type { AgentSessionUnavailable } from './agent-session-availability'
-import type { AgentSessionCurrentRequestsPart } from './agent-session-current-requests'
+import type { AgentSessionFrameFields } from './agent-session-frame-fields'
 import type { AgentSessionCurrentWorkFields } from './agent-session-current-work-wire'
 import type {
   AgentSessionBackgroundTask,
@@ -10,8 +10,7 @@ import type { AgentSessionWireRefusal } from './agent-session-wire-refusals'
 import type { AgentChildWorkView } from './agent-status-child-work-view'
 import type {
   AgentSessionQueuedMessage,
-  AgentSessionQueuePause,
-  AgentSessionQueuePublicationFields
+  AgentSessionQueuePause
 } from './agent-session-queued-message-wire'
 
 export * from './agent-session-wire-refusals'
@@ -36,21 +35,12 @@ import type {
   AgentJournalTurnLifecycle
 } from './agent-session-journal-types'
 import type { AgentTurnOutcome } from './agent-turn-outcome'
-import type { AgentSessionHandoffStage, AgentSessionRecord } from './agent-session-record'
+import type { AgentSessionRecord } from './agent-session-record'
 import type { AgentProviderSessionMetadata } from './agent-session-resume'
 import type { NativeChatSubagentEntry } from './native-chat-types'
 import type { StructuredAgentSessionProjectedStatus } from './structured-agent-session-projection'
 
-/** `agentSession.handoffStatus`. Named for the removed terminal handoff; released desktop clients
- *  still read `owner`. Clients parse the reply as unknown, since older hosts sent more fields. */
-export type AgentSessionHandoffStatus = {
-  owner: 'native' | 'none'
-  direction: 'to-native' | null
-  phase: 'idle' | 'switching' | 'failed'
-  stage: AgentSessionHandoffStage | null
-  operationId: string | null
-  error?: { message: string; recoverableOwner: 'none' }
-}
+export type { AgentSessionHandoffStatus } from './agent-session-handoff-status'
 
 export type {
   AgentSessionBackgroundTask,
@@ -177,14 +167,6 @@ export type AgentSessionJournalBatch = {
   removedItemIds: string[]
   submissions: AgentJournalSubmission[]
 }
-
-/** Every published frame: the host wall clock (ms epoch, see `AgentSessionHistoryPage`), and what
- *  rides beside its `queuedMessages`. */
-type AgentSessionFrameFields = {
-  hostNow?: number
-  /** Lossless current-request projection; absent from older hosts. */
-  currentRequests?: AgentSessionCurrentRequestsPart
-} & AgentSessionQueuePublicationFields
 
 export type AgentSessionSubscribeEvent =
   | ({

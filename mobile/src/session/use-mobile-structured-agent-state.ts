@@ -1,3 +1,8 @@
+import {
+  openTranscriptAfterHold,
+  isSubscribeEvent
+} from './mobile-structured-transcript-subscription'
+import { startMobileStructuredTranscriptRead } from './mobile-structured-transcript-read'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { AgentJournalCursor } from '../../../src/shared/agent-session-journal-types'
 import { isRootAgentJournalItem } from '../../../src/shared/agent-session-journal-producer'
@@ -39,41 +44,6 @@ const MAX_RETAINED_SESSION_STATES = 32
 const OLDER_PAGE_ANCHOR_ATTEMPTS = 3
 /** Bounds the pages one Load-earlier reads past that hold only subagent rows. */
 const OLDER_PAGES_PER_LOAD = 8
-
-/**
- * Opens the transcript stream once the hold settles, either way: a refused hold is an older host
- * saying it could not start the agent — which the next send does — never a reason to hide the
- * transcript. Returns what ends the stream, opened or not yet. Outside the effect so its cleanup
- * rule can see the stream is owned.
- */
-function openTranscriptAfterHold(
-  client: RpcClient,
-  sessionId: string,
-  held: Promise<unknown>,
-  onFrame: (raw: unknown) => void
-): () => void {
-  let ended = false
-  let close = (): void => {}
-  void held
-    .catch(() => undefined)
-    .then(() => {
-      if (!ended) {
-        close = client.subscribe('agentSession.subscribe', { sessionId }, onFrame)
-      }
-    })
-  return () => {
-    ended = true
-    close()
-  }
-}
-
-function isSubscribeEvent(value: unknown): value is AgentSessionSubscribeEvent {
-  if (typeof value !== 'object' || value === null) {
-    return false
-  }
-  const type = (value as { type?: unknown }).type
-  return type === 'snapshot' || type === 'batch' || type === 'reset' || type === 'end'
-}
 
 export function useMobileStructuredAgentState(args: {
   client: RpcClient | null
@@ -191,29 +161,27 @@ export function useMobileStructuredAgentState(args: {
       return
     }
     if (!connected) {
-      apply({ type: 'requests-detached' })
       // The cleanup above drops the dead hold and stream; keyed state keeps this
       // session's transcript visible while another tab can be selected.
       return
     }
     apply({ type: 'loading' })
+    const generation = streamGenerationRef.current
     const holderId = structuredAgentSessionHolderId('mobile-chat')
     const held = callAgentSession(client, 'agentSession.hold', {
       sessionId,
       holderId
     })
-    const endStream = openTranscriptAfterHold(client, sessionId, held, (raw) => {
-      if (typeof raw === 'object' && raw !== null && 'type' in raw && raw.type === 'error') {
-        applyReadFailure(raw)
-        return
-      }
-      if (isSubscribeEvent(raw)) {
-        apply({ type: 'event', event: raw })
-        applyQueued(raw)
-      }
+    const endStream = startMobileStructuredTranscriptRead({
+      sessionId,
+      open: (onFrame) => openTranscriptAfterHold(client, sessionId, held, onFrame),
+      read: (request) => callAgentSession(client, 'agentSession.currentRequests', request),
+      apply,
+      applyQueued,
+      error: applyReadFailure,
+      isCurrent: () => generation === streamGenerationRef.current
     })
     return () => {
-      apply({ type: 'requests-detached' })
       endStream()
       void held
         .then(() =>

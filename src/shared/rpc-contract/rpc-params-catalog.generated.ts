@@ -48,6 +48,7 @@ import {
 } from './accounts-params'
 import { PrepareCodexForWslPaneParams } from './agent-hooks-params'
 import { AgentLaunch, AgentLaunchReplay } from './agent-launch-params'
+import { CurrentRequestsParams } from './agent-session-current-requests-params'
 import { AgentLaunchSettingsMutation } from './agent-launch-settings-params'
 import {
   AttachmentReadParams,
@@ -657,6 +658,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSession.conversationOutline': OptionsParams,
   'agentSession.create': CreateParams,
   'agentSession.createSupport': CreateSupportParams,
+  'agentSession.currentRequests': CurrentRequestsParams,
   'agentSession.ensure': AttachParams,
   'agentSession.handoffStatus': HandoffStatusParams,
   'agentSession.history': HistoryParams,

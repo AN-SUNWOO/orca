@@ -8,7 +8,6 @@ import type { AgentSessionCancelResult } from '../../../../shared/agent-session-
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-label'
 import { useStructuredLegacyLaunchStop } from '@/lib/structured-agent-session-legacy-launch-stop'
-import { supportsStructuredAgentSessionPromptCancel } from '@/runtime/structured-agent-session-client'
 import {
   useStructuredAgentSessionHostQueuesCommands,
   useStructuredAgentSessionHostEditsQueuedMessages,
@@ -16,7 +15,10 @@ import {
 } from '@/runtime/structured-agent-session-host-capability'
 import { structuredAgentSessionStopControl } from './structured-agent-session-stop-control'
 import type { AgentSessionPromptResponse } from '../../../../shared/agent-session-question-answer'
-import { respondToStructuredAgentSessionPrompt } from './structured-agent-session-prompt-response'
+import {
+  respondToStructuredAgentSessionPrompt,
+  cancelStructuredAgentSessionPrompt
+} from './structured-agent-session-prompt-response'
 import {
   pendingStructuredSessionPrompts,
   type StructuredPromptItem
@@ -43,11 +45,6 @@ import { useStructuredAgentSessionRewind } from './use-structured-agent-session-
 import type { NativeChatRewindHost } from './use-native-chat-rewind'
 
 export type { StructuredPromptItem } from './structured-agent-session-message-projection'
-
-type StructuredPromptCancelTarget = {
-  itemId: string
-  expectedRevision: number
-}
 
 export function useStructuredAgentSession(args: {
   sessionId: string
@@ -314,16 +311,10 @@ export function useStructuredAgentSession(args: {
     /** A send made now while the agent works is held as a queued card: the host queues, and this
      *  send asks it to (the setting is on and no pending prompt blocks the queue). */
     sendsQueue: structuredAgentSessionNewSendsQueue(queue),
-    cancel: async (turnId: string | undefined, prompt?: StructuredPromptCancelTarget) => {
-      // Capability negotiation must complete before mutate fingerprints the payload:
-      // older hosts reject the strict prompt field.
-      const promptSupported =
-        prompt !== undefined && (await supportsStructuredAgentSessionPromptCancel(target))
-      return mutate('agentSession.cancel', 'agentSession.cancel', {
-        ...(turnId ? { turnId } : {}),
-        ...(promptSupported ? { prompt } : {})
-      })
-    },
+    cancel: (
+      turnId: string | undefined,
+      prompt?: Parameters<typeof cancelStructuredAgentSessionPrompt>[3]
+    ) => cancelStructuredAgentSessionPrompt(target, mutate, turnId, prompt),
     stopBackgroundTask: (taskId?: string) =>
       mutate<AgentSessionCancelResult>('agentSession.cancel', 'agentSession.cancel', {
         turnId: 'background-tasks',

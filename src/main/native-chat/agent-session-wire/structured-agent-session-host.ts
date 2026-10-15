@@ -332,6 +332,9 @@ export class StructuredAgentSessionHost {
 
   /** The host's projection of a held chat's current work (`structuredAgentSessionCurrentWork`). */
   currentWork = this.clientDelivery.readCurrentWork
+  readCurrentRequests = (
+    ...args: Parameters<StructuredAgentSessionBackgroundTaskChannel['currentRequests']>
+  ) => this.backgroundTasks.currentRequests(...args)
 
   subscribe = (input: AgentSessionSubscribeInput) => this.backgroundTasks.subscribe(input)
 

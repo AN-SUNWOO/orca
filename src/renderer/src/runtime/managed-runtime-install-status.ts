@@ -76,7 +76,7 @@ function apply(entry: Entry, state: ManagedRuntimeInstallState): void {
 
 function callHost(
   subject: ManagedRuntimeInstallSubject,
-  method: 'managedRuntime.status' | 'managedRuntime.install' | 'managedRuntime.cancel',
+  method: `managedRuntime.${'status' | 'install' | 'cancel' | 'remove'}`,
   params: Record<string, unknown>,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<ManagedRuntimeInstallState> {
@@ -161,6 +161,11 @@ export async function cancelManagedRuntimeInstall(
   operationId: string
 ): Promise<void> {
   apply(entryFor(subject), await callHost(subject, 'managedRuntime.cancel', { operationId }))
+}
+
+/** Starts, or joins, the host's removal; it fails, keeping the files, while anything may run them. */
+export async function removeManagedRuntime(subject: ManagedRuntimeInstallSubject): Promise<void> {
+  apply(entryFor(subject), await callHost(subject, 'managedRuntime.remove', {}))
 }
 
 export function subscribeManagedRuntimeInstalls(listener: () => void): () => void {

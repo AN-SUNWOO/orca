@@ -15,6 +15,8 @@ export type ManagedRuntimeInstallView = {
   /** Why the last operation or status read failed. */
   error: string | null
   action: ManagedRuntimeInstallAction | null
+  /** Settings may offer to delete the copy Orca installed: one is there and nothing runs. */
+  removable: boolean
 }
 
 const megabytes = (bytes: number): string => (bytes / 1_000_000).toFixed(1)
@@ -24,6 +26,10 @@ function runningView(
   agent: string
 ): ManagedRuntimeInstallView | null {
   const { phase, downloadedBytes: done, totalBytes: total } = operation
+  if (phase === 'removing') {
+    const status = translate('components.managed-runtime.removing', 'Removing…')
+    return { status, progress: null, error: null, action: null, removable: false }
+  }
   const status =
     phase === 'downloading'
       ? total === null
@@ -55,7 +61,8 @@ function runningView(
       label,
       operationId: operation.id,
       ...(phase === 'cancelling' && { disabled: true })
-    }
+    },
+    removable: false
   }
 }
 
@@ -74,7 +81,8 @@ function settledView(
     status,
     progress: null,
     error,
-    action: label === null ? null : { kind: 'install', label }
+    action: label === null ? null : { kind: 'install', label },
+    removable: surface === 'settings' && state.installedVersion !== null
   })
   const install = translate('components.managed-runtime.install', 'Install {{agent}}', { agent })
   // A start already runs a working copy found outside Orca's releases; it needs no download.
@@ -172,7 +180,8 @@ export function managedRuntimeInstallView(
               { agent }
             )
           : null,
-      action: null
+      action: null,
+      removable: false
     }
   }
   const { operation } = snapshot.state

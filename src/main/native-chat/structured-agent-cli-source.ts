@@ -10,6 +10,30 @@ import { isWslUncPath } from '../../shared/wsl-paths'
 import { needsWslHostResolution } from './host-readable-transcript-path'
 import { parseSshTranscriptPath } from './ssh-transcript-path'
 
+export type StructuredAgentCliSourceEvidence =
+  | { readonly rows: readonly Readonly<AgentStatusIpcPayload>[] }
+  | { readonly error: unknown }
+
+export function captureStructuredAgentCliSource(
+  readRows: () => readonly AgentStatusIpcPayload[]
+): StructuredAgentCliSourceEvidence {
+  try {
+    return Object.freeze({
+      rows: Object.freeze(
+        readRows().map((row) => Object.freeze({
+          ...row,
+          ...(row.providerSession
+            ? { providerSession: Object.freeze({ ...row.providerSession }) }
+            : {})
+        }))
+      )
+    })
+  } catch (error) {
+    // Capture cannot override an existing owner or committed replay.
+    return Object.freeze({ error })
+  }
+}
+
 /** A client names a pane; only this host supplies its provider path. */
 export function structuredAgentCliSourcePath(input: {
   agent: StructuredAgentId

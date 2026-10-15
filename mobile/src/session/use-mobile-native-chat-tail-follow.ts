@@ -309,7 +309,8 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       onTouchCancel: notePageTouches,
       ...(Platform.OS === 'web' && {
         onWheel: (event) => {
-          if (event.deltaY !== 0 && !event.ctrlKey && !event.defaultPrevented) {
+          // Only a move up detaches; a wheel down would just hold pins off.
+          if (event.deltaY < 0 && !event.ctrlKey && !event.defaultPrevented) {
             extendPageGesture()
           }
         },

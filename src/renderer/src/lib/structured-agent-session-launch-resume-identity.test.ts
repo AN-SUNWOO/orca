@@ -94,7 +94,8 @@ describe('a launch that adopts a conversation is its own identity', () => {
     const requests = createParams()
     expect(requests).toHaveLength(2)
     const blankRequest = requests.find((params) => params.envelope.sessionId === blank.sessionId)
-    expect(blankRequest).toMatchObject({ resumeFrom: undefined })
+    expect(blankRequest?.envelope.sessionId).toBe(blank.sessionId)
+    expect(blankRequest?.resumeFrom).toBeUndefined()
     expect(
       requests.find((params) => params.envelope.sessionId === resume.sessionId)?.resumeFrom
     ).toEqual({

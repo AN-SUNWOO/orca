@@ -165,7 +165,6 @@ describe('structured launch after a host-failed create', () => {
       }
       ownershipRefusal = { code, details, message: code, createAttemptRefusedBeforeCommit: true }
       refuseFirstCall = true
-      replayVerdict = undefined
       const started = startStructuredAgentLaunch(WORKTREE, 'codex', { requestId: 'owned-click' })
       await expect(started.launchResult).rejects.toMatchObject({ refusal: { code, details } })
       await settle(started.sessionId)

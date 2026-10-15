@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
 import { translate } from '@/i18n/i18n'
-import { callAntigravityAccounts } from '@/runtime/runtime-antigravity-accounts-client'
 import { useManagedRuntimeInstall } from '@/runtime/use-managed-runtime-install'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { ManagedRuntimeInstallRow } from '../managed-runtime/ManagedRuntimeInstallRow'
@@ -19,27 +17,6 @@ export function ChatProvidersSetting({
   forceVisible: boolean
 }): React.JSX.Element | null {
   const antigravity = useManagedRuntimeInstall(CHAT_HOST, 'antigravity', true)
-  const active = antigravity.kind === 'active'
-  const [saved, setSaved] = useState(false)
-  const [listRequest, setListRequest] = useState(0)
-  useEffect(() => {
-    if (!active) {
-      return
-    }
-    let cancelled = false
-    // A failed read leaves the row offering sign-in, which is still correct to act on.
-    void callAntigravityAccounts(CHAT_HOST, { runtime: 'host' }, 'List').then(
-      (state) => {
-        if (!cancelled) {
-          setSaved(state.chatSignIn?.saved === true)
-        }
-      },
-      () => undefined
-    )
-    return () => {
-      cancelled = true
-    }
-  }, [active, listRequest])
   if (antigravity.kind !== 'active') {
     return null
   }
@@ -64,9 +41,7 @@ export function ChatProvidersSetting({
           'settings.chat.providers.antigravitySignIn',
           'Chats use their own Antigravity sign-in, separate from your agy terminal account. Sign in once on this device.'
         )}
-        saved={saved}
         disabled={antigravityChatSignInBlocked(antigravity)}
-        onSettled={() => setListRequest((request) => request + 1)}
       />
     </SearchableSetting>
   )

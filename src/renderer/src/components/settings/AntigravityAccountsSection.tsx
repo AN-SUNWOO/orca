@@ -311,9 +311,7 @@ export function AntigravityAccountsSection({
                 'accounts.antigravity.chatDescription',
                 'Chats use their own Antigravity sign-in, separate from your agy account above. Sign in once on this device.'
               )}
-              saved={state?.chatSignIn?.saved === true}
               disabled={antigravityChatSignInBlocked(chatRuntime)}
-              onSettled={() => void run('List')}
             />
           ) : null}
         </div>

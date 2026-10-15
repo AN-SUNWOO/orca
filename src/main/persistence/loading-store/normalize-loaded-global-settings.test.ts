@@ -148,3 +148,12 @@ describe('the new-chat permission setting', () => {
     expect(normalized.nativeChatPermissionMode).toBe('ask')
   })
 })
+
+describe('terminal default shell', () => {
+  it('trims a hand-edited value and treats whitespace-only as unset', () => {
+    expect(
+      normalizeLegacyProfile({ terminalDefaultShell: '  /bin/zsh  ' }).terminalDefaultShell
+    ).toBe('/bin/zsh')
+    expect(normalizeLegacyProfile({ terminalDefaultShell: '   ' }).terminalDefaultShell).toBe('')
+  })
+})

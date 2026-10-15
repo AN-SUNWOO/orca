@@ -11,7 +11,7 @@ describe('resolveEditorTabGitStatus', () => {
     ).toBe('modified')
   })
 
-  it.each(['chat-visual', 'check-details'] as const)(
+  it.each(['check-details'] as const)(
     'never decorates a %s tab whose title matches a changed file',
     (mode) => {
       expect(

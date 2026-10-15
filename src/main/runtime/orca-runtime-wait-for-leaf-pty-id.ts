@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithRestoreLivePairedRendererSessionOwnedMobileTerminals } from './orca-runtime-restore-live-paired-renderer-session-owned-mobile-terminals'
+import { OrcaRuntimeWithRestoreLivePairedRendererSessionOwnedMobileTerminals } from './session-tabs/renderer-session-terminal-rescue'
 import type { TerminalOscLinkRange } from '../../shared/terminal-osc-link-ranges'
 
 export class OrcaRuntimeWithWaitForLeafPtyId extends OrcaRuntimeWithRestoreLivePairedRendererSessionOwnedMobileTerminals {

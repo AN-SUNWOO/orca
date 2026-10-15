@@ -34,6 +34,7 @@ import type {
 import { GROK_SESSION_HISTORY } from '../grok/grok-session-history'
 import { GROK_TRANSCRIPT_IMPORT } from '../grok/grok-transcript-import'
 import { OPENCODE_SESSION_HISTORY } from '../opencode/opencode-session-history'
+import { OPENCODE_TRANSCRIPT_IMPORT } from '../opencode/opencode-transcript-import'
 import { OMP_SESSION_HISTORY } from '../omp/omp-session-history'
 import { OMP_TRANSCRIPT_IMPORT } from '../omp/omp-transcript-import'
 
@@ -173,7 +174,7 @@ const OPENCODE_LAUNCH_SPEC: AcpLaunchSpec = {
   },
   visualsSkill: loadOpenCodeVisualsSkill,
   compaction: true,
-  transcriptImport: null,
+  transcriptImport: OPENCODE_TRANSCRIPT_IMPORT,
   sessionHistory: OPENCODE_SESSION_HISTORY
 }
 

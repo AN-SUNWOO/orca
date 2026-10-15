@@ -61,6 +61,7 @@ export function createSshIpcHarness(mocks: SshIpcMocks): SshIpcHarness {
     disconnectConnection: vi.fn(),
     reconnect: vi.fn(),
     getConnection: vi.fn(),
+    hasCachedCredential: vi.fn().mockReturnValue(false),
     getState: vi.fn(),
     disconnectAll: vi.fn(),
     setCallbacks: vi.fn(),
@@ -105,6 +106,7 @@ export function createSshIpcHarness(mocks: SshIpcMocks): SshIpcHarness {
     mockConnectionManager.disconnectConnection.mockReset().mockResolvedValue(undefined)
     mockConnectionManager.reconnect.mockReset()
     mockConnectionManager.getConnection.mockReset()
+    mockConnectionManager.hasCachedCredential.mockReset().mockReturnValue(false)
     mockConnectionManager.getState.mockReset()
     mockConnectionManager.disconnectAll.mockReset()
     mockConnectionManager.setCallbacks.mockReset()

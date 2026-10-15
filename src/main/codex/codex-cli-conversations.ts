@@ -2,14 +2,14 @@ import { join } from 'node:path'
 import { configuredAdditionalCodexHomePaths } from '../ai-vault/cached-session-list'
 import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import {
+  directoryTranscriptImport,
   resumeInvocationAfterMarker,
   type StructuredAgentCliConversations,
-  type StructuredAgentSessionHistory,
-  type StructuredAgentTranscriptImport
+  type StructuredAgentSessionHistory
 } from '../native-chat/structured-agent-cli-conversations'
 import { getOrcaManagedCodexHomePath, getSystemCodexHomePath } from './codex-home-paths'
 
-const CODEX_TRANSCRIPT_IMPORT: StructuredAgentTranscriptImport = {
+const CODEX_TRANSCRIPT_IMPORT = directoryTranscriptImport({
   accountHomeCandidates: ({ settings, selectedAccountHomePath }) => [
     selectedAccountHomePath,
     ...(settings.codexManagedAccounts ?? []).map((account) => account.managedHomePath),
@@ -21,7 +21,7 @@ const CODEX_TRANSCRIPT_IMPORT: StructuredAgentTranscriptImport = {
     resolveSessionFilePath('codex', providerSessionId, {
       codexSessionsDirs: [join(accountHomePath, 'sessions')]
     })
-}
+})
 
 const CODEX_SESSION_HISTORY: StructuredAgentSessionHistory = {
   rowAgents: ['codex'],

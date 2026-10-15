@@ -188,11 +188,6 @@ describe('createPtySubprocess', () => {
     expect(PREVIOUS_DAEMON_PROTOCOL_VERSIONS).toContain(22)
   })
 
-  it('uses a new daemon protocol for daemon-local Codex env ownership', () => {
-    expect(PROTOCOL_VERSION).toBeGreaterThan(22)
-    expect(PREVIOUS_DAEMON_PROTOCOL_VERSIONS).toContain(22)
-  })
-
   it('resolves a missing Unix default before spawning node-pty', async () => {
     const proc = mockPtyProcess()
     spawnMock.mockReturnValue(proc)

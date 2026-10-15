@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithResolveWorktreeRemovalTarget } from './orca-runtime-resolve-worktree-removal-target'
+import { OrcaRuntimeWithResolveWorktreeRemovalTarget } from './workspaces/workspace-removal-target'
 import type { TerminalWorkspaceLaunchScope } from './runtime-legacy-worker-terminal-recovery-types'
 import type { TuiAgent } from '../../shared/tui-agent'
 import { parseWslUncPath } from '../../shared/wsl-paths'

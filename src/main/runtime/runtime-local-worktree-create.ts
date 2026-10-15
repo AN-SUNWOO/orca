@@ -3,7 +3,7 @@ import { shouldRunSetupForCreate } from '../effective-hook-config'
 import { getEffectiveHooks } from '../hooks'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import type { Store } from '../persistence'
+import type { RuntimeStore } from './runtime-store-contract'
 import {
   getLocalProjectGitExecOptions,
   getLocalProjectWorktreeGitOptions,
@@ -36,7 +36,7 @@ import {
 type RuntimeLocalWorktreeCreateArgs<T> = {
   request: RuntimeManagedWorktreeCreateArgs
   repo: Repo
-  store: Store
+  store: RuntimeStore
   createdWithAgent: RuntimeManagedWorktreeCreateArgs['createdWithAgent']
   hostedReviewExecutionContext?: HostedReviewExecutionOptions
   resolveRemoteTrackingBase: (

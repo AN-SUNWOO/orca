@@ -281,22 +281,19 @@ export function ensureWorktreeHasInitialTerminal(
   const terminalTab = store.createTab(worktreeId, undefined, undefined, {
     pendingActivationSpawn: true,
     ...(launchAgent ? { launchAgent } : {}),
-    ...(opts?.activateCreatedTabs === false ? { activate: false } : {})
+    ...(opts?.activateCreatedTabs === false ? { activate: false } : {}),
+    // Why: the initial pane begins in the requested agent session instead of an idle shell.
+    ...(sequencedStartup ? { pendingStartup: sequencedStartup } : {})
   })
   if (opts?.activateCreatedTabs !== false) {
     store.setActiveTab(terminalTab.id)
   }
-
-  // Why: queue the seeded startup on the initial pane so the terminal begins in the requested agent session instead of an idle shell.
-  if (sequencedStartup) {
-    if (launchAgent) {
-      seedNativeChatAppliedSessionOptions(
-        terminalTab.id,
-        launchAgent,
-        sequencedStartup.sessionOptions
-      )
-    }
-    store.queueTabStartupCommand(terminalTab.id, sequencedStartup)
+  if (sequencedStartup && launchAgent) {
+    seedNativeChatAppliedSessionOptions(
+      terminalTab.id,
+      launchAgent,
+      sequencedStartup.sessionOptions
+    )
   }
   queueSetupAndIssueCommands(
     store,

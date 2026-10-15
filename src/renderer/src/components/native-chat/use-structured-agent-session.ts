@@ -84,6 +84,7 @@ export function useStructuredAgentSession(args: {
   const {
     state,
     stateRef,
+    readCurrent,
     loadingOlder,
     olderHistoryGeneration,
     loadOlder,
@@ -240,6 +241,8 @@ export function useStructuredAgentSession(args: {
   })
   return {
     epoch: state.epoch,
+    /** The transcript has caught up with the host since this pane last started reading. */
+    readCurrent: transportEnabled && readCurrent,
     rewind,
     conversationCommands,
     ...structuredConversationCommandRunner({

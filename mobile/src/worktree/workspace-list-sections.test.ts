@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Worktree } from './workspace-list-sections'
 import {
   CREATE_GRACE_MS,
+  NO_PROJECT_SECTION_CATALOG,
   buildSections,
   filterWorktrees,
   getWorktreeStatus,
@@ -32,8 +33,16 @@ function worktree(overrides: Partial<Worktree> = {}): Worktree {
   }
 }
 
+// A catalog of [displayName, id] repos with no project rows, as an old desktop answers.
+function catalogOf(repos: readonly (readonly [string, string])[]) {
+  return {
+    ...NO_PROJECT_SECTION_CATALOG,
+    repos: repos.map(([displayName, id]) => ({ id, displayName, path: `/repos/${id}` }))
+  }
+}
+
 function withoutSectionListKeys(sections: ReturnType<typeof buildSections>) {
-  return sections.map((section) => ({
+  return sections.map(({ repo: _repo, ...section }) => ({
     ...section,
     data: section.data.map(
       ({
@@ -211,6 +220,19 @@ describe('filterWorktrees', () => {
       )
     ).toEqual([folder])
   })
+
+  it("drops rows the desktop's Hide other-client workspaces hides", () => {
+    const mine = worktree({ worktreeId: 'mine' })
+    const other = worktree({ worktreeId: 'other', desktopOtherClient: true })
+
+    expect(
+      filterWorktrees(
+        [mine, other],
+        { filterRepoIds: new Set(), hideSleeping: false, hideDefaultBranch: false },
+        ''
+      )
+    ).toEqual([mine])
+  })
 })
 
 describe('getWorktreeStatus', () => {
@@ -280,7 +302,7 @@ describe('buildSections', () => {
       '',
       'workspaceStatus',
       new Set(),
-      new Map(),
+      NO_PROJECT_SECTION_CATALOG,
       DEFAULT_MOBILE_WORKSPACE_STATUSES
     )
 
@@ -326,7 +348,7 @@ describe('buildSections', () => {
       '',
       'workspaceStatus',
       new Set(),
-      new Map(),
+      NO_PROJECT_SECTION_CATALOG,
       DEFAULT_MOBILE_WORKSPACE_STATUSES
     )
 
@@ -512,7 +534,7 @@ describe('buildSections', () => {
       '',
       'repo',
       new Set(),
-      new Map([['orca', 'repo-1']]),
+      catalogOf([['orca', 'repo-1']]),
       DEFAULT_MOBILE_WORKSPACE_STATUSES
     )
 
@@ -543,7 +565,7 @@ describe('buildSections', () => {
       '',
       'repo',
       new Set(),
-      new Map([['orca', 'repo-1']])
+      catalogOf([['orca', 'repo-1']])
     )
 
     expect(sections[0]?.data.map((item) => item.worktreeId)).toEqual(['main', 'child'])
@@ -557,7 +579,7 @@ describe('buildSections', () => {
       '',
       'repo',
       new Set(),
-      new Map([
+      catalogOf([
         ['orca', 'repo-1'],
         ['zoom-img', 'repo-missing']
       ])
@@ -581,7 +603,7 @@ describe('buildSections', () => {
       '',
       'none',
       new Set(),
-      new Map([['zoom-img', 'repo-missing']])
+      catalogOf([['zoom-img', 'repo-missing']])
     )
 
     expect(withoutSectionListKeys(sections)).toEqual([])
@@ -599,7 +621,7 @@ describe('buildSections', () => {
       'zoom',
       'repo',
       new Set(),
-      new Map([
+      catalogOf([
         ['zoom-img', 'repo-matching'],
         ['repo', 'repo-hidden'],
         ['zoom-hidden', 'repo-unfiltered']
@@ -624,7 +646,7 @@ describe('buildSections', () => {
       '',
       'repo',
       new Set(),
-      new Map([
+      catalogOf([
         ['sleeping-repo', 'repo-sleeping'],
         ['empty-repo', 'repo-empty']
       ])
@@ -654,7 +676,7 @@ describe('buildSections', () => {
       '',
       'workspaceStatus',
       new Set(),
-      new Map(),
+      NO_PROJECT_SECTION_CATALOG,
       DEFAULT_MOBILE_WORKSPACE_STATUSES
     )
 
@@ -678,7 +700,7 @@ describe('buildSections', () => {
       '',
       'workspaceStatus',
       new Set(),
-      new Map(),
+      NO_PROJECT_SECTION_CATALOG,
       []
     )
 
@@ -707,7 +729,7 @@ describe('buildSections', () => {
           '',
           groupMode,
           new Set(['local-pinned']),
-          new Map(),
+          NO_PROJECT_SECTION_CATALOG,
           DEFAULT_MOBILE_WORKSPACE_STATUSES,
           new Set(),
           showPinnedInGroups
@@ -746,7 +768,7 @@ describe('buildSections', () => {
       '',
       'repo',
       new Set(),
-      new Map([['orca', 'repo-1']])
+      catalogOf([['orca', 'repo-1']])
     )
 
     expect(sections.map((section) => section.key)).toEqual(['pinned'])
@@ -773,7 +795,7 @@ describe('buildSections', () => {
       '',
       'none',
       new Set(),
-      new Map(),
+      NO_PROJECT_SECTION_CATALOG,
       DEFAULT_MOBILE_WORKSPACE_STATUSES
     )
 
@@ -804,7 +826,7 @@ describe('buildSections', () => {
       '',
       'workspaceStatus',
       new Set(),
-      new Map(),
+      NO_PROJECT_SECTION_CATALOG,
       DEFAULT_MOBILE_WORKSPACE_STATUSES
     )
 
@@ -832,7 +854,7 @@ describe('buildSections', () => {
       '',
       'workspaceStatus',
       new Set(),
-      new Map(),
+      NO_PROJECT_SECTION_CATALOG,
       DEFAULT_MOBILE_WORKSPACE_STATUSES,
       new Set([getMobileWorkspaceLineageGroupKey(parent)])
     )

@@ -93,6 +93,8 @@ export type RuntimeWorktreePsSummary = {
   removing?: true
   /** See `GitWorktreeInfo.removalError`. */
   removalError?: string
+  /** This host's "Hide other-client workspaces" hides the row; sent only to its own phones. */
+  desktopOtherClient?: true
 }
 
 export type RuntimeGitLocalBranches = {

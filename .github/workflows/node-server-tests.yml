@@ -21,34 +21,13 @@ on:
       - '.github/actions/prepare-native-runtime/**'
       - '.github/actions/prepare-orcad-prebuilds/**'
       - '.github/workflows/node-server-tests.yml'
-  # Relevant main pushes qualify every platform after the dependency check.
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'config/**'
-      - 'native/**'
-      - 'tests/**'
-      - 'resources/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'tsconfig.json'
-      - '.npmrc'
-      - '.pnpmfile.cjs'
-      - '.github/actions/install-node-dependencies/**'
-      - '.github/actions/restore-pnpm-verification/**'
-      - '.github/actions/prepare-headless-compiler/**'
-      - '.github/actions/prepare-native-runtime/**'
-      - '.github/actions/prepare-orcad-prebuilds/**'
-      - '.github/workflows/node-server-tests.yml'
   workflow_dispatch:
     inputs:
       build_template:
         description: Also merge every lane's slot into the desktop orcad template artifact
         type: boolean
         default: false
-  # Release packaging calls this to build the orcad template it ships (design D2).
+  # Release and dev builds qualify every platform for the template they ship.
   workflow_call:
     inputs:
       ref:
@@ -59,13 +38,14 @@ on:
         description: Upload each lane's release slot and merge them into the orcad-template artifact
         type: boolean
         default: false
+  # Requalify fresh builds daily; publish missing immutable Windows cache keys.
   schedule:
     - cron: '30 11 * * *'
 
 permissions:
   contents: read
 
-# Main pushes must finish detection before they can supersede relevant qualification.
+# Keep template callers independent while replacing superseded PR qualification.
 concurrency:
   group: node-server-${{ (inputs.build_template || github.event_name == 'push') && format('run-{0}', github.run_id) || github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ !inputs.build_template && github.event_name != 'push' }}
@@ -140,9 +120,8 @@ jobs:
     concurrency:
       group: node-server-persistence-${{ matrix.os }}-${{ github.event_name == 'push' && !inputs.build_template && inputs.ref == '' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'push' && !inputs.build_template && inputs.ref == '' }}
-    # Missing/failed detection runs the full matrix; manual runs remain unconditional.
-    # A draft carries no platform verdict; readiness re-triggers this workflow. Spelled against
-    # the event name so the push and schedule paths do not rest on a null property comparison.
+    # Missing/failed detection runs the full matrix; scheduled and manual runs stay unconditional.
+    # Drafts re-trigger at readiness; inherited caller events must not depend on PR fields.
     if: >-
       ${{ !cancelled() && needs.changes.outputs.should_run != 'false' &&
       (github.event_name != 'pull_request' || github.event.pull_request.draft != true) }}

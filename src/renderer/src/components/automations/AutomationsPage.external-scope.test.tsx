@@ -57,10 +57,10 @@ function lastRetainedOwners(): readonly AutomationOwnerRef[] {
   return (calls.at(-1)?.[0] as { owners: readonly AutomationOwnerRef[] } | undefined)?.owners ?? []
 }
 
-function hermesOnly(): void {
+function openclawOnly(): void {
   api.automations.listExternalManagerForOwner.mockImplementation(
     async ({ provider }: { provider: string }) =>
-      provider === 'hermes'
+      provider === 'openclaw'
         ? { manager: makeExternalManager(), error: null, updatedAt: 1 }
         : { manager: null, error: null, updatedAt: 1 }
   )
@@ -70,20 +70,20 @@ describe('AutomationsPage external manager probes', () => {
   it('probes no SSH host when the selection is the local desktop', async () => {
     withSshHosts('staging', 'web-01', 'web-02')
     mocks.state.automationHostFilter = DESKTOP_SELF_FILTER
-    hermesOnly()
+    openclawOnly()
 
     await renderPage()
     await settleHostQueries()
 
     const sshProbes = probedOwners().filter((owner) => owner.selector.kind === 'ssh')
     expect(sshProbes).toEqual([])
-    expect(probedOwners()).toEqual([DESKTOP_SELF_OWNER, DESKTOP_SELF_OWNER])
+    expect(probedOwners()).toEqual([DESKTOP_SELF_OWNER])
   })
 
   it('retains only the selected host, so probes elsewhere are cancelled', async () => {
     withSshHosts('staging', 'web-01', 'web-02')
     mocks.state.automationHostFilter = DESKTOP_SELF_FILTER
-    hermesOnly()
+    openclawOnly()
 
     await renderPage()
     await settleHostQueries()
@@ -94,7 +94,7 @@ describe('AutomationsPage external manager probes', () => {
   it('cancels the previous host as soon as the filter moves off it', async () => {
     withSshHosts('staging')
     mocks.state.automationHostFilter = DESKTOP_SELF_FILTER
-    hermesOnly()
+    openclawOnly()
 
     const { rerender } = await renderPage()
     await settleHostQueries()
@@ -113,7 +113,7 @@ describe('AutomationsPage external manager probes', () => {
   it('lists no external rows for a host whose managers it says are not listed', async () => {
     runtimeHost([], [])
     mocks.state.automationHostFilter = RUNTIME_SELF_FILTER
-    hermesOnly()
+    openclawOnly()
 
     await renderPage()
     await settleHostQueries()
@@ -124,7 +124,7 @@ describe('AutomationsPage external manager probes', () => {
   it('drops the previous host rows when the selection moves, not when the new probe lands', async () => {
     withSshHosts('staging')
     mocks.state.automationHostFilter = DESKTOP_SELF_FILTER
-    hermesOnly()
+    openclawOnly()
 
     const { rerender } = await renderPage()
     await settleHostQueries()
@@ -145,8 +145,8 @@ describe('AutomationsPage external manager probes', () => {
     mocks.state.automationHostFilter = DESKTOP_SELF_FILTER
     api.automations.listExternalManagerForOwner.mockImplementation(
       async ({ provider }: { provider: string }) =>
-        provider === 'hermes'
-          ? { manager: null, error: 'hermes probe failed: channel closed', updatedAt: 0 }
+        provider === 'openclaw'
+          ? { manager: null, error: 'openclaw probe failed: channel closed', updatedAt: 0 }
           : { manager: null, error: null, updatedAt: 0 }
     )
 
@@ -161,7 +161,7 @@ describe('AutomationsPage external manager probes', () => {
 
   it('says nothing about unchecked hosts when every probe answered', async () => {
     mocks.state.automationHostFilter = DESKTOP_SELF_FILTER
-    hermesOnly()
+    openclawOnly()
 
     await renderPage()
     await settleHostQueries()

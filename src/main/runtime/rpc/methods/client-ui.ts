@@ -1,3 +1,10 @@
+import { normalizeJiraQuickFilterState } from '../../../../shared/jira-quick-filters'
+import { JiraQuickFilterStateParam } from '../../../../shared/rpc-contract/jira-quick-filter-params'
+import {
+  normalizeJiraSavedFilterState,
+  mutateJiraSavedFilterState
+} from '../../../../shared/jira-saved-filters'
+import { JiraSavedFilterMutationParam } from '../../../../shared/rpc-contract/jira-saved-filter-params'
 import { omitPairingLocalUiFields } from '../../../../shared/pairing-local-ui-fields'
 import type { PersistedUIState } from '../../../../shared/persisted-ui-state-types'
 import { defineMethod } from '../core'
@@ -14,6 +21,40 @@ import { TerminalQuickCommandsUpdate } from '../../../../shared/rpc-contract/ter
 import { AgentLaunchSettingsMutation } from '../../../../shared/rpc-contract/agent-launch-settings-params'
 
 export const CLIENT_UI_METHODS = [
+  defineMethod({
+    name: 'ui.getJiraQuickFilters',
+    permission: 'workspace',
+    params: null,
+    handler: (_params, { runtime }) =>
+      normalizeJiraQuickFilterState(runtime.getUIState().jiraQuickFilterState)
+  }),
+  defineMethod({
+    name: 'ui.setJiraQuickFilters',
+    permission: 'workspace',
+    params: JiraQuickFilterStateParam,
+    handler: (params, { runtime }) => {
+      const state = normalizeJiraQuickFilterState(params)
+      runtime.updateUIState({ jiraQuickFilterState: state })
+      return state
+    }
+  }),
+  defineMethod({
+    name: 'ui.getJiraSavedFilters',
+    permission: 'workspace',
+    params: null,
+    handler: (_params, { runtime }) =>
+      normalizeJiraSavedFilterState(runtime.getUIState().jiraSavedFilterState)
+  }),
+  defineMethod({
+    name: 'ui.mutateJiraSavedFilters',
+    permission: 'workspace',
+    params: JiraSavedFilterMutationParam,
+    handler: (params, { runtime }) => {
+      const state = mutateJiraSavedFilterState(runtime.getUIState().jiraSavedFilterState, params)
+      runtime.updateUIState({ jiraSavedFilterState: state })
+      return state
+    }
+  }),
   defineMethod({
     name: 'settings.getAgentLaunch',
     permission: 'workspace',

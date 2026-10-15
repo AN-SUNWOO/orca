@@ -6,6 +6,12 @@ import { planWorktreeSortOrderUpdates } from '../../shared/worktree/sort-order-u
 import { stripOrcaProvenanceMetaUpdates } from '../worktree-removal-safety'
 import { isRemovedFolderWorkspaceInstance } from '../folder-workspace-meta-presence'
 import type { RuntimeStore } from './runtime-store-contract'
+import {
+  isWslMoveSourceHost,
+  isWslMoveWorkspaceBlocked,
+  shouldDropWslMoveProjectUpdate,
+  wslMoveProjectRefForWorkspace
+} from '../persistence/moving-wsl-projects/wsl-move-scope-guard'
 import { RuntimeLineageError } from './runtime-worktree-lineage-resolution'
 import type { ResolvedWorktree } from './runtime-worktree-path-identity'
 
@@ -31,6 +37,17 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
 }): Promise<Worktree> {
   const worktree = await args.ports.resolveWorktree(args.selector)
   const { lineage, ...metaUpdates } = args.updates
+  const executionHostId = worktree.identity?.executionHostId ?? worktree.hostId
+  if (
+    isWslMoveSourceHost(executionHostId) &&
+    shouldDropWslMoveProjectUpdate(
+      args.store,
+      wslMoveProjectRefForWorkspace(worktree.id),
+      lineage ? args.updates : metaUpdates
+    )
+  ) {
+    return worktree
+  }
   if (lineage?.parentWorktree) {
     args.ports.invalidateResolved()
     args.ports.invalidateScan(worktree.repoId)
@@ -91,7 +108,6 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
     })
   }
   const metadataUpdates = stripOrcaProvenanceMetaUpdates(persisted)
-  const executionHostId = worktree.identity?.executionHostId ?? worktree.hostId
   // Why: a resolution snapshot taken before a removal still returns the workspace (#22712).
   if (isRemovedFolderWorkspaceInstance(args.store, worktree.id, executionHostId)) {
     throw new Error('selector_not_found')
@@ -113,11 +129,12 @@ export function persistRuntimeManagedWorktreeSortOrder(args: {
   invalidateResolved: () => void
   notifyChanged: (repoId: string) => void
 }): { updated: number } {
+  // A moving project keeps its old order; the rest of the batch still lands.
   const updates = planWorktreeSortOrderUpdates(
     args.orderedIds,
     (worktreeId) => args.store.getWorktreeMeta(worktreeId),
     Date.now()
-  )
+  ).filter((update) => !isWslMoveWorkspaceBlocked(args.store, update.worktreeId))
   for (const update of updates) {
     args.store.setWorktreeMeta(update.worktreeId, { sortOrder: update.sortOrder })
   }

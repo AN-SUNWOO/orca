@@ -165,11 +165,9 @@ export function createRepoRemovalActions(
                   .flatMap((worktree) => (worktree.projectId ? [worktree.projectId] : []))
               ]
             : []
-        const killedTabIds = new Set<string>()
         for (const wId of worktreeIds) {
           const tabs = get().tabsByWorktree[wId] ?? []
           for (const tab of tabs) {
-            killedTabIds.add(tab.id)
             for (const ptyId of get().ptyIdsByTabId[tab.id] ?? []) {
               if (!isRemoteRuntimePtyId(ptyId)) {
                 window.api.pty.kill(ptyId)
@@ -205,35 +203,11 @@ export function createRepoRemovalActions(
               delete nextDetectedWorktrees[projectId]
             }
           }
-          const nextTabs = { ...s.tabsByWorktree }
-          const nextLayouts = { ...s.terminalLayoutsByTabId }
-          const nextLocalOnlyScrollback = { ...s.localOnlyScrollbackByTabId }
-          const nextPtyIdsByTabId = { ...s.ptyIdsByTabId }
-          const nextRuntimePaneTitlesByTabId = { ...s.runtimePaneTitlesByTabId }
-          for (const wId of worktreeIds) {
-            delete nextTabs[wId]
-          }
-          for (const tabId of killedTabIds) {
-            delete nextLayouts[tabId]
-            delete nextLocalOnlyScrollback[tabId]
-            delete nextPtyIdsByTabId[tabId]
-            delete nextRuntimePaneTitlesByTabId[tabId]
-          }
-          // Why: editor state is worktree-scoped; clear the repo's open files + active-file tracking so orphans don't linger in the session save.
+          // Why no tab/layout/editor writes here: purgeWorktreeTerminalState above already dropped them.
           const worktreeIdSet = new Set(worktreeIds)
           const removedVisitKeys = new Set(
             worktreeIds.map((worktreeId) => getWorktreeVisitKey(worktreeId, ownerHostId))
           )
-          const nextOpenFiles = s.openFiles.filter((f) => !worktreeIdSet.has(f.worktreeId))
-          const nextActiveFileIdByWorktree = { ...s.activeFileIdByWorktree }
-          const nextActiveTabTypeByWorktree = { ...s.activeTabTypeByWorktree }
-          for (const wId of worktreeIds) {
-            delete nextActiveFileIdByWorktree[wId]
-            delete nextActiveTabTypeByWorktree[wId]
-          }
-          const activeFileCleared = s.activeFileId
-            ? s.openFiles.some((f) => f.id === s.activeFileId && worktreeIdSet.has(f.worktreeId))
-            : false
           const nextRepos = s.repos.filter(
             (r) => !repoMatchesHostIdentity(r, projectId, ownerHostId)
           )
@@ -268,17 +242,6 @@ export function createRepoRemovalActions(
             filterRepoIds: s.filterRepoIds.filter((id) => id !== projectId),
             worktreesByRepo: nextWorktrees,
             detectedWorktreesByRepo: nextDetectedWorktrees,
-            tabsByWorktree: nextTabs,
-            ptyIdsByTabId: nextPtyIdsByTabId,
-            runtimePaneTitlesByTabId: nextRuntimePaneTitlesByTabId,
-            terminalLayoutsByTabId: nextLayouts,
-            localOnlyScrollbackByTabId: nextLocalOnlyScrollback,
-            activeTabId: s.activeTabId && killedTabIds.has(s.activeTabId) ? null : s.activeTabId,
-            openFiles: nextOpenFiles,
-            activeFileIdByWorktree: nextActiveFileIdByWorktree,
-            activeTabTypeByWorktree: nextActiveTabTypeByWorktree,
-            activeFileId: activeFileCleared ? null : s.activeFileId,
-            activeTabType: activeFileCleared ? 'terminal' : s.activeTabType,
             lastVisitedAtByWorktreeId: nextLastVisitedAtByWorktreeId,
             folderWorkspacePathStatuses: {},
             sortEpoch: s.sortEpoch + 1,

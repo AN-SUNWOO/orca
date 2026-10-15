@@ -9,10 +9,15 @@ import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusa
 import type { AgentSessionOperationRow } from '../../shared/agent-session-operation-ledger'
 import type {
   AgentSessionProviderHandle,
+  AgentSessionProviderHandleLink,
   StructuredAgentId
 } from '../../shared/agent-session-provider-handle'
 import type { AgentSessionLease, AgentSessionRecord } from '../../shared/agent-session-record'
 import { agentSessionLeaseAdmitsWriter } from '../../shared/agent-session-lease-adjudication'
+import {
+  agentSessionAccountHomesEqual,
+  type AgentSessionAccountHome
+} from '../../shared/agent-session-account-home'
 
 export type StructuredAgentSessionAdoptionOwnership = {
   sessionId: string
@@ -23,8 +28,8 @@ export type StructuredAgentSessionAdoptionOwnership = {
 }
 
 export type StructuredAgentSessionAdoption = {
-  /** The account home the transcript was actually found under — never a client-supplied path. */
-  accountHomePath: string
+  /** The account home the transcript was actually found under — never a client-supplied one. */
+  accountHome: AgentSessionAccountHome
   transcriptPath: string
 }
 
@@ -37,6 +42,8 @@ export type CommittedStructuredAgentSessionAdoptionReplay = {
 export function findCommittedStructuredAgentSessionAdoptionReplay(input: {
   agent: StructuredAgentId
   providerSessionId: string
+  /** The Session History row id a link of the agent's handle chain shows as. */
+  rowSessionId: (link: AgentSessionProviderHandleLink) => string
   selfSessionId: string
   callerKey: string
   operationId: string
@@ -62,7 +69,7 @@ export function findCommittedStructuredAgentSessionAdoptionReplay(input: {
   ) {
     return null
   }
-  if (adopted.handle.nativeId !== input.providerSessionId) {
+  if (input.rowSessionId(adopted) !== input.providerSessionId) {
     return null
   }
   return { record, providerHandle: adopted.handle }
@@ -120,31 +127,30 @@ export function structuredAdoptionConflictError(
  */
 export async function resolveStructuredAgentSessionAdoption(input: {
   providerSessionId: string
-  candidateAccountHomes: readonly string[]
+  candidateAccountHomes: readonly AgentSessionAccountHome[]
   resolveTranscript: (args: {
     providerSessionId: string
-    accountHomePath: string
+    accountHome: AgentSessionAccountHome
     launchEnv: NodeJS.ProcessEnv
     workspaceCwd: string
   }) => Promise<string | null>
   launchEnv: NodeJS.ProcessEnv
   workspaceCwd: string
 }): Promise<StructuredAgentSessionAdoption> {
-  const seen = new Set<string>()
-  for (const accountHomePath of input.candidateAccountHomes) {
-    const trimmed = accountHomePath.trim()
-    if (!trimmed || seen.has(trimmed)) {
+  const seen: AgentSessionAccountHome[] = []
+  for (const accountHome of input.candidateAccountHomes) {
+    if (seen.some((home) => agentSessionAccountHomesEqual(home, accountHome))) {
       continue
     }
-    seen.add(trimmed)
+    seen.push(accountHome)
     const transcriptPath = await input.resolveTranscript({
       providerSessionId: input.providerSessionId,
-      accountHomePath: trimmed,
+      accountHome,
       launchEnv: input.launchEnv,
       workspaceCwd: input.workspaceCwd
     })
     if (transcriptPath) {
-      return { accountHomePath: trimmed, transcriptPath }
+      return { accountHome, transcriptPath }
     }
   }
   // Refuse rather than fall back to the default home. Resuming under a home that does not hold the

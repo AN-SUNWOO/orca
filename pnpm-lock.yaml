@@ -173,7 +173,7 @@ patchedDependencies:
   '@xterm/addon-serialize@0.15.0-beta.301': b35533fe252e7e45433150170348889f4e08a6c17f7017ac34ea694d831fec7f
   '@xterm/addon-webgl@0.20.0-beta.300': 5349718f2c19d9319a81552580bf9618ded9b00f3707a5c6cdbbae1910849cd9
   '@xterm/xterm@6.1.0-beta.304': 9e1c200b2332745ef9e01e64696e9cda6f629937c37a0ee652323f25ccc8df5c
-  i18next-cli@1.74.2: 7955b89d3aa229f477408608d331f78c85148a85a85913729f89fac65ad8b207
+  i18next-cli@1.74.2: 2ee32eef742615cd133e1a6940f027deb3723a8430bb7953bba3a6769b0aac47
   lint-staged@16.4.0: 7333b3837f80a7fbd045964db6d76ba4fc118e49134bdbabb00585b6b7b60673
   monaco-editor@0.55.1: 53b71f7d8a7c00b76ffdb73ce83d18e31692f193f5fafa6a390e48f5b3fdd636
   node-pty@1.1.0: c2fe19cde7aef223738a7503ae429dd9b03432130b064aa64a601900b33c151f
@@ -484,7 +484,7 @@ importers:
         version: 9.1.7
       i18next-cli:
         specifier: 1.74.2
-        version: 1.74.2(patch_hash=7955b89d3aa229f477408608d331f78c85148a85a85913729f89fac65ad8b207)(@types/node@25.9.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)
+        version: 1.74.2(patch_hash=2ee32eef742615cd133e1a6940f027deb3723a8430bb7953bba3a6769b0aac47)(@types/node@25.9.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)
       katex:
         specifier: ^0.16.47
         version: 0.16.47
@@ -12939,7 +12939,7 @@ snapshots:
 
   husky@9.1.7: {}
 
-  i18next-cli@1.74.2(patch_hash=7955b89d3aa229f477408608d331f78c85148a85a85913729f89fac65ad8b207)(@types/node@25.9.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2):
+  i18next-cli@1.74.2(patch_hash=2ee32eef742615cd133e1a6940f027deb3723a8430bb7953bba3a6769b0aac47)(@types/node@25.9.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2):
     dependencies:
       '@croct/json5-parser': 0.2.2
       '@swc/core': 1.16.2

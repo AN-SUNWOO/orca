@@ -5,6 +5,26 @@ import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useCallback, useMemo, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Why: these fixtures have neither inline visual owners nor sender navigation.
+const unusedChatLeaves = vi.hoisted(() => ({
+  inlineVisual: vi.fn(() => {
+    throw new Error('Unexpected inline visual in transcript fixture')
+  }),
+  openSender: vi.fn(() => {
+    throw new Error('Unexpected sender navigation in transcript fixture')
+  })
+}))
+vi.mock('./NativeChatInlineVisual', () => ({
+  NativeChatInlineVisual: unusedChatLeaves.inlineVisual
+}))
+vi.mock('@/lib/open-agent-message-sender', () => ({
+  openAgentMessageSender: unusedChatLeaves.openSender
+}))
+afterEach(() => {
+  expect(unusedChatLeaves.inlineVisual).not.toHaveBeenCalled()
+  expect(unusedChatLeaves.openSender).not.toHaveBeenCalled()
+})
 import type {
   AgentJournalItemBody,
   AgentJournalRenderItem
@@ -113,6 +133,16 @@ describe('jumping from the rail while following the end', () => {
   let lastEventScrollTop = 0
 
   beforeEach(() => {
+    vi.useFakeTimers({
+      toFake: [
+        'Date',
+        'performance',
+        'setTimeout',
+        'clearTimeout',
+        'requestAnimationFrame',
+        'cancelAnimationFrame'
+      ]
+    })
     const undoLayout = stubLayout({ scrollGeometry: true, offsetChain: true })
     const stubbedHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
     restore = [
@@ -169,6 +199,7 @@ describe('jumping from the rail while following the end', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     Object.defineProperty(layout, 'aboveTranscriptPx', {
       configurable: true,
@@ -202,8 +233,7 @@ describe('jumping from the rail while following the end', () => {
       fireEvent.scroll(element)
     }
     await act(async () => {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0))
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      vi.advanceTimersByTime(16)
     })
   }
 

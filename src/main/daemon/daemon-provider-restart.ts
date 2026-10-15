@@ -83,9 +83,9 @@ async function runRestartDaemon(expectedDaemonPid?: number): Promise<RestartDaem
   const killedCount =
     new Set([...currentOnly.getActiveSessionIds(), ...currentDaemonSessionIds]).size +
     fallbackKilledCount
-  currentOnly.fanoutSyntheticExits(-1)
+  currentOnly.fanoutSyntheticExits(-1, { replacedByRestart: true })
   if (currentAdapter instanceof DegradedDaemonPtyProvider) {
-    currentAdapter.fanoutCurrentDaemonSyntheticExits(-1)
+    currentAdapter.fanoutCurrentDaemonSyntheticExits(-1, { replacedByRestart: true })
   }
 
   // Step 2: detach renderer listeners — after step 1 (so synthesized exits land) and before step 6 (no stale binding).

@@ -50,7 +50,7 @@ vi.mock('./mobile-tasks-dependencies', async () => {
     ...(await import('../theme/mobile-theme')),
     ...(await import('./use-host-repo-list')),
     ...(await import('./host-repo-list')),
-    ...(await import('./mobile-task-providers')),
+    ...(await import('../../../src/shared/task-providers')),
     ...(await import('./hosted-repo-selection')),
     ...(await import('./mobile-work-items')),
     ...(await import('./github-work-item-source-errors')),
@@ -148,9 +148,13 @@ function issue(title: string) {
 /** A desktop relaying to `runtime:vm`, whose repo list `vmRepoList` answers. */
 function desktop(
   vmRepoList: () => Promise<unknown> = async () => ({ repos: VM_REPOS }),
-  hostsList: () => Promise<unknown> = async () => ({ hosts: HOSTS })
+  hostsList: () => Promise<unknown> = async () => ({ hosts: HOSTS }),
+  jiraStatus: () => Promise<RpcResponse> = async () => reply({})
 ): FakeSession {
   return recording(new FakeSession('connected'), async (method, executionHost) => {
+    if (method === 'jira.status') {
+      return jiraStatus()
+    }
     if (method === 'mobileRelay.hosts.list') {
       return reply(await hostsList())
     }
@@ -254,6 +258,72 @@ function ranOn(client: FakeSession, method: string): string[] {
 }
 
 describe('Tasks screen repos on the desktop and its servers', () => {
+  it('hydrates other providers while Jira status is pending and ignores the previous host reply', async () => {
+    const jiraStatus = deferred<RpcResponse>()
+    const client = desktop(undefined, undefined, () => jiraStatus.promise)
+    const model = await mount(client, [MOBILE_DESKTOP_RELAY_RUNTIME_CAPABILITY])
+    await settle()
+    expect(model().taskStateHydrated).toBe(true)
+    expect(titles(model)).toContain('from the desktop')
+
+    await act(async () => {
+      desktopRef.current = desktop()
+      model().setShowRepoPicker(true)
+    })
+    await settle()
+    const nextConnection = model().jiraConnection
+    jiraStatus.resolve(reply({ connected: true, sites: [] }))
+    await settle()
+    expect(model().jiraConnection).toEqual(nextConnection)
+  })
+
+  it('clears the previous desktop Jira connection while the next status is pending', async () => {
+    const site = {
+      id: 'desktop-a-site',
+      siteUrl: 'https://a.atlassian.net',
+      displayName: 'Desktop A',
+      deployment: 'cloud' as const
+    }
+    const model = await mount(
+      desktop(undefined, undefined, async () => reply({ connected: true, sites: [site] })),
+      [],
+      [],
+      { defaultTaskSource: 'jira' }
+    )
+    await settle()
+    expect(model().jiraConnection).toMatchObject({ connected: true, selection: site.id })
+    const status = deferred<RpcResponse>()
+    const nextDesktop = desktop(undefined, undefined, () => status.promise)
+    await act(async () => {
+      desktopRef.current = nextDesktop
+      model().setShowRepoPicker(true)
+    })
+    await settle()
+    expect(model().taskStateHydrated).toBe(true)
+    expect(model().jiraConnection).toMatchObject({ connected: false, sites: [], selection: null })
+    expect(ranOn(nextDesktop, 'jira.listIssues')).toEqual([])
+    status.resolve(reply({ connected: false }))
+    await settle()
+  })
+
+  it('keeps the newer explicit Jira status when an initial probe arrives late', async () => {
+    const probe = deferred<RpcResponse>()
+    let requests = 0
+    const client = desktop(undefined, undefined, () => {
+      requests += 1
+      return requests === 1 ? probe.promise : Promise.resolve(reply({ connected: true }))
+    })
+    const model = await mount(client, [])
+    await settle()
+    await act(async () => {
+      await model().refreshJiraConnection()
+    })
+    expect(model().jiraConnection.connected).toBe(true)
+    probe.resolve(reply({ connected: false }))
+    await settle()
+    expect(model().jiraConnection.connected).toBe(true)
+  })
+
   it("lists a reachable server's repos beside the desktop's, as the desktop's task page does", async () => {
     const client = desktop()
     const model = await mount(client, [MOBILE_DESKTOP_RELAY_RUNTIME_CAPABILITY])

@@ -234,8 +234,12 @@ describe('connectPanePty', () => {
       })
 
       expect(deps.setRuntimePaneTitle).toHaveBeenCalledWith('tab-1', 1, 'Codex working')
-      expect(deps.markWorktreeUnread).toHaveBeenCalledTimes(1)
-      expect(deps.markTerminalTabUnread).toHaveBeenCalledWith('tab-1', 'terminal-bell')
+      expect(deps.markTerminalBell).toHaveBeenCalledTimes(1)
+      expect(deps.markTerminalBell).toHaveBeenCalledWith({
+        worktreeId: 'wt-1',
+        tabId: 'tab-1',
+        paneKey: makePaneKey('tab-1', LEAF_1)
+      })
       expect(deps.dispatchNotification).not.toHaveBeenCalled()
       vi.advanceTimersByTime(250)
       expect(deps.dispatchNotification).toHaveBeenCalledWith(
@@ -269,8 +273,7 @@ describe('connectPanePty', () => {
         facts: [{ kind: 'bell' }]
       })
 
-      expect(deps.markWorktreeUnread).not.toHaveBeenCalled()
-      expect(deps.markTerminalTabUnread).not.toHaveBeenCalled()
+      expect(deps.markTerminalBell).not.toHaveBeenCalled()
     })
 
     it('schedules the completion notification for genuine working→idle facts', async () => {
@@ -354,8 +357,7 @@ describe('connectPanePty', () => {
       // But no task-complete notification or unread attention is scheduled.
       vi.advanceTimersByTime(AGENT_TASK_COMPLETE_NOTIFICATION_MAX_WAIT_MS * 2)
       expect(deps.dispatchNotification).not.toHaveBeenCalled()
-      expect(deps.markWorktreeUnread).not.toHaveBeenCalled()
-      expect(deps.markTerminalPaneUnread).not.toHaveBeenCalled()
+      expect(deps.markTerminalBell).not.toHaveBeenCalled()
     })
 
     it('drops the agent status from a command-finished fact like the byte path did', async () => {
@@ -672,14 +674,14 @@ describe('connectPanePty', () => {
         seq: 1,
         facts: [{ kind: 'bell' }]
       })
-      expect(deps.markWorktreeUnread).not.toHaveBeenCalled()
+      expect(deps.markTerminalBell).not.toHaveBeenCalled()
 
       // Hydration with switch still off: byte parsing stays the single consumer — one BEL marks unread once.
       mockStoreState.settings = { terminalMainSideEffectAuthority: false }
       notifyStoreSubscribers()
       const onBell = createdTransportOptions[0]?.onBell as () => void
       onBell()
-      expect(deps.markWorktreeUnread).toHaveBeenCalledTimes(1)
+      expect(deps.markTerminalBell).toHaveBeenCalledTimes(1)
     })
   })
 })

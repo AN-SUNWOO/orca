@@ -5,6 +5,7 @@ import type { FirstWorkBranchRenameDeps } from './first-work-branch-rename'
 import { rememberBranchRenameFailureOutput } from './branch-rename-failure-output'
 import { renameWorktreeFolderOnFirstWork } from './first-work-folder-rename'
 import { moveWorktree } from '../git/worktree'
+import { isWslMoveFolderWorkspaceBlocked } from '../persistence/moving-wsl-projects/wsl-move-background-backoff'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 
@@ -35,6 +36,12 @@ export function firstWorkRenameDeps(
       return scope?.type === 'folder'
         ? store.getFolderWorkspace(scope.folderWorkspaceId)?.folderPath
         : undefined
+    },
+    isFolderWorkspaceWslMoveBlocked: (worktreeId) => {
+      const scope = parseWorkspaceKey(worktreeId)
+      const folder =
+        scope?.type === 'folder' ? store.getFolderWorkspace(scope.folderWorkspaceId) : undefined
+      return !!folder && isWslMoveFolderWorkspaceBlocked(folder)
     },
     isPendingFirstAgentMessageRename: (worktreeId) => {
       const scope = parseWorkspaceKey(worktreeId)

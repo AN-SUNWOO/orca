@@ -10,7 +10,7 @@ import { createActiveWorkspaceTerminalActions } from '../terminals/terminal-acti
 import { createTerminalTabCloseActions } from '../terminals/terminal-tab-close'
 import { createTerminalTabNavigationActions } from '../terminals/terminal-tab-navigation'
 import { createTerminalTabPresentationActions } from '../terminals/terminal-tab-presentation'
-import { createTerminalTabAttentionActions } from '../terminals/terminal-tab-attention'
+import { createTerminalTabAppearanceActions } from '../terminals/terminal-tab-appearance'
 import { createTerminalPtyBindingActions } from '../terminals/terminal-pty-bindings'
 import { createTerminalPtyReleaseActions } from '../terminals/terminal-pty-release'
 import { createTerminalUnverifiedPtyLossActions } from '../terminals/terminal-unverified-pty-loss'
@@ -30,9 +30,6 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
   activeTabIdByWorktree: {},
   ptyIdsByTabId: {},
   runtimePaneTitlesByTabId: {},
-  unreadTerminalTabs: {},
-  unreadTerminalPanes: {},
-  unreadAgentCompletionPanes: {},
   suppressedPtyExitIds: {},
   pendingPtyShutdownIds: {},
   pendingCodexPaneRestartIds: {},
@@ -80,7 +77,7 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
   ...createTerminalTabCloseActions(set, get),
   ...createTerminalTabNavigationActions(set, get),
   ...createTerminalTabPresentationActions(set, get),
-  ...createTerminalTabAttentionActions(set, get),
+  ...createTerminalTabAppearanceActions(set, get),
   ...createTerminalPtyBindingActions(set, get),
   ...createTerminalPtyReleaseActions(set, get),
   ...createTerminalUnverifiedPtyLossActions(set),

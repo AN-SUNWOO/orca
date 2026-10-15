@@ -3,6 +3,7 @@ import { basename, dirname, getRelativePathInsideRoot } from '@/lib/path'
 import { getConnectionIdForFileFromState } from '@/lib/connection-owner-resolution'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
+import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
 import type { AppState } from '@/store/types'
 
 /** `location` is what the grant was minted for, so its readers and its share key stay on that host. */
@@ -43,19 +44,28 @@ export function buildDocPreviewGrantRequest(
     return { owner: { kind: 'ssh', connectionId }, requestBase, root, entryRelativePath }
   }
   const environmentId = getRuntimeEnvironmentIdForWorktree(state, worktreeId)
-  if (!environmentId || !worktreeRoot || !worktreeRelativePath) {
+  // Outside the workspace, a chat's scratch folder stands in for it: its host serves it as a root.
+  const base =
+    worktreeRoot && worktreeRelativePath
+      ? {
+          root: worktreeRoot,
+          worktreeSelector: toRuntimeWorktreeSelector(worktreeId),
+          relativePath: worktreeRelativePath
+        }
+      : chatScratchFileAddress(filePath)
+  if (!environmentId || !base) {
     return null
   }
   return {
     owner: {
       kind: 'runtime',
       environmentId,
-      worktreeSelector: toRuntimeWorktreeSelector(worktreeId),
-      worktreeRoot
+      worktreeSelector: base.worktreeSelector,
+      worktreeRoot: base.root
     },
-    requestBase,
+    requestBase: base.root,
     root,
-    entryRelativePath
+    entryRelativePath: base.relativePath
   }
 }
 

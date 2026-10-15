@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockCreateTab = vi.fn()
 const mockCreateEmptySplitGroup = vi.fn()
 const mockCloseEmptyGroup = vi.fn()
-const mockQueueTabStartupCommand = vi.fn()
+/** Startup commands published with the created tabs, in creation order. */
+function queuedStartups() {
+  return mockCreateTab.mock.calls.flatMap((call) => call[3]?.pendingStartup ?? [])
+}
 const mockSetActiveTabType = vi.fn()
 const mockSetTabBarOrder = vi.fn()
 const runtimeMocks = vi.hoisted(() => ({
@@ -16,7 +19,6 @@ const mockState = {
   createTab: mockCreateTab,
   createEmptySplitGroup: mockCreateEmptySplitGroup,
   closeEmptyGroup: mockCloseEmptyGroup,
-  queueTabStartupCommand: mockQueueTabStartupCommand,
   setActiveTabType: mockSetActiveTabType,
   setTabBarOrder: mockSetTabBarOrder,
   tabsByWorktree: {} as Record<string, { id: string }[]>,
@@ -83,8 +85,10 @@ describe('launchAiVaultSessionInNewTab', () => {
       command: 'claude --resume session-1'
     })
 
-    expect(mockCreateTab).toHaveBeenCalledWith('wt-1', 'group-1')
-    expect(mockQueueTabStartupCommand).toHaveBeenCalledWith('tab-1', {
+    expect(mockCreateTab).toHaveBeenCalledWith('wt-1', 'group-1', undefined, {
+      pendingStartup: expect.anything()
+    })
+    expect(queuedStartups()).toContainEqual({
       command: 'claude --resume session-1',
       telemetry: {
         agent_kind: 'claude',
@@ -115,9 +119,10 @@ describe('launchAiVaultSessionInNewTab', () => {
     })
 
     expect(mockCreateTab).toHaveBeenCalledWith('wt-1', undefined, undefined, {
-      startupCwd: 'C:\\Users\\alice\\repo'
+      startupCwd: 'C:\\Users\\alice\\repo',
+      pendingStartup: expect.anything()
     })
-    expect(mockQueueTabStartupCommand).toHaveBeenCalledWith('tab-1', {
+    expect(queuedStartups()).toContainEqual({
       command: "claude '--dangerously-skip-permissions' '--effort' 'max' '--resume' 'session-1'",
       env: { ANTHROPIC_BASE_URL: 'https://claude.example.test' },
       envToDelete: ['CODEX_HOME'],
@@ -146,7 +151,9 @@ describe('launchAiVaultSessionInNewTab', () => {
     })
 
     expect(mockCreateEmptySplitGroup).toHaveBeenCalledWith('wt-1', 'group-1', 'right')
-    expect(mockCreateTab).toHaveBeenCalledWith('wt-1', 'group-new')
+    expect(mockCreateTab).toHaveBeenCalledWith('wt-1', 'group-new', undefined, {
+      pendingStartup: expect.anything()
+    })
   })
 
   it('creates runtime-hosted resume terminals through the paired host', async () => {
@@ -188,7 +195,7 @@ describe('launchAiVaultSessionInNewTab', () => {
       activate: true
     })
     expect(mockCreateTab).not.toHaveBeenCalled()
-    expect(mockQueueTabStartupCommand).not.toHaveBeenCalled()
+    expect(queuedStartups()).toEqual([])
 
     if (result.tabId === null) {
       await expect(result.runtimeLaunch).resolves.toEqual({ status: 'created' })

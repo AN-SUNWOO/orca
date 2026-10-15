@@ -6,6 +6,7 @@ import type { Section, Worktree } from '../worktree/workspace-list-types'
 const { rowRenders } = vi.hoisted(() => ({ rowRenders: vi.fn() }))
 
 vi.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
   Pressable: 'Pressable',
   RefreshControl: 'RefreshControl',
   // Renders every row through the list's own renderItem, as a mounted SectionList would.
@@ -67,7 +68,7 @@ function worktree(id: string, overrides: Partial<Worktree> = {}): Worktree {
 }
 
 const noop = () => {}
-const stable = { ref: { current: null }, repoColors: new Map(), repoIcons: new Map() }
+const stable = { ref: { current: null }, repoById: new Map() }
 
 function listProps(worktrees: Worktree[]) {
   // Each poll re-parses the payload, so rows are fresh objects even when nothing changed.
@@ -90,13 +91,12 @@ function listProps(worktrees: Worktree[]) {
     now: 1_000,
     reconnectAttempts: 0,
     relayRecovery: { pairingRejected: false },
-    sectionsResult: { rawSections: sections, sections, uniqueRepoColors: stable.repoColors },
+    sectionsResult: { rawSections: sections, sections, repoById: stable.repoById },
     settings: { activeFilterCount: 0, toggleWorktreeLineage: noop },
     state: {
       actionError: '',
       setActionTarget: noop,
       groupMode: 'none',
-      repoIconsByName: stable.repoIcons,
       search: '',
       showSearch: false,
       worktreesLoaded: true

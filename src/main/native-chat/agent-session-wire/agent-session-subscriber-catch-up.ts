@@ -138,6 +138,7 @@ export function deliverToSubscriber(
           ? { actionablePromptIds: page.actionablePromptIds }
           : {}),
         ...(page.working !== undefined ? { working: page.working } : {}),
+        ...(page.hasNewer ? { hasNewer: true as const } : {}),
         ...shared
       },
       // On a multi-page catch-up the draft list rides only the final page, or a

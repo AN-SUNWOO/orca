@@ -417,8 +417,8 @@ describe('connectPanePty', () => {
     expect(remountDeps.syncPanePtyLayoutBinding).toHaveBeenCalledWith(1, 'pty-restarted')
   })
 
-  // Why: BEL (0x07) is the attention signal — onBell raises worktree/tab/pane unread + an OS notification.
-  it('wires onBell to raise worktree unread, tab unread, and OS notification', async () => {
+  // Why: BEL (0x07) is the attention signal — onBell raises the bell event + an OS notification.
+  it('wires onBell to the bell attention event and OS notification', async () => {
     const { connectPanePty } = await import('./pty-connection')
     const transport = createMockTransport()
     transportFactoryQueue.push(transport)
@@ -437,12 +437,12 @@ describe('connectPanePty', () => {
 
     bellHandler()
 
-    expect(deps.markWorktreeUnread).toHaveBeenCalledTimes(1)
-    expect(deps.markTerminalTabUnread).toHaveBeenCalledWith('tab-1', 'terminal-bell')
-    expect(deps.markTerminalPaneUnread).toHaveBeenCalledWith(
-      makePaneKey('tab-1', LEAF_1),
-      'terminal-bell'
-    )
+    expect(deps.markTerminalBell).toHaveBeenCalledTimes(1)
+    expect(deps.markTerminalBell).toHaveBeenCalledWith({
+      worktreeId: 'wt-1',
+      tabId: 'tab-1',
+      paneKey: makePaneKey('tab-1', LEAF_1)
+    })
     expect(deps.dispatchNotification).not.toHaveBeenCalled()
     vi.advanceTimersByTime(250)
     expect(deps.dispatchNotification).toHaveBeenCalledWith(
@@ -453,7 +453,7 @@ describe('connectPanePty', () => {
     )
   })
 
-  it('does not raise pane attention on bell when the experimental setting is disabled', async () => {
+  it('hands the bell to the attention module with its pane even when pane attention is off', async () => {
     const { connectPanePty } = await import('./pty-connection')
     const transport = createMockTransport()
     transportFactoryQueue.push(transport)
@@ -475,9 +475,13 @@ describe('connectPanePty', () => {
 
     bellHandler()
 
-    expect(deps.markWorktreeUnread).toHaveBeenCalledTimes(1)
-    expect(deps.markTerminalTabUnread).toHaveBeenCalledWith('tab-1', 'terminal-bell')
-    expect(deps.markTerminalPaneUnread).not.toHaveBeenCalled()
+    // Why: the experimental pane gate lives in the workspace-attention module, not the PTY binding.
+    expect(deps.markTerminalBell).toHaveBeenCalledTimes(1)
+    expect(deps.markTerminalBell).toHaveBeenCalledWith({
+      worktreeId: 'wt-1',
+      tabId: 'tab-1',
+      paneKey: makePaneKey('tab-1', LEAF_1)
+    })
   })
 
   // Kill switch on (default): no byte parsers; pane policy is the PTY's single fact consumer (terminal-side-effect-authority.md).

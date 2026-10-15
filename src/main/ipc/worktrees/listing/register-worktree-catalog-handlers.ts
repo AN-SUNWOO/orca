@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import { withoutWslMovedRepos } from '../../../persistence/moving-wsl-projects/wsl-move-scope-guard'
 import { isFolderRepo } from '../../../../shared/repo-kind'
 import {
   getRepoExecutionHostId,
@@ -67,7 +68,8 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
   const { store } = context
 
   ipcMain.handle('worktrees:listAll', async () => {
-    const repos = store.getRepos()
+    // A repo the WSL host owns is listed by the host; this build must not scan its old path.
+    const repos = withoutWslMovedRepos(store.getRepos())
     const legacyMetadata =
       typeof store.getAllWorktreeMetaForHost === 'function' ? undefined : store.getAllWorktreeMeta()
     const metadataByHost = new Map<ExecutionHostId, Record<string, WorktreeMeta>>()

@@ -3,6 +3,7 @@ import type { SshTarget, SshTargetSummary } from '../../../../shared/ssh-types'
 import { parseAppSshPtyId } from '../../../../shared/ssh-pty-id'
 import { sanitizeSshTargetGeneration } from '../../../../shared/ssh-target-generation'
 import { resolveDirectSshTargetScope } from '../../lib/direct-ssh-target-scope'
+import { unbindTerminalTabPtys } from './tabs/worktree-layout-lifecycle'
 
 export function sshTargetLabelsEqual(
   labels: Map<string, string>,
@@ -134,8 +135,7 @@ function clearSshTargetTabPtyState(
   | 'pendingCodexPaneRestartIds'
   | 'codexRestartNoticeByPtyId'
 > & { changed: boolean } {
-  let nextTabsByWorktree = state.tabsByWorktree
-  const nextPtyIdsByTabId = { ...state.ptyIdsByTabId }
+  const unboundTabIds = new Set<string>()
   const nextLastKnownRelayPtyIdByTabId = {
     ...state.lastKnownRelayPtyIdByTabId
   }
@@ -143,11 +143,9 @@ function clearSshTargetTabPtyState(
     ...state.pendingCodexPaneRestartIds
   }
   const nextCodexRestartNoticeByPtyId = { ...state.codexRestartNoticeByPtyId }
-  let changed = false
 
-  for (const [worktreeId, tabs] of Object.entries(state.tabsByWorktree)) {
-    let nextTabs = tabs
-    for (const [index, tab] of tabs.entries()) {
+  for (const tabs of Object.values(state.tabsByWorktree)) {
+    for (const tab of tabs) {
       const lastKnownPtyId = state.lastKnownRelayPtyIdByTabId[tab.id]
       const ptyIds = [
         ...new Set([
@@ -164,32 +162,18 @@ function clearSshTargetTabPtyState(
       if (!tab.ptyId && ptyIds.length === 0 && nextLastKnownRelayPtyIdByTabId[tab.id] == null) {
         continue
       }
-      changed = true
-      if (nextTabs === tabs) {
-        nextTabs = [...tabs]
-      }
-      const { pendingActivationSpawn: _pendingActivationSpawn, ...tabWithoutActivationSpawn } = tab
-      void _pendingActivationSpawn
-      nextTabs[index] = { ...tabWithoutActivationSpawn, ptyId: null }
-      nextPtyIdsByTabId[tab.id] = []
+      unboundTabIds.add(tab.id)
       delete nextLastKnownRelayPtyIdByTabId[tab.id]
       for (const ptyId of ptyIds) {
         delete nextPendingCodexPaneRestartIds[ptyId]
         delete nextCodexRestartNoticeByPtyId[ptyId]
       }
     }
-    if (nextTabs !== tabs) {
-      if (nextTabsByWorktree === state.tabsByWorktree) {
-        nextTabsByWorktree = { ...nextTabsByWorktree }
-      }
-      nextTabsByWorktree[worktreeId] = nextTabs
-    }
   }
 
   return {
-    changed,
-    tabsByWorktree: nextTabsByWorktree,
-    ptyIdsByTabId: nextPtyIdsByTabId,
+    changed: unboundTabIds.size > 0,
+    ...unbindTerminalTabPtys(state, unboundTabIds),
     lastKnownRelayPtyIdByTabId: nextLastKnownRelayPtyIdByTabId,
     pendingCodexPaneRestartIds: nextPendingCodexPaneRestartIds,
     codexRestartNoticeByPtyId: nextCodexRestartNoticeByPtyId

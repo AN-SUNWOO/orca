@@ -30,6 +30,17 @@ const repoIconBranches = {
     label: salvagedOptional('label', z.string())
   })
 } satisfies Readonly<Record<RepoIcon['type'], z.ZodType>>
+const mobileRepoIconSchema = z.union([
+  repoIconBranches.lucide,
+  repoIconBranches.emoji,
+  repoIconBranches.image
+])
+
+/** A catalog repo's icon as MobileRepoIcon draws it; null for an arm this build cannot read. */
+export function readMobileRepoIcon(value: unknown): MobileHostRepoIcon | null {
+  const parsed = mobileRepoIconSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
 
 // What the host screen reads to label its rows and to mirror the desktop's workspace view store.
 // Checked against src/main/runtime/rpc/methods/repo.ts:29, ssh.ts:55, host-capabilities.ts:8 and
@@ -37,12 +48,12 @@ const repoIconBranches = {
 // PersistedUIState's workspace-view subset in mobile/src/worktree/workspace-view-settings.ts:14.
 
 /**
- * The host's repo catalog, narrowed to what the label maps are built from.
+ * The host's repo catalog, narrowed to what the host-label maps and the repo cache are built from.
  *
- * `id` and `displayName` are required and a row without either drops: `displayName` is the key of
- * four Maps and the argument `repoColor` hashes with `name.charCodeAt` — a row without one was a
- * TypeError that took the whole metadata refresh with it — and `id` is the Map value the workspace
- * rows resolve their host through.
+ * `id` and `displayName` are required and a row without either drops: `displayName` is what the
+ * new-workspace picker shows from the repo cache, and `id` is the Map key the workspace rows
+ * resolve their host through. `path` labels an older desktop's repo sections (the newer one serves
+ * project-sections-operations.ts instead).
  *
  * `badgeColor` sits behind main's own `||` fallback to `repoColor`, so a salvaged member draws the
  * same swatch. `repoIcon` is declared as the three arms MobileRepoIcon renders, and an arm this
@@ -64,11 +75,9 @@ export const hostRepoCatalogSchema = z
       z.looseObject({
         id: z.string(),
         displayName: z.string(),
+        path: salvagedOptional('path', z.string()),
         badgeColor: salvagedOptional('badgeColor', z.string()),
-        repoIcon: salvagedOptional(
-          'repoIcon',
-          z.union([repoIconBranches.lucide, repoIconBranches.emoji, repoIconBranches.image])
-        ),
+        repoIcon: salvagedOptional('repoIcon', mobileRepoIconSchema),
         connectionId: salvagedOptional('connectionId', z.string().nullable()),
         executionHostId: salvagedOptional('executionHostId', z.string().nullable())
       })
@@ -183,6 +192,8 @@ export const hostViewSettingsSchema = z
  * (:141) is chained `.then(…).catch(…)` and would survive a throw.
  */
 export const hostScreenUnreadReplySchema = z.unknown()
+
+export type HostRepoCatalogRow = z.output<typeof hostRepoCatalogSchema>[number]
 
 /** One decoded catalog icon: the members MobileRepoIcon reads, with the rest passed through. */
 export type MobileHostRepoIcon = NonNullable<

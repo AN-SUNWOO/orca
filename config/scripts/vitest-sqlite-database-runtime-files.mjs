@@ -1,7 +1,10 @@
 // Database opening and lifecycle fixtures exercise Node SQLite behavior.
 export const SQLITE_DATABASE_RUNTIME_INCLUDE = [
+  'src/main/ai-vault-search/session-search-dependent-transcripts.test.ts',
   'src/main/ai-vault-search/session-search-file-write.test.ts',
   'src/main/ai-vault-search/session-search-live-transcript.test.ts',
+  'src/main/ai-vault-search/session-search-list-reparse.test.ts',
+  'src/main/ai-vault-search/session-search-transcript-dependencies.test.ts',
   'src/main/ai-vault/session-scanner-devin-contention.test.ts',
   'src/main/ai-vault/session-scanner-opencode-native-worker.test.ts',
   'src/main/ai-vault/session-scanner-opencode-sqlite-bounds.test.ts',
@@ -15,6 +18,7 @@ export const SQLITE_DATABASE_RUNTIME_INCLUDE = [
   'src/main/codex/codex-index-heal-binary-contract.test.ts',
   'src/main/codex/codex-state-db.test.ts',
   'src/main/native-chat/agent-session-wire/structured-agent-session-queued-stop-row.test.ts',
+  'src/main/native-chat/structured-agent-cli-conversation-adoption.test.ts',
   'src/main/native-chat/transcript-opencode-semantic-fidelity.test.ts',
   'src/main/native-chat/transcript-opencode-sqlite-query.test.ts',
   'src/main/native-chat/transcript-opencode-subscribe.test.ts',

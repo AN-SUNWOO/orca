@@ -94,6 +94,14 @@ describe('resumeAiVaultSessionInNewChat', () => {
     settle({ kind: 'structured', sessionId: 'session-1' })
   })
 
+  it('opens an OpenCode 2 row in an OpenCode chat', async () => {
+    await resumeAiVaultSessionInNewChat(session, 'opencode2', 'worktree-1', 'resume-click')
+
+    expect(mocks.beginStructuredAgentSessionProvisionalLaunch).toHaveBeenCalledWith(
+      expect.objectContaining({ plan: expect.objectContaining({ agent: 'opencode' }) })
+    )
+  })
+
   it('toasts a conflict reported by the eventual settlement', async () => {
     const error = Object.assign(new Error('held'), { code: 'agent_session_conflict' })
     mocks.beginStructuredAgentSessionProvisionalLaunch.mockReturnValue({

@@ -1,6 +1,6 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { isRemoteRuntimePtyId } from '../../shared/remote-runtime-pty-id'
-import { OrcaRuntimeWithRefreshFloatingWorkspacePtyLiveness } from './orca-runtime-refresh-floating-workspace-pty-liveness'
+import { OrcaRuntimeWithRefreshFloatingWorkspacePtyLiveness } from './terminal/lifecycle/floating-session-liveness'
 import { writeOrchestrationPointerWithSettlement } from './orchestration/mailbox-pointer-pty-write'
 import type { WriteSettlement } from '../../shared/pty-write-settlement'
 import type { RuntimeLeafRecord } from './runtime-terminal-state-records'

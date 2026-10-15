@@ -42,6 +42,7 @@ export type NewWorkspaceComposerCardProps = {
   quickSetupOnly?: boolean
   onQuickSetupOnlySelect?: () => void
   eligibleRepos: readonly RepoOption[]
+  selectedRepo?: RepoOption | null
   repoId: string
   projectOptions?: NewWorkspaceProjectOption[]
   selectedProjectId?: string | null

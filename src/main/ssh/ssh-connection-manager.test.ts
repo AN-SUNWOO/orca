@@ -1,18 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SshTarget } from '../../shared/ssh-types'
 
-const mockState = vi.hoisted(() => ({
-  connectResults: [] as Promise<void>[],
-  instances: [] as {
-    connect: ReturnType<typeof vi.fn>
-    disconnect: ReturnType<typeof vi.fn>
-    status: 'connecting' | 'connected' | 'disconnected'
-  }[]
-}))
+type MockConnectionRecord = {
+  connect: ReturnType<typeof vi.fn>
+  disconnect: ReturnType<typeof vi.fn>
+  status: 'connecting' | 'connected' | 'disconnected'
+  awaitingCredential: boolean
+}
+
+const mockState = vi.hoisted(() => {
+  const connectResults: Promise<void>[] = []
+  const instances: MockConnectionRecord[] = []
+  return { connectResults, instances }
+})
 
 vi.mock('./ssh-connection', () => ({
   SshConnection: class MockSshConnection {
     status: 'connecting' | 'connected' | 'disconnected' = 'connecting'
+    awaitingCredential = false
     connect = vi.fn(async () => {
       await (mockState.connectResults.shift() ?? Promise.resolve())
       this.status = 'connected'
@@ -31,6 +36,14 @@ vi.mock('./ssh-connection', () => ({
     }
 
     setCallbacks(): void {}
+
+    getReusableCredentials(): null {
+      return null
+    }
+
+    isAwaitingCredential(): boolean {
+      return this.awaitingCredential
+    }
   }
 }))
 
@@ -154,6 +167,22 @@ describe('SshConnectionManager', () => {
 
     expect(mockState.instances[0].disconnect).toHaveBeenCalledTimes(2)
     expect(manager.getConnection(target.id)).toBe(replacement)
+  })
+
+  it('leaves a connection whose own reconnect is asking the user alone', async () => {
+    const manager = new SshConnectionManager({ onStateChange: vi.fn() })
+    const conn = await manager.connect(target)
+    const opened = mockState.instances.at(-1)!
+    const openedCount = mockState.instances.length
+    // Its reconnect after a drop has the credential dialog open.
+    opened.status = 'connecting'
+    opened.awaitingCredential = true
+
+    await expect(manager.connect(target)).rejects.toThrow('already in progress')
+
+    expect(opened.disconnect).not.toHaveBeenCalled()
+    expect(mockState.instances).toHaveLength(openedCount)
+    expect(manager.getConnection(target.id)).toBe(conn)
   })
 
   it('clears the pool entry when the closed connection is still the registered one', async () => {

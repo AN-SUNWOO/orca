@@ -77,7 +77,6 @@ describe('tab group "+" menu shell launch on a locally-owned workspace', () => {
     vi.clearAllMocks()
     storeState.activeWorkspaceExecutionHostId = 'local'
     mocks.getRuntimeEnvironmentIdForWorktree.mockReturnValue(null)
-    mocks.createTab.mockReturnValue({ id: 'local-tab-1' })
     stubRuntimeEnvironmentBridge({ call: mocks.runtimeCall })
   })
 
@@ -97,8 +96,10 @@ describe('tab group "+" menu shell launch on a locally-owned workspace', () => {
     await vi.waitFor(() => expect(mocks.createTab).toHaveBeenCalled())
 
     expect(mocks.runtimeCall).not.toHaveBeenCalled()
-    expect(mocks.createTab).toHaveBeenCalledWith(WORKTREE_ID, GROUP_ID, 'powershell.exe')
-    expect(mocks.setActiveTab).toHaveBeenCalledWith('local-tab-1')
+    expect(mocks.createTab).toHaveBeenCalledWith(WORKTREE_ID, GROUP_ID, 'powershell.exe', {
+      id: expect.any(String)
+    })
+    expect(mocks.setActiveTab).toHaveBeenCalledWith(mocks.createTab.mock.calls[0][3].id)
   })
 
   it('leaves the workspace on its own execution host', async () => {

@@ -125,7 +125,8 @@ export async function acquireAcpStructuredSession(input: {
           // is cutting it short: nobody is there to ask.
           return { outcome: { outcome: 'cancelled' } }
         }
-        if (launch.fullAccess) {
+        // A request the dialect claims is a question for the person, which full access never answers.
+        if (launch.fullAccess && !spec.dialect.request?.('session/request_permission', request)) {
           // Full access: Orca answers yes for the person, as the agent's own bypass flag would.
           const allow = request.options.find((option) => option.kind === 'allow_once')
           if (allow) {
@@ -189,7 +190,7 @@ export async function acquireAcpStructuredSession(input: {
       dialect: spec.dialect,
       now,
       childStops: () => childStops,
-      ...acpLaneChildWorkDelivery(deps, sessionId),
+      ...acpLaneChildWorkDelivery(deps, sessionId, events),
       logger: deps.logger ?? createStructuredAgentSessionLogger(),
       onInputAccepted: (clientMessageId) => session?.turns.accept(clientMessageId),
       onFailed: () => input.forceClose(sessionId)

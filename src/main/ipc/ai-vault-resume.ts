@@ -8,6 +8,7 @@ import { isUnresolvedOwnerHostId, parseExecutionHostId } from '../../shared/exec
 import { isWslUncPath } from '../../shared/wsl-paths'
 import { assertLegacyAiVaultResumeAllowed } from '../ai-vault/structured-session-ownership'
 import { tryEnsureStructuredAgentSessionHostForResume } from '../runtime/structured-agent-session-host-refusal'
+import { copyStructuredChatConversation } from '../ai-vault/structured-chat-conversation-copy'
 
 export type AiVaultResumeHandlerOptions = {
   ensureStructuredSessionOwnership?: () => Promise<void>
@@ -47,5 +48,8 @@ export async function prepareAiVaultSessionResume(
     }
     assertLegacyAiVaultResumeAllowed(args)
   }
-  return options.prepareSessionResume?.(args) ?? { useRealCodexHome: false }
+  return (
+    (await copyStructuredChatConversation(args)) ??
+    options.prepareSessionResume?.(args) ?? { useRealCodexHome: false }
+  )
 }

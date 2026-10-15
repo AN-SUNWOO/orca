@@ -147,8 +147,14 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
 
   private readonly workspaceLayoutStream = new WorkspaceLayoutStream({
     store: () => this.store,
-    homeHostId: (key) => this.tryGetWorkspaceSessionHostIdForWorktree(key)
+    homeHostId: (key) => this.tryGetWorkspaceSessionHostIdForWorktree(key),
+    // An empty title is no title.
+    liveTitle: (ptyId) => this.getTrackedDisplayTitleForPty(ptyId) || null
   })
+
+  protected markPaneLiveTitlesDirty(): void {
+    this.workspaceLayoutStream.markLiveTitlesDirty()
+  }
 
   /** The read-only layout stream (`layout.subscribe`, not advertised yet). */
   subscribeWorkspaceLayouts(

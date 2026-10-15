@@ -9,7 +9,7 @@ import { closeTestStores, createSqliteTestStore } from '../persistence-test-harn
  * are the single publication site for every transport (local IPC and remote RPC).
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -19,8 +19,16 @@ import type { Repo } from '../../shared/repo-types'
 import type { SshTarget } from '../../shared/ssh-types'
 import { getDefaultPersistedState } from '../../shared/constants'
 import type { AutomationsChangedPayload } from '../../shared/runtime-client-events'
+import { Store, initDataPath } from '../persistence'
+import { OrcaRuntimeService } from './orca-runtime'
+import * as worktreeChangeInvalidators from '../ipc/worktree-change-invalidators'
+import { _resetTerminalModelQueryAuthorityForTest } from './terminal-model-query-authority'
+import { _resetTerminalViewAttributesForTest } from './terminal-view-attribute-store'
 
 const testState = { dir: '' }
+let registrationSpy:
+  | MockInstance<typeof worktreeChangeInvalidators.registerWorktreeChangeInvalidator>
+  | undefined
 
 vi.mock('electron', () => ({
   app: { getPath: () => testState.dir },
@@ -104,11 +112,8 @@ async function makeRuntime() {
     }),
     'utf-8'
   )
-  vi.resetModules()
-  const { Store, initDataPath } = await import('../persistence')
   initDataPath()
   const store = createSqliteTestStore(Store, { dataFile: join(testState.dir, 'orca-data.json') })
-  const { OrcaRuntimeService } = await import('./orca-runtime')
   const runtime = new OrcaRuntimeService(store as never)
   const published: AutomationsChangedPayload[] = []
   vi.spyOn(runtime, 'notifyAutomationsChanged').mockImplementation(
@@ -126,11 +131,28 @@ beforeEach(() => {
   installFakeAppEnvironment({
     getPath: (name) => (name === 'userData' ? testState.dir : tmpdir())
   })
+  registrationSpy = vi.spyOn(worktreeChangeInvalidators, 'registerWorktreeChangeInvalidator')
 })
 
 afterEach(async () => {
-  await closeTestStores()
-  rmSync(testState.dir, { recursive: true, force: true })
+  try {
+    await closeTestStores()
+  } finally {
+    try {
+      // Runtime callbacks must end with their fixture.
+      for (const result of registrationSpy?.mock.results ?? []) {
+        if (result.type === 'return') {
+          result.value()
+        }
+      }
+    } finally {
+      registrationSpy?.mockRestore()
+      registrationSpy = undefined
+      _resetTerminalModelQueryAuthorityForTest()
+      _resetTerminalViewAttributesForTest()
+      rmSync(testState.dir, { recursive: true, force: true })
+    }
+  }
 })
 
 describe('scoped automationsChanged publication', () => {

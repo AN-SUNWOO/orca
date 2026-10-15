@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithSplitPtyBackedTerminal } from './orca-runtime-split-pty-backed-terminal'
+import { OrcaRuntimeWithSplitPtyBackedTerminal } from './terminal/launch/terminal-split-surface'
 import {
   resolveTerminalSessionWorktreeId,
   runtimeWorktreeIdsEqual

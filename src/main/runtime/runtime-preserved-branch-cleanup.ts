@@ -12,6 +12,7 @@ import { cleanupUnusedWorktreePushTargetRemote } from '../ipc/worktree-remote'
 import { getLocalProjectWorktreeGitOptions } from '../project-runtime-git-options'
 import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import type { Store } from '../persistence'
+import { assertWslMoveRepoWritable } from '../persistence/moving-wsl-projects/wsl-move-scope-guard'
 import { resolveWorktreeRemovalRepoOwner } from '../worktree-removal-repo-owner'
 import { parseExactWorktreeIdSelector } from './runtime-worktree-selection'
 
@@ -116,6 +117,7 @@ export class RuntimePreservedBranchCleanup {
     if (!repo) {
       throw new Error('repo_not_found')
     }
+    assertWslMoveRepoWritable(store, repo)
     if (isFolderRepo(repo)) {
       throw new Error('Folder workspaces do not have local Git branches.')
     }

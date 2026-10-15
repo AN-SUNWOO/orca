@@ -1,5 +1,7 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { OrcaRuntimeWithTerminalDrivers } from './orca-runtime-terminal-drivers'
+import type { FolderWorkspace } from '../../shared/folder-workspace-types'
+import type { ResolvedWorktree } from './runtime-worktree-path-identity'
 import { confirmRunTerminalShellAlone, readRunTerminalClientUse } from './run-terminal-client-use'
 import { ALL_EXECUTION_HOSTS_SCOPE, type ExecutionHostScope } from '../../shared/execution-host'
 import { RuntimePreservedBranchCleanup } from './runtime-preserved-branch-cleanup'
@@ -46,14 +48,30 @@ import { ClaudeAgentTeamsService } from './claude-agent-teams-service'
 import { teardownFolderWorkspacePtys } from './folder-workspace-pty-teardown'
 import { countRepoTerminalsNotKnownExited } from './project-removal-impact'
 
-export class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeWithTerminalDrivers {
-  protected readonly preservedBranchCleanup = new RuntimePreservedBranchCleanup(() =>
+import type { Worktree } from '../../shared/worktree/types'
+import type { TerminalWorkspaceLaunchScope } from './runtime-legacy-worker-terminal-recovery-types'
+
+export abstract class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeWithTerminalDrivers {
+  protected abstract runWorktreeTerminalMutation<T>(
+    worktreeId: string,
+    operation: () => Promise<T>
+  ): Promise<T>
+  protected abstract folderWorkspaceToResolvedWorktree(
+    folderWorkspace: FolderWorkspace
+  ): ResolvedWorktree
+
+  abstract resolveTerminalWorkspaceLaunchScope(
+    selector: string,
+    createdWorktree?: Worktree
+  ): Promise<TerminalWorkspaceLaunchScope>
+
+  readonly preservedBranchCleanup = new RuntimePreservedBranchCleanup(() =>
     this.store ? this.requireStore() : null
   )
 
   protected readonly getLocalProviderFn: (() => IPtyProvider) | null
 
-  protected readonly onPtyStopped: ((ptyId: string) => void) | null
+  readonly onPtyStopped: ((ptyId: string) => void) | null
 
   protected readonly onTerminalAgentStatus:
     | ((event: RuntimeTerminalAgentStatusEvent) => void)
@@ -69,11 +87,11 @@ export class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeWithTermin
 
   protected terminalSideEffectConsumerAvailable = false
 
-  protected readonly getAgentStatusSnapshotFn: (() => AgentStatusIpcPayload[]) | null
+  readonly getAgentStatusSnapshotFn: (() => AgentStatusIpcPayload[]) | null
 
   protected readonly structuredAgentStatusSinkFn: StructuredAgentSessionStatusSink | null
 
-  protected readonly readObservedAgentStatusPaneIdentityFn: (
+  readonly readObservedAgentStatusPaneIdentityFn: (
     paneKey: string
   ) => ObservedAgentStatusPaneIdentity
 

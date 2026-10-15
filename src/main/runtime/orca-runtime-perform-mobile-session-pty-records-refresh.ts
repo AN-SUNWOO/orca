@@ -261,6 +261,10 @@ export class OrcaRuntimeWithPerformMobileSessionPtyRecordsRefresh extends OrcaRu
         opts.clientNavigationId
       )
     } else if (tab.type === 'browser') {
+      // Opening a saved tab is what starts its page, as on a desktop.
+      if (tab.browserPageId) {
+        await this.serveBrowserTabs.start(worktreeId, tab.browserPageId)
+      }
       // Why: browser mobile tabs are renderer-owned unified tabs; focusing the
       // session tab keeps desktop tab order/group state authoritative.
       if (targetsHost) {

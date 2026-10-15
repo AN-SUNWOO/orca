@@ -4,6 +4,7 @@
 
 import type { TabGroup } from '../tab-types'
 import type { LayoutGroup } from './workspace-layout-model'
+import { rootGroupSeed } from './workspace-layout-minted-ids'
 
 export type OrderCandidate = {
   id: string
@@ -46,7 +47,7 @@ export function resolveGroupOrder(args: {
   for (const candidate of [...unplaced].sort(compareUnplaced)) {
     let group = groups.find((entry) => entry.id === candidate.groupId) ?? groups[0]
     if (!group) {
-      group = { id: args.mintId(`group:${args.workspaceKey}`), tabOrder: [] }
+      group = { id: args.mintId(rootGroupSeed(args.workspaceKey)), tabOrder: [] }
       groups.push(group)
     }
     group.tabOrder.push(candidate.id)

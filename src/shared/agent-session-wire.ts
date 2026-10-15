@@ -208,6 +208,8 @@ export type AgentSessionSubscribeEvent =
       /** Rides every batch that carries rows, removals or submissions, so absent there means an
        *  older host; absent on one that carries none, which changes no turn. */
       latestTurn?: AgentSessionLatestTurn | null
+      /** On a catch-up page with more behind it; absent on the last, live, and from older hosts. */
+      hasNewer?: true
     } & AgentSessionCurrentWorkFields &
       AgentSessionFrameFields)
   | ({
@@ -352,10 +354,7 @@ export type AgentSessionQueuedSendReceipt = {
 }
 
 export type AgentSessionSendResult =
-  | {
-      clientMessageId: string
-      submission: AgentJournalSubmission
-    }
+  | { clientMessageId: string; submission: AgentJournalSubmission }
   | { clientMessageId: string; queued: AgentSessionQueuedSendReceipt }
 
 /** The submission arm's payload; undefined for a queued answer. For callers that

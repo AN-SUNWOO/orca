@@ -2,7 +2,10 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
-import type { CliConversationAdoptingAgent } from '../../../../shared/structured-agent-cli-conversation-adoption'
+import {
+  CLI_CONVERSATION_ADOPTING_AGENTS,
+  type CliConversationRowAgent
+} from '../../../../shared/structured-agent-cli-conversation-adoption'
 import { hasRuntimeRpcErrorCode } from '../../../../shared/runtime-rpc-error-code'
 import { prepareAiVaultSessionForResume } from '@/lib/ai-vault-session-resume-preparation'
 import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
@@ -20,7 +23,7 @@ export function activateAiVaultResumeWorkspace(workspaceId: string): boolean {
  *  would hide the refusal the user needs to see. */
 export async function resumeAiVaultSessionInNewChat(
   session: AiVaultSession,
-  agent: CliConversationAdoptingAgent,
+  rowAgent: CliConversationRowAgent,
   worktreeId: string,
   requestId: AgentLaunchRequestId
 ): Promise<void> {
@@ -31,7 +34,7 @@ export async function resumeAiVaultSessionInNewChat(
     const plan = adoptAgentSessionLaunchVerdict({
       route: 'structured-native-chat',
       requestId,
-      agent,
+      agent: CLI_CONVERSATION_ADOPTING_AGENTS[rowAgent],
       worktreeId,
       resumeFrom: { providerSessionId: preparedSession.sessionId }
     })

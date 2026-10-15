@@ -153,6 +153,9 @@ export class OrcaRuntimeWithPublishPtyBackedMobileSessionTerminal extends OrcaRu
     ptyId: string,
     options: { immediate?: boolean } = {}
   ): void {
+    // Why here: every change to what a PTY shows (a title past the spinner gate or the foreground
+    // probe's hold, a bind) lands here, so live pane titles follow the phones' title rules.
+    this.markPaneLiveTitlesDirty()
     for (const [worktreeId, snapshot] of this.mobileSessionTabsByWorktree) {
       const hasPtyBackedTab = snapshot.tabs.some(
         (tab) =>

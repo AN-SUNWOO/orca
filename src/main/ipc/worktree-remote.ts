@@ -139,6 +139,7 @@ import {
 } from '../worktree-name-retirement'
 import { createRetiredNameLookup } from '../../shared/worktree/retired-name-registry'
 import { findPendingWorktreeRemovalConflict } from '../worktree-removal-table'
+import { isWslMoveWorktreeBlocked } from '../persistence/moving-wsl-projects/wsl-move-background-backoff'
 // Why: bound the fallback `git fetch origin` so a Windows credential-manager GUI hang (STA-1292) can't wedge worktree creation forever.
 const CREATE_BASE_FALLBACK_FETCH_TIMEOUT_MS = 60_000
 // Why (#17828 CodeRabbit follow-up): the deferred materialize fetch runs off the main
@@ -640,7 +641,7 @@ async function getSelectedHostedReviewForBranch(
 export async function prepareWorktreePushTarget(
   repoPath: string,
   target: GitPushTarget,
-  store?: WorktreePushTargetStore,
+  store?: WorktreePushTargetStore | null,
   repoId?: string,
   gitOptions: { wslDistro?: string } = {}
 ): Promise<GitPushTarget> {
@@ -685,7 +686,7 @@ export async function prepareWorktreePushTarget(
 export async function materializeWorktreePushTargetRemote(
   repoPath: string,
   target: GitPushTarget,
-  store?: WorktreePushTargetStore,
+  store?: WorktreePushTargetStore | null,
   repoId?: string,
   gitOptions: { wslDistro?: string } = {},
   worktreeId?: string
@@ -756,7 +757,7 @@ async function adoptExistingForkRemoteForBranch(
   repoPath: string,
   target: GitPushTarget,
   gitOptions: { wslDistro?: string },
-  store: WorktreePushTargetStore | undefined,
+  store: WorktreePushTargetStore | null | undefined,
   repoId: string | undefined,
   worktreeId: string | undefined
 ): Promise<GitPushTarget> {
@@ -790,7 +791,8 @@ async function adoptExistingForkRemoteForBranch(
   const owned =
     store !== undefined &&
     ownerRepoId !== undefined &&
-    isPushTargetRemoteCreatedByKnownWorktree(store, restored, ownerRepoId)
+    // SAFETY: Legacy null keeps this branch's original failure rather than introducing a fallback.
+    isPushTargetRemoteCreatedByKnownWorktree(store!, restored, ownerRepoId)
   const adopted = owned ? { ...restored, remoteCreated: true } : restored
   persistMaterializedPushTargetIfCreated(store, worktreeId, adopted)
   return adopted
@@ -830,11 +832,15 @@ function runForkRemoteAdoption<T>(
 // predates `markRemoteOrcaCreated` (no git-config marker either). `setWorktreeMeta` is
 // optional on `WorktreePushTargetStore` so narrow test/reconciliation stores keep compiling.
 function persistMaterializedPushTargetIfCreated(
-  store: WorktreePushTargetStore | undefined,
+  store: WorktreePushTargetStore | null | undefined,
   worktreeId: string | undefined,
   target: GitPushTarget
 ): void {
   if (!target.remoteCreated || !worktreeId || !store?.setWorktreeMeta) {
+    return
+  }
+  // Bookkeeping incidental to the push: a project a WSL move is taking skips it, not the push.
+  if (isWslMoveWorktreeBlocked(worktreeId, store.getAllWorktreeMeta()[worktreeId]?.hostId)) {
     return
   }
   store.setWorktreeMeta(worktreeId, { pushTarget: target })

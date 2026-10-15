@@ -3,6 +3,7 @@ import {
   NATIVE_CHAT_TRANSCRIPT_COLUMN_CLASS
 } from './native-chat-appearance-style'
 import { NativeChatJumpToLatest } from './NativeChatJumpToLatest'
+import { NativeChatNewRowsAnnouncement } from './NativeChatNewRowsMarker'
 import { useNativeChatRowTypography } from './use-native-chat-row-typography'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
@@ -10,9 +11,8 @@ import { translate } from '@/i18n/i18n'
 import type { NativeChatLiveSession } from './use-native-chat-live-session'
 import { useNativeChatTranscriptProjection } from './use-native-chat-transcript-projection'
 import { structuredQuestionTranscript } from './structured-agent-question-projection'
-import { nativeChatTaskListState } from './native-chat-task-list-state'
 import { nativeChatTaskListPredecessors } from './native-chat-task-list-history'
-import { NativeChatTaskList } from './NativeChatTaskList'
+import { NativeChatDockedTaskList } from './NativeChatDockedTaskList'
 import { useNativeChatTurnStatus } from './use-native-chat-turn-status'
 import { NativeChatAwaitingInputRow } from './NativeChatAwaitingInputRow'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
@@ -39,6 +39,7 @@ import { useNativeChatSubagentSections } from './use-native-chat-subagent-sectio
 import { toggleNativeChatExpandedKey } from './native-chat-expanded-keys'
 import { useNativeChatTurnMembership } from './use-native-chat-turn-membership'
 import { useNativeChatTranscriptScroll } from './use-native-chat-transcript-scroll'
+import { useNativeChatNewRowsMarker } from './native-chat-new-rows-marker'
 import { useNativeChatOlderHistoryAutoload } from './use-native-chat-older-history-autoload'
 import { NativeChatOlderHistoryRow } from './NativeChatOlderHistoryRow'
 import { useNativeChatMessageRail } from './use-native-chat-message-rail'
@@ -165,7 +166,6 @@ export function NativeChatMessageList({
     [messages, subagentSections]
   )
   const taskListPredecessors = useMemo(() => nativeChatTaskListPredecessors(messages), [messages])
-  const taskListState = useMemo(() => nativeChatTaskListState(messages), [messages])
   // Each row's turn, which turn is live, and the order the rows draw in, resolved once.
   const turnRows = useNativeChatTurnMembership(
     messages,
@@ -230,6 +230,11 @@ export function NativeChatMessageList({
       ),
     [allSlots, journalItems, stopping, journalSubmissions, latestTurn, hostWork]
   )
+  const { marker: newRowsMarker, dismiss } = useNativeChatNewRowsMarker(
+    slots,
+    waitingSlots,
+    isVisible && session.readCurrent === true
+  )
   const transcriptWindow = useNativeChatTranscriptWindow({
     scrollRef,
     slots,
@@ -237,6 +242,7 @@ export function NativeChatMessageList({
     // One pin serves both: revealing a diff and jumping from the rail are
     // mutually exclusive things to be doing.
     revealIndex: nativeChatSlotIndexOf(slots, railJump?.messageId ?? revealedDiff?.messageId),
+    newRowsMarkerIndex: nativeChatSlotIndexOf(slots, newRowsMarker?.key),
     typography
   })
   const { showJump, onScroll, scrollToBottom, scrollMessageToTop, readerLeavesEnd } =
@@ -319,7 +325,7 @@ export function NativeChatMessageList({
     onTakeScroll: transcriptWindow.cancelAlign,
     onLeaveEnd: readerLeavesEnd
   })
-  useNativeChatMessageListHandle(ref, jumpToLatest, readerScrollInput.revealFindMatch)
+  useNativeChatMessageListHandle(ref, jumpToLatest, readerScrollInput.revealFindMatch, dismiss)
   useNativeChatRailJumpLanding({
     railJump,
     slots,
@@ -398,6 +404,7 @@ export function NativeChatMessageList({
                   loadedMessageIds={loadedMessageIds}
                   context={rowContext}
                   window={transcriptWindow}
+                  newRowsMarker={newRowsMarker}
                 />
                 {liveLine ? (
                   <NativeChatTurnActivityLine
@@ -420,18 +427,9 @@ export function NativeChatMessageList({
             pendingId={railHistoryJump.pendingId}
           />
           <NativeChatJumpToLatest visible={showJump} onJump={jumpToLatest} />
+          <NativeChatNewRowsAnnouncement marked={newRowsMarker !== undefined} />
         </div>
-        {taskListState.list && taskListState.list.tasks.length > 0 ? (
-          <div className="shrink-0 px-3 pb-2 sm:px-4">
-            <div className="mx-auto w-full max-w-(--chat-content-max-width)">
-              <NativeChatTaskList
-                key={session.sessionId}
-                list={taskListState.list}
-                presentation="composer"
-              />
-            </div>
-          </div>
-        ) : null}
+        <NativeChatDockedTaskList key={session.sessionId} messages={messages} />
       </div>
     </NativeChatDisclosureContext.Provider>
   )

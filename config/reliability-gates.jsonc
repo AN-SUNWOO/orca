@@ -1401,14 +1401,14 @@
       "invariant": "Headless startup installs and disposes push delivery; desktop notification categories remain authoritative, the three-minute away policy is preserved, and host activity cannot extend the seven-day mobile lease.",
       "oracle": "Require registration after RPC identity initialization and shutdown cleanup; idle 179/180/0 yields false/true/false in retained event metadata and exactly one gateway push. Legacy socket subscriptions preserve notification filtering, while opted-in push clients can request dismissal reconciliation. Desktop categories remain authoritative. Persisted lease expires exactly at seven days and only explicit registration renews it.",
       "commands": [
-        "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/mobile-notification-dismissal-store.test.ts src/renderer/src/hooks/useAutoAckViewedAgent.away.test.ts",
+        "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/mobile-notification-dismissal-store.test.ts src/renderer/src/hooks/useReadOnScreenAttention.away.test.ts",
         "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/orcad/orcad-push-startup.test.ts src/main/runtime/push/push-policy-pipeline.integration.test.ts"
       ],
       "testFiles": [
         "src/main/orcad/orcad-push-startup.test.ts",
         "src/main/runtime/push/push-policy-pipeline.integration.test.ts",
         "src/main/runtime/mobile-notification-dismissal-store.test.ts",
-        "src/renderer/src/hooks/useAutoAckViewedAgent.away.test.ts"
+        "src/renderer/src/hooks/useReadOnScreenAttention.away.test.ts"
       ],
       "assertionRefs": [
         {

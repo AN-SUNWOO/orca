@@ -94,8 +94,8 @@ const aiButtonSource = (workspace: LaunchWorkspace): string =>
 const QUICK_COMMAND = { agent_kind: 'codex', launch_source: 'quick_command', request_kind: 'new' }
 export const AGENT_PHONE = { title: 'Terminal', launchAgent: 'claude', isActive: true }
 const POSIX_CLAUDE = "claude '--dangerously-skip-permissions'"
-// main today: a local POSIX host hands the provider the settings shell untrimmed.
-export const ZSH = { shellOverride: '  /bin/zsh  ', terminalWindowsWslDistro: null }
+// A local POSIX host hands the provider the settings shell as stored, which settings load trims.
+export const ZSH = { shellOverride: '/bin/zsh', terminalWindowsWslDistro: null }
 export const CMD_EXE = { shellOverride: 'cmd.exe', terminalWindowsWslDistro: null }
 export const CMD = { terminalWindowsShell: 'cmd.exe' }
 // A saved default argument with an apostrophe: the byte that tells POSIX and PowerShell quoting apart.

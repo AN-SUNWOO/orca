@@ -8,6 +8,7 @@ import type {
   AgentSessionJournalIdentity
 } from '../../../shared/agent-session-journal-types'
 import type { JournalHostDatabase } from './journal-host-database'
+import { JournalContextController } from './journal-context-controller'
 import { JournalEpochController } from './journal-epoch-controller'
 import { JournalItemAppender } from './journal-item-appender'
 import { JournalLifecycleBatchAppender } from './journal-lifecycle-batch-appender'
@@ -58,6 +59,7 @@ export type JournalStoreCollaborators = {
   stepWriter: JournalStepWriter
   queuedMessages: JournalQueuedMessages
   stopMarks: JournalStopMarks
+  context: JournalContextController
   stops: JournalStopAcceptor
   /** Restores the store's state from disk. Owned here because it needs the same
    *  collaborators the constructor just built. */
@@ -125,6 +127,11 @@ export function createJournalStoreCollaborators(host: JournalStoreHost): Journal
     epochController,
     queuedMessages,
     stopMarks: new JournalStopMarks({ state: host.state }),
+    context: new JournalContextController({
+      state: host.state,
+      writer: rowWriter,
+      cards: queuedMessages
+    }),
     stops: new JournalStopAcceptor({ writer: rowWriter, state: host.state }),
     // The drafts' repair and prune are startup's (`repairAndPrune`), never this open's.
     restore: () => restoreJournalStore(host, { epochController }),

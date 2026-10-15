@@ -70,6 +70,25 @@ describe('SSH host server status line', () => {
     })
   })
 
+  it('says which projects the server already had, and what of this desktop’s stayed behind', () => {
+    const linked = (automations: number) =>
+      sshHostServerStatusLine(plain, {
+        managedServer: {
+          kind: 'managed',
+          environmentId: 'e',
+          linked: [
+            { path: '/root/app', automations },
+            { path: '/root/tool', automations: 0 }
+          ]
+        }
+      })
+    expect(linked(2)).toEqual({
+      tone: 'warning',
+      text: 'This host’s Orca server already had /root/app, /root/tool, so this desktop now uses the server’s copy. This desktop’s tabs and 2 automations there were not moved, and worktrees it created there show as external worktrees.'
+    })
+    expect(linked(0)?.text).not.toContain('automation')
+  })
+
   it('keeps durable reasons visible without a live state', () => {
     expect(sshHostServerStatusLine({ orcadFence: { environmentId: 'e' } }, undefined)).toBeNull()
     expect(

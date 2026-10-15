@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithPersistTerminalSurfaceRetirements } from './orca-runtime-persist-terminal-surface-retirements'
+import { OrcaRuntimeWithPersistTerminalSurfaceRetirements } from './session-tabs/terminal-surface-retirements'
 import type {
   RuntimeMobileSessionBrowserTab,
   RuntimeMobileSessionTabsResult,
@@ -28,7 +28,7 @@ import { captureAcknowledgedTerminalTabRetirement } from './workspace-session-te
 import { closeLeafOrTab } from '../persistence/terminal-topology/terminal-topology-commit'
 import { markAgentLaunchesClosedByUser } from '../agent-launch/agent-launch-pane-attachment'
 
-export class OrcaRuntimeWithBuildHeadlessMobileSessionBrowserTabs extends OrcaRuntimeWithPersistTerminalSurfaceRetirements {
+export abstract class OrcaRuntimeWithBuildHeadlessMobileSessionBrowserTabs extends OrcaRuntimeWithPersistTerminalSurfaceRetirements {
   // Why: headless serve backs browser panes with offscreen WebContents that live
   // only in the BrowserManager, never in a renderer graph. Without surfacing them
   // as session tabs, a session.tabs snapshot (e.g. on terminal open) prunes the
@@ -37,12 +37,19 @@ export class OrcaRuntimeWithBuildHeadlessMobileSessionBrowserTabs extends OrcaRu
   protected buildHeadlessMobileSessionBrowserTabs(
     worktreeId: string
   ): RuntimeMobileSessionBrowserTab[] {
+    // Saved tabs whose page starts on first use are listed as running ones are.
     const serverTabs =
       this.offscreenBrowserBackend && this.agentBrowserBridge?.tabList
-        ? this.agentBrowserBridge.tabList(worktreeId).tabs
+        ? [
+            ...this.agentBrowserBridge.tabList(worktreeId).tabs,
+            ...this.serveBrowserTabs.listUnstarted(worktreeId)
+          ]
         : []
     const publishedServerTabs = serverTabs.map((tab) => {
-      const persistedProps = this.getPersistedUnifiedSessionTabProps(worktreeId, tab.browserPageId)
+      const persistedProps = this.getPersistedUnifiedSessionTabProps(
+        worktreeId,
+        this.serveBrowserTabs.unifiedTabId(worktreeId, tab.browserPageId)
+      )
       return {
         type: 'browser' as const,
         // Why: an offscreen page has no separate workspace identity, so the page id

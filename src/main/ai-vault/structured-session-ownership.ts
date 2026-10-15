@@ -175,8 +175,9 @@ export async function assertLegacyAiVaultResumeCommandAllowed(
   }
 }
 
-function findResumeOwnership(
-  args: AiVaultPrepareSessionResumeArgs
+/** The chat that owns the row a resume or fork names; null when none does. */
+export function findResumeOwnership(
+  args: Pick<AiVaultPrepareSessionResumeArgs, 'agent' | 'sessionId' | 'filePath'>
 ): StructuredProviderSessionOwnership | null {
   const owner = historyRowOwner(args.agent)
   if (!owner) {

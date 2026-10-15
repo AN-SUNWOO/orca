@@ -10,6 +10,7 @@ on:
       - '.github/actions/install-node-dependencies/**'
       - '.github/actions/restore-pnpm-verification/**'
       - '.github/actions/prepare-native-runtime/**'
+      - '.github/actions/prepare-windows-cli-launcher/**'
       - '.github/actions/prepare-git-compatibility/**'
       - '.github/actions/prepare-linux-package-fixture/**'
       - 'config/docker/headless-serve-shutdown/**'
@@ -21,6 +22,8 @@ on:
       - '.npmrc'
       - '.pnpmfile.cjs'
       - 'config/scripts/ensure-native-runtime.mjs'
+      - 'config/scripts/initialize-windows-native-toolchain.mjs'
+      - 'config/scripts/capture-windows-native-environment.cmd'
       - 'config/scripts/rebuild-native-deps.mjs'
       - 'config/scripts/node-pty-job-ownership.cjs'
       - 'config/scripts/windows-pe-machine.cjs'
@@ -34,9 +37,14 @@ on:
       - 'config/scripts/space-sharing-copy.mjs'
       - 'config/patches/**'
       - 'native/windows-registry/**'
+      - 'native/windows-cli-launcher/**'
+      - 'native/windows-agent-hook/**'
+      - 'config/scripts/build-windows-cli-launcher.mjs'
+      - 'config/scripts/build-windows-agent-hook.mjs'
+      - 'config/scripts/windows-rust-executable-build.mjs'
+      - 'resources/build/icon.ico'
   pull_request:
     paths:
-      - '.github/workflows/ci-cache-warmup.yml'
       - '.github/workflows/ci-cache-warmup-platforms.yml'
       - '.github/workflows/ci-cache-warmup-platform-jobs.yml'
 

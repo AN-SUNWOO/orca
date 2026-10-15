@@ -76,8 +76,8 @@ export function openBrowserTab(
 ): Applied {
   const key = command.workspace
   // The tab-bar id and the browser tab record share one id, as the window mints them.
-  const browserTabId = context.mintId()
-  const pageId = context.mintId()
+  const browserTabId = command.pageId ?? context.mintId()
+  const pageId = command.pageId ?? context.mintId()
   const tab = contentTab(context, {
     kind: 'browser',
     id: browserTabId,
@@ -109,6 +109,7 @@ export function openAgentSessionTab(
     return applied(model)
   }
   const tab = contentTab(context, {
+    ...(command.tabId ? { id: command.tabId } : {}),
     kind: 'agent-session',
     entityId: command.sessionId,
     agentSessionAgent: command.agent

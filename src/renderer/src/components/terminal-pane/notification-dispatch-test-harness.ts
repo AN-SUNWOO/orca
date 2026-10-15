@@ -49,10 +49,7 @@ export type NotificationDispatchMockState = {
       customSoundId?: string | null
     }
   }
-  markWorktreeUnread: ReturnType<typeof vi.fn>
-  markTerminalTabUnread: ReturnType<typeof vi.fn>
-  markTerminalPaneUnread: ReturnType<typeof vi.fn>
-  markAgentCompletionPaneUnread: ReturnType<typeof vi.fn>
+  markAgentAttentionUnread: ReturnType<typeof vi.fn>
 }
 
 /** Annotated explicitly so declaration emit never names @vitest/spy internals. */
@@ -112,10 +109,7 @@ function buildNotificationDispatchMockState(): NotificationDispatchMockState {
     },
     repos: [{ id: 'repo1', displayName: 'orca', connectionId: null }],
     settings: { experimentalTerminalAttention: true, notifications: { customSoundPath: null } },
-    markWorktreeUnread: vi.fn(),
-    markTerminalTabUnread: vi.fn(),
-    markTerminalPaneUnread: vi.fn(),
-    markAgentCompletionPaneUnread: vi.fn()
+    markAgentAttentionUnread: vi.fn()
   }
 }
 

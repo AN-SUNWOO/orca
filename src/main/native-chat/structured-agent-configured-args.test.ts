@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { structuredAgentConfiguredArgs } from './structured-agent-configured-args'
 
 describe('structured chat configured Arguments', () => {
-  it.each(['claude', 'codex'] as const)(
+  it.each(['claude', 'codex', 'opencode', 'omp', 'grok'] as const)(
     'reads the existing %s setting and preserves quoted values',
     (agent) => {
       expect(

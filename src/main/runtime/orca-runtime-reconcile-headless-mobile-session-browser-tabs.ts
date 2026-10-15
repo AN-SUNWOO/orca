@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithHydrateHeadlessMobileSessionTabsFromWorkspaceSession } from './orca-runtime-hydrate-headless-mobile-session-tabs-from-workspace-session'
+import { OrcaRuntimeWithHydrateHeadlessMobileSessionTabsFromWorkspaceSession } from './session-tabs/mobile-session-hydration'
 import type {
   RuntimeMobileSessionBrowserTab,
   RuntimeMobileSessionSnapshotTab,
@@ -17,7 +17,7 @@ import type { RuntimeStore } from './runtime-store-contract'
 import { SSH_PANE_RECOVERY_GRACE_MS } from './orca-runtime-core'
 import { findTerminalTabIdForLeaf } from '../persistence/terminal-topology/terminal-topology-membership'
 
-export class OrcaRuntimeWithReconcileHeadlessMobileSessionBrowserTabs extends OrcaRuntimeWithHydrateHeadlessMobileSessionTabsFromWorkspaceSession {
+export abstract class OrcaRuntimeWithReconcileHeadlessMobileSessionBrowserTabs extends OrcaRuntimeWithHydrateHeadlessMobileSessionTabsFromWorkspaceSession {
   // Why: keep an existing snapshot's browser tabs in sync with the live bridge
   // without rebuilding stable terminal state. Replaces browser entries with the
   // current live set and rewrites the browser portion of the primary group order.

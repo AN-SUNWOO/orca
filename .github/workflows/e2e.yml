@@ -52,7 +52,9 @@ jobs:
     name: build e2e app
     if: inputs.test_files == '' || github.event_name != 'pull_request' || inputs.needs_build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      ORCA_BACKGROUND_LAUNCH: '1'
 
     steps:
       - name: Checkout
@@ -60,10 +62,44 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
+      - name: Install native build tools
+        env:
+          ORCA_E2E_APT_PACKAGES: build-essential python3
+        run: &install_e2e_tools |
+          if [ "$ORCA_E2E_APT_PACKAGES" = 'build-essential python3' ] &&
+            command -v make >/dev/null && command -v g++ >/dev/null && command -v python3 >/dev/null; then
+            exit 0
+          fi
+          read -r -a packages <<< "$ORCA_E2E_APT_PACKAGES"
+          # Why apt-mirrors.txt: runner images resolve mirror+file: sources through it, so editing the lists alone leaves Azure in use.
+          for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            if [ -f "$source" ]; then
+              sudo sed -i 's|https*://azure\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+            fi
+          done
+          sudo tee /etc/apt/apt.conf.d/99-orca-e2e >/dev/null <<'APTCONF'
+          Acquire::http::Timeout "15";
+          Acquire::https::Timeout "15";
+          Acquire::Retries "1";
+          APTCONF
+          timeout 120 sudo apt-get update
+          timeout 300 sudo apt-get install -y "${packages[@]}" || timeout 300 sudo apt-get install -y --fix-missing "${packages[@]}"
+
       # Why: the build's plain-Node daemon smoke load resolves node-pty.
       - uses: ./.github/actions/install-node-dependencies
+        id: deps
         with:
           native-runtime: node
+          persist-native-cache: 'false'
+          cache-electron-package: 'true'
+
+      # Save Node's ABI before the Electron preparation replaces the same build paths.
+      - name: Save compiled Node native modules
+        if: steps.deps.outputs.native-cache-key != '' && steps.deps.outputs.native-cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ steps.deps.outputs.native-cache-path }}
+          key: ${{ steps.deps.outputs.native-cache-key }}
 
       # Why: building here avoids parallel builds inside Playwright globalSetup;
       # paired-browser specs also need the standalone web bundle.
@@ -88,7 +124,19 @@ jobs:
 
       - wait: e2e-cli
 
+      - name: Check shared native runtime action
+        id: native-runtime-action
+        run: |
+          if [ -f .github/actions/prepare-native-runtime/action.yml ]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      # Only the completed output upload overlaps the change from Node to Electron ABI.
       - name: Upload E2E build output
+        id: e2e-build-upload
+        background: true
         uses: actions/upload-artifact@v7
         with:
           name: e2e-build-out${{ inputs.artifact_suffix }}
@@ -97,46 +145,25 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  # Build Electron-native dependencies once per workflow. Consumer shards restore
-  # this immutable cache instead of compiling the same ABI concurrently.
-  prepare-native-cache:
-    name: prepare Electron native cache
-    if: inputs.test_files == '' || github.event_name != 'pull_request' || inputs.needs_build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - name: Prepare shared Electron native runtime
+        id: electron-native-runtime
+        if: steps.native-runtime-action.outputs.available == 'true' && steps.deps.outputs.node-version != ''
+        uses: ./.github/actions/prepare-native-runtime
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          native-runtime: electron
+          node-version: ${{ steps.deps.outputs.node-version }}
 
-      - name: Install native build tools
-        env:
-          ORCA_E2E_APT_PACKAGES: build-essential python3
-        run: &install_e2e_tools |
-          read -r -a packages <<< "$ORCA_E2E_APT_PACKAGES"
-          # Why apt-mirrors.txt: runner images resolve mirror+file: sources through it, so editing the lists alone leaves Azure in use.
-          for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
-            if [ -f "$source" ]; then
-              sudo sed -i 's|https*://azure\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
-            fi
-          done
-          sudo tee /etc/apt/apt.conf.d/99-orca-e2e >/dev/null <<'APTCONF'
-          Acquire::http::Timeout "15";
-          Acquire::https::Timeout "15";
-          Acquire::Retries "1";
-          APTCONF
-          timeout 120 sudo apt-get update
-          timeout 300 sudo apt-get install -y "${packages[@]}" || timeout 300 sudo apt-get install -y --fix-missing "${packages[@]}"
-
-      - uses: ./.github/actions/install-node-dependencies
+      - name: Prepare Electron natives for older refs
+        if: steps.native-runtime-action.outputs.available != 'true' || steps.deps.outputs.node-version == ''
+        uses: ./.github/actions/install-node-dependencies
         with:
           native-runtime: electron
 
+      - wait: e2e-build-upload
+
   e2e:
     name: e2e ${{ matrix.shard_name }}
-    needs: [build, prepare-native-cache]
+    needs: [build]
     if: inputs.test_files == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -188,7 +215,7 @@ jobs:
         # The Azure archive took 16 minutes for one font package; bound setup
         # separately so a slow mirror cannot consume the shard's test budget.
         env: &e2e_tool_packages
-          ORCA_E2E_APT_PACKAGES: build-essential fonts-noto-cjk openssh-client python3 ripgrep xvfb zsh openbox x11-utils
+          ORCA_E2E_APT_PACKAGES: build-essential fonts-noto-cjk openssh-client python3 ripgrep xvfb zsh openbox x11-utils xdotool
         run: *install_e2e_tools
 
       - uses: ./.github/actions/install-node-dependencies
@@ -263,7 +290,7 @@ jobs:
 
   changed-e2e:
     name: changed e2e specs
-    needs: [build, prepare-native-cache]
+    needs: [build]
     if: inputs.test_files != '' && (github.event_name != 'pull_request' || inputs.run_changed_e2e)
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -351,7 +378,7 @@ jobs:
 
   orcad-serve-mode-switch:
     name: orca serve Electron/orcad mode switch (D7)
-    needs: [build, prepare-native-cache]
+    needs: [build]
     if: >-
       inputs.test_files == '' ||
       contains(inputs.test_files, 'tests/e2e/orcad-serve-mode-switch.spec.ts') ||
@@ -411,7 +438,7 @@ jobs:
   # orcad template for the fixture's target (Debian, linux-x64-glibc), which only this job builds.
   orcad-ssh-docker:
     name: ssh on managed orcad (Docker ${{ matrix.shard }})
-    needs: [build, prepare-native-cache]
+    needs: [build]
     if: inputs.test_files == '' || contains(inputs.test_files, 'tests/e2e/ssh-orcad-')
     runs-on: ubuntu-latest
     timeout-minutes: 60

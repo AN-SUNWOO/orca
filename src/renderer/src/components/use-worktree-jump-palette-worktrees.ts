@@ -19,8 +19,8 @@ import { buildPaletteWorktreeIndex, resolvePaletteWorktree } from '@/lib/palette
 import {
   EMPTY_PAIRED_DEVICE_IDS_BY_ENVIRONMENT,
   getPairedDeviceIdsByEnvironment,
-  isWorkspaceFromOtherDevice
-} from '@/components/sidebar/workspace-creator-visibility'
+  isWorkspaceOwnedBySomeoneElse
+} from '../../../shared/workspace-creator-visibility'
 import type { Worktree } from '../../../shared/worktree/types'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 import { EMPTY_SORTED_WORKTREES } from './worktree-jump-palette-model'
@@ -100,7 +100,7 @@ export function useWorktreeJumpPaletteWorktrees({
         }
         if (
           hideWorkspacesFromOtherDevices &&
-          isWorkspaceFromOtherDevice(worktree, pairedDeviceIdsByEnvironment)
+          isWorkspaceOwnedBySomeoneElse(worktree, pairedDeviceIdsByEnvironment)
         ) {
           return false
         }

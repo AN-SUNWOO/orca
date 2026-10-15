@@ -66,7 +66,9 @@ function mergeBatch(
       : {}),
     ...(latestTurn !== undefined ? { latestTurn } : {}),
     ...(actionablePromptIds !== undefined ? { actionablePromptIds } : {}),
-    ...(working !== undefined ? { working } : {})
+    ...(working !== undefined ? { working } : {}),
+    // The later page's: a merged frame ends the catch-up only if its last page did.
+    ...(right.hasNewer ? { hasNewer: true as const } : {})
   }
 }
 

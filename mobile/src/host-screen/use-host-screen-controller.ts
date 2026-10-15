@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useLocalSearchParams, usePathname } from 'expo-router'
 import { useRouteHandoff } from '../navigation/route-handoff'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -16,7 +16,9 @@ import {
 } from '../transport/client-context-connection-metrics'
 import { useWorkspaceSections } from '../worktree/use-workspace-sections'
 import { useHostDisplayWorktrees } from './use-host-display-worktrees'
-import { useHostRepoMetadata } from './use-host-repo-metadata'
+import { buildProjectSectionCatalog } from '../worktree/project-section-catalog'
+import { useHostProjectSections } from './use-host-project-sections'
+import { useHostRepoMetadata, type FetchHostRepoMetadata } from './use-host-repo-metadata'
 import { useHostScreenIdentity } from './use-host-screen-identity'
 import { useHostScreenState } from './use-host-screen-state'
 import { useHostViewSettings } from './use-host-view-settings'
@@ -72,7 +74,15 @@ export function useHostScreenController({
   )
 
   useHostScreenIdentity({ client, hostId, state })
-  const fetchRepoMetadata = useHostRepoMetadata({ client, connState, hostId, state })
+  const fetchRepoMetadataOnly = useHostRepoMetadata({ client, connState, hostId, state })
+  const fetchProjectSections = useHostProjectSections({ client, connState, hostId, state })
+  const fetchRepoMetadata = useCallback<FetchHostRepoMetadata>(
+    (options) => {
+      void fetchProjectSections(options)
+      return fetchRepoMetadataOnly(options)
+    },
+    [fetchProjectSections, fetchRepoMetadataOnly]
+  )
   const catalog = useHostWorktreeCatalog({
     client,
     connState,
@@ -104,6 +114,15 @@ export function useHostScreenController({
   const showNewWorktree = resolvedRouteActionState.showNewWorktree
 
   const displayWorktrees = useHostDisplayWorktrees(connState, state, hostId)
+  const projectCatalog = useMemo(
+    () =>
+      buildProjectSectionCatalog(
+        state.servedProjectSections,
+        state.desktopRepos,
+        state.visibleHostIds
+      ),
+    [state.servedProjectSections, state.desktopRepos, state.visibleHostIds]
+  )
   const sectionsResult = useWorkspaceSections({
     displayWorktrees,
     sortMode: state.sortMode,
@@ -112,8 +131,8 @@ export function useHostScreenController({
     groupMode: state.groupMode,
     pinnedIds: state.pinnedIds,
     showPinnedInGroups: state.showPinnedInGroups,
-    repoIdsByName: state.repoIdsByName,
-    repoColorsByName: state.repoColorsByName,
+    projectCatalog,
+    filterCatalogRepos: state.servedProjectSections?.repos ?? state.desktopRepos,
     collapsedGroups: state.collapsedGroups,
     workspaceStatuses: state.workspaceStatuses
   })

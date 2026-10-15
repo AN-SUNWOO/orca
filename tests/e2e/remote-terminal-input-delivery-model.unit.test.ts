@@ -82,7 +82,7 @@ function attachModelPane(
     ReturnType<typeof createRemoteRuntimePtyTransport>['attach']
   >[0]['callbacks']
 ): ReturnType<typeof createRemoteRuntimePtyTransport> {
-  const call = vi.fn(async (request: { method: string }) =>
+  const call = async (request: { method: string }) =>
     request.method === 'terminal.resolvePane'
       ? {
           ok: true,
@@ -96,7 +96,7 @@ function attachModelPane(
           }
         }
       : { ok: true, result: { terminal: { handle: MODEL_TERMINAL_HANDLE } } }
-  )
+
   vi.stubGlobal('window', {
     api: { runtimeEnvironments: { call, subscribe: link.subscribe } },
     location: { search: '' }

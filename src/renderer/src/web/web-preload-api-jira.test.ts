@@ -120,4 +120,21 @@ describe('web Jira preload API', () => {
       { method: 'jira.getIssueStream', params: { key: 'ORCA-1', siteId: 'site-1' } }
     ])
   })
+
+  it('does not dispatch desktop title generation from the web client', async () => {
+    const runtimeCalls = mockRuntimeClient(() => undefined)
+    const {
+      window: { api }
+    } = await installApi()
+    const request = { siteId: 'site-1', draftId: 'draft-1', requestId: 'request-1' }
+
+    await expect(
+      api.jira.generateIssueSummary({ ...request, description: 'Draft issue description' })
+    ).resolves.toEqual({
+      success: false,
+      error: 'Jira title generation is unavailable in the web client.'
+    })
+    await expect(api.jira.cancelGenerateIssueSummary(request)).resolves.toBeUndefined()
+    expect(runtimeCalls).toEqual([])
+  })
 })

@@ -83,7 +83,13 @@ export type AgentJournalEpochReason = (typeof AGENT_JOURNAL_EPOCH_REASONS)[numbe
 /** The generation whose execution produced an item: execution provenance, distinct from the
  *  row's `fence`, which is writer authority. Rides the row like linkage, with no `v` bump: an older
  *  host ignores it. Absent on rows from before it: the item's creating fence stands in. */
-type JournalItemProvenance = { ownerFence?: number }
+type JournalItemProvenance = {
+  ownerFence?: number
+  /** The fence of the child process whose write this is, on a reusable child's row (a subagent, a
+   *  Claude background task) that a later run can resume. Moves with each such write; absent, the
+   *  item's `ownerFence` stands in. */
+  executionOwner?: number
+}
 
 export type JournalItemRow = JournalRowBase &
   JournalItemProvenance & {
@@ -187,6 +193,9 @@ export type JournalDispatchRow = JournalRowBase & {
   reason: string | null
   /** On `pending`: the turn the message was handed into, which becomes its row's scope. */
   turnScope?: AgentJournalTurnScope
+  /** On `pending`: the stopped messages this send carries to the agent as history, by client
+   *  message id in the order they were sent. Host-only; older readers keep the key and ignore it. */
+  carries?: string[]
   /** On `rejected`: why, typed. Older readers keep the key and ignore it; a malformed one is
    *  dropped when read, never the row. */
   rejection?: AgentSessionFailureFact

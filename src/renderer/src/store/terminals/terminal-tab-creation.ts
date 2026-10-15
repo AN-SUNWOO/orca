@@ -52,22 +52,20 @@ export function createTerminalTabCreationActions(
         const existing = (s.tabsByWorktree[worktreeId] ?? []).filter(
           (entry) => !orphanTerminalIds.has(entry.id)
         )
-        // Why: honor a caller-supplied tab id but mint on collision — aliasing two PTYs to one id corrupts agent-status routing. See docs/cli-terminal-hook-pane-key.md.
         // Why: only honor a non-empty trimmed hint; useIpcEvents spreads `id` whenever tabId !== undefined, so a stray '' would break paneKey routing.
         const trimmedHint = typeof options?.id === 'string' ? options.id.trim() : ''
         const hintedId =
           trimmedHint.length > 0 && isValidHostTerminalTabId(trimmedHint) ? trimmedHint : undefined
-        const idCollides =
+        // Why: the caller's PTY routes agent status by this id, so a fresh id would orphan it and aliasing would corrupt another tab's.
+        if (
           hintedId !== undefined &&
           Object.values(s.tabsByWorktree).some((tabs) =>
             tabs.some((entry) => entry.id === hintedId)
           )
-        if (idCollides) {
-          console.warn(
-            `[createTab] tabId hint ${hintedId} already exists; minting a fresh id (hook attribution will degrade for this terminal)`
-          )
+        ) {
+          throw new Error(`Terminal tab ${hintedId} already exists`)
         }
-        const id = hintedId !== undefined && !idCollides ? hintedId : createBrowserUuid()
+        const id = hintedId ?? createBrowserUuid()
         const requestedInitialLeafId =
           options?.initialLeafId && isTerminalLeafId(options.initialLeafId)
             ? options.initialLeafId

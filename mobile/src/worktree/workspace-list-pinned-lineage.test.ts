@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Worktree } from './workspace-list-sections'
-import { buildSections } from './workspace-list-sections'
+import { NO_PROJECT_SECTION_CATALOG, buildSections } from './workspace-list-sections'
 import { DEFAULT_MOBILE_WORKSPACE_STATUSES } from './mobile-workspace-statuses'
 
 function worktree(overrides: Partial<Worktree> = {}): Worktree {
@@ -41,7 +41,7 @@ describe('a pinned parent with an unpinned child', () => {
       '',
       'repo',
       new Set(),
-      new Map(),
+      NO_PROJECT_SECTION_CATALOG,
       DEFAULT_MOBILE_WORKSPACE_STATUSES,
       new Set(),
       showPinnedInGroups
@@ -64,7 +64,7 @@ describe('a pinned parent with an unpinned child', () => {
   it('nests the child under its parent in both sections when the desktop setting is on', () => {
     expect(nesting(true)).toEqual([
       { key: 'pinned', rows: nested },
-      { key: 'repo:orca', rows: nested }
+      { key: 'repo:repo-1', rows: nested }
     ])
   })
 })

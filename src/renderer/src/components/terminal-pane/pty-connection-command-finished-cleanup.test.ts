@@ -336,7 +336,12 @@ describe('connectPanePty', () => {
     expect(window.api.agentStatus.reconcileEndedProcess).toHaveBeenCalledWith(paneKey)
   })
 
-  it('clears stale sleeping identity after a confirmed return to shell', async () => {
+  it.each([
+    ['clears stale sleeping identity after a confirmed return to shell', false],
+    // Why: a hibernation records the pane's resume before its kill; the agent dying first
+    // surfaces the shell, which is Orca's own stop rather than the agent exiting.
+    ['keeps sleeping identity when the shell surfaces during an intentional stop', true]
+  ])('%s', async (_label, stoppingOnPurpose) => {
     vi.useFakeTimers()
     const { connectPanePty } = await import('./pty-connection')
     vi.mocked(window.api.pty.confirmForegroundProcess).mockResolvedValue('zsh')
@@ -369,12 +374,22 @@ describe('connectPanePty', () => {
       capturedAt: 1,
       updatedAt: 1
     }
+    if (stoppingOnPurpose) {
+      mockStoreState.suppressedPtyExitIds[ptyId] = true
+    }
 
     dataCallbackRef.current?.('\x1b]133;D;0\x07')
     await vi.advanceTimersByTimeAsync(350)
 
-    expect(mockStoreState.clearSleepingAgentSession).toHaveBeenCalledExactlyOnceWith(paneKey)
-    expect(mockStoreState.sleepingAgentSessionsByPaneKey[paneKey]).toBeUndefined()
+    if (stoppingOnPurpose) {
+      expect(mockStoreState.clearSleepingAgentSession).not.toHaveBeenCalled()
+      expect(mockStoreState.sleepingAgentSessionsByPaneKey[paneKey]).toMatchObject({
+        agent: 'codex'
+      })
+    } else {
+      expect(mockStoreState.clearSleepingAgentSession).toHaveBeenCalledExactlyOnceWith(paneKey)
+      expect(mockStoreState.sleepingAgentSessionsByPaneKey[paneKey]).toBeUndefined()
+    }
     expect(mockStoreState.paneForegroundAgentByPaneKey[paneKey]).toEqual({
       agent: null,
       shellForeground: true

@@ -1,3 +1,4 @@
+import type { AiVaultConversationCopy } from '../../../shared/ai-vault-resume-preparation'
 import type {
   AgentSessionAccountKind,
   AgentSessionUnavailable
@@ -439,6 +440,14 @@ export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop & 
     identity: AgentSessionJournalIdentity
     accountHome: AgentSessionAccountHome
   }): Promise<ProviderHistoryWindow | null>
+  /** Copies provider conversation `providerSessionId` of the chat into a new one the agent saves,
+   *  answering the copy's id; the chat keeps its own. Runs whether or not the chat's agent is
+   *  running. Absent where the agent copies through its CLI instead (`agentForksThroughChat`). */
+  copyConversation?(input: {
+    identity: AgentSessionJournalIdentity
+    providerSessionId: string
+    accountHome: AgentSessionAccountHome
+  }): Promise<AiVaultConversationCopy>
   /** Gracefully stops the structured owner after its event stream is drained. */
   /** Returns true only after the provider child exit is proven. A root-exit or processless verdict
    *  is thrown only once the session is finalized; read it through `stopAgentSessionProviderRoot`. */

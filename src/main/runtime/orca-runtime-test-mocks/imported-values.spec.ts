@@ -2,7 +2,7 @@
 import './setup.spec'
 
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
-import { RuntimeBrowserCommands } from '../orca-runtime-browser'
+import { RuntimeBrowserCommands } from '../browser/browser-commands'
 import {
   setRuntimeBrowserCommandsFactory,
   setRuntimeBrowserUnavailableCause

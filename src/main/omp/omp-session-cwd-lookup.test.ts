@@ -41,7 +41,7 @@ async function record(bucket: string, file = FILE): Promise<string> {
 
 function lookup(cwd = '/repo/orca', homeDir = join(root, 'home'), temp = join(root, 'temp')) {
   return OMP_TRANSCRIPT_IMPORT.findTranscript({
-    accountHomePath: join(root, 'account'),
+    accountHome: { variable: 'PI_CODING_AGENT_DIR', path: join(root, 'account') },
     providerSessionId: ID,
     workspaceCwd: cwd,
     launchEnv: {

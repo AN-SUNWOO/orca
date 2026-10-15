@@ -95,7 +95,7 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
             <Text style={styles.filterSectionLabel}>Repositories</Text>
             <View style={styles.filterGroup}>
               {controller.sectionsResult.uniqueRepos.map((repo, i) => (
-                <View key={repo.id}>
+                <View key={repo.key}>
                   {i > 0 && <View style={styles.filterSeparator} />}
                   <Pressable
                     style={styles.filterRow}

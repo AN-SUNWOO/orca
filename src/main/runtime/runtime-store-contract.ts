@@ -4,6 +4,7 @@ import type { VoiceSettings } from '../../shared/speech-types'
 
 export type RuntimeStore = {
   getRepos: Store['getRepos']
+  getSshTargets?: Store['getSshTargets']
   getRepo: Store['getRepo']
   addRepo: Store['addRepo']
   updateRepo: Store['updateRepo']
@@ -57,8 +58,14 @@ export type RuntimeStore = {
   stageOrcadMigrationCatalog?: Store['stageOrcadMigrationCatalog']
   commitStagedOrcadMigrationCatalog?: Store['commitStagedOrcadMigrationCatalog']
   stageOrcadMigrationSnapshotChunk?: Store['stageOrcadMigrationSnapshotChunk']
+  stageOrcadMigrationBlobChunk?: Store['stageOrcadMigrationBlobChunk']
   abortStagedOrcadMigrationCatalog?: Store['abortStagedOrcadMigrationCatalog']
   getOrcadMigrationCatalogState?: Store['getOrcadMigrationCatalogState']
+  installOrcadMigrationReceivedBlobs?: Store['installOrcadMigrationReceivedBlobs']
+  installPendingOrcadMigrationReceivedBlobs?: Store['installPendingOrcadMigrationReceivedBlobs']
+  installDeferredOrcadMigrationShellHistory?: Store['installDeferredOrcadMigrationShellHistory']
+  peekOrcadMigrationTerminalRestoreHint?: Store['peekOrcadMigrationTerminalRestoreHint']
+  consumeOrcadMigrationTerminalRestoreHint?: Store['consumeOrcadMigrationTerminalRestoreHint']
   persistPtyBinding?: Store['persistPtyBinding']
   admitTerminalPane?: Store['admitTerminalPane']
   withdrawTerminalPane?: Store['withdrawTerminalPane']
@@ -81,6 +88,9 @@ export type RuntimeStore = {
   getMobileClientTabSelections?: Store['getMobileClientTabSelections']
   setMobileClientTabSelections?: Store['setMobileClientTabSelections']
   getSettings(): {
+    agentWorkspaceTrustEnabled?: GlobalSettings['agentWorkspaceTrustEnabled']
+    codexManagedAccounts?: GlobalSettings['codexManagedAccounts']
+    nestedWorkerMaxDepth?: GlobalSettings['nestedWorkerMaxDepth']
     workspaceDir: string
     nestWorkspaces: boolean
     // Read by worktree placement: decides whether this project's worktrees
@@ -101,6 +111,8 @@ export type RuntimeStore = {
     // Read by the launch-line carry rule to name the shell a local line is typed into.
     terminalDefaultShell?: GlobalSettings['terminalDefaultShell']
     floatingTerminalEnabled?: GlobalSettings['floatingTerminalEnabled']
+    floatingTerminalCwd?: GlobalSettings['floatingTerminalCwd']
+    floatingTerminalTrustedCwds?: GlobalSettings['floatingTerminalTrustedCwds']
     agentStatusHooksEnabled?: GlobalSettings['agentStatusHooksEnabled']
     terminalCopyTrimsGutter?: GlobalSettings['terminalCopyTrimsGutter']
     experimentalNativeChat?: GlobalSettings['experimentalNativeChat']

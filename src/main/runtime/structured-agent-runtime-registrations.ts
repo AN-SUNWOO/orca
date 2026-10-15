@@ -158,8 +158,8 @@ function createCodexAdapter(context: StructuredAgentAdapterContext): StructuredA
     ...(deps.openCodexConnection ? { openConnection: deps.openCodexConnection } : {}),
     ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {}),
     modelCatalog: agentModelCatalogStore,
-    onChildWorkEvidence: (sessionId, evidence) =>
-      host()?.publishChildWorkEvidence(sessionId, evidence),
+    onChildWorkEvidence: (sessionId, evidence, producer) =>
+      host()?.publishChildWorkEvidence(sessionId, evidence, producer),
     onDispatchSettledLate: followUps.onDispatchSettledLate,
     onPrimaryThreadStoppedRunning: followUps.releaseUnansweredDispatches,
     logger: deps.logger,
@@ -197,8 +197,8 @@ function createClaudeAdapter(
     resolveClaudeInheritedEnv: context.environment.resolveBaseEnvironment,
     onLifecycleEvent: context.deliverLifecycle,
     logger: deps.logger,
-    onChildWorkEvidence: (sessionId, evidence) =>
-      host()?.publishChildWorkEvidence(sessionId, evidence),
+    onChildWorkEvidence: (sessionId, evidence, producer) =>
+      host()?.publishChildWorkEvidence(sessionId, evidence, producer),
     onDispatchSettledLate: followUps.onDispatchSettledLate,
     onSessionIdle: followUps.releaseUnansweredDispatches,
     ...(deps.openClaudeConnection ? { openClaudeConnection: deps.openClaudeConnection } : {}),
@@ -241,9 +241,10 @@ function acpRegistration(spec: AcpLaunchSpec): StructuredAgentRuntimeRegistratio
         readJournal,
         resolveLaunch: composeStructuredLaunch(definition, sources, part),
         readLaunch: composeStructuredLaunchRead(definition, sources, part),
+        resolveLaunchArgs: () => deps.resolveLaunchArgs(spec.agent),
         connect: (launch, options) => createAcpAgentConnection(launch, options),
-        onChildWorkEvidence: (sessionId, evidence) =>
-          context.host()?.publishChildWorkEvidence(sessionId, evidence),
+        onChildWorkEvidence: (sessionId, evidence, producer) =>
+          context.host()?.publishChildWorkEvidence(sessionId, evidence, producer),
         ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {}),
         onDispatchSettledLate: followUps.onDispatchSettledLate,
         logger: deps.logger,

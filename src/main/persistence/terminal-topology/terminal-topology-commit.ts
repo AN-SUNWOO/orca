@@ -1,4 +1,4 @@
-import type { ExecutionHostId } from '../../../shared/execution-host'
+import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../../shared/execution-host'
 import type { PersistedState } from '../../../shared/persisted-state-types'
 import type {
   TerminalLeafMoveRequest,
@@ -24,6 +24,7 @@ import {
 import type { DurableProfileStateMutation } from '../loading-store/store-runtime-state'
 import { planTerminalLeafMove, rekeyMovedLeafProfileRecords } from './terminal-leaf-move'
 import { assignWorkspaceSessionPartition } from './terminal-topology-membership'
+import { keepWslMoveFrozenSessionsForStore } from '../moving-wsl-projects/wsl-move-session-freeze'
 
 // The commit boundary for terminal layout (tabs, panes, pane-to-PTY bindings). Wraps the close and
 // the pane move; the close transform still lives in runtime/ and other writers move here later.
@@ -147,6 +148,17 @@ export type TerminalTopologyCommitContext = {
 }
 
 /** Writes `next`, returning a restore that puts the prior value back unless a later write replaced it. */
+// A paused WSL move keeps its local rows as the quiesce left them.
+function keepFrozen(
+  hostId: ExecutionHostId,
+  session: WorkspaceSessionState,
+  context: TerminalTopologyCommitContext
+): WorkspaceSessionState {
+  return hostId === LOCAL_EXECUTION_HOST_ID
+    ? keepWslMoveFrozenSessionsForStore(session, context.getSession(hostId))
+    : session
+}
+
 function writeRestorable<V>(read: () => V, write: (value: V) => void, next: V): () => void {
   const prior = read()
   write(next)
@@ -173,7 +185,7 @@ function commitLeafMove(
     writeRestorable(
       () => context.getSession(hostId),
       (value) => context.markDirty(assignWorkspaceSessionPartition(state, hostId, value)),
-      session
+      keepFrozen(hostId, session, context)
     )
   )
   const rekeyed = rekeyMovedLeafProfileRecords(state, request)
@@ -214,7 +226,7 @@ function commitPaneChange<T>(
   const restore = writeRestorable(
     () => context.getSession(hostId),
     (value) => context.markDirty(assignWorkspaceSessionPartition(context.state, hostId, value)),
-    change.session
+    keepFrozen(hostId, change.session, context)
   )
   return { value: change.value, rollback: restore }
 }

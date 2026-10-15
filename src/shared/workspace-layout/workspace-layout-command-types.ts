@@ -88,9 +88,17 @@ export type LayoutCommand =
       dirtyTabIds?: string[]
     })
   | (On & { type: 'promotePreviewTab'; tabId: string })
-  | (On & { type: 'openBrowserTab'; profileId?: string | null; groupId?: string })
+  | (On & {
+      type: 'openBrowserTab'
+      profileId?: string | null
+      groupId?: string
+      /** The id of a page that already runs; it names the tab too, as a host's page names its row. */
+      pageId?: string
+    })
   | (On & {
       type: 'openAgentSessionTab'
+      /** The chat's own tab id, which status and attention address; minted when absent. */
+      tabId?: string
       sessionId: string
       agent: AgentType
       groupId?: string

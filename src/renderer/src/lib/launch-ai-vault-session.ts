@@ -69,19 +69,19 @@ export function launchAiVaultSessionInNewTab(args: {
     }
   }
 
-  const tab = args.cwd
-    ? store.createTab(args.worktreeId, targetGroupId, undefined, { startupCwd: args.cwd })
-    : store.createTab(args.worktreeId, targetGroupId)
-  store.queueTabStartupCommand(tab.id, {
-    command: args.command,
-    ...(args.env ? { env: args.env } : {}),
-    ...(args.envToDelete ? { envToDelete: args.envToDelete } : {}),
-    ...(args.launchConfig ? { launchConfig: args.launchConfig, launchAgent: args.agent } : {}),
-    ...(args.providerSession ? { resumeProviderSession: args.providerSession } : {}),
-    telemetry: {
-      agent_kind: tuiAgentToAgentKind(args.agent),
-      launch_source: 'sidebar',
-      request_kind: 'resume'
+  const tab = store.createTab(args.worktreeId, targetGroupId, undefined, {
+    ...(args.cwd ? { startupCwd: args.cwd } : {}),
+    pendingStartup: {
+      command: args.command,
+      ...(args.env ? { env: args.env } : {}),
+      ...(args.envToDelete ? { envToDelete: args.envToDelete } : {}),
+      ...(args.launchConfig ? { launchConfig: args.launchConfig, launchAgent: args.agent } : {}),
+      ...(args.providerSession ? { resumeProviderSession: args.providerSession } : {}),
+      telemetry: {
+        agent_kind: tuiAgentToAgentKind(args.agent),
+        launch_source: 'sidebar',
+        request_kind: 'resume'
+      }
     }
   })
   store.setActiveTabType('terminal', args.worktreeId)

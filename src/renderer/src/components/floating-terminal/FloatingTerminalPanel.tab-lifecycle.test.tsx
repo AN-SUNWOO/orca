@@ -202,10 +202,11 @@ describe('FloatingTerminalPanel close behavior', () => {
     expect(mocks.createTab).toHaveBeenCalledWith(
       FLOATING_TERMINAL_WORKTREE_ID,
       'floating-group',
-      undefined
+      undefined,
+      { id: expect.any(String) }
     )
     expect(mocks.activateTab).not.toHaveBeenCalled()
-    expect(mocks.focusTerminalTabSurface).toHaveBeenCalledWith('created-tab')
+    expect(mocks.focusTerminalTabSurface).toHaveBeenCalledWith(mocks.createTab.mock.calls[0][3]?.id)
   })
 
   it('keeps floating browser create and duplicate local during active web runtime sessions', async () => {
@@ -488,10 +489,11 @@ describe('FloatingTerminalPanel close behavior', () => {
     expect(mocks.createTab).toHaveBeenCalledWith(
       FLOATING_TERMINAL_WORKTREE_ID,
       'floating-group',
-      undefined
+      undefined,
+      { id: expect.any(String) }
     )
     expect(mocks.activateTab).not.toHaveBeenCalled()
-    expect(mocks.focusTerminalTabSurface).toHaveBeenCalledWith('created-tab')
+    expect(mocks.focusTerminalTabSurface).toHaveBeenCalledWith(mocks.createTab.mock.calls[0][3]?.id)
 
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-1')
     expect(mocks.closeWebRuntimeSessionTab).not.toHaveBeenCalled()

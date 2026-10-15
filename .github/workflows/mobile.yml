@@ -36,6 +36,7 @@ on:
       - 'config/scripts/mobile-release-check-scope*'
       - 'config/scripts/mobile-test-change-scope*'
       - 'config/scripts/pr-code-change-scope.mjs'
+      - 'config/scripts/pr-package-test-paths.mjs'
       - 'config/scripts/pr-layout-oracle-route.mjs'
   # Why main too: two pull requests can each pass against their own base and disagree once both
   # land, and `verify` never runs on main. The same source paths as above, less the CI inputs only

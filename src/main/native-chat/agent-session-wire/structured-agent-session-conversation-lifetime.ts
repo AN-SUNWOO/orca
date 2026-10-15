@@ -77,6 +77,13 @@ export function createStructuredAgentSessionConversationLifetime(host: {
     return closed
   }
 
+  const hasOpenDispatch = (sessionId: string): boolean => {
+    const record = deps().store.getRecord(sessionId)
+    return record !== null && deps().hasOpenDispatch?.(record) === true
+  }
+  const providerHoldsDispatch = (sessionId: string): boolean =>
+    deps().adapter.holdsDispatch?.(sessionId) === true
+
   const idleSweep = new StructuredAgentSessionIdleSweep({
     sessions,
     serialize,
@@ -88,11 +95,8 @@ export function createStructuredAgentSessionConversationLifetime(host: {
       getRecord: (sessionId) => deps().store.getRecord(sessionId),
       replacedRuntime: (sessionId) => deps().store.replacedRuntime(sessionId)
     },
-    hasOpenDispatch: (sessionId) => {
-      const record = deps().store.getRecord(sessionId)
-      return record !== null && deps().hasOpenDispatch?.(record) === true
-    },
-    providerHoldsDispatch: (sessionId) => deps().adapter.holdsDispatch?.(sessionId) === true,
+    hasOpenDispatch,
+    providerHoldsDispatch,
     // The host puts an idle agent to rest: a turn it cuts short is news, not the user's Stop.
     stopAgent: (sessionId) => stopAgent(sessionId, { cause: 'evict', resting: true }),
     // A host stop: the child's end rejects what it was handed and writes the one error row, and
@@ -134,6 +138,18 @@ export function createStructuredAgentSessionConversationLifetime(host: {
         })
       )
     },
+    /** Runs `task` in the chat's lane, so no start interleaves with it, unless quit has begun or
+     *  the host holds a child, a delivery or a dispatch for the chat; null then. */
+    runWhileExecutionIdle: <T>(sessionId: string, task: () => Promise<T>): Promise<T | null> =>
+      serialize(sessionId, async () =>
+        disposed ||
+        sessions.get(sessionId)?.child ||
+        host.deliveryActive(sessionId) ||
+        providerHoldsDispatch(sessionId) ||
+        hasOpenDispatch(sessionId)
+          ? null
+          : await task()
+      ),
     /** Quit has begun: nothing opens a conversation or sweeps one after this. */
     dispose: (): void => {
       disposed = true

@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithStoredMobileSnapshotHasStalePreservedTab } from './orca-runtime-stored-mobile-snapshot-has-stale-preserved-tab'
+import { OrcaRuntimeWithStoredMobileSnapshotHasStalePreservedTab } from './session-tabs/mobile-session-publication-preservation'
 import type {
   BrowserTabInfo,
   RuntimeMobileSessionClientTab,
@@ -168,7 +168,8 @@ export class OrcaRuntimeWithScheduleMobileSessionTabsChanged extends OrcaRuntime
     return worktreeId
   }
 
-  protected getLiveBrowserTabsByPageId(worktreeId: string): Map<string, BrowserTabInfo> {
+  /** Every browser tab clients see: running pages and saved tabs whose page starts on first use. */
+  protected getListedBrowserTabsByPageId(worktreeId: string): Map<string, BrowserTabInfo> {
     const liveTabs = this.agentBrowserBridge?.tabList?.(worktreeId).tabs ?? []
     const byPageId = new Map(liveTabs.map((tab) => [tab.browserPageId, tab]))
     for (const [index, page] of getRuntimeBrowserPageRegistry(this)
@@ -183,6 +184,9 @@ export class OrcaRuntimeWithScheduleMobileSessionTabsChanged extends OrcaRuntime
         worktreeId,
         profileId: page.browserProfileId
       })
+    }
+    for (const tab of this.serveBrowserTabs.listUnstarted(worktreeId)) {
+      byPageId.set(tab.browserPageId, tab)
     }
     return byPageId
   }

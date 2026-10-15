@@ -90,7 +90,7 @@ it('builds the e2e app when only a build-dependent orcad spec is requested', () 
       e2e_needs_build: true
     })
   }
-  expect(jobs['orcad-ssh-docker'].needs).toEqual(['build', 'prepare-native-cache'])
+  expect(jobs['orcad-ssh-docker'].needs).toEqual(['build'])
 })
 
 it('runs every managed-SSH spec in one sharded lane, only when one is routed', () => {

@@ -103,11 +103,6 @@ export function publishAgentLaunchTab(
   if (request.prompt) {
     rememberAgentLaunchPanePrompt(tabId, request.prompt)
   }
-  if (tab.id !== tabId) {
-    // createTab mints a fresh id on a collision it saw and we did not; that tab would never attach.
-    useAppStore.getState().closeTab(tab.id, { recordInteraction: false })
-    throw new Error('agent_launch_tab_id_taken')
-  }
   if (placement.anchorTabId) {
     const unifiedTabId = useAppStore
       .getState()

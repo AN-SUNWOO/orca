@@ -1,9 +1,9 @@
 import { join } from 'node:path'
 import { findGrokChatHistoryByCwd, resolveGrokHomeDir } from '../../shared/grok-session-paths'
 import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
-import type { StructuredAgentTranscriptImport } from '../native-chat/structured-agent-cli-conversations'
+import { directoryTranscriptImport } from '../native-chat/structured-agent-cli-conversations'
 
-export const GROK_TRANSCRIPT_IMPORT: StructuredAgentTranscriptImport = {
+export const GROK_TRANSCRIPT_IMPORT = directoryTranscriptImport({
   // The chat's own home, then the one Session History lists Grok's conversations from.
   accountHomeCandidates: ({ selectedAccountHomePath }) => [
     selectedAccountHomePath,
@@ -19,4 +19,4 @@ export const GROK_TRANSCRIPT_IMPORT: StructuredAgentTranscriptImport = {
       })) ?? resolveSessionFilePath('grok', providerSessionId, { grokSessionsDir: sessionsDir })
     )
   }
-}
+})

@@ -30,6 +30,9 @@ const testOptions = {
   environment: 'node',
   clearMocks: false,
   fsModuleCache: true,
+  ...(process.env.ORCA_UNIT_MODULE_CACHE_PATH
+    ? { fsModuleCachePath: process.env.ORCA_UNIT_MODULE_CACHE_PATH }
+    : {}),
   env: { ORCA_VITEST_RUNTIME: 'node' },
   server: { deps: { inline: ['zod'] } },
   // Node's storage globals and V8 retention checks require the existing child flags.
@@ -37,8 +40,7 @@ const testOptions = {
   setupFiles: [
     resolve('config/scripts/vitest-real-agent-home-write-guard.ts'),
     resolve('config/scripts/vitest-bun-node-builtins.ts'),
-    resolve('config/scripts/happy-dom-offscreen-canvas.ts'),
-    resolve('config/scripts/happy-dom-mutation-observer-retention.ts'),
+    resolve('config/scripts/vitest-dom-setup.ts'),
     resolve('config/scripts/vitest-host-ports-setup.ts'),
     resolve('config/scripts/vitest-caller-identity-env-setup.ts')
   ],

@@ -3,7 +3,7 @@ import type {
   RuntimeMobileSessionBrowserTab,
   RuntimeMobileSessionTabsSnapshot
 } from '../../shared/runtime-types'
-import { OrcaRuntimeWithCloseStructuredAgentSessionTab } from './orca-runtime-close-structured-agent-session-tab'
+import { OrcaRuntimeWithCloseStructuredAgentSessionTab } from './session-tabs/structured-session-tab-close'
 import { OrcaRuntimeWithReconcileHeadlessMobileSessionBrowserTabs } from './orca-runtime-reconcile-headless-mobile-session-browser-tabs'
 
 const rendererPage: RuntimeMobileSessionBrowserTab = {

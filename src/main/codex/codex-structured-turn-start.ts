@@ -170,11 +170,15 @@ export async function dispatchCodexTurn(
     if (isCodexAppServerRequestError(error) || isCodexAppServerUnsupportedError(error)) {
       // Codex answered and declined, so no echo for this write can arrive.
       session.dispatchEchoes.disarm(input.clientMessageId)
-      // Codex's own words, when it gave any, are the one part of the error a person can use.
+      // Codex's own words, when it gave any, are the one part of the error a person can use. A
+      // declined request recorded nothing, so stopped messages it carried are owed again.
       return {
         state: 'rejected',
         ...codexDispatchRejection(
-          agentSessionFailureFact('providerRejected', { detail: providerDiagnosticOf(error) })
+          agentSessionFailureFact('providerRejected', {
+            detail: providerDiagnosticOf(error),
+            neverReachedAgent: true
+          })
         )
       }
     }

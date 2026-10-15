@@ -225,7 +225,8 @@ describe('FloatingTerminalPanel close behavior', () => {
     expect(mocks.createTab).toHaveBeenCalledWith(
       FLOATING_TERMINAL_WORKTREE_ID,
       'floating-group',
-      undefined
+      undefined,
+      { id: expect.any(String) }
     )
     expect(mocks.activateTab).not.toHaveBeenCalled()
   })
@@ -321,7 +322,8 @@ describe('FloatingTerminalPanel close behavior', () => {
     expect(mocks.createTab).toHaveBeenCalledWith(
       FLOATING_TERMINAL_WORKTREE_ID,
       'floating-group',
-      undefined
+      undefined,
+      { id: expect.any(String) }
     )
     expect(mocks.activateTab).not.toHaveBeenCalled()
   })

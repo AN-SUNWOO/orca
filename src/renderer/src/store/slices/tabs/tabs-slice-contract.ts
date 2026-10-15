@@ -11,6 +11,11 @@ import type { WorkspaceSessionHydrationOptions } from '@/lib/workspace-session-h
 
 export type TabSplitDirection = 'left' | 'right' | 'up' | 'down'
 
+export type TabDragActivationSnapshot = {
+  activeGroupId: string | null
+  activeTabIdByGroup: Record<string, string | null>
+}
+
 export type TabsSlice = {
   unifiedTabsByWorktree: Record<string, Tab[]>
   groupsByWorktree: Record<string, TabGroup[]>
@@ -136,25 +141,21 @@ export type TabsSlice = {
       splitDirection?: TabSplitDirection
     }
   ) => boolean
-  copyUnifiedTabToGroup: (
-    tabId: string,
-    targetGroupId: string,
-    init?: Partial<
-      Pick<
-        Tab,
-        | 'id'
-        | 'entityId'
-        | 'label'
-        | 'generatedLabel'
-        | 'quickCommandLabel'
-        | 'customLabel'
-        | 'color'
-        | 'isPinned'
-      >
-    >
-  ) => Tab | null
-  mergeGroupIntoSibling: (worktreeId: string, groupId: string) => string | null
   setTabGroupSplitRatio: (worktreeId: string, nodePath: string, ratio: number) => void
+  /** Selects the hovered tab while a drag is in flight; restored from the drag-start snapshot. */
+  previewDragActiveTab: (args: {
+    worktreeId: string
+    groupId: string
+    tabId: string | null
+    activeGroupId: string
+  }) => void
+  restoreDragActivationSnapshot: (worktreeId: string, snapshot: TabDragActivationSnapshot) => void
+  restoreSourceGroupActiveTabAfterDrop: (args: {
+    worktreeId: string
+    snapshot: TabDragActivationSnapshot
+    sourceGroupId: string
+    movedTabId: string
+  }) => void
   reconcileWorktreeTabModel: (worktreeId: string) => {
     renderableTabCount: number
     activeRenderableTabId: string | null

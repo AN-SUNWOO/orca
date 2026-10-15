@@ -86,6 +86,7 @@ import { initOpenCodeUsagePath } from '../opencode-usage/store'
 import { initMuseUsagePath } from '../muse-usage/store'
 import { registerDocPreviewSchemePrivileges } from '../browser/doc-preview-protocol'
 import { MEDIA_PREVIEW_CUSTOM_SCHEME } from '../media/media-preview-protocol'
+import { JIRA_IMAGE_CUSTOM_SCHEME } from '../jira/attachment-image-protocol'
 import { startCrashpadCapture } from '../crash-reporting/crashpad-capture'
 import { CrashReportStore } from '../crash-reporting/crash-report-store'
 import { recordCrashBreadcrumb } from '../crash-reporting/crash-breadcrumb-store'
@@ -207,8 +208,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   // Why before any spawn: `signalProcessTree` is shared with the CLI and relay, so
   // it can only reach the main-process guard and breadcrumb store once this is registered.
   installMainProcessTreeKillGate()
-  const isDev = is.dev
-  configureDevUserDataPath(isDev)
+  configureDevUserDataPath(is.dev)
   configureOrcaUserDataPathEnv()
   // Why these four lines are one step (#16761): the two above decide where userData lives, and
   // everything below may resolve a path. Installing the accessor any later leaves a window where an
@@ -253,8 +253,8 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   startMainThreadChurnProbe({ extraStats: () => ({ diffCache: settledDiffCache.stats() }) })
   // Why: acquire AFTER configureDevUserDataPath — Electron derives lock identity from `userData`, so dev/packaged lock in separate namespaces.
   // Why dev locks too: two processes on one profile corrupt its stores (PR #1326 / #1312); parallel `pnpm dev` needs ORCA_DEV_USER_DATA_PATH per copy.
-  const bypass = shouldBypassSingleInstanceLock({ isDev, isServeMode: state.isServeMode })
-  const skip = shouldSkipSingleInstanceLock({ isDev, isServeMode: state.isServeMode })
+  const bypass = shouldBypassSingleInstanceLock({ isDev: is.dev, isServeMode: state.isServeMode })
+  const skip = shouldSkipSingleInstanceLock({ isDev: is.dev, isServeMode: state.isServeMode })
   if (bypass) {
     // Why: diagnostic escape hatch for macOS builds where Electron reports a false lock loss before any app logs exist.
     logSingleInstanceLockBypass()
@@ -271,7 +271,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
     // Why: a false-negative lock loss otherwise looks like a silent crash on packaged macOS; `open --stderr` can capture this line.
     // In dev it is the line `pnpm dev` prints before exiting.
     logSingleInstanceLockFailure({
-      isDevDesktop: isDev && !state.isServeMode,
+      isDevDesktop: is.dev && !state.isServeMode,
       userDataPath: app.getPath('userData')
     })
     // Why: a graceful quit is deferred pre-ready, so this launch would still walk into Linux display init and SIGSEGV (#11935).
@@ -325,7 +325,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   setSpeechServiceFactories(electronSpeechServiceFactories)
   setWorktreeWatcherRemoval(desktopWorktreeWatcherRemoval)
   // Why: couple to dev-parent only for electron-vite desktop runs; `orca serve`'s parent (CLI shim/background shell) isn't the intended server lifetime.
-  const shouldCoupleToDevParent = isDev && !state.isServeMode
+  const shouldCoupleToDevParent = is.dev && !state.isServeMode
   installDevParentDisconnectQuit(shouldCoupleToDevParent)
   installDevParentWatchdog(shouldCoupleToDevParent)
   installDevParentSignalQuit(shouldCoupleToDevParent)
@@ -360,7 +360,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   initMuseUsagePath()
   // Why: Electron freezes the privileged scheme table at ready, so the doc-preview
   // scheme must be declared here or its webview loses fetch/secure-origin privileges.
-  registerDocPreviewSchemePrivileges([MEDIA_PREVIEW_CUSTOM_SCHEME])
+  registerDocPreviewSchemePrivileges([MEDIA_PREVIEW_CUSTOM_SCHEME, JIRA_IMAGE_CUSTOM_SCHEME])
   // Why: must precede app.whenReady() so Crashpad is installed before the
   // first renderer spawns; a CHECK before this point is still exit-code-only.
   startCrashpadCapture()

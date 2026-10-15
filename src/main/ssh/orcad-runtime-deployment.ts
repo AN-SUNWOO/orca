@@ -11,6 +11,7 @@ import { addManagedOrcadEnvironment } from '../../shared/runtime-environment-man
 import { getOrcadSshDeployment, redactRuntimeEnvironment } from '../../shared/runtime-environments'
 import {
   ORCAD_MANAGED_REMOTE_PORT,
+  type OrcadManagedDeferral,
   type OrcadManagedDeployResult
 } from '../../shared/orcad-managed-runtime'
 import { getManagedOrcadFenceEnvironmentId } from '../../shared/managed-orcad-ssh-owner'
@@ -23,8 +24,13 @@ import {
 } from './orcad-managed-tunnel'
 import { recoverInterruptedOrcadActivation } from './orcad-activation-recovery'
 import { readOrcadActivationRecord } from './orcad-activation-record-store'
-import { resolveOrcadRemoteContext } from './orcad-remote-context'
+import { resolveOrcadRemoteContext, type OrcadRemoteContext } from './orcad-remote-context'
 import { deployOrcad } from './orcad-remote-deploy'
+import {
+  adoptRunningOrcadVersion,
+  type OrcadRunningAdoption
+} from './orcad-running-version-adoption'
+import { readLocalFullVersion } from './remote-versioned-install'
 import { sshOrcadHostTransport } from './orcad-ssh-host-transport'
 import { ORCAD_ACTIVATION_POLICY_REFUSED_CODE } from './orcad-installed-activation'
 import { pruneManagedOrcadVersions } from './orcad-managed-version-gc'
@@ -117,43 +123,23 @@ export async function createManagedOrcadEnvironment(
       const localOrcadDir = await materializeOrcadArtifact(context.serverTarget, {
         signal: args.signal
       })
-      const appVersion = getAppEnvironment().getVersion()
-      const deployResult = await deployOrcad({
-        ...slot,
-        conn: connection,
-        localOrcadDir,
-        target: context.serverTarget,
-        ...managedOrcadDeployPolicy(context, appVersion, args.force),
-        force: args.force,
-        appVersion
-      })
-      if (deployResult.outcome === 'installed-not-activated') {
-        return {
-          outcome: 'deferred',
-          candidateVersion: deployResult.fullVersion,
-          code: deployResult.code,
-          reason: deployResult.reason,
-          forceable:
-            isForceableOrcadDeferral(deployResult.code) ||
-            deployResult.code === ORCAD_ACTIVATION_POLICY_REFUSED_CODE
-        }
+      // Before any upload, so a host another version serves is left exactly as it was. A migration
+      // adopts too: only the paired server can count its terminals, so its own deploy would defer.
+      const adopted = args.force
+        ? null
+        : await adoptRunningOrcadVersion(
+            slot,
+            context.activationRecord,
+            readLocalFullVersion(localOrcadDir)
+          )
+      const serving: DeployedOrcad | OrcadManagedDeferral =
+        adopted ??
+        (await deployOwnOrcad(context, { ...slot, conn: connection }, localOrcadDir, args))
+      if ('outcome' in serving) {
+        return serving
       }
-      const readiness = await probeManagedOrcadReadiness(
-        context,
-        localOrcadDir,
-        deployResult.fullVersion,
-        args.signal
-      )
-      await pruneManagedOrcadVersions({
-        slot,
-        serverTarget: context.serverTarget,
-        activeVersion: deployResult.fullVersion,
-        readiness
-      })
       // Why read back: orcad binds another port when the preferred one is taken on the host.
-      const tunnel = deployedOrcadTunnelChecks(readiness, () =>
-        probeManagedOrcadReadiness(context, localOrcadDir, deployResult.fullVersion, args.signal)
-      )
+      const tunnel = deployedOrcadTunnelChecks(serving.readiness, serving.reprobe)
       const localPort = await startOrcadManagedTunnel(
         environmentId,
         claimed,
@@ -174,9 +160,10 @@ export async function createManagedOrcadEnvironment(
       })
       environmentRegistered = true
       return {
-        outcome: deployResult.outcome === 'already-active' ? 'already-current' : 'created',
+        // An adopted server keeps its version; the linked update check may replace it later.
+        outcome: serving.created ? 'created' : 'already-current',
         environment: redactRuntimeEnvironment(environment),
-        activeVersion: deployResult.fullVersion
+        activeVersion: serving.version
       }
     } finally {
       if (!environmentRegistered) {
@@ -184,6 +171,51 @@ export async function createManagedOrcadEnvironment(
       }
     }
   })
+}
+
+type DeployedOrcad = OrcadRunningAdoption & { created?: true }
+
+async function deployOwnOrcad(
+  context: OrcadRemoteContext<SshTarget>,
+  slot: ReturnType<typeof managedOrcadSlot>,
+  localOrcadDir: string,
+  args: { force?: boolean; signal?: AbortSignal }
+): Promise<DeployedOrcad | OrcadManagedDeferral> {
+  const appVersion = getAppEnvironment().getVersion()
+  const deployResult = await deployOrcad({
+    ...slot,
+    localOrcadDir,
+    target: context.serverTarget,
+    ...managedOrcadDeployPolicy(context, appVersion, args.force),
+    force: args.force,
+    appVersion
+  })
+  if (deployResult.outcome === 'installed-not-activated') {
+    return {
+      outcome: 'deferred',
+      candidateVersion: deployResult.fullVersion,
+      code: deployResult.code,
+      reason: deployResult.reason,
+      forceable:
+        isForceableOrcadDeferral(deployResult.code) ||
+        deployResult.code === ORCAD_ACTIVATION_POLICY_REFUSED_CODE
+    }
+  }
+  const reprobe = () =>
+    probeManagedOrcadReadiness(context, localOrcadDir, deployResult.fullVersion, args.signal)
+  const readiness = await reprobe()
+  await pruneManagedOrcadVersions({
+    slot,
+    serverTarget: context.serverTarget,
+    activeVersion: deployResult.fullVersion,
+    readiness
+  })
+  return {
+    version: deployResult.fullVersion,
+    readiness,
+    reprobe,
+    ...(deployResult.outcome === 'already-active' ? {} : { created: true as const })
+  }
 }
 
 function assertMigrationFence(

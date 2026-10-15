@@ -12,7 +12,10 @@ import type { AgentBrowserBridge } from '../browser/agent-browser-bridge'
 import type { BrowserBackend } from '../browser/browser-backend'
 import type { EmulatorBridge } from '../emulator/emulator-bridge'
 
-export class OrcaRuntimeWithNotifySshStateChanged extends OrcaRuntimeWithGetStatus {
+export abstract class OrcaRuntimeWithNotifySshStateChanged extends OrcaRuntimeWithGetStatus {
+  abstract invalidateResolvedWorktreeCache(): void
+  abstract invalidateWorktreeScanCacheForRepo(repoId: string): void
+
   private static readonly MAX_SSH_RELAY_RECOVERY_GENERATIONS = 512
   private sshRelayRecoveryGenerationSequence = 0
   // Why: SSH state changes originate in main's ssh handlers, not in runtime

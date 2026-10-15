@@ -1,3 +1,4 @@
+import type { AgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import { agentSessionExecutionLocationsEqual } from '../../shared/agent-session-record'
@@ -10,6 +11,7 @@ import {
   resolveStructuredAgentSessionAdoption,
   structuredAdoptionConflictError
 } from '../native-chat/structured-agent-session-history-adoption'
+import { structuredAgentRuntimeRegistration } from './structured-agent-runtime-registrations'
 import type {
   StructuredAgentTranscriptImport,
   StructuredAgentTranscriptImportSettings
@@ -24,11 +26,13 @@ export function resolveCommittedStructuredAgentSessionAdoptionIntent(input: {
   location: AgentSessionExecutionLocation
   options?: Readonly<Record<string, string>>
 }): AgentSessionAttachParams | null {
+  const history = structuredAgentRuntimeRegistration(input.agent)?.sessionHistory
   const replay =
-    input.resumeFrom && input.callerKey && input.host
+    input.resumeFrom && input.callerKey && input.host && history
       ? findCommittedStructuredAgentSessionAdoptionReplay({
           agent: input.agent,
           providerSessionId: input.resumeFrom.providerSessionId,
+          rowSessionId: history.rowSessionId,
           selfSessionId: input.envelope.sessionId,
           callerKey: input.callerKey,
           operationId: input.envelope.clientOperationId,
@@ -64,7 +68,7 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
   transcriptImport: StructuredAgentTranscriptImport
   providerSessionId: string
   selfSessionId: string
-  selectedAccountHomePath: string
+  selectedAccountHome: AgentSessionAccountHome
   launchEnv: NodeJS.ProcessEnv
   workspaceCwd: string
 }) {

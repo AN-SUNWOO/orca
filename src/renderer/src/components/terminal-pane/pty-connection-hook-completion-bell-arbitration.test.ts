@@ -8,7 +8,6 @@ import {
 import {
   LEAF_1,
   createMockTransport,
-  createPaneContainer,
   createPane,
   createManager
 } from './pty-connection-test-pane-fixtures'
@@ -446,61 +445,7 @@ describe('connectPanePty', () => {
     })
   })
 
-  // Why: a DOM keydown signals "user is here"; raw xterm onData is lower-level (can include terminal replies/control bytes).
-  it('clears tab and worktree unread on real keydown', async () => {
-    const { connectPanePty } = await import('./pty-connection')
-    const transport = createMockTransport()
-    transportFactoryQueue.push(transport)
-
-    const pane = createPane(1)
-    pane.terminal.element = createPaneContainer()
-    const manager = createManager(1)
-    const deps = createDeps()
-
-    connectPanePty(pane as never, manager as never, deps as never)
-
-    const keydown = new Event('keydown')
-    Object.defineProperty(keydown, 'key', { value: 'a' })
-    Object.defineProperty(keydown, 'repeat', { value: false })
-    Object.defineProperty(keydown, 'ctrlKey', { value: false })
-    Object.defineProperty(keydown, 'metaKey', { value: false })
-    Object.defineProperty(keydown, 'shiftKey', { value: false })
-    ;(pane.terminal.element as EventTarget).dispatchEvent(keydown)
-
-    expect(deps.clearTerminalTabUnread).toHaveBeenCalledWith('tab-1')
-    expect(deps.clearTerminalPaneUnread).toHaveBeenCalledWith(makePaneKey('tab-1', LEAF_1))
-    expect(deps.clearWorktreeUnread).toHaveBeenCalledWith('wt-1')
-    expect(transport.sendInput).not.toHaveBeenCalled()
-  })
-
-  it('clears tab, pane, and worktree unread on plain Escape keydown', async () => {
-    // Why: plain Escape is real input (\x1b) — a genuine "user is here" signal; the interrupt-intent early return must not skip the unread clears.
-    const { connectPanePty } = await import('./pty-connection')
-    const transport = createMockTransport()
-    transportFactoryQueue.push(transport)
-
-    const pane = createPane(1)
-    pane.terminal.element = createPaneContainer()
-    const manager = createManager(1)
-    const deps = createDeps()
-
-    connectPanePty(pane as never, manager as never, deps as never)
-
-    const keydown = new Event('keydown')
-    Object.defineProperty(keydown, 'key', { value: 'Escape' })
-    Object.defineProperty(keydown, 'repeat', { value: false })
-    Object.defineProperty(keydown, 'ctrlKey', { value: false })
-    Object.defineProperty(keydown, 'metaKey', { value: false })
-    Object.defineProperty(keydown, 'altKey', { value: false })
-    Object.defineProperty(keydown, 'shiftKey', { value: false })
-    ;(pane.terminal.element as EventTarget).dispatchEvent(keydown)
-
-    expect(deps.clearTerminalTabUnread).toHaveBeenCalledWith('tab-1')
-    expect(deps.clearTerminalPaneUnread).toHaveBeenCalledWith(makePaneKey('tab-1', LEAF_1))
-    expect(deps.clearWorktreeUnread).toHaveBeenCalledWith('wt-1')
-  })
-
-  it('does not clear pane attention from raw onData after a bell', async () => {
+  it('forwards raw onData after a bell as a query reply', async () => {
     const { connectPanePty } = await import('./pty-connection')
     const transport = createMockTransport()
     transportFactoryQueue.push(transport)
@@ -524,43 +469,18 @@ describe('connectPanePty', () => {
     bellHandler()
     ;(onDataHandler as (data: string) => void)('a')
 
-    expect(deps.markTerminalPaneUnread).toHaveBeenCalledWith(
-      makePaneKey('tab-1', LEAF_1),
-      'terminal-bell'
-    )
-    expect(deps.clearTerminalPaneUnread).not.toHaveBeenCalled()
+    expect(deps.markTerminalBell).toHaveBeenCalledWith({
+      worktreeId: 'wt-1',
+
+      tabId: 'tab-1',
+
+      paneKey: makePaneKey('tab-1', LEAF_1)
+    })
     expect(transport.sendInput).toHaveBeenCalledWith('a', 'query-reply')
   })
 
-  // Why: xterm auto-replies during replay must not count as user interaction, or a BELed pane would self-dismiss unseen.
-  it('does not clear unread when onData fires during replay', async () => {
-    const { connectPanePty } = await import('./pty-connection')
-    const transport = createMockTransport()
-    transportFactoryQueue.push(transport)
-
-    const pane = createPane(1)
-    let onDataHandler: ((data: string) => void) | null = null
-    pane.terminal.onData = vi.fn(((handler: (data: string) => void) => {
-      onDataHandler = handler
-      return { dispose: vi.fn() }
-    }) as typeof pane.terminal.onData)
-    const manager = createManager(1)
-    const replayingPanesRef = { current: new Map<number, number>([[1, 1]]) }
-    const deps = createDeps({ replayingPanesRef })
-
-    connectPanePty(pane as never, manager as never, deps as never)
-
-    if (!onDataHandler) {
-      throw new Error('expected onData handler to be registered')
-    }
-    ;(onDataHandler as (data: string) => void)('\x1b[?1;2c')
-
-    expect(deps.clearTerminalTabUnread).not.toHaveBeenCalled()
-    expect(deps.clearWorktreeUnread).not.toHaveBeenCalled()
-  })
-
-  // Why: on a stale-codex pane (pending account-switch restart), onData bytes must not count as user interaction; production also blocks sendInput here.
-  it('does not clear unread when onData fires on a stale codex pane', async () => {
+  // Why: on a stale-codex pane (pending account-switch restart), production blocks sendInput.
+  it('blocks onData on a stale codex pane', async () => {
     const { connectPanePty } = await import('./pty-connection')
     const transport = createMockTransport('pty-codex-stale')
     transportFactoryQueue.push(transport)
@@ -595,8 +515,6 @@ describe('connectPanePty', () => {
     }
     ;(onDataHandler as (data: string) => void)('a')
 
-    expect(deps.clearTerminalTabUnread).not.toHaveBeenCalled()
-    expect(deps.clearWorktreeUnread).not.toHaveBeenCalled()
     // Stale-codex input is also blocked from reaching the transport.
     expect(transport.sendInput).not.toHaveBeenCalled()
   })

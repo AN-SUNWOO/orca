@@ -11,7 +11,7 @@ import {
   createRuntimeFileCommands,
   useRuntimeFileCommandsLifecycle
 } from './orca-runtime-files-test-harness'
-import { awaitRuntimeFileWatcherUnsubscribes } from './orca-runtime-files'
+import { awaitRuntimeFileWatcherUnsubscribes } from './files/watch/file-watcher-leases'
 
 vi.mock('fs', async () => (await import('./orca-runtime-files-mock-registry')).fsModuleMock())
 vi.mock('fs/promises', async () =>

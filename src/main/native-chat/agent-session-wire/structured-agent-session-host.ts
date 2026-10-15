@@ -8,7 +8,6 @@ import { StructuredConversationCommandController } from './structured-conversati
 
 import type { AgentJournalSnapshot } from '../../../shared/agent-session-journal-types'
 import type { AgentSessionExecutionLocation } from '../../../shared/agent-session-record'
-import type * as SessionWire from '../../../shared/agent-session-wire'
 import { createRestartReconciler } from './structured-agent-session-restart-reconcile'
 import type { AgentSessionSubscribeInput } from './structured-agent-session-subscribers'
 import { StructuredAgentSessionTaskQueue } from './structured-agent-session-task-queue'
@@ -231,6 +230,8 @@ export class StructuredAgentSessionHost {
   showSessionTabs = this.tabs.showSessionTabs
   setSessionTabVisibility = this.tabs.setSessionTabVisibility
   notifySessionTabHidden = this.tabs.notifySessionTabHidden
+  runWhileExecutionIdle = <T>(sessionId: string, task: () => Promise<T>): Promise<T | null> =>
+    this.lifetime.runWhileExecutionIdle(sessionId, task)
   /** This runtime holds a chat record, readable or not. */
   holdsSessions = (): boolean => this.deps.store.holdsRecords()
   onSessionsHeld = (listener: () => void): (() => void) => this.deps.store.onFirstRecord(listener)
@@ -239,8 +240,7 @@ export class StructuredAgentSessionHost {
   /** Once the settlement the last startup reconcile began has run for every chat. */
   startupSettled = (): Promise<void> => this.restore.startupSettled()
 
-  restoreReadableSessions = (sessionIds?: readonly string[]): Promise<void> =>
-    this.restore.restoreReadableSessions(sessionIds)
+  restoreReadableSessions = (ids?: readonly string[]) => this.restore.restoreReadableSessions(ids)
 
   /** Make one persisted session addressable again; see `structured-agent-session-reveal`. */
   revealSession = (sessionId: string): Promise<StructuredAgentSessionReveal> =>
@@ -326,8 +326,7 @@ export class StructuredAgentSessionHost {
   readCommands = (sessionId: string) => ({ commands: this.clientDelivery.readCommands(sessionId) })
 
   /** From the record store, never the session map: an idle-released chat has no map entry. */
-  handoffStatus = (sessionId: string): SessionWire.AgentSessionHandoffStatus =>
-    structuredAgentSessionOwnerStatus(this.deps, sessionId)
+  handoffStatus = (sessionId: string) => structuredAgentSessionOwnerStatus(this.deps, sessionId)
 
   history: StructuredAgentSessionBackgroundTaskChannel['history'] = (request, scope) =>
     this.backgroundTasks.history(request, scope)

@@ -162,7 +162,8 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     hasRepo: selectedRepo != null,
     githubAvailable: runtime.availableProviders.includes('github'),
     gitlabAvailable: runtime.availableProviders.includes('gitlab'),
-    linearAvailable: runtime.availableProviders.includes('linear')
+    linearAvailable: runtime.availableProviders.includes('linear'),
+    jiraAvailable: runtime.jiraConnection.connected && runtime.availableProviders.includes('jira')
   }
   // Why one client's: a source's repo switch is looked up through the picked repo's client.
   const hostRepos = useMemo(
@@ -273,6 +274,8 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         selectedRepo={selectedRepo}
         repos={hostRepos}
         pasteRepos={pasteRepos}
+        jiraSiteId={runtime.jiraConnection.selection}
+        jiraSites={runtime.jiraConnection.sites}
         sshReady={!executionTarget.sshGate.requiresConnection}
         projectPickerItems={projectPickerItems}
         selectedProjectId={selectedProjectId}

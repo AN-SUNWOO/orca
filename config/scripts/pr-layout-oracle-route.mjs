@@ -36,6 +36,12 @@ const LAYOUT_ORACLE_PREFIXES = [
   'src/main/persistence/closed-terminal-tab-write-fence.ts',
   'src/main/runtime/runtime-workspace-session-controller.ts',
   'src/main/runtime/terminal-surface-close.ts',
+  'src/main/runtime/terminal/output/terminal-derived-agent-facts.ts',
+  'src/main/runtime/terminal/output/terminal-output-generation.ts',
+  'src/main/runtime/session-graph/session-window-graph.ts',
+  'src/main/runtime/session-tabs/mobile-session-hydration.ts',
+  'src/main/runtime/session-tabs/mobile-session-reconciliation.ts',
+  'src/main/runtime/session-tabs/mobile-session-preservation.ts',
   'src/renderer/src/components/terminal/terminal-tab-actions.ts',
   'src/renderer/src/components/tab-bar/web-runtime-tab-move-mirror.ts',
   'src/shared/rpc-contract/workspace-layout-params.ts',
@@ -59,6 +65,12 @@ const LAYOUT_ORACLE_PREFIXES = [
   'config/scripts/pr-layout-oracle-route.mjs'
 ]
 
+const LAUNCH_LAYOUT_WRITERS = [
+  'src/main/runtime/terminal/launch/terminal-create.ts',
+  'src/main/runtime/terminal/launch/terminal-split.ts',
+  'src/main/runtime/terminal/launch/terminal-split-surface.ts'
+]
+
 // Runtime matches only the modules that create, move, close, persist or publish layout.
 const LAYOUT_ORACLE_RUNTIME_MODULE =
   /^src\/(?:main|renderer\/src)\/runtime\/(?:[^/]+\/)*[^/]*(?:pane-admission|workspace-layout|session-tab|headless-[^/]*tab|layout-client|layout-command-router|layout-projection|create-terminal|split-terminal|split-pty-backed-terminal|terminal-split-layout|spawn-placement|sync-window-graph|runtime-graph|leaf-move)[^/]*\.ts$/
@@ -75,6 +87,7 @@ export function isLayoutOracleSource(file) {
     return false
   }
   return (
+    LAUNCH_LAYOUT_WRITERS.includes(file) ||
     LAYOUT_ORACLE_PREFIXES.some((prefix) => file.startsWith(prefix)) ||
     LAYOUT_ORACLE_RUNTIME_MODULE.test(file)
   )

@@ -593,7 +593,7 @@ describe('CodexStructuredSessionAdapter.dispatch', () => {
       // Built without Codex's own words, so nothing is quoted and no detail is invented.
       state: 'rejected',
       reason: "Codex didn't accept this message.",
-      rejection: { kind: 'providerRejected' }
+      rejection: { kind: 'providerRejected', neverReachedAgent: true }
     })
   })
 

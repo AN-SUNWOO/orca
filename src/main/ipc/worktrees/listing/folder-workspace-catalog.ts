@@ -1,6 +1,10 @@
+import { createHash } from 'node:crypto'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree, DetectedWorktree } from '../../../../shared/worktree/types'
+import type { WorktreeMeta } from '../../../../shared/worktree/meta-types'
 import type { Store } from '../../../persistence/loading-store/store'
+import { mergeWorktreeMetaForWrite } from '../../../persistence/loading-store/worktree-meta-write-normalization'
+import { isWslMoveRepoBlocked } from '../../../persistence/moving-wsl-projects/wsl-move-background-backoff'
 import {
   createWorktreeVisibilitySourceMatcher,
   resolveCustomWorktreeVisibilitySources
@@ -19,7 +23,28 @@ import {
   mergeFolderWorkspace
 } from '../folder-workspace-model'
 
+// A project a WSL move is taking still lists, with its repairs projected in memory only.
+function folderMetaWriter(
+  store: Store,
+  repo: Repo
+): (worktreeId: string, updates: Partial<WorktreeMeta>) => WorktreeMeta {
+  if (!isWslMoveRepoBlocked(repo)) {
+    return (worktreeId, updates) => store.setWorktreeMeta(worktreeId, updates)
+  }
+  return (worktreeId, updates) => {
+    const existing = store.getWorktreeMeta(worktreeId)
+    // Nothing persists, so a minted root id would change on every listing; derive it instead.
+    const instanceId =
+      existing?.instanceId ??
+      (worktreeId === getFolderWorkspaceRootId(repo)
+        ? createHash('sha256').update(worktreeId).digest('hex').slice(0, 32)
+        : getFolderWorkspaceInstanceIdentity(repo, worktreeId))
+    return mergeWorktreeMetaForWrite(existing, { ...updates, instanceId })
+  }
+}
+
 export function listFolderWorkspaces(store: Store, repo: Repo): Worktree[] {
+  const writeMeta = folderMetaWriter(store, repo)
   const rootId = getFolderWorkspaceRootId(repo)
   const allMeta = store.getAllWorktreeMeta()
   const ids = Object.keys(allMeta).filter((worktreeId) =>
@@ -36,7 +61,7 @@ export function listFolderWorkspaces(store: Store, repo: Repo): Worktree[] {
       const meta =
         existing?.instanceId && Object.keys(ownershipUpdates).length === 0
           ? existing
-          : store.setWorktreeMeta(worktreeId, {
+          : writeMeta(worktreeId, {
               instanceId:
                 existing?.instanceId ?? getFolderWorkspaceInstanceIdentity(repo, worktreeId),
               ...ownershipUpdates,
@@ -77,6 +102,7 @@ export function buildFolderDetectedWorktrees(store: Store, repo: Repo): Detected
 }
 
 export function listVisibleFolderWorkspaces(store: Store, repo: Repo): Worktree[] {
+  const writeMeta = folderMetaWriter(store, repo)
   return buildFolderDetectedWorktrees(store, repo)
     .filter((worktree) => worktree.visible)
     .map((worktree) => {
@@ -85,7 +111,7 @@ export function listVisibleFolderWorkspaces(store: Store, repo: Repo): Worktree[
       const repairedMeta =
         meta && Object.keys(ownershipUpdates).length === 0
           ? meta
-          : store.setWorktreeMeta(worktree.id, ownershipUpdates)
+          : writeMeta(worktree.id, ownershipUpdates)
       return mergeFolderWorkspace(repo, worktree.id, repairedMeta)
     })
 }

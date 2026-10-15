@@ -1,7 +1,7 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { resolveStructuredCodexAccountKind } from './structured-agent-account-home'
 import { collectRuntimeWorktreeAgentSources } from './runtime-worktree-agent-sources'
-import { OrcaRuntimeWithStartTuiIdleVisibleReadProbe } from './orca-runtime-start-tui-idle-visible-read-probe'
+import { OrcaRuntimeWithStartTuiIdleVisibleReadProbe } from './terminal/wait/terminal-wait-visible-probe'
 import { DEFAULT_WORKTREE_PS_LIMIT } from './orca-runtime-postlude'
 import type { RuntimeWorktreePsResult } from '../../shared/runtime-types'
 import { buildRuntimeWorktreePsSummaries } from './runtime-worktree-ps-summaries'
@@ -49,11 +49,13 @@ import { nativeChatShellEnvironmentPolicy } from '../../shared/native-chat-shell
 import { claudeStructuredAuthPolicyForSettings } from '../claude-accounts/claude-structured-auth-policy'
 import { resolveStructuredAgentCommand } from '../native-chat/structured-agent-command-resolution'
 import { structuredAgentConfiguredArgs } from '../native-chat/structured-agent-configured-args'
-import { claudeCliFlagSupport } from '../claude/claude-cli-flag-support'
 import {
-  createNativeChatVisualsWorkspaceVerdicts,
-  readNativeChatVisualsWorkspaceCatalogs
-} from './native-chat-visuals-workspace-verdict'
+  runtimeHiddenHostIds,
+  runtimeHiddenRepoIds,
+  runtimeVisibleRepos,
+  withoutHiddenHosts
+} from './runtime-visible-catalog'
+import { claudeCliFlagSupport } from '../claude/claude-cli-flag-support'
 
 export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVisibleReadProbe {
   async getWorktreePs(
@@ -70,13 +72,16 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
       sourceDefaultsSupported,
       visibilitySettings
     )
-    const resolvedWorktrees = resolvedWorktreeSnapshot.worktrees.filter((worktree) =>
-      this.isRuntimeWorktreeVisible(
-        worktree,
-        visibilitySourceMatchersByRepoId.get(worktree.repoId),
-        sourceDefaultsSupported,
-        visibilitySettings
-      )
+    const hiddenRepoIds = runtimeHiddenRepoIds(this.store)
+    const resolvedWorktrees = resolvedWorktreeSnapshot.worktrees.filter(
+      (worktree) =>
+        !hiddenRepoIds.has(worktree.repoId) &&
+        this.isRuntimeWorktreeVisible(
+          worktree,
+          visibilitySourceMatchersByRepoId.get(worktree.repoId),
+          sourceDefaultsSupported,
+          visibilitySettings
+        )
     )
     // Why: worktree.ps backs the mobile sidebar, so it must use the same
     // host-owned imported-worktree visibility gate as worktree.list/desktop.
@@ -139,7 +144,11 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
     const sorted = [...summaries.values()].sort(compareWorktreePs)
     // Why: the same cap starvation as worktree.list — a host whose rows all sort last gets no
     // page at all, which is indistinguishable from it having no workspaces (#18104).
-    return buildWorktreeListingPage(sorted, limit, this.listKnownExecutionHostIds())
+    return buildWorktreeListingPage(
+      sorted,
+      limit,
+      withoutHiddenHosts(this.listKnownExecutionHostIds(), runtimeHiddenHostIds(this.store))
+    )
   }
 
   /** The agent's configured env, with the account a desktop that owns this host's accounts chose
@@ -153,6 +162,11 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
 
   listRepos(): Repo[] {
     return this.store?.getRepos() ?? []
+  }
+
+  /** What a client may list: the desktop's visible rows, never a retained source. */
+  listVisibleRepos(): Repo[] {
+    return runtimeVisibleRepos(this.store)
   }
 
   enrichMissingRepoGitRemoteIdentities(): void {
@@ -223,11 +237,7 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
       // Wired only here, so a test runtime never runs a real `claude --version`.
       claudeCliFlags: claudeCliFlagSupport,
       nativeChatVisuals: {
-        isEnabled: () => this.requireStore().getSettings().nativeChatInlineVisuals !== false,
-        // Chats and their visuals are shared by every profile; each profile keeps its own catalog.
-        workspaceVerdicts: createNativeChatVisualsWorkspaceVerdicts(() =>
-          this.store ? readNativeChatVisualsWorkspaceCatalogs(this.store) : null
-        )
+        isEnabled: () => this.requireStore().getSettings().nativeChatInlineVisuals !== false
       },
       resolveShellEnvironmentPolicy: () =>
         nativeChatShellEnvironmentPolicy(this.requireStore().getSettings()),

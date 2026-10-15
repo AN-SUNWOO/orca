@@ -20,6 +20,7 @@ import {
 import { PiRpcSessionAdapter } from './rpc-session-adapter'
 import { createPiModelCatalogProbe } from './rpc-model-catalog-probe'
 import { PI_SESSION_HISTORY } from './pi-session-history'
+import { PI_TRANSCRIPT_IMPORT } from './pi-transcript-import'
 
 function createPiRpcAdapter(context: StructuredAgentAdapterContext): StructuredAgentRuntimeAdapter {
   const { deps } = context
@@ -63,7 +64,7 @@ export const PI_RPC_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistration = {
         : {})
     })
   }),
-  transcriptImport: null,
+  transcriptImport: PI_TRANSCRIPT_IMPORT,
   sessionHistory: PI_SESSION_HISTORY,
   supportsLocation: supportsSupervisedProviderChildLocation,
   launchCheck: {

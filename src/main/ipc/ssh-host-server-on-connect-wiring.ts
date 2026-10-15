@@ -13,7 +13,10 @@ import { managedServerUpdateDeps } from '../ssh/managed-server-update-deps'
 import { ensureOrcadManagedTunnel } from '../ssh/orcad-managed-tunnel'
 import { verifyOrcadManagedServing } from '../ssh/orcad-managed-serving-verify'
 import { convertSshTargetToManagedOrcad } from '../ssh/orcad-runtime-conversion'
-import { orcadMigrationDestinationFor } from '../ssh/orcad-runtime-conversion-wiring'
+import {
+  orcadMigrationDestinationFor,
+  orcadServerRepositoriesFor
+} from '../ssh/orcad-runtime-conversion-wiring'
 import { createManagedOrcadEnvironment } from '../ssh/orcad-runtime-deployment'
 import type { HostServerOnConnectDeps } from '../ssh/ssh-host-server-on-connect'
 import {
@@ -102,7 +105,8 @@ export function hostServerOnConnectDeps(userDataPath: string): HostServerOnConne
         censusHost: (host) =>
           hostProof ? Promise.resolve(hostProof) : censusHostRelayTerminalsFor(host)(),
         // Why no releaseDirectSession: a disconnect here would cancel the connect that asked for it.
-        destinationFor: orcadMigrationDestinationFor
+        destinationFor: orcadMigrationDestinationFor,
+        serverRepositoriesFor: orcadServerRepositoriesFor
       })
     },
     abandonDeploy: async (target) => {

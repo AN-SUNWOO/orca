@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import '../../src/main/runtime/rpc/unused-default-rpc-methods.test-fixture'
 import { transport } from './__mocks__/structured-attention-read-surfaces'
 import { cleanup } from '@testing-library/react'
 import { beforeEach, afterEach, vi } from 'vitest'
@@ -36,7 +37,7 @@ import {
 } from '@/store/slices/store-test-helpers'
 
 import { useAppStore } from '@/store'
-import { useAutoAckViewedAgent } from '@/hooks/useAutoAckViewedAgent'
+import { useReadOnScreenAttention } from '@/hooks/useReadOnScreenAttention'
 import { useStructuredAgentSessionRead } from '@/components/native-chat/use-structured-agent-session-read'
 import { resetStructuredAgentSessionReadOwnersForTests } from '@/components/native-chat/structured-agent-session-read-owner'
 import { resetStructuredAgentSessionTurnCompletionFeedsForTests } from '@/runtime/structured-agent-session-turn-completion-feed'
@@ -162,7 +163,7 @@ export function ReadSurface({
   return null
 }
 export function AttentionPolicy(): null {
-  useAutoAckViewedAgent()
+  useReadOnScreenAttention()
   return null
 }
 export function readCalls(): number {

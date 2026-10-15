@@ -151,6 +151,7 @@ export function settingsMountAdapters(
       const model = observableModel(context, {
         client: context.client,
         connState: 'connected',
+        jiraStatusRequestIdRef: { current: 0 },
         defaultLinearTeamSelectionRef: { current: null },
         taskResumeRef: { current: {} },
         runtimeTaskSettings: {},

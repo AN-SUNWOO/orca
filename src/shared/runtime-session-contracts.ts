@@ -1,3 +1,4 @@
+import type { MobileProjectSectionCatalog } from './mobile-project-sections-contract'
 import type { AgentStatusOrchestrationContext } from './agent-status-types'
 import type { RemoteServerUpdateSupport } from './remote-server-update'
 import type { RemoteRuntimeSharedConnectionDiagnostics } from './remote-runtime-shared-control-types'
@@ -166,6 +167,8 @@ export type RuntimeSyncWindowGraph = {
   terminalGroupGridSizes?: Record<string, { cols: number; rows: number }>
   /** The grid a workspace with a single tab group gets, for one the window is not showing. */
   singleGroupWorkspaceGridSize?: { cols: number; rows: number }
+  /** The sidebar's Project grouping inputs for paired phones; sent only when they changed. */
+  projectSectionCatalog?: MobileProjectSectionCatalog
 }
 
 export type RuntimeRendererSyncWindowGraph = RuntimeSyncWindowGraph & {

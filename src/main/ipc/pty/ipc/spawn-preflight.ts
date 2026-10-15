@@ -39,9 +39,9 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
     ctx.deps.transitionSpawnHiddenRendererPtyDeliveryState(ctx.preSpawnHiddenMarkId, true)
   }
   if (!ctx.earlyStablePaneOwner) {
-    const pathUsable = ctx.deps.assertFolderWorkspacePtyPathUsable(args.worktreeId)
-    if (pathUsable) {
-      await pathUsable
+    const admission = ctx.deps.assertWorkspaceAcceptsNewPty(args.worktreeId, args.sessionId)
+    if (admission) {
+      await admission
     }
   }
   ctx.spawnTiming.mark('stable_adoption_setup')
@@ -60,9 +60,9 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
       : null
   ctx.spawnTiming.mark('stable_adoption')
   if (ctx.earlyStablePaneOwner && !ctx.preAdoptedStablePane) {
-    const pathUsable = ctx.deps.assertFolderWorkspacePtyPathUsable(args.worktreeId)
-    if (pathUsable) {
-      await pathUsable
+    const admission = ctx.deps.assertWorkspaceAcceptsNewPty(args.worktreeId, args.sessionId)
+    if (admission) {
+      await admission
     }
   }
   if (!ctx.preAdoptedStablePane) {
@@ -185,8 +185,7 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
         })
       : {
           shellOverride:
-            args.shellOverride ??
-            (ctx.deps.getSettings?.()?.terminalDefaultShell?.trim() || undefined),
+            args.shellOverride ?? (ctx.deps.getSettings?.()?.terminalDefaultShell || undefined),
           terminalWindowsWslDistro: null
         })
   const initialShellOverride = ctx.terminalRuntimeOptions.shellOverride

@@ -2,7 +2,8 @@
 // event, and the command receipt that names that event. Nothing of it is durable unless all of it
 // is, so a Stop whose acceptance fails withdraws nothing and interrupts nothing.
 
-import type { AgentJournalDispatchRejection } from '../../../shared/agent-session-failure-words'
+import { agentSessionFailureFact } from '../../../shared/agent-session-failure'
+import { agentSessionFailureWords } from '../../../shared/agent-session-failure-words'
 import type { AgentJournalCursor } from '../../../shared/agent-session-journal-types'
 import { journalQueuedRejectionRowBuilders } from './journal-pending-submission-recovery'
 import type { JournalReducerState } from './journal-reducer'
@@ -13,11 +14,15 @@ import { journalStopEventRowBuilder } from './journal-stop-and-resume-rows'
 export type JournalStopAcceptanceInput = {
   event: Omit<JournalStopEvent, 'at'>
   fence: number
-  /** What every queued send is rejected with. */
-  withdrawal: AgentJournalDispatchRejection
   /** The turn live as the event is written, by the host's read of what runs. */
   liveTurnId: () => string | null
 }
+
+// Only host-held sends are withdrawn, so each carries proof it never reached the agent.
+const STOP_WITHDRAWAL = agentSessionFailureWords(
+  agentSessionFailureFact('cancelled', { neverReachedAgent: true }),
+  { surface: 'rejection' }
+)
 
 export type JournalStopAcceptance = {
   /** Where the Stop event landed. */
@@ -55,7 +60,7 @@ export class JournalStopAcceptor {
         turnId = input.event.turnId ?? input.liveTurnId()
         const event = { ...input.event, ...(turnId !== null ? { turnId } : {}) }
         return [
-          ...journalQueuedRejectionRowBuilders(state, input.fence, input.withdrawal),
+          ...journalQueuedRejectionRowBuilders(state, input.fence, STOP_WITHDRAWAL),
           journalStopEventRowBuilder(state, event, input.fence)
         ]
       },

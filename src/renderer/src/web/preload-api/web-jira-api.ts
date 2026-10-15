@@ -1,4 +1,5 @@
 import type { PreloadApi } from '../../../../preload/api-types'
+import { translate } from '@/i18n/i18n'
 import { readRuntimeJiraPayload } from '../../runtime/runtime-jira-payload-stream'
 import { RuntimeRpcCallError } from '../../runtime/runtime-rpc-result'
 import { callRuntimeResult } from './web-runtime-calls'
@@ -48,6 +49,14 @@ export function createWebJiraApi(): PreloadApi['jira'] {
       jiraCall('lookupIssueSummary', args),
     cancelIssueSummary: () => Promise.resolve(),
     createIssue: (args) => jiraCall('createIssue', args),
+    generateIssueSummary: async () => ({
+      success: false,
+      error: translate(
+        'components.jiraIssueTitleField.webUnavailable',
+        'Jira title generation is unavailable in the web client.'
+      )
+    }),
+    cancelGenerateIssueSummary: () => Promise.resolve(),
     updateIssue: (args) => jiraCall('updateIssue', args),
     addIssueComment: (args) => jiraCall('addIssueComment', args),
     issueComments: (args) => readJiraPayload('issueCommentsStream', 'issueComments', args),

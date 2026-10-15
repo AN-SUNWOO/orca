@@ -18,6 +18,9 @@ export type PublishedPane = {
   /** The terminal the pane shows; absent while unbound. */
   ptyId?: string
   title?: string
+  /** The title the pane's terminal shows now. Live state, never saved; the tab's title stays each
+   *  view's choice, since it follows that view's focused pane. */
+  liveTitle?: string
 }
 
 export type PublishedTerminal = {

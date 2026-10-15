@@ -19,6 +19,7 @@ import type { BrowserPageDocLocation } from '../../../shared/browser-workspace-t
 import { findPage } from '@/store/slices/browser-page-records'
 import type { BrowserPageConversionLeg } from '@/store/slices/browser-page-conversion'
 import { ORCA_BROWSER_BLANK_URL } from '../../../shared/constants'
+import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
 
 export type PreviewableLanguage = 'html'
 /** Still the answer for flows that need a real `file://` URL (e.g. dropping a file on a browser pane). */
@@ -69,9 +70,10 @@ export function getWorkspaceFilePreviewPlan(
   // screencast capability still previews documents.
   if (getRuntimeEnvironmentIdForWorktree(state, worktreeId)) {
     const worktreeRoot = state.getKnownWorktreeById(worktreeId)?.path ?? null
-    if (worktreeRoot && !getRelativePathInsideRoot(filePath, worktreeRoot)) {
-      // Why: the host's files.read is worktree-scoped, so this would 404 at request time with
-      // nothing telling the user which boundary they hit.
+    const outsideWorktree = worktreeRoot && !getRelativePathInsideRoot(filePath, worktreeRoot)
+    // Why: the host's files.read is worktree-scoped (plus chat scratch folders, served by path), so
+    // this would 404 at request time with nothing telling the user which boundary they hit.
+    if (outsideWorktree && !chatScratchFileAddress(filePath)) {
       return {
         status: 'unsupported',
         message: pairedOutsideWorktreeMessage(),

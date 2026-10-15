@@ -78,10 +78,12 @@ describe('a Codex send its turn ended without echoing', () => {
     rig.turns.end('interrupted')
 
     expect(rig.settlements).toEqual([
+      // Codex took it into a turn: no proof it never reached Codex.
       expect.objectContaining({
         sessionId: 'session-1',
         clientMessageId: 'client-1',
-        state: 'rejected'
+        state: 'rejected',
+        rejection: { kind: 'cancelled' }
       })
     ])
     expect(rig.categoryOf(rig.settlements[0])).toBe('withdrawn')

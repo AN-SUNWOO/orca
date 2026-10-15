@@ -69,12 +69,13 @@ import type {
 import type { JournalSubmissionWriter } from './journal-submission-writer'
 import type { JournalEpochController } from './journal-epoch-controller'
 import { JournalWriteQueue } from './journal-write-queue'
+import { journalItemExecutionFence, journalItemProvenance } from './journal-item-provenance'
 import { createJournalStoreCollaborators } from './journal-store-collaborators'
 import type { JournalItemAppender } from './journal-item-appender'
 import type { JournalLifecycleBatchAppender } from './journal-lifecycle-batch-appender'
 import type { JournalStepWriter } from './journal-step-writer'
 import type { JournalStopMarks } from './journal-stop-marks'
-import { JournalContextController } from './journal-context-controller'
+import type { JournalContextController } from './journal-context-controller'
 import type { JournalStopAcceptor } from './journal-stop-acceptance'
 
 export { AgentSessionJournalError } from './journal-write-guards'
@@ -147,11 +148,7 @@ export class AgentSessionJournal {
     this.stopMarks = collaborators.stopMarks
     this.stops = collaborators.stops
     this.restore = collaborators.restore
-    this.context = new JournalContextController({
-      state: () => this.state,
-      writer: this.rowWriter,
-      cards: this.queuedMessages
-    })
+    this.context = collaborators.context
   }
 
   get epoch(): string {
@@ -225,6 +222,10 @@ export class AgentSessionJournal {
   itemBody = (itemId: string): AgentJournalItemBody | null =>
     this.state.items.get(itemId)?.body ?? null
 
+  /** Host-only: the stopped messages each handed-over send carried, by its client message id. */
+  stoppedHistoryCarried = (): ReadonlyMap<string, readonly string[]> =>
+    this.state.stoppedHistoryCarried
+
   /** One reduced item with its attribution, for a writer that needs the turn a row joined. */
   item = (itemId: string): AgentJournalRenderItem | null => this.state.items.get(itemId) ?? null
 
@@ -257,8 +258,12 @@ export class AgentSessionJournal {
   /** Includes revisions and completion tombstones, whose timestamps disappear from render items. */
   lastActivityAt = (): number => this.state.lastActivityAt
 
-  /** The item's execution provenance (`JournalItemRow.ownerFence`), while it is in the timeline. */
-  itemFence = (itemId: string): number | undefined => this.state.itemFences.get(itemId)
+  /** Whose execution the item is now, while it is in the timeline: the run a reusable child's row
+   *  last named (`JournalItemRow.executionOwner`), else its creator (`JournalItemRow.ownerFence`). */
+  itemFence = (itemId: string): number | undefined => journalItemExecutionFence(this.state, itemId)
+
+  /** Both provenance facts as stored, for a rebuild that writes them again. */
+  itemProvenance = (itemId: string) => journalItemProvenance(this.state, itemId)
 
   /** Latest saved output at this fence, excluding client actions and recovery bookkeeping. */
   lastProviderActivityAt = (fence: number) => this.state.providerActivityAt.get(fence)

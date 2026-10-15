@@ -272,7 +272,7 @@
         "remoteUnsupported": "Gérez l'identité du navigateur sur l'hôte distant avec la CLI Orca.",
         "loading": "Chargement…",
         "resetRequired": "Les données d'identité doivent être réinitialisées explicitement avant de pouvoir être modifiées.",
-        "resetRequiredCommand": "Réinitialisez-le à partir de la ligne de commande : orca Browser Identity Set --mode <mode> --reset",
+        "resetRequiredCommand": "Réinitialisez-le à partir de la ligne de commande : orca browser identity set --mode <mode> --reset",
         "optionClean": "Nettoyé",
         "optionCleanTooltip": "Supprime les jetons Orca et Electron pour correspondre aux sessions Chrome importées.",
         "optionNative": "Indigène",
@@ -300,7 +300,8 @@
       "readFailed": "Impossible de lire les paramètres des agents. Vérifiez la connexion à l’hôte et réessayez.",
       "saveFailed": "Impossible d’enregistrer les paramètres des agents. Vérifiez la connexion à l’hôte et réessayez.",
       "hostDefaults": "Paramètres par défaut des nouveaux agents sur l’hôte sélectionné.",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "clearDefault": "Effacer l'agent par défaut"
     },
     "followSymlinkedDirectoriesKeywords": {
       "symlink": "lien symbolique",
@@ -403,7 +404,12 @@
     "taskUrl": {
       "loadingHint": "Chargement de {{value0}}…",
       "createHint": "Créer un worktree à partir de {{value0}}"
-    }
+    },
+    "tasksHeader": "Tâches",
+    "taskCreate": "Créer un espace de travail",
+    "taskSearchLoading": "Recherche des tâches…",
+    "taskSearchFailed": "Certaines sources de tâches n'ont pas pu être recherchées",
+    "taskSearchRetry": "Réessayer"
   },
   "auto": {
     "App": {
@@ -1156,6 +1162,10 @@
             }
           }
         }
+      },
+      "aiVaultResumeRefusal": {
+        "openInChat": "Cette conversation {{value0}} est ouverte dans un chat. Actualisez l'historique des sessions pour l'ouvrir.",
+        "ownershipUnknown": "Orca n'a pas pu confirmer à qui appartient cette conversation {{value0}}. Actualisez l'historique des sessions et réessayez."
       }
     },
     "hooks": {
@@ -2435,7 +2445,14 @@
         "linearModeHasWorktreeTooltip": "Tickets Linear liés à un espace de travail Orca",
         "linearEmptyHasWorktree": "Aucun ticket Linear n'est encore lié à un espace de travail Orca. Démarrez le travail depuis une issue Linear pour le voir ici.",
         "linearOpenAttachedWorkspace": "Ouvrir l'espace de travail attaché à {{value0}}",
-        "linearWorktreesColumn": "Espaces de travail"
+        "linearWorktreesColumn": "Espaces de travail",
+        "jiraColumnsPicker": "Colonnes",
+        "jiraColumnParent": "Parent",
+        "jiraColumnSprint": "Sprint",
+        "jiraColumnStoryPoints": "Points",
+        "jiraColumnOriginalEstimate": "Estimation",
+        "jiraColumnRemainingEstimate": "Restant",
+        "jiraBoardEmptyColumn": "Aucune issue"
       },
       "Terminal": {
         "73768427cf": "Fermer",
@@ -2556,8 +2573,8 @@
         "repoGroupBadge": "Groupe de dépôts",
         "pluginCommandFailed": "Impossible d'exécuter la commande du plugin.",
         "recentChatsTerminalsHeader": "Chats et terminaux récents",
-        "27f10cca63": "Rechercher chats, terminaux, espaces de travail, paramètres et actions...",
-        "2770f02910": "Rechercher chats, terminaux, espaces de travail, paramètres et actions",
+        "27f10cca63": "Rechercher chats, terminaux, espaces de travail, tâches, paramètres et actions...",
+        "2770f02910": "Rechercher chats, terminaux, espaces de travail, tâches, paramètres et actions",
         "lastActiveTime": "Dernière activité il y a {{value0}}"
       },
       "github": {
@@ -3371,8 +3388,8 @@
           "zcode": {
             "missing": {
               "tui": {
-                "title": "This ZCode build has no terminal UI",
-                "description": "Orca's hooks installed correctly — the zcode on your PATH just cannot open a session. The ZCode desktop app bundles the agent runtime without its terminal UI. Install a zcode that ships the TUI, then run zcode outside Orca to confirm."
+                "title": "Ce build ZCode n'a pas d'interface de terminal",
+                "description": "Les hooks d'Orca se sont installés correctement — le zcode présent dans votre PATH ne peut tout simplement pas ouvrir de session. L'application de bureau ZCode intègre le runtime de l'agent sans son interface de terminal. Installez un zcode qui inclut la TUI, puis exécutez zcode en dehors d'Orca pour confirmer."
               }
             }
           },
@@ -3550,7 +3567,8 @@
             "sessionQueued": "Session en attente",
             "openSupportedWorkspace": "Ouvrez un espace de travail avant de reprendre une session.",
             "sessionHostMismatchUnsupported": "Cette session appartient à un autre hôte. Déposez-la sur un espace de travail du même hôte.",
-            "localSessionSshWorkspaceUnsupported": "L'historique de cette session est stocké sur cette machine ; la reprise est impossible dans un espace de travail SSH. Déposez-la plutôt sur un espace de travail local."
+            "localSessionSshWorkspaceUnsupported": "L'historique de cette session est stocké sur cette machine ; la reprise est impossible dans un espace de travail SSH. Déposez-la plutôt sur un espace de travail local.",
+            "oldPayload": "Cette session a été glissée depuis une fenêtre Orca plus ancienne. Reprenez-la plutôt depuis l'historique des sessions."
           },
           "TabGroupDropOverlay": {
             "paneColumnLabel": "Nouvelle scission"
@@ -7698,7 +7716,11 @@
           "compareAgainstUpstreamDescription": "Choisissez la base que le contrôle de code source utilise par défaut pour comparer les changements commités. L'amont de la branche suit automatiquement la branche courante et revient à la branche par défaut du dépôt en l'absence d'amont. Vous pouvez toujours changer la base de comparaison d'un worktree depuis son panneau Git. Les cibles de pull request et de rebase ne changent pas.",
           "compareBaseRepositoryDefault": "Valeur par défaut du dépôt",
           "compareBaseBranchUpstream": "Amont de la branche",
-          "refreshLocalBaseDescription": "Quand vous créez un espace de travail, Orca actualise la base distante et fait avancer en toute sécurité votre branche locale correspondante (fast-forward), telle que <mainBranch>main</mainBranch> ou <masterBranch>master</masterBranch>. Cela évite que des commandes comme <diffCommand>git diff main...HEAD</diffCommand> comparent avec un historique périmé. Orca ignore la mise à jour si cette branche contient des modifications non commitées ou des commits uniquement locaux."
+          "refreshLocalBaseDescription": "Quand vous créez un espace de travail, Orca actualise la base distante et fait avancer en toute sécurité votre branche locale correspondante (fast-forward), telle que <mainBranch>main</mainBranch> ou <masterBranch>master</masterBranch>. Cela évite que des commandes comme <diffCommand>git diff main...HEAD</diffCommand> comparent avec un historique périmé. Orca ignore la mise à jour si cette branche contient des modifications non commitées ou des commits uniquement locaux.",
+          "jiraIssueKeyCasingTitle": "Casse de la clé Jira",
+          "jiraIssueKeyCasingDescription": "Casse de la clé de l'issue Jira dans les noms d'espace de travail et de branche qu'Orca suggère pour les nouveaux espaces de travail liés à Jira, par exemple PROJ-123-fix-login au lieu de proj-123-fix-login. Les espaces de travail existants et les noms que vous saisissez ne sont jamais modifiés.",
+          "jiraIssueKeyCasingLowercase": "Minuscules",
+          "jiraIssueKeyCasingPreserve": "Clé en majuscules"
         },
         "InputPane": {
           "db15068196": "Activé par défaut sur Linux et macOS. Linux utilise le presse-papiers de sélection du système ; les autres plateformes utilisent un tampon privé.",
@@ -8957,7 +8979,6 @@
           "6e6480a7df": "Permet aux programmes du terminal (Zellij, tmux, Neovim, fzf, Grok, SSH) de copier vers le presse-papiers système.",
           "3338dcf8c1": "Autoriser les écritures presse-papiers des TUI (OSC 52)",
           "69c64a479c": "Permet à Zellij, tmux, Neovim, fzf et Grok de copier vers le presse-papiers système via le PTY (y compris via SSH).",
-          "4729c645fc": "Copier automatiquement les sélections du terminal vers le presse-papiers.",
           "902f5dee1f": "Copie à la sélection",
           "9129b7e805": "Survoler un volet de terminal l'active sans avoir à cliquer.",
           "8eefeaa3da": "Le focus suit la souris",
@@ -9687,7 +9708,7 @@
             },
             "sshWorkspaceRouting": {
               "ssh": "ssh",
-              "proxy": "procuration",
+              "proxy": "proxy",
               "tunnel": "tunnel",
               "routing": "routage",
               "network": "réseau"
@@ -9695,7 +9716,7 @@
             "userAgent": {
               "identity": "identité",
               "userAgent": "agent utilisateur",
-              "native": "indigène",
+              "native": "natif",
               "cleaned": "nettoyé",
               "restart": "redémarrage"
             }
@@ -9896,7 +9917,7 @@
             "nativeChat": {
               "title": "Chat UI",
               "grok": "grok",
-              "native": "indigène",
+              "native": "natif",
               "chat": "chat",
               "claude": "claude",
               "codex": "codex",
@@ -10178,7 +10199,13 @@
             "localChanges": "modifications locales",
             "originMaster": "origin/master",
             "committedChanges": "modifications committées",
-            "diffBase": "base de différence"
+            "diffBase": "base de différence",
+            "jiraIssueKeyCasingTitle": "Casse de la clé Jira",
+            "jiraIssueKeyCasingDescription": "Casse de la clé de l'issue Jira dans les noms d'espace de travail et de branche qu'Orca suggère pour les nouveaux espaces de travail liés à Jira, par exemple PROJ-123-fix-login au lieu de proj-123-fix-login. Les espaces de travail existants et les noms que vous saisissez ne sont jamais modifiés.",
+            "jira": "jira",
+            "issueKey": "clé d'issue",
+            "uppercase": "majuscules",
+            "lowercase": "minuscules"
           }
         },
         "input": {
@@ -10778,7 +10805,6 @@
               "664789b73a": "auto",
               "c38c18be15": "sélection",
               "797fdfe4ca": "sélectionner",
-              "603818e8d8": "Copiez automatiquement les sélections du terminal vers le presse-papiers dès qu'une sélection est faite.",
               "3bdc84f059": "Copie à la sélection",
               "zellij": "zellige",
               "grok": "grok"
@@ -12618,7 +12644,11 @@
           "olderTerminalsUnverifiable": "Orca n’a pas pu confirmer que les terminaux lancés par une version antérieure d’Orca sont terminés. Reconnectez-vous pour réessayer.",
           "olderTerminals_one": "{{count}} terminal lancé par une version antérieure d’Orca est toujours en cours d’exécution sur cet hôte et ne s’arrête pas de lui-même. Fermez-le dans cette version d’Orca ou arrêtez-le sur l’hôte, puis reconnectez-vous.",
           "olderTerminals_other": "{{count}} terminaux lancés par une version antérieure d’Orca sont toujours en cours d’exécution sur cet hôte et ne s’arrêtent pas d’eux-mêmes. Fermez-les dans cette version d’Orca ou arrêtez-les sur l’hôte, puis reconnectez-vous.",
-          "olderTerminals": "{{count}} terminaux lancés par une version antérieure d’Orca sont toujours en cours d’exécution sur cet hôte et ne s’arrêtent pas d’eux-mêmes. Fermez-les dans cette version d’Orca ou arrêtez-les sur l’hôte, puis reconnectez-vous."
+          "olderTerminals": "{{count}} terminaux lancés par une version antérieure d’Orca sont toujours en cours d’exécution sur cet hôte et ne s’arrêtent pas d’eux-mêmes. Fermez-les dans cette version d’Orca ou arrêtez-les sur l’hôte, puis reconnectez-vous.",
+          "linkedProjects_one": "Le serveur Orca de cet hôte avait déjà {{paths}} ; ce bureau utilise donc maintenant la copie du serveur. Les onglets de ce bureau et {{count}} automatisation à cet endroit n’ont pas été déplacés, et les worktrees qu’il y a créés apparaissent comme worktrees externes.",
+          "linkedProjects_other": "Le serveur Orca de cet hôte avait déjà {{paths}} ; ce bureau utilise donc maintenant la copie du serveur. Les onglets de ce bureau et {{count}} automatisations à cet endroit n’ont pas été déplacés, et les worktrees qu’il y a créés apparaissent comme worktrees externes.",
+          "linkedProjects": "Le serveur Orca de cet hôte avait déjà {{paths}} ; ce bureau utilise donc maintenant la copie du serveur. Les onglets de ce bureau et {{count}} automatisations à cet endroit n’ont pas été déplacés, et les worktrees qu’il y a créés apparaissent comme worktrees externes.",
+          "linkedProjectsNoAutomations": "Le serveur Orca de cet hôte avait déjà {{paths}} ; ce bureau utilise donc maintenant la copie du serveur. Les onglets de ce bureau à cet endroit n’ont pas été déplacés, et les worktrees qu’il y a créés apparaissent comme worktrees externes."
         },
         "deltaMove": {
           "action": "Déplacer les nouveaux projets…",
@@ -16643,13 +16673,9 @@
         },
         "AutomationEditorDialogHeader": {
           "31f9253920": "Utiliser un modèle",
-          "7e35393632": "Hermes",
-          "6f309eef8d": "Orca",
           "58f56b73d9": "Nom de l'automatisation",
           "1d9826933e": "Audit du dépôt en semaine",
           "4133d33862": "Créer une automatisation",
-          "0a75e5e2fa": "Créer une automatisation Hermes",
-          "03142e7721": "Modifier une automatisation Hermes",
           "17086b48ee": "Modifier l'automatisation",
           "4c8e1a72b9": "Une tâche d'agent récurrente"
         },
@@ -16723,7 +16749,6 @@
           "295698292f": "Relancer",
           "0e110a3469": "Exécutions",
           "bb1b2cd31e": "Vue d'ensemble",
-          "97ff587ee3": "Connectez cette source pour détecter les automatisations Hermes dans le profil distant.",
           "aaa007846f": "source indisponible",
           "25060635c6": "Ajouter",
           "d207ab4c25": "Partir d'un modèle",
@@ -16762,9 +16787,6 @@
           "b11170a008": "Échec de l'enregistrement de l'automatisation.",
           "2a20596d6b": "Automatisation enregistrée.",
           "244727e655": "Automatisation mise à jour.",
-          "77b81bc4ac": "Automatisation Hermes créée.",
-          "08efc3ae12": "Automatisation Hermes mise à jour.",
-          "e431bb85d4": "Choisissez un espace de travail sur le même hôte que cette automatisation Hermes.",
           "32534e7c9c": "Choisissez un espace de travail disponible avant d'enregistrer.",
           "2360ffc956": "Choisissez un agent activé avant d'enregistrer.",
           "6e91dab317": "Saisissez une planification avancée valide avant d'enregistrer.",
@@ -16775,7 +16797,6 @@
           "8705757e27": "tâche",
           "376631ef2b": "Reprendre",
           "b457436d6a": "Pause",
-          "0ae52dd760": "hermes",
           "e059042585": "Lecture seule",
           "aecdc3681f": "Gérable",
           "8500baacb4": "source externe",
@@ -16836,17 +16857,11 @@
           "a42bf2b27e": "Supprimer l'automatisation externe",
           "1c3bfd38fe": "Reprendre l'automatisation externe",
           "0def1693bb": "Mettre l'automatisation externe en pause",
-          "1df491fd00": "Modifier l'automatisation externe",
           "cc77ba88ff": "Exécuter l'automatisation externe",
           "5820648765": "Dernière",
-          "844f1acb72": "trouvé(s)",
           "20fd7a3a15": "suivant",
           "c6695e6fbd": "Automatisations externes",
           "5524365227": "OpenClaw",
-          "766abf833c": "Hermes",
-          "bf5f67b590": "hermes",
-          "e66091daf4": "exécutions",
-          "8e9165af08": "exécuter",
           "2b0adbce21": "En pause",
           "b3feba84c7": "Actif",
           "92405f1431": "Indisponible",
@@ -16855,25 +16870,6 @@
           "330b3c32e8": "disponible",
           "e2532150ed": "automatisations",
           "701515f010": "automatisation"
-        },
-        "ExternalAutomationRunTable": {
-          "0ba9c0a95c": "Page d'exécutions suivante",
-          "52d468a0b8": "Page d'exécutions précédente",
-          "7475c0ce96": "sur",
-          "be551397ca": "Statut",
-          "a813df9808": "Aperçu",
-          "d4b34feb66": "Heure d'exécution",
-          "2d4388a908": "Exécutions",
-          "9c080765ff": "Aucune exécution Hermes trouvée pour l'instant.",
-          "8ea934cacf": "Chargement des exécutions...",
-          "d5527d8fe7": "exécutions",
-          "872d032d05": "exécuter"
-        },
-        "HermesCronOutputView": {
-          "e27c716b43": "Prompt",
-          "4557213074": "Réponse",
-          "05affc68e3": "Erreur",
-          "88d48157fc": "default"
         },
         "WorkspaceCombobox": {
           "ee5b280eba": "Aucun espace de travail trouvé.",
@@ -17762,6 +17758,7 @@
           "fbb5018602": "Ce fichier est vide.",
           "6112db5a1c": "Les artifacts partagés depuis Orca doivent peser moins de 800 Ko.",
           "e2ed5acd8c": "Orca n'a pas pu lire ce fichier. Ouvrez-le depuis un espace de travail et réessayez.",
+          "visualUnreadable": "Impossible de lire cette visualisation pour la partager.",
           "6d475e9b25": "Seuls les fichiers HTML et Markdown locaux peuvent être partagés comme artifacts.",
           "29a406be09": "Les artifacts doivent contenir du texte."
         },
@@ -17956,6 +17953,23 @@
         "resuming": "Reprise automatique après le redémarrage.",
         "resumed": "Reprises automatiquement après le redémarrage.",
         "changeInSettings": "Modifier dans les paramètres"
+      },
+      "TaskPageJiraSavedFilters": {
+        "6c381858a1": "Filtres enregistrés",
+        "d14121662d": "Aucun filtre enregistré.",
+        "af0dd8c528": "Modifier {{value0}}",
+        "bae9bd87bf": "Vous pouvez enregistrer jusqu’à {{value0}} filtres.",
+        "85506127a5": "Enregistrer le filtre actuel",
+        "7aef259c28": "Modifier le filtre Jira",
+        "4f0e55d2e5": "Enregistrer le filtre Jira",
+        "466c1b12ce": "Nommez cette requête JQL pour y accéder rapidement.",
+        "e4c2f52972": "Nom",
+        "0ab71bb840": "Un filtre enregistré porte déjà ce nom.",
+        "42ce360813": "JQL",
+        "7b21c59a26": "Supprimer le filtre",
+        "a62f9db53d": "Annuler",
+        "c77189bc0c": "Mettre à jour le filtre",
+        "19af906d12": "Enregistrer le filtre"
       }
     },
     "i18n": {
@@ -18412,6 +18426,8 @@
         "toggleDetails": "Basculer les détails du tour"
       },
       "jumpToLatest": "Aller au dernier message",
+      "newRowsAnnouncement": "De nouveaux messages sont arrivés en votre absence",
+      "newRowsMarker": "Nouveau",
       "find": {
         "label": "Rechercher dans le chat",
         "noResults": "Aucun résultat",
@@ -19114,7 +19130,8 @@
     "settings": {
       "TerminalInteraction": {
         "copyTrimsGutter": "Couper la gouttière lors de la copie",
-        "copyTrimsGutterDescription": "Déposez la sortie de l'agent de gouttière gauche qui est peinte derrière, donc le texte copié n'est pas en retrait. Seul le retrait de chaque partage de ligne sélectionnée est supprimé."
+        "copyTrimsGutterDescription": "Déposez la sortie de l'agent de gouttière gauche qui est peinte derrière, donc le texte copié n'est pas en retrait. Seul le retrait de chaque partage de ligne sélectionnée est supprimé.",
+        "copyOnSelectDescription": "Copier automatiquement vers le presse-papiers le texte sélectionné dans un terminal ou un chat."
       },
       "terminal": {
         "clipboard": {
@@ -19124,7 +19141,10 @@
             "margin": "marge",
             "leading": "menant",
             "whitespace": "espace",
-            "spaces": "espaces"
+            "spaces": "espaces",
+            "copyOnSelectDescription": "Copiez automatiquement vers le presse-papiers le texte sélectionné dans un terminal ou un chat dès que la sélection est faite.",
+            "highlight": "surligner",
+            "chat": "chat"
           }
         }
       },
@@ -19162,6 +19182,42 @@
     },
     "automations": {
       "runTerminalUnavailable": "Le terminal d'exécution est indisponible."
+    },
+    "jiraIssueTitleField": {
+      "generate": "Générer le titre à partir de la description",
+      "stop": "Arrêter la génération du titre",
+      "canceled": "Génération annulée.",
+      "webUnavailable": "La génération de titres Jira est indisponible dans le client web.",
+      "hostUpdateRequired": "La génération de titres Jira nécessite un serveur Orca plus récent. Mettez à jour l'hôte de la connexion Jira, puis réessayez.",
+      "generating": "Génération du titre. Cliquez pour arrêter.",
+      "failed": "Impossible de générer un résumé à partir de la description."
+    },
+    "agentCombobox": {
+      "clearSelection": "Effacer la sélection d'agent"
+    },
+    "newWorkspace": {
+      "agentOptional": "Agent (facultatif)",
+      "createDescription": "Choisissez le projet et le nom de l'espace de travail. Sélectionnez un agent si vous souhaitez en démarrer un."
+    },
+    "JiraIssueWorkspace": {
+      "pendingChange": "Une autre modification d'issue est en cours."
+    },
+    "jiraProjectPicker": {
+      "search": "Rechercher des projets Jira",
+      "empty": "Aucun projet trouvé.",
+      "label": "Projet Jira",
+      "all": "Tous les projets Jira"
+    },
+    "RepositoryJiraProjectSection": {
+      "saveFailed": "Impossible d'enregistrer le projet Jira par défaut.",
+      "runtimeUpdate": "Mettez à jour ce runtime pour enregistrer un projet Jira par défaut.",
+      "title": "Projet Jira par défaut",
+      "description": "Faites de ce projet le projet par défaut du sélecteur d'issues Jira et de la liste Tâches. Vous pouvez le modifier pour chaque worktree.",
+      "none": "Aucun projet par défaut",
+      "connect": "Connectez Jira dans Intégrations pour choisir un projet.",
+      "keywordJira": "jira",
+      "keywordDefaultProject": "projet par défaut",
+      "keywordIssuePicker": "sélecteur d'issues"
     }
   },
   "dashboardPopout": {
@@ -19524,7 +19580,8 @@
     "continueInCliNewTab": "Continuer dans la CLI dans un nouvel onglet"
   },
   "common": {
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "cancel": "Annuler"
   },
   "fileExplorer": {
     "root": {
@@ -19909,5 +19966,114 @@
     "browser": "Navigateur",
     "editor": "Éditeur",
     "terminal": "Terminal"
+  },
+  "jira": {
+    "savedFilters": {
+      "retry": "Réessayer",
+      "find": "Rechercher un filtre enregistré",
+      "noMatch": "Aucun filtre correspondant.",
+      "loadFailed": "Impossible de charger les filtres Jira enregistrés.",
+      "saveFailed": "Impossible d’enregistrer les filtres Jira."
+    },
+    "statusFilters": {
+      "loadFailed": "Impossible de charger les filtres de statut Jira.",
+      "saveFailed": "Impossible d’enregistrer les filtres de statut Jira.",
+      "manualQuery": "Les filtres de statut s’appliquent aux vues prédéfinies. Effacez la recherche pour les utiliser.",
+      "label": "Filtrer les tickets Jira par statut",
+      "clear": "Effacer les statuts",
+      "jql": "JQL du filtre de statut",
+      "editJql": "Modifier en JQL",
+      "catalogHint": "Les statuts proviennent des tickets chargés. Effacez les statuts pour en découvrir d’autres dans cette vue."
+    },
+    "connect": {
+      "scopedTokenGuide": "Les jetons à portée limitée nécessitent read:jira-work, write:jira-work et read:jira-user. Laissez l'e-mail vide pour utiliser l'authentification Bearer.",
+      "oldHostGuide": "Ce runtime distant exige un e-mail et un jeton API non limité. Mettez à jour le runtime distant pour utiliser des jetons à portée limitée.",
+      "scopedDescription": "Utilisez l'URL d'un site Jira Cloud et un jeton API pour parcourir les issues. Les jetons à portée limitée peuvent omettre l'e-mail.",
+      "optionalEmail": "E-mail Atlassian (facultatif pour les jetons à portée limitée)"
+    },
+    "workspace": {
+      "open": "Ouvrir l'espace de travail lié à {{key}}",
+      "count": "{{count}} espaces de travail liés à {{key}}",
+      "startAnother": "Démarrer un nouvel espace de travail",
+      "empty": "Liez une issue Jira à un espace de travail, ou choisissez une autre vue.",
+      "openFailed": "Impossible d'ouvrir l'espace de travail lié à cette issue Jira.",
+      "mode": "Avec espace de travail",
+      "search": "Rechercher les issues liées",
+      "single": "1 espace de travail lié à {{key}}"
+    },
+    "prompt": {
+      "dialogTitle": "Copier le prompt depuis un modèle",
+      "template": "Modèle",
+      "custom": "Modèle personnalisé",
+      "templateText": "Texte du modèle",
+      "variables": "Utilisez $jira-issue pour le contexte de l'issue et $other-prompt pour vos instructions supplémentaires. Enregistré sur cet appareil.",
+      "other": "Instructions supplémentaires (facultatif)",
+      "preview": "Aperçu",
+      "implementation": "Lancer l'implémentation",
+      "bug": "Analyser le bug",
+      "testPlan": "Rédiger un plan de test",
+      "prSummary": "Rédiger un résumé de PR"
+    },
+    "copy": {
+      "context": "Copier le contexte pour {{key}}",
+      "actions": "Copier le contexte de l'issue"
+    },
+    "transitions": {
+      "changeStatus": "Changer le statut : {{status}}",
+      "loadError": "Impossible de charger les changements de statut.",
+      "retry": "Réessayer",
+      "loading": "Chargement des changements de statut…",
+      "completeInJira": "Terminez « {{name}} » dans Jira",
+      "unsupported": "Jira exige des champs qu'Orca ne peut pas encore collecter : {{fields}}.",
+      "chooseResolution": "Choisissez une résolution",
+      "comment": "Commentaire",
+      "back": "Retour",
+      "apply": "Changer le statut",
+      "empty": "Aucun changement de statut disponible."
+    },
+    "board": {
+      "currentSprint": "Sprint en cours",
+      "viewMode": "Vue Jira",
+      "list": "Liste",
+      "board": "Tableau",
+      "moveIssue": "Déplacer {{key}}",
+      "moveTitle": "Déplacer {{key}} vers {{column}}",
+      "moveDescription": "Jira contrôle les changements de statut disponibles et les champs qu'ils exigent.",
+      "chooseTransition": "Choisissez un changement de statut :",
+      "cancel": "Annuler",
+      "noTransition": "Aucun changement de statut vers {{column}} n'est disponible pour {{key}}.",
+      "queryTooLong": "La requête Jira est trop longue. Raccourcissez la requête ou effacez les filtres."
+    }
+  },
+  "updates": {
+    "installBlock": {
+      "instancesLabel": "Instances utilisant Orca",
+      "browserLabel": "Navigateur en arrière-plan",
+      "serverLabel": "Serveur en arrière-plan",
+      "windowLabel": "Autre fenêtre Orca",
+      "instanceLabel": "Autre instance Orca",
+      "processId": "PID {{pid}}",
+      "preparingTitle": "Préparation de votre mise à jour",
+      "preparingSummary": "Vérification des instances Orca en cours d'exécution avant de redémarrer.",
+      "later": "Plus tard",
+      "retainedDownload": "Orca reste ouvert. Pas besoin de retélécharger.",
+      "retryInstallation": "Réessayer l'installation",
+      "waitingLabel": "Mise à jour en attente",
+      "busyTitle": "Un autre Orca est en cours de mise à jour",
+      "busySummary": "Une mise à jour est déjà en cours d'installation par une autre instance Orca.",
+      "busyGuidance": "Attendez un instant, puis réessayez. Votre mise à jour téléchargée est prête.",
+      "unresponsiveTitle": "En attente des serveurs en arrière-plan",
+      "unresponsiveSummary": "Orca n'a pas pu terminer la mise en pause de ses serveurs en arrière-plan pour la mise à jour.",
+      "unresponsiveGuidance": "Arrêtez-le depuis le terminal ou le service qui l'a démarré, puis réessayez. Les appareils connectés seront déconnectés.",
+      "readyTitle": "Votre mise à jour est prête",
+      "serverSummary": "Un serveur Orca en arrière-plan utilise encore cette app.",
+      "instanceSummary": "Une autre instance Orca utilise encore cette app.",
+      "serverGuidance": "Arrêtez le serveur depuis le terminal ou le service qui l'a démarré, puis réessayez. Les appareils connectés seront déconnectés.",
+      "mixedGuidance": "Fermez les autres fenêtres Orca et arrêtez le serveur depuis le terminal ou le service qui l'a démarré. Les appareils connectés seront déconnectés. Réessayez ensuite.",
+      "instanceGuidance": "Quittez les autres instances Orca, puis réessayez. Votre mise à jour téléchargée restera prête.",
+      "waitingAriaLabel": "Mise à jour en attente d'autres instances Orca. Cliquez pour développer.",
+      "preparingLabel": "Préparation de la mise à jour",
+      "preparingAriaLabel": "Préparation de la mise à jour. Cliquez pour développer."
+    }
   }
 }

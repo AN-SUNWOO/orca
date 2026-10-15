@@ -6,8 +6,6 @@
 // reachable only through `mutateWithChatStop`, which queues that step in the same synchronous call
 // as the mutation. Once saved, a failure is answered from the Stop's receipt and noted on the chat.
 
-import { agentSessionFailureFact } from '../../../shared/agent-session-failure'
-import { agentSessionFailureWords } from '../../../shared/agent-session-failure-words'
 import type {
   AgentSessionCancelResult,
   AgentSessionMutationEnvelope,
@@ -84,10 +82,7 @@ export function mutateWithChatStop<TValue>(
         caller: caller.callerKey,
         ...(target.eventTurnId !== null ? { turnId: target.eventTurnId } : {})
       },
-      fence: ctx.fence,
-      withdrawal: agentSessionFailureWords(agentSessionFailureFact('cancelled'), {
-        surface: 'rejection'
-      })
+      fence: ctx.fence
     })
     return accepted.ok
       ? { ok: true, value: { settled: target.queued, turnId: accepted.value.turnId } }

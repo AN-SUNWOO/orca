@@ -9,10 +9,12 @@ import { LAYOUT_ORACLE_E2E_SPECS } from './pr-layout-oracle-route.mjs'
 
 const isProductSource = (file) => !/\.test\.tsx?$/.test(file) && !isUnitTestSupportSource(file)
 
-// Why config/patches: the xterm fork owns the helper textarea an input method attaches to, so a
-// patch edit can break composition without touching a file named "ime".
+// The core xterm patch owns the helper textarea an input method attaches to.
+const XTERM_CORE_PATCH =
+  /^config\/patches\/(?:@xterm__xterm@[^/]+\.patch|xterm-src\/@xterm__xterm@[^/]+\.src\.patch)$/
+
 const NATIVE_IME_PRODUCT_SOURCE =
-  /^(?:config\/patches\/|src\/shared\/terminal-unicode-provider\.ts$|src\/renderer\/src\/lib\/pane-manager\/terminal-ime-|src\/renderer\/src\/components\/terminal-pane\/(?:terminal-ime-|terminal-ios-hangul-|xterm-bypass-policy))/
+  /^(?:src\/shared\/terminal-unicode-provider\.ts$|src\/renderer\/src\/lib\/pane-manager\/terminal-ime-|src\/renderer\/src\/components\/terminal-pane\/(?:terminal-ime-|terminal-ios-hangul-|xterm-bypass-policy))/
 
 /** The harness itself: the session runner, the boundary probes, and the native specs. */
 const NATIVE_IME_HARNESS =
@@ -255,9 +257,10 @@ export const PR_E2E_SOURCE_ROUTES = [
     ],
     matches: (file) =>
       isProductSource(file) &&
-      /^(?:config\/patches\/|src\/renderer\/src\/components\/terminal-pane\/(?:terminal-ime-|use-terminal-pane-lifecycle|xterm-bypass-policy|terminal-option-shortcut-policy))/.test(
-        file
-      )
+      (XTERM_CORE_PATCH.test(file) ||
+        /^src\/renderer\/src\/components\/terminal-pane\/(?:terminal-ime-|use-terminal-pane-lifecycle|xterm-bypass-policy|terminal-option-shortcut-policy)/.test(
+          file
+        ))
   },
   {
     // Why a route beside terminal-input.ime-and-synthetic-forwarding rather than more specs on
@@ -268,7 +271,8 @@ export const PR_E2E_SOURCE_ROUTES = [
     id: 'terminal-ime.native-input-method',
     specs: ['tests/e2e/terminal-ibus-hangul-native.spec.ts'],
     matches: (file) =>
-      (isProductSource(file) && NATIVE_IME_PRODUCT_SOURCE.test(file)) ||
+      (isProductSource(file) &&
+        (XTERM_CORE_PATCH.test(file) || NATIVE_IME_PRODUCT_SOURCE.test(file))) ||
       NATIVE_IME_HARNESS.test(file)
   },
   {
@@ -393,9 +397,10 @@ export const PR_E2E_SOURCE_ROUTES = [
     specs: ['tests/e2e/paired-client-hosted-browser-restart-survival.spec.ts'],
     matches: (file) =>
       isProductSource(file) &&
-      /^src\/.*(?:[Cc]lient-?[Hh]osted|browser-host-(?:lease|page|client-page)|browser-client-(?:host|page)|runtime-browser-(?:client-)?page|session-tabs-sync|host-session-snapshot-authority|orca-runtime(?:-browser)?\.ts|\/runtime-(?:status|types)\.ts)/.test(
-        file
-      )
+      (file === 'src/main/runtime/browser/browser-commands.ts' ||
+        /^src\/.*(?:[Cc]lient-?[Hh]osted|browser-host-(?:lease|page|client-page)|browser-client-(?:host|page)|runtime-browser-(?:client-)?page|session-tabs-sync|host-session-snapshot-authority|orca-runtime\.ts|\/runtime-(?:status|types)\.ts)/.test(
+          file
+        ))
   }
 ]
 

@@ -77,7 +77,8 @@ async function runScenario(mode: Mode) {
   if (mode !== 'none') {
     const stream = new WorkspaceLayoutStream({
       store: () => store,
-      homeHostId: (key) => homeOf(store, key)
+      homeHostId: (key) => homeOf(store, key),
+      liveTitle: () => null
     })
     stream.subscribe(
       mode === 'publisher'

@@ -1,3 +1,4 @@
+import type { RuntimeFileOpenPosition } from '../../shared/runtime-file-contracts'
 import type { AgentLaunchPaneVerdictEvent } from '../../shared/agent-launch-pane-verdict'
 import type { SleepingAgentLaunchConfig } from '../../shared/agent-session-resume'
 import type {
@@ -126,7 +127,8 @@ export type RuntimeNotifier = {
     filePath: string,
     relativePath: string,
     runtimeEnvironmentId?: string | null,
-    navigation?: RuntimeNavigationTarget
+    navigation?: RuntimeNavigationTarget,
+    position?: RuntimeFileOpenPosition
   ): void
   openDiff?(
     worktreeId: string,

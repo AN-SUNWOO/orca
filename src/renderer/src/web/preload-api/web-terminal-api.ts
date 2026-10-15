@@ -159,7 +159,7 @@ export function createSshApi(): NonNullable<Partial<PreloadApi>['ssh']> {
     connect: async (args) => {
       const { state } = await callRuntimeResult<{ state: SshConnectionState | null }>(
         'ssh.connect',
-        { targetId: args.targetId }
+        { targetId: args.targetId, automatic: args.automatic }
       )
       return state
     },

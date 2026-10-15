@@ -280,6 +280,13 @@ export type SshManagedServerUpdateNote = {
   detail?: string
 }
 
+/** A project the server already held at the same host path: this desktop uses the server's now. */
+export type SshManagedServerLinkedProject = {
+  path: string
+  /** This desktop's automations on it, which stay behind with its tabs. */
+  automations: number
+}
+
 /** A managed server that did not answer and was not proven serving, with why (and orcad.log's tail). */
 export type SshManagedServerServingNote = { state: 'unverifiable'; detail: string }
 
@@ -302,6 +309,8 @@ export type SshManagedServerStatus =
       update?: SshManagedServerUpdateNote
       /** Set when the server did not answer and no start brought it up; never a terminal verdict. */
       serving?: SshManagedServerServingNote
+      /** Set on the connect that moved this host's projects, when some were linked instead. */
+      linked?: SshManagedServerLinkedProject[]
     }
   | { kind: 'setting-up'; phase: (typeof SSH_MANAGED_SERVER_PHASES)[number] }
   /** `detail` names the blocker for a refusal, or why orcad can't run on the host. */

@@ -1,5 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
-import { OrcaRuntimeWithGetPtyRecordForPaneKey } from './orca-runtime-get-pty-record-for-pane-key'
+import { OrcaRuntimeWithGetPtyRecordForPaneKey } from './orchestration/terminal-pane-mail-routing'
 import type { RuntimeLeafRecord, RuntimePtyWorktreeRecord } from './runtime-terminal-state-records'
 import { runtimeWorktreeIdentityKey, type ResolvedWorktree } from './runtime-worktree-path-identity'
 import type { RuntimeTerminalRead, RuntimeTerminalSummary } from '../../shared/runtime-types'
@@ -10,6 +10,10 @@ import type { TerminalHandleRecord } from './runtime-terminal-contracts'
 import { readTerminalTail } from './terminal-tail-read'
 import { structuredWorkerTerminalRefusal } from './structured-worker-terminal-refusal'
 import { randomUUID } from 'node:crypto'
+
+export type LiveTerminalPty = ReturnType<
+  OrcaRuntimeWithBuildPtyTerminalSummary['getLivePtyForHandle']
+>
 
 export class OrcaRuntimeWithBuildPtyTerminalSummary extends OrcaRuntimeWithGetPtyRecordForPaneKey {
   protected ptySurfaceTopology(): PtySurfaceTopology {

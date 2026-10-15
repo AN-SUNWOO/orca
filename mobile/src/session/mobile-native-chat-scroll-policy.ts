@@ -6,7 +6,6 @@ import type {
   NativeSyntheticEvent
 } from 'react-native'
 
-export type PageContactDisposition = 'idle' | 'active' | 'released' | 'cancelled'
 export type PageScrollKeyEvent = {
   key: string
   altKey?: boolean
@@ -17,19 +16,17 @@ export type PageScrollKeyEvent = {
   target?: EventTarget | null
   nativeEvent?: { isComposing?: boolean }
 }
-type PageTouch = { identifier: string | number }
-export type PageContactEvent = {
-  nativeEvent: { touches: ArrayLike<PageTouch>; changedTouches: ArrayLike<PageTouch> }
-}
+/** The touches still on the screen, after this event. */
+export type PageTouchEvent = { nativeEvent: { touches: ArrayLike<unknown> } }
 
 export type MobileNativeChatTailFollow<TItem> = {
   /** Attach to the transcript list; the hook scrolls through this ref alone. */
   listRef: RefObject<FlatList<TItem> | null>
   listInputProps: {
     ref: (list: FlatList<TItem> | null) => void
-    onTouchStart: (event: PageContactEvent) => void
-    onTouchEnd: (event: PageContactEvent) => void
-    onTouchCancel: () => void
+    onTouchStart: (event: PageTouchEvent) => void
+    onTouchEnd: (event: PageTouchEvent) => void
+    onTouchCancel: (event: PageTouchEvent) => void
     onWheel?: (event: { deltaY: number; ctrlKey: boolean; defaultPrevented?: boolean }) => void
     onKeyDown?: (event: PageScrollKeyEvent) => void
   }

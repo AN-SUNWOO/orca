@@ -12,8 +12,7 @@ import {
   isAtTail,
   isPageScrollKey,
   type MobileNativeChatTailFollow,
-  type PageContactEvent,
-  type PageContactDisposition
+  type PageTouchEvent
 } from './mobile-native-chat-scroll-policy'
 export { mobileNativeChatRowAnchor } from './mobile-native-chat-scroll-policy'
 export type { MobileNativeChatTailFollow } from './mobile-native-chat-scroll-policy'
@@ -27,8 +26,9 @@ function listReportsGestures(): boolean {
 /** Offset change, in points, below which the page treats the view as not having moved. */
 const PAGE_MOVE_SLOP = 1
 
-/** After release, allow momentum to quiet; RN Web's final scroll event trails it by 100 ms. */
-const PAGE_SETTLE_MS = 150
+/** Scroll quiet that ends a page gesture after its last touch, wheel or key; RN Web's final scroll
+ *  event trails the last move by 100 ms. */
+const PAGE_GESTURE_QUIET_MS = 150
 
 /** Sole owner of transcript scroll position.
  *
@@ -40,8 +40,8 @@ const PAGE_SETTLE_MS = 150
  *
  *  Intent (`following`) is kept separate from geometry (at-tail): a programmatic
  *  scroll reports metrics like any other, so letting metrics decide intent let
- *  the view argue with itself. Only the user's own gestures and explicit jumps
- *  move intent; metrics only decide where a *released* gesture leaves us.
+ *  the view argue with itself. Only the reader's own input turns following off;
+ *  reaching the end or an explicit jump turns it back on.
  */
 export function useMobileNativeChatTailFollow<TItem>(args: {
   /** The list's rows; an empty list is never scrolled. */
@@ -63,11 +63,10 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const pageOffsetRef = useRef(0)
   const pageContentHeightRef = useRef(0)
   const pageViewportHeightRef = useRef(0)
-  const [cancelledContact, setCancelledContact] = useState(false)
-  const pageContactRef = useRef<PageContactDisposition>('idle')
-  const pageTouchIdsRef = useRef(new Set<string | number>())
   const pageReaderMovedUpRef = useRef(false)
-  const pageSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Page gesture: a finger on the list per the browser's live touches, then scroll quiet.
+  const pageTouchingRef = useRef(false)
+  const pageGestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scopeKeyRef = useRef(scopeKey)
 
   // Single writer, so the event-time ref and the render flag cannot disagree.
@@ -85,6 +84,24 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     }
   }, [])
 
+  const pageGestureLive = useCallback(
+    () => pageTouchingRef.current || pageGestureTimerRef.current !== null,
+    []
+  )
+
+  /** Page: a pin under a live gesture would move the view under the reader's finger, and iOS
+   *  puts its own position back on release. Content that grows meanwhile shows the jump control. */
+  const pinPageOffset = useCallback(
+    (offset: number) => {
+      if (!pageGestureLive()) {
+        listRef.current?.scrollToOffset({ animated: false, offset })
+      } else if (offset - pageOffsetRef.current - pageViewportHeightRef.current > AT_TAIL_SLOP) {
+        setAtTail(false)
+      }
+    },
+    [pageGestureLive, setAtTail]
+  )
+
   const pinToTail = useCallback(
     (event?: LayoutChangeEvent) => {
       if (event?.nativeEvent?.layout) {
@@ -97,20 +114,25 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
         listRef.current?.scrollToEnd({ animated: false })
         return
       }
-      // Why not `scrollToEnd`: its estimate can land short, and the page reads a move up as the reader's.
-      listRef.current?.scrollToOffset({ animated: false, offset: pageContentHeightRef.current })
+      // Why not `scrollToEnd`: its estimate can land short of the end.
+      pinPageOffset(pageContentHeightRef.current)
     },
-    [hasItems]
+    [hasItems, pinPageOffset]
   )
 
   const pinToTailAfterContentResize = useCallback(
     (_width: number, height: number) => {
       pageContentHeightRef.current = height
-      if (followingRef.current && hasItems) {
+      if (!followingRef.current || !hasItems) {
+        return
+      }
+      if (listReportsGestures()) {
         listRef.current?.scrollToOffset({ animated: false, offset: height })
+      } else {
+        pinPageOffset(height)
       }
     },
-    [hasItems]
+    [hasItems, pinPageOffset]
   )
 
   const clearUserScrollSettle = useCallback(() => {
@@ -118,122 +140,72 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       cancelAnimationFrame(userScrollSettleFrameRef.current)
       userScrollSettleFrameRef.current = null
     }
-    if (pageSettleTimerRef.current !== null) {
-      clearTimeout(pageSettleTimerRef.current)
-      pageSettleTimerRef.current = null
+  }, [])
+
+  const clearPageGesture = useCallback(() => {
+    pageTouchingRef.current = false
+    if (pageGestureTimerRef.current !== null) {
+      clearTimeout(pageGestureTimerRef.current)
+      pageGestureTimerRef.current = null
     }
   }, [])
 
-  const setPageContact = useCallback((next: PageContactDisposition) => {
-    pageContactRef.current = next
-    setCancelledContact(next === 'cancelled')
-  }, [])
-
-  const retireListInput = useCallback(() => {
-    clearUserScrollSettle()
-    setPageContact('idle')
-    pageTouchIdsRef.current.clear()
-    pageReaderMovedUpRef.current = false
-    userScrollActiveRef.current = false
-  }, [clearUserScrollSettle, setPageContact])
-
   const jumpToTail = useCallback(() => {
-    retireListInput()
+    clearUserScrollSettle()
+    clearPageGesture()
+    userScrollActiveRef.current = false
     setAtTail(true)
     setFollowing(true)
     pinToTail()
-  }, [retireListInput, pinToTail, setAtTail, setFollowing])
+  }, [clearUserScrollSettle, clearPageGesture, pinToTail, setAtTail, setFollowing])
 
-  const settlePageScroll = useCallback(() => {
-    clearUserScrollSettle()
-    if (
-      followingRef.current ||
-      pageContactRef.current === 'active' ||
-      pageContactRef.current === 'cancelled'
-    ) {
+  /** Page: momentum, and a pan the browser took over from the page, keep a gesture going after
+   *  its last touch event, so it ends at scroll quiet. Then pins held off for it catch up. */
+  const extendPageGesture = useCallback(() => {
+    if (pageGestureTimerRef.current !== null) {
+      clearTimeout(pageGestureTimerRef.current)
+      pageGestureTimerRef.current = null
+    }
+    if (pageTouchingRef.current) {
       return
     }
-    pageSettleTimerRef.current = setTimeout(() => {
-      pageSettleTimerRef.current = null
-      const nearTail =
-        pageContactRef.current === 'released'
-          ? pageContentHeightRef.current - pageOffsetRef.current - pageViewportHeightRef.current <=
-            AT_TAIL_SLOP
-          : atTailRef.current
-      setPageContact('idle')
-      setAtTail(nearTail)
-      if (nearTail) {
-        jumpToTail()
+    pageGestureTimerRef.current = setTimeout(() => {
+      pageGestureTimerRef.current = null
+      if (followingRef.current) {
+        setAtTail(true)
+        pinToTail()
       }
-    }, PAGE_SETTLE_MS)
-  }, [clearUserScrollSettle, jumpToTail, setAtTail, setPageContact])
+    }, PAGE_GESTURE_QUIET_MS)
+  }, [pinToTail, setAtTail])
+
+  // Why the live touches list, not the touches this list saw end: a touch whose element is removed
+  // mid-touch ends on that element, out of React's reach.
+  const notePageTouches = useCallback(
+    (event: PageTouchEvent) => {
+      if (!listReportsGestures()) {
+        pageTouchingRef.current = event.nativeEvent.touches.length > 0
+        extendPageGesture()
+      }
+    },
+    [extendPageGesture]
+  )
 
   const attachList = useCallback(
     (list: FlatList<TItem> | null) => {
       listRef.current = list
       if (!list) {
-        retireListInput()
+        // Touches on a removed list end out of React's reach.
+        clearPageGesture()
       }
     },
-    [retireListInput]
+    [clearPageGesture]
   )
-
-  const beginPageContact = useCallback(
-    (event: PageContactEvent) => {
-      if (!listReportsGestures()) {
-        clearUserScrollSettle()
-        setPageContact('active')
-        for (const touch of Array.from(event.nativeEvent.changedTouches)) {
-          pageTouchIdsRef.current.add(touch.identifier)
-        }
-      }
-    },
-    [clearUserScrollSettle, setPageContact]
-  )
-
-  const endPageContact = useCallback(
-    (event: PageContactEvent) => {
-      if (
-        listReportsGestures() ||
-        pageContactRef.current === 'idle' ||
-        pageContactRef.current === 'released'
-      ) {
-        return
-      }
-      if (pageContactRef.current === 'cancelled' && event.nativeEvent.touches.length > 0) {
-        return
-      }
-      for (const touch of Array.from(event.nativeEvent.changedTouches)) {
-        pageTouchIdsRef.current.delete(touch.identifier)
-      }
-      if (pageTouchIdsRef.current.size === 0) {
-        setPageContact('released')
-        settlePageScroll()
-      }
-    },
-    [settlePageScroll, setPageContact]
-  )
-
-  const cancelPageContact = useCallback(() => {
-    if (!listReportsGestures()) {
-      // Cancellation can precede physical lift; keep the existing jump action available.
-      retireListInput()
-      setPageContact('cancelled')
-    }
-  }, [retireListInput, setPageContact])
-
-  const resumePageInput = useCallback(() => {
-    if (pageContactRef.current === 'cancelled') {
-      setPageContact('released')
-      settlePageScroll()
-    }
-  }, [settlePageScroll, setPageContact])
 
   const recordScrollMetrics = useCallback(
     (event: NativeScrollEvent) => {
       const endsAtTail = isAtTail(event)
-      setAtTail(endsAtTail)
       if (listReportsGestures()) {
+        setAtTail(endsAtTail)
         return
       }
       const moved = event.contentOffset.y - pageOffsetRef.current
@@ -241,17 +213,20 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       pageContentHeightRef.current = event.contentSize.height
       pageViewportHeightRef.current = event.layoutMeasurement.height
       pageReaderMovedUpRef.current = moved < -PAGE_MOVE_SLOP
-      if (followingRef.current) {
-        // A pin only moves toward the end and a clamp lands on it: up and short of it is the reader.
-        if (pageReaderMovedUpRef.current && distanceFromTail(event) > PAGE_MOVE_SLOP) {
-          setFollowing(false)
-        }
-      } else if (moved > PAGE_MOVE_SLOP && endsAtTail && pageContactRef.current === 'idle') {
-        setFollowing(true)
+      const gestureLive = pageGestureLive()
+      if (gestureLive) {
+        extendPageGesture()
       }
-      settlePageScroll()
+      if (distanceFromTail(event) <= PAGE_MOVE_SLOP) {
+        setFollowing(true)
+      } else if (gestureLive && pageReaderMovedUpRef.current) {
+        // Only the reader detaches: layout (a clamp, rows trimmed or re-measured) moves offsets too.
+        setFollowing(false)
+      }
+      // While following outside a gesture the next pin owns the end.
+      setAtTail(endsAtTail || (followingRef.current && !gestureLive))
     },
-    [settlePageScroll, setAtTail, setFollowing]
+    [extendPageGesture, pageGestureLive, setAtTail, setFollowing]
   )
 
   const beginUserScroll = useCallback(() => {
@@ -317,30 +292,37 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     }
   }, [scopeKey, jumpToTail])
 
-  useEffect(() => retireListInput, [retireListInput])
+  useEffect(
+    () => () => {
+      clearUserScrollSettle()
+      clearPageGesture()
+    },
+    [clearUserScrollSettle, clearPageGesture]
+  )
 
   return {
     listRef,
     listInputProps: {
       ref: attachList,
-      onTouchStart: beginPageContact,
-      onTouchEnd: endPageContact,
-      onTouchCancel: cancelPageContact,
+      onTouchStart: notePageTouches,
+      onTouchEnd: notePageTouches,
+      onTouchCancel: notePageTouches,
       ...(Platform.OS === 'web' && {
         onWheel: (event) => {
           if (event.deltaY !== 0 && !event.ctrlKey && !event.defaultPrevented) {
-            resumePageInput()
+            extendPageGesture()
           }
         },
         onKeyDown: (event) => {
           if (isPageScrollKey(event)) {
-            resumePageInput()
+            extendPageGesture()
           }
         }
       })
     },
     following,
-    showJumpToTail: !following && (!atTail || cancelledContact),
+    // The page has no release to snap a reader back to the end, so any detached view offers it.
+    showJumpToTail: listReportsGestures() ? !following && !atTail : !following || !atTail,
     pinToTail,
     pinToTailAfterContentResize,
     jumpToTail,

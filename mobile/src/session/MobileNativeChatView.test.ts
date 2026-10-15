@@ -676,27 +676,37 @@ describe('MobileNativeChatView', () => {
       }
     }
 
+    const fingerDown = { nativeEvent: { touches: [{}] } }
+
     it('stops following when the reader scrolls up, and resumes at the end', async () => {
-      await render({ folded: [assistantTurn('a1', 'Latest')] })
-      act(() => {
-        list().props.onContentSizeChange(320, 1_000)
-        list().props.onScroll(scrolledTo(500, 1_000))
-      })
-      scrollToOffset.mockClear()
+      vi.useFakeTimers()
+      try {
+        await render({ folded: [assistantTurn('a1', 'Latest')] })
+        act(() => {
+          list().props.onContentSizeChange(320, 1_000)
+          list().props.onScroll(scrolledTo(500, 1_000))
+        })
+        scrollToOffset.mockClear()
 
-      // No drag event arrives on the page: the move up is all there is to go on.
-      act(() => {
-        list().props.onScroll(scrolledTo(300, 1_000))
-        list().props.onContentSizeChange(320, 1_200)
-      })
-      expect(scrollToOffset).not.toHaveBeenCalled()
-      expect(jumpToLatest()).toHaveLength(1)
+        // No drag event arrives on the page: a touch and the move up are all there is to go on.
+        act(() => {
+          list().props.onTouchStart(fingerDown)
+          list().props.onScroll(scrolledTo(300, 1_000))
+          list().props.onContentSizeChange(320, 1_200)
+        })
+        expect(scrollToOffset).not.toHaveBeenCalled()
+        expect(jumpToLatest()).toHaveLength(1)
 
-      act(() => {
-        list().props.onScroll(scrolledTo(700, 1_200))
-        list().props.onContentSizeChange(320, 1_400)
-      })
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_400 })
+        act(() => {
+          list().props.onScroll(scrolledTo(700, 1_200))
+          list().props.onTouchEnd({ nativeEvent: { touches: [] } })
+          vi.advanceTimersByTime(200)
+          list().props.onContentSizeChange(320, 1_400)
+        })
+        expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_400 })
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     it('does not take its own pin, landing short of a grown end, for the reader', async () => {
@@ -716,28 +726,12 @@ describe('MobileNativeChatView', () => {
       expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_600 })
     })
 
-    it('takes a reader who stops near the end back to it, as a native release does', async () => {
-      await render({ folded: [assistantTurn('a1', 'Latest')] })
-      act(() => {
-        list().props.onContentSizeChange(320, 1_000)
-        list().props.onScroll(scrolledTo(500, 1_000))
-      })
-
-      // A nudge up during a live turn; the output that lands next sends no scroll event.
-      act(() => {
-        list().props.onScroll(scrolledTo(460, 1_000))
-        list().props.onContentSizeChange(320, 1_750)
-      })
-      await act(() => new Promise((settled) => setTimeout(settled, 200)))
-
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_750 })
-    })
-
     it('opens another chat at its newest message, whatever the reader did in the last one', async () => {
       await render({ folded: [assistantTurn('a1', 'Chat A')], sendSurfaceId: 'tab-a' })
       act(() => {
         list().props.onContentSizeChange(320, 1_000)
         list().props.onScroll(scrolledTo(500, 1_000))
+        list().props.onTouchStart(fingerDown)
         list().props.onScroll(scrolledTo(100, 1_000))
       })
       expect(jumpToLatest()).toHaveLength(1)

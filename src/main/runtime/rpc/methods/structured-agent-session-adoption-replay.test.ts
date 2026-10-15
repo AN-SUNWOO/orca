@@ -90,7 +90,9 @@ async function call(dispatcher: RpcDispatcher, params: unknown, client = CLIENT,
     method: 'agentSession.create',
     params
   }
-  if (unary) return dispatcher.dispatch(request, client)
+  if (unary) {
+    return dispatcher.dispatch(request, client)
+  }
   await dispatcher.dispatchStreaming(
     request,
     (raw) => replies.push(JSON.parse(raw) as RpcResponse),
@@ -233,8 +235,9 @@ describe('committed adopting create RPC replay', () => {
     })
     const pending = call(dispatcher, params, CLIENT, unary)
     await entered.promise
-    if (unary) rows = []
-    else {
+    if (unary) {
+      rows = []
+    } else {
       sourceRow.worktreeId = 'replacement-workspace'
       sourceRow.providerSession.id = 'replacement-thread'
       sourceRow.providerSession.transcriptPath = join(root, 'replacement.jsonl')
@@ -252,7 +255,9 @@ describe('committed adopting create RPC replay', () => {
       setStructuredAgentSessionHost(host)
     })
     sourceRows.mockImplementation(() => {
-      if (!unary) throw new Error('source snapshot unavailable')
+      if (!unary) {
+        throw new Error('source snapshot unavailable')
+      }
       return []
     })
 

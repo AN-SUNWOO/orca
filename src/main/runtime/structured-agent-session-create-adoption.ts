@@ -2,6 +2,8 @@ import { stat } from 'node:fs/promises'
 import { agentSessionRefusalError, isAgentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import { prepareCodexAdoption } from '../native-chat/codex-adoption-preparation'
 import type { NativeCodexResumePreparation } from '../codex/codex-ai-vault-session-resume'
+import type { StructuredAgentSessionResumeSource } from '../../shared/structured-agent-session-create'
+import type { StructuredAgentCliSourceEvidence } from '../native-chat/structured-agent-cli-source'
 import type { AgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
@@ -20,6 +22,15 @@ import type {
   StructuredAgentTranscriptImport,
   StructuredAgentTranscriptImportSettings
 } from '../native-chat/structured-agent-cli-conversations'
+
+export type StructuredAgentSessionCreateIntentInput = {
+  envelope: { sessionId: string; clientOperationId: string }
+  worktree: string
+  agent: StructuredAgentId
+  callerKey?: string
+  resumeFrom?: StructuredAgentSessionResumeSource
+  structuredAgentCliSourceEvidence?: StructuredAgentCliSourceEvidence
+}
 
 export function resolveCommittedStructuredAgentSessionAdoptionIntent(input: {
   host: StructuredAgentSessionHost | null

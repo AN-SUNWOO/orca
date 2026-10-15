@@ -1,8 +1,6 @@
-import type { StructuredAgentSessionResumeSource } from '../../../shared/structured-agent-session-create'
 import {
   captureStructuredAgentCliSource,
-  structuredAgentCliSourcePath,
-  type StructuredAgentCliSourceEvidence
+  structuredAgentCliSourcePathFromEvidence
 } from '../../native-chat/structured-agent-cli-source'
 import type { OrcaRuntimeWithRestoreStructuredAgentSessionTabsOnce as RestoreStructuredAgentSessionTabsOnceMethods } from './structured-session-tab-restoration'
 import { agentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
@@ -11,7 +9,8 @@ import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-w
 import {
   resolveCommittedStructuredAgentSessionAdoptionIntent,
   requireUnownedStructuredAgentSessionAdoption,
-  resolveStructuredAgentSessionAdoptionForCreate
+  resolveStructuredAgentSessionAdoptionForCreate,
+  type StructuredAgentSessionCreateIntentInput
 } from '../structured-agent-session-create-adoption'
 import { isNativeLocalLocation, LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 import { getLocalProjectWorktreeGitOptions } from '../../project-runtime-git-options'
@@ -150,14 +149,9 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     return (await this.resolveRuntimeFileTarget(worktreeSelector)).worktree.path
   }
 
-  async resolveStructuredAgentSessionCreateIntent(input: {
-    envelope: { sessionId: string; clientOperationId: string }
-    worktree: string
-    agent: StructuredAgentId
-    callerKey?: string
-    resumeFrom?: StructuredAgentSessionResumeSource
-    structuredAgentCliSourceEvidence?: StructuredAgentCliSourceEvidence
-  }): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
+  async resolveStructuredAgentSessionCreateIntent(
+    input: StructuredAgentSessionCreateIntentInput
+  ): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
     if (input.resumeFrom) {
       requireUnownedStructuredAgentSessionAdoption({
         host: getStructuredAgentSessionHost(),
@@ -210,14 +204,7 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
   }
 
   protected async resolveStructuredAgentSessionIntent(
-    input: {
-      envelope: { sessionId: string; clientOperationId: string }
-      worktree: string
-      agent: StructuredAgentId
-      callerKey?: string
-      resumeFrom?: StructuredAgentSessionResumeSource
-      structuredAgentCliSourceEvidence?: StructuredAgentCliSourceEvidence
-    },
+    input: StructuredAgentSessionCreateIntentInput,
     resolveAccountHome: (context: {
       launchEnv: NodeJS.ProcessEnv
       location: {
@@ -266,16 +253,10 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
             agent: input.agent,
             transcriptImport,
             providerSessionId: resumeFrom.providerSessionId,
-            resolveTranscriptPath: () => {
-              const evidence = input.structuredAgentCliSourceEvidence
-              if (resumeFrom.cliSource && evidence && 'error' in evidence) {
-                throw evidence.error
-              }
-              return structuredAgentCliSourcePath({
-                agent: input.agent, resumeFrom, workspaceId: location.workspaceId,
-                rows: evidence && 'rows' in evidence ? evidence.rows : []
-              })
-            },
+            resolveTranscriptPath: () => structuredAgentCliSourcePathFromEvidence({
+              agent: input.agent, resumeFrom, workspaceId: location.workspaceId,
+              evidence: input.structuredAgentCliSourceEvidence
+            }),
             prepareCodexResume: this.prepareAiVaultSessionResumeFn ?? undefined,
             selectedAccountHome,
             launchEnv: await resolveHostStructuredAgentLaunchEnvironment(input.agent, settings),

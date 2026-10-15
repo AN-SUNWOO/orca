@@ -34,6 +34,22 @@ export function captureStructuredAgentCliSource(
   }
 }
 
+export function structuredAgentCliSourcePathFromEvidence(input: {
+  agent: StructuredAgentId
+  resumeFrom: StructuredAgentSessionResumeSource
+  workspaceId: string
+  evidence?: StructuredAgentCliSourceEvidence
+}): string | undefined {
+  const evidence = input.evidence
+  if (input.resumeFrom.cliSource && evidence && 'error' in evidence) {
+    throw evidence.error
+  }
+  return structuredAgentCliSourcePath({
+    ...input,
+    rows: evidence && 'rows' in evidence ? evidence.rows : []
+  })
+}
+
 /** A client names a pane; only this host supplies its provider path. */
 export function structuredAgentCliSourcePath(input: {
   agent: StructuredAgentId

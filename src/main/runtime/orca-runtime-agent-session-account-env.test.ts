@@ -4,6 +4,7 @@ import {
   EnsureAgentSessionParams
 } from '../../shared/rpc-contract/agent-session-params'
 import { OrcaRuntimeService } from './orca-runtime'
+import type { TerminalCreateOptions } from './runtime-terminal-contracts'
 
 const ACCOUNT_ENV = {
   CLAUDE_CONFIG_DIR: '/home/u/.orca/claude-accounts/a/config',
@@ -48,10 +49,23 @@ function createRuntime() {
   return runtime
 }
 
+/** createTerminal up to its spawn: records the launch the host planner made of each create. */
+function planCreates(runtime: OrcaRuntimeService) {
+  const planned: TerminalCreateOptions[] = []
+  const createTerminal = vi
+    .spyOn(runtime, 'createTerminal')
+    .mockImplementation(async (selector = '', opts = {}) => {
+      const scope = await runtime.resolveTerminalWorkspaceLaunchScope(selector)
+      planned.push(await runtime.resolveAgentTerminalCreateOptions(scope, opts))
+      return terminal()
+    })
+  return { createTerminal, planned }
+}
+
 describe('agent-session creates with a desktop-prepared accountEnv', () => {
   it("lays it over a new agent's own launch env", async () => {
     const runtime = createRuntime()
-    const createTerminal = vi.spyOn(runtime, 'createTerminal').mockResolvedValue(terminal())
+    const { planned } = planCreates(runtime)
     await runtime.createAgentSession(
       CreateAgentSessionParams.parse({
         clientOperationId: operationId(),
@@ -60,7 +74,7 @@ describe('agent-session creates with a desktop-prepared accountEnv', () => {
         accountEnv: ACCOUNT_ENV
       })
     )
-    expect(createTerminal.mock.calls[0][1]?.env).toMatchObject({ KEEP: '1', ...ACCOUNT_ENV })
+    expect(planned[0]?.env).toMatchObject({ KEEP: '1', ...ACCOUNT_ENV })
   })
 
   it('stays outside the replay fingerprint: a retry with another env replays, not conflicts', async () => {
@@ -77,13 +91,13 @@ describe('agent-session creates with a desktop-prepared accountEnv', () => {
 
   it('leaves the launch env as built when an older client sends none', async () => {
     const runtime = createRuntime()
-    const createTerminal = vi.spyOn(runtime, 'createTerminal').mockResolvedValue(terminal())
+    const { planned } = planCreates(runtime)
     await runtime.createAgentSession({
       clientOperationId: operationId(),
       worktree: 'id:worktree-1',
       agent: 'codex'
     })
-    expect(createTerminal.mock.calls[0][1]?.env).toMatchObject({ CODEX_HOME: '/stale' })
+    expect(planned[0]?.env).toMatchObject({ CODEX_HOME: '/stale' })
   })
 
   it('carries it through a resumed (restored or sleeping) agent', async () => {

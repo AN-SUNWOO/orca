@@ -3,10 +3,10 @@ import { createTestStore } from '@/store/slices/store-test-helpers'
 import { createTabsSliceMockApi } from '@/store/slices/tabs-slice-test-harness'
 import type { AgentSessionLaunchPlan } from '@/lib/agent-session-launch-plan'
 
-const current = vi.hoisted(() => ({
-  store: null as ReturnType<typeof createTestStore> | null,
-  launch: vi.fn()
-}))
+const current = vi.hoisted((): {
+  store: ReturnType<typeof createTestStore> | null
+  launch: ReturnType<typeof vi.fn>
+} => ({ store: null, launch: vi.fn() }))
 vi.mock('@/store', () => ({
   useAppStore: {
     getState: () => {

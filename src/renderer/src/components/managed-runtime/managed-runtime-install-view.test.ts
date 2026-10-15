@@ -86,7 +86,12 @@ describe('managedRuntimeInstallView', () => {
       managedRuntimeInstallView(
         {
           kind: 'known',
-          state: { ...idle, ...installed, operation: op({ kind: 'remove', ...patch }) }
+          state: {
+            ...idle,
+            ...installed,
+            canRemove: true,
+            operation: op({ kind: 'remove', ...patch })
+          }
         },
         'Fake',
         surface

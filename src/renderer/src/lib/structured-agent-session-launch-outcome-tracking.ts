@@ -1,3 +1,9 @@
+import {
+  materializeStructuredLaunchSurface,
+  removeStructuredLaunchSlot
+} from './structured-agent-session-launch-surface'
+import { findStructuredAgentSessionTab } from './structured-agent-session-tab-activation'
+import { useAppStore } from '@/store'
 import { StructuredAgentSessionCreateRefusalError } from '@/lib/launch-structured-agent-session'
 import {
   settleStructuredLaunchCallers,
@@ -31,6 +37,20 @@ export function maybeCleanupLaunchState(state: StructuredLaunchState): void {
   cleanupLaunchState(state)
 }
 
+function cleanupUnmaterializedLaunch(state: StructuredLaunchState): void {
+  if (
+    state.intent.surfaceAddress &&
+    !findStructuredAgentSessionTab(useAppStore.getState().unifiedTabsByWorktree, {
+      workspaceId: state.intent.worktreeId,
+      sessionId: state.intent.sessionId,
+      target: state.intent.target
+    })
+  ) {
+    removeStructuredLaunchSlot(state.intent.worktreeId, state.intent.sessionId)
+    cleanupLaunchState(state)
+  }
+}
+
 function settleStructuredLaunchRefusal(state: StructuredLaunchState): void {
   if (state.callers.outcome !== 'pending' && state.callers.outcome !== 'unknown') {
     return
@@ -40,6 +60,7 @@ function settleStructuredLaunchRefusal(state: StructuredLaunchState): void {
     state.intent.sessionId
   )
   settleStructuredLaunchCallers(state.callers, 'failed')
+  cleanupUnmaterializedLaunch(state)
   notifyStructuredLaunchListeners()
 }
 
@@ -52,6 +73,8 @@ export function trackLaunchSettlement(
       if (state.promise !== promise) {
         return
       }
+      if (state.cancelled) return
+      materializeStructuredLaunchSurface(state.intent)
       settleStructuredLaunchCallers(state.callers, 'published')
       notifyStructuredLaunchListeners()
     },
@@ -80,9 +103,11 @@ export function trackLaunchSettlement(
         settleStructuredLaunchRefusal(state)
       } else if (!state.visibilityUnknown) {
         settleStructuredLaunchCallers(state.callers, 'failed')
+        cleanupUnmaterializedLaunch(state)
         notifyStructuredLaunchListeners()
       } else {
         state.callers.outcome = 'unknown'
+        materializeStructuredLaunchSurface(state.intent)
         notifyStructuredLaunchListeners()
       }
     }

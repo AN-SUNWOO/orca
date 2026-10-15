@@ -1,6 +1,4 @@
 import type { Tab } from '../../../shared/tab-types'
-import { defaultAgentChatLabel } from '../../../shared/agent-session-chat-label'
-import { structuredAgentSessionTabId } from '../../../shared/structured-agent-session-projection'
 import type {
   AgentSessionLaunchPlan,
   AgentSessionLaunchTarget
@@ -27,15 +25,10 @@ import {
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { holdEmptyWorkspaceDefaultSurfaceForLaunch } from './empty-workspace-default-surface-claims'
 import {
-  clearWebSessionFocusIntentIfMatches,
-  peekWebSessionFocusIntent,
-  resolveWebSessionVisibleTabId
-} from '@/runtime/web-session-focus-intent'
-import {
-  deleteStructuredLaunchStateIfCurrent,
-  getStructuredLaunchStateBySessionId,
-  notifyStructuredLaunchListeners
-} from './structured-agent-session-launch-registry'
+  captureStructuredLaunchSurfaceAddress,
+  openStructuredAgentSessionProvisionalTab
+} from './structured-agent-session-launch-surface'
+export { openStructuredAgentSessionProvisionalTab } from './structured-agent-session-launch-surface'
 
 type LocalProvisionalLaunch = StructuredAgentLaunchHandle & { tab: Tab }
 
@@ -44,46 +37,6 @@ export type StructuredAgentSessionProvisionalLaunch =
   | LocalProvisionalLaunch
   | HostAdmittedStructuredLaunch
   | (StructuredAgentLaunchHandle & { tab: null })
-
-export function openStructuredAgentSessionProvisionalTab(args: {
-  worktreeId: string
-  /** The host the chat is created on; every later operation on the tab reads it. */
-  executionHostId: ExecutionHostId
-  sessionId: string
-  agent: TuiAgent
-  targetGroupId?: string
-  activate?: boolean
-}): Tab {
-  const state = useAppStore.getState()
-  const tabId = structuredAgentSessionTabId(args.sessionId)
-  const existing = (state.unifiedTabsByWorktree[args.worktreeId] ?? []).find(
-    (candidate) =>
-      candidate.contentType === 'agent-session' &&
-      candidate.entityId === args.sessionId &&
-      (!candidate.executionHostId || candidate.executionHostId === args.executionHostId)
-  )
-  if (existing) {
-    if (args.activate !== false) {
-      state.focusGroup(args.worktreeId, existing.groupId)
-      state.activateTab(existing.id, { worktreeId: args.worktreeId })
-      state.setActiveTabType('agent-session', args.worktreeId)
-    }
-    return existing
-  }
-  const tab = state.createUnifiedTab(args.worktreeId, 'agent-session', {
-    id: tabId,
-    entityId: args.sessionId,
-    executionHostId: args.executionHostId,
-    agentSessionAgent: args.agent,
-    label: defaultAgentChatLabel(args.agent),
-    ...(args.targetGroupId ? { targetGroupId: args.targetGroupId } : {}),
-    activate: args.activate !== false
-  })
-  if (args.activate !== false) {
-    state.setActiveTabType('agent-session', args.worktreeId)
-  }
-  return tab
-}
 
 /** The host a structured launch would run on, which admits the chat before it exists. */
 export function structuredLaunchOwner(
@@ -133,6 +86,15 @@ export function beginStructuredAgentSessionProvisionalLaunch(
   }
   if (!args.deferPublication && args.beforeOpen?.() === false) {
     return null
+  }
+  if (args.deferPublication && !args.target?.surfaceAddress) {
+    args = {
+      ...args,
+      target: {
+        ...args.target,
+        surfaceAddress: captureStructuredLaunchSurfaceAddress(worktreeId, args.targetGroupId)
+      }
+    }
   }
   return beginHostAdmittedStructuredLaunch({
     plan: args.plan,
@@ -217,39 +179,9 @@ function beginDeferredPublication(
     releaseHold()
     return null
   }
-  const launch = handle
-  const target = structuredAgentSessionTargetForHost(launch.executionHostId)
-  const settlement = launch.settlement
-    .then((result) => {
-      if (result.kind === 'structured' || result.kind === 'visibility-unknown') {
-        const state = useAppStore.getState()
-        const owner = target && structuredAgentSessionFocusOwner(target)
-        const focus = owner && peekWebSessionFocusIntent(owner, worktreeId)
-        const hostTabId = `agent-session:${launch.sessionId}`
-        const activate =
-          args.activate !== false &&
-          focus?.hostTabId === hostTabId &&
-          (focus.expectedCurrentLocalTabId === undefined ||
-            focus.expectedCurrentLocalTabId === resolveWebSessionVisibleTabId(state, worktreeId))
-        openStructuredAgentSessionProvisionalTab({
-          worktreeId,
-          executionHostId: launch.executionHostId,
-          sessionId: launch.sessionId,
-          agent: args.plan.agent,
-          ...(args.targetGroupId ? { targetGroupId: args.targetGroupId } : {}),
-          activate
-        })
-        if (owner) {
-          clearWebSessionFocusIntentIfMatches(owner, worktreeId, hostTabId)
-        }
-      } else if (!launch.joined && (result.kind === 'failed' || result.kind === 'cancelled')) {
-        const failed = getStructuredLaunchStateBySessionId(launch.sessionId)
-        if (failed?.callers.outcome === 'failed' && deleteStructuredLaunchStateIfCurrent(failed)) {
-          notifyStructuredLaunchListeners()
-        }
-      }
-      return result
-    })
-    .finally(releaseHold)
-  return { ...launch, tab: null, settlement }
+  return {
+    ...handle,
+    tab: null,
+    settlement: handle.settlement.finally(releaseHold)
+  }
 }

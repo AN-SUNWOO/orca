@@ -1,3 +1,4 @@
+import { removeStructuredLaunchSlot } from './structured-agent-session-launch-surface'
 import { useSyncExternalStore } from 'react'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { StructuredLaunchFailure } from './structured-agent-session-launch-failure'
@@ -241,6 +242,7 @@ function markStructuredAgentSessionLaunchCancelledInternal(
   } else if (!alreadyCancelled) {
     markStructuredAgentLaunchCancellation(sessionId, executionHostId, alreadyCancelled)
   }
+  if (notify) removeStructuredLaunchSlot(worktreeId, sessionId)
   if (!alreadyCancelled && notify) {
     notifyStructuredLaunchListeners()
   }

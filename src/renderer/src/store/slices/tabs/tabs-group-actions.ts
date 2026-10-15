@@ -128,7 +128,8 @@ export function createTabsGroupActions(
       const group = (state.groupsByWorktree[worktreeId] ?? []).find(
         (candidate) => candidate.id === groupId
       )
-      if (!group || group.tabOrder.length > 0) {
+      const realIds = new Set((state.unifiedTabsByWorktree[worktreeId] ?? []).map((tab) => tab.id))
+      if (!group || group.tabOrder.some((id) => realIds.has(id))) {
         return false
       }
       set((current) => {

@@ -1,3 +1,4 @@
+import { readStructuredAgentLaunchRecords } from '@/lib/structured-agent-session-launch-persistence'
 import type { AppState } from '../../../types'
 import type { WorktreePurgeTarget, WorktreePurgeTargets } from '../../worktree-helpers'
 import { forgetHugeRepoWarningDismissalsForWorktrees } from '@/lib/source-control-huge-repo-warning-dismissals'
@@ -57,6 +58,23 @@ export function buildWorktreePurgeState(
         `agent-session:${launch.intent.sessionId}`
       )
       cancelledSessionIds.add(launch.intent.sessionId)
+    }
+  }
+  for (const record of readStructuredAgentLaunchRecords()) {
+    const worktreeId = record.surfaceAddress?.worktreeId
+    if (
+      record.executionHostId === 'local' &&
+      worktreeId &&
+      worktreeIdSet.has(worktreeId) &&
+      !cancelledSessionIds.has(record.sessionId)
+    ) {
+      markStructuredAgentSessionLaunchCancelledSilently(
+        worktreeId,
+        record.sessionId,
+        record.executionHostId
+      )
+      discardStructuredAgentSessionChatSends(record.sessionId)
+      cancelledSessionIds.add(record.sessionId)
     }
   }
   for (const worktreeId of worktreeIdSet) {

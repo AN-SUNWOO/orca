@@ -34,6 +34,30 @@ vi.mock('@/lib/activate-ai-vault-structured-session', () => ({
   activateAiVaultStructuredSession: mocks.activate
 }))
 
+import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
+import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
+import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
+import {
+  getStructuredAgentSessionLaunchLifecycle,
+  retryStructuredAgentSessionLaunch
+} from '@/lib/structured-agent-session-launch'
+import {
+  readStructuredAgentLaunchRecord,
+  writeStructuredAgentLaunchRecord,
+  resetStructuredAgentLaunchPersistenceForTests
+} from '@/lib/structured-agent-session-launch-persistence'
+import {
+  reserveStructuredLaunchSlot,
+  restoreStructuredLaunchSurfaces,
+  resetStructuredLaunchSurfaceForTests
+} from '@/lib/structured-agent-session-launch-surface'
+import { applyStructuredSessionTabSnapshots } from '@/runtime/local-structured-session-tabs-sync/snapshot-apply'
+import { resetLocalStructuredSessionVersionForTests } from '@/runtime/local-structured-session-tabs-sync/inventory-generation-fence'
+import { resetWebSessionTabsSnapshotFreshnessForTests } from '@/runtime/web-session-tabs-sync/tracking-lifecycle'
+import { buildWorkspaceSessionPayload } from '@/lib/workspace-session'
+import { buildHydratedTabState } from '@/store/slices/tabs-hydration'
+import { makeWorktree } from '@/store/slices/worktrees-slice-test-fixtures'
+import type { RuntimeMobileSessionTabsResult } from '../../../../shared/runtime-types'
 import { useAppStore } from '@/store'
 import { runCliChatResume } from './cli-chat-resume-run'
 import {
@@ -41,7 +65,6 @@ import {
   structuredLaunchStates
 } from '@/lib/structured-agent-session-launch-registry'
 import { isEmptyWorkspaceDefaultSurfacePending } from '@/lib/empty-workspace-default-surface-claims'
-import { openStructuredAgentSessionProvisionalTab } from '@/lib/structured-agent-session-provisional-tab'
 import {
   clearWebSessionFocusIntent,
   resetWebSessionFocusIntentForTests
@@ -77,7 +100,11 @@ function refuse(
 
 beforeEach(() => {
   vi.clearAllMocks()
+  resetLocalStructuredSessionVersionForTests()
+  resetWebSessionTabsSnapshotFreshnessForTests()
+  resetStructuredLaunchSurfaceForTests()
   localStorage.clear()
+  resetStructuredAgentLaunchPersistenceForTests()
   resetStructuredAgentLaunchRegistryForTests()
   resetWebSessionFocusIntentForTests()
   useAppStore.setState(useAppStore.getInitialState(), true)
@@ -92,6 +119,35 @@ beforeEach(() => {
     }
   )
 })
+
+function snapshot(sessionId?: string): RuntimeMobileSessionTabsResult {
+  return {
+    worktree: 'wt-1',
+    publicationEpoch: 'publication-test',
+    snapshotVersion: Date.now(),
+    activeGroupId: null,
+    activeTabId: null,
+    activeTabType: null,
+    tabs: sessionId
+      ? [
+          {
+            type: 'agent-session',
+            id: `agent-session:${sessionId}`,
+            sessionId,
+            agent: 'claude',
+            title: 'Chat',
+            isActive: false
+          }
+        ]
+      : []
+  }
+}
+
+function seedTabs() {
+  return ['E', 'S', 'B'].map((id) =>
+    useAppStore.getState().createUnifiedTab('wt-1', 'editor', { id, entityId: id })
+  )
+}
 
 describe('CLI identity resume through the existing launch owner', () => {
   it('shares pending, sends only an advertised source, and survives source closure after dispatch', async () => {
@@ -182,28 +238,136 @@ describe('CLI identity resume through the existing launch owner', () => {
     expect(tabs()).toEqual([])
   })
 
-  it('does not re-activate a published destination over a later selection', async () => {
+  it('keeps the eager History joiner failed and retryable after the hidden starter is refused', async () => {
     const reply = deferred<unknown>()
     mocks.call.mockReturnValue(reply.promise)
     const running = runCliChatResume(SOURCE)
     await vi.waitFor(() => expect(mocks.call).toHaveBeenCalledOnce())
     const sessionId: string = mocks.call.mock.calls[0][2].envelope.sessionId
-    openStructuredAgentSessionProvisionalTab({
-      worktreeId: 'wt-1',
-      executionHostId: 'local',
-      sessionId,
-      agent: 'claude'
+    const eager = beginStructuredAgentSessionProvisionalLaunch({
+      hooks: {},
+      plan: adoptAgentSessionLaunchVerdict({
+        route: 'structured-native-chat',
+        requestId: newAgentLaunchRequestId(),
+        agent: 'claude',
+        worktreeId: 'wt-1',
+        executionHostId: 'local',
+        resumeFrom: { providerSessionId: 'provider-1' }
+      })
     })
-    clearWebSessionFocusIntent(structuredAgentSessionFocusOwner({ kind: 'local' }), 'wt-1')
-    const later = useAppStore
-      .getState()
-      .createUnifiedTab('wt-1', 'editor', { entityId: 'later-file', label: 'Later' })
-    reply.resolve({ ok: true, value: { sessionId, fence: 1 } })
-    await running
-    const state = useAppStore.getState()
-    expect(tabs().filter((tab) => tab.entityId === sessionId)).toHaveLength(1)
-    expect(
-      state.groupsByWorktree['wt-1'].find((group) => group.id === later.groupId)?.activeTabId
-    ).toBe(later.id)
+    await vi.waitFor(() => expect(tabs()).toHaveLength(1))
+    reply.resolve({ ok: false, refusal: refuse('transcriptUnreadable') })
+    await Promise.all([running, eager?.settlement])
+    expect(mocks.call).toHaveBeenCalledOnce()
+    expect(getStructuredAgentSessionLaunchLifecycle('wt-1', sessionId)).toBe('failed')
+    expect(readStructuredAgentLaunchRecord(sessionId)?.lifecycle).toBe('failed')
+    mocks.call.mockResolvedValue({ ok: true, value: { sessionId, fence: 1 } })
+    expect(retryStructuredAgentSessionLaunch('wt-1', sessionId)).toBe(true)
+    await vi.waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(2))
+    expect(mocks.call.mock.calls[1][2].envelope.sessionId).toBe(sessionId)
+    await vi.waitFor(() =>
+      expect(getStructuredAgentSessionLaunchLifecycle('wt-1', sessionId)).toBeNull()
+    )
+    expect(tabs()).toHaveLength(1)
+  })
+
+  it.each(['reply', 'inventory'] as const)(
+    'fills the original slot after sibling drag, append and later selection (%s first)',
+    async (first) => {
+      const [e, source, browser] = seedTabs()
+      const reply = deferred<unknown>()
+      mocks.call.mockReturnValue(reply.promise)
+      const running = runCliChatResume(SOURCE)
+      await vi.waitFor(() => expect(mocks.call).toHaveBeenCalledOnce())
+      const sessionId: string = mocks.call.mock.calls[0][2].envelope.sessionId
+      const slotId = `structured-agent-session-${sessionId}`
+      const store = useAppStore.getState()
+      const order = store.groupsByWorktree['wt-1'][0].tabOrder
+      expect(order).toEqual([e.id, source.id, browser.id, slotId])
+      store.reorderUnifiedTabs(e.groupId, [browser.id, e.id, source.id, slotId])
+      const later = useAppStore
+        .getState()
+        .createUnifiedTab('wt-1', 'editor', { id: 'R', entityId: 'R' })
+      const other = useAppStore.getState().createUnifiedTab('wt-1', 'editor', {
+        entityId: 'other',
+        split: { splitDirection: 'right', sourceGroupId: e.groupId }
+      })
+      clearWebSessionFocusIntent(structuredAgentSessionFocusOwner({ kind: 'local' }), 'wt-1')
+      if (first === 'inventory') applyStructuredSessionTabSnapshots([snapshot(sessionId)])
+      reply.resolve({ ok: true, value: { sessionId, fence: 1 } })
+      await running
+      expect(
+        useAppStore.getState().groupsByWorktree['wt-1'].find((group) => group.id === e.groupId)
+          ?.tabOrder
+      ).toEqual([browser.id, e.id, source.id, slotId, later.id])
+      expect(useAppStore.getState().activeGroupIdByWorktree['wt-1']).toBe(other.groupId)
+      useAppStore.getState().moveUnifiedTabToGroup(slotId, other.groupId)
+      applyStructuredSessionTabSnapshots([
+        { ...snapshot(sessionId), snapshotVersion: Date.now() + 1 }
+      ])
+      expect(tabs().find((tab) => tab.entityId === sessionId)?.groupId).toBe(other.groupId)
+    }
+  )
+
+  it.each([false, true])(
+    'keeps overlapping requests in their canonical order (second finishes first: %s)',
+    async (reverse) => {
+      const initial = seedTabs()
+      const replies = [deferred<unknown>(), deferred<unknown>()]
+      mocks.call
+        .mockImplementationOnce(() => replies[0].promise)
+        .mockImplementationOnce(() => replies[1].promise)
+      const first = runCliChatResume(SOURCE)
+      await vi.waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(1))
+      const secondSource = { ...SOURCE, providerSessionId: 'provider-2' }
+      mocks.source = secondSource
+      const second = runCliChatResume(secondSource)
+      await vi.waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(2))
+      const ids: string[] = mocks.call.mock.calls.map((call) => call[2].envelope.sessionId)
+      for (const index of reverse ? [1, 0] : [0, 1]) {
+        replies[index].resolve({ ok: true, value: { sessionId: ids[index], fence: 1 } })
+        await (index === 0 ? first : second)
+      }
+      expect(useAppStore.getState().groupsByWorktree['wt-1'][0].tabOrder).toEqual([
+        ...initial.map((tab) => tab.id),
+        ...ids.map((id) => `structured-agent-session-${id}`)
+      ])
+    }
+  )
+
+  it('restores a pending-only group as unknown without sending create or restoring focus', () => {
+    const record = {
+      sessionId: 'reload-pending',
+      executionHostId: 'local' as const,
+      agent: 'claude' as const,
+      lifecycle: 'pending' as const,
+      clientOperationId: 'original-operation',
+      payloadFingerprint: 'fingerprint',
+      expectedRuntimeFence: null,
+      surfaceAddress: { worktreeId: 'wt-1', precedingTabIds: [] }
+    }
+    writeStructuredAgentLaunchRecord(record)
+    reserveStructuredLaunchSlot(record)
+    const session = buildWorkspaceSessionPayload(useAppStore.getState())
+    resetStructuredLaunchSurfaceForTests()
+    resetStructuredAgentLaunchPersistenceForTests()
+    resetStructuredAgentLaunchRegistryForTests()
+    useAppStore.setState(useAppStore.getInitialState(), true)
+    useAppStore.setState({
+      ...buildHydratedTabState(session, new Set(['wt-1'])),
+      worktreesByRepo: { repo: [makeWorktree({ id: 'wt-1', repoId: 'repo', hostId: 'local' })] }
+    })
+    restoreStructuredLaunchSurfaces()
+    restoreStructuredLaunchSurfaces()
+    applyStructuredSessionTabSnapshots([snapshot()])
+    expect(mocks.call).not.toHaveBeenCalled()
+    expect(tabs()).toHaveLength(1)
+    expect(getStructuredAgentSessionLaunchLifecycle('wt-1', 'reload-pending')).toBe(
+      'visibility-unknown'
+    )
+    expect(readStructuredAgentLaunchRecord('reload-pending')?.clientOperationId).toBe(
+      'original-operation'
+    )
+    expect(useAppStore.getState().groupsByWorktree['wt-1'][0].recentTabIds ?? []).toEqual([])
   })
 })

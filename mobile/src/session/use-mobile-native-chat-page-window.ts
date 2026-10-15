@@ -82,7 +82,6 @@ export function useMobileNativeChatPageWindow(args: {
   cover: () => void
   /** The place-hold's correction on the page. */
   keepInPlace: (drift: number) => void
-  onScroll: () => void
 } {
   const { rows, rowKeys, following, layoutKey, scroller } = args
   // The window is an external store: React renders its changes synchronously, before the next paint,
@@ -318,26 +317,28 @@ export function useMobileNativeChatPageWindow(args: {
         arm()
       }
     }
+    // Every scroll event, not RN Web's throttled `onScroll`, which can drop the one after a jump.
+    const scrolled = () => {
+      m.lastScroll = Date.now()
+      cover()
+    }
     const listeners = [
       ['touchstart', down],
       ['touchend', up],
-      ['touchcancel', up]
+      ['touchcancel', up],
+      ['scroll', scrolled]
     ] as const
     listeners.forEach(([type, listener]) => s?.addEventListener(type, listener, { passive: true }))
     return () => {
       listeners.forEach(([type, listener]) => s?.removeEventListener(type, listener))
       clearTimeout(m.timer)
     }
-  }, [scroller, arm])
+  }, [scroller, arm, cover])
 
   const keepInPlace = useCallback((drift: number) => {
     motion.current.drift += drift
   }, [])
-  const onScroll = useCallback(() => {
-    motion.current.lastScroll = Date.now()
-    cover()
-  }, [cover])
   const coverAfterResize = useCallback(() => void cover(), [cover])
 
-  return { start, end, top, bottom, cover: coverAfterResize, keepInPlace, onScroll }
+  return { start, end, top, bottom, cover: coverAfterResize, keepInPlace }
 }

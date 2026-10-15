@@ -90,10 +90,6 @@ export function MobileNativeChatPageList({
   )
   // At every commit, once the owner holds this list: a chat's first paint is at its end.
   useLayoutEffect(() => pin())
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    onScroll(event)
-    view.onScroll()
-  }
 
   return (
     <MobileNativeChatPageScroll
@@ -103,7 +99,7 @@ export function MobileNativeChatPageList({
       // Let link/file taps land while the composer keyboard is up
       // instead of being swallowed by the dismiss gesture.
       keyboardShouldPersistTaps="handled"
-      onScroll={handleScroll}
+      onScroll={onScroll}
       scrollEventThrottle={32}
     >
       {header}

@@ -1,4 +1,9 @@
-import { getExecutionHostIdForWorktree } from './worktree-runtime-owner'
+import {
+  findIndexedProjectGroupOwner,
+  findIndexedRepoOwner,
+  findIndexedWorktreeOwner,
+  getCatalogOwnerHostId
+} from './worktree-runtime-owner-index'
 import { folderWorkspaceToWorktree } from '../../../shared/folder-workspace-worktree'
 import type { Tab } from '../../../shared/tab-types'
 import type { ExecutionHostId } from '../../../shared/execution-host'
@@ -9,18 +14,17 @@ import { insertTabIdIntoOrder } from '../../../shared/workspace-layout/tab-order
 import { useAppStore } from '@/store'
 import { ensureGroup } from '@/store/slices/tab-group-state'
 import { resolveUnifiedTabCreatePlacement } from '@/store/slices/tabs/tabs-create-placement'
-import { findStructuredAgentSessionTab } from './structured-agent-session-tab-activation'
 import type { StructuredLaunchSurfaceAddress } from './structured-agent-session-launch-record'
 import {
   readStructuredAgentLaunchRecord,
   readStructuredAgentLaunchRecords,
   writeStructuredAgentLaunchRecord
 } from './structured-agent-session-launch-persistence'
-import { getStructuredLaunchStateBySessionId } from './structured-agent-session-launch-registry'
 import {
-  structuredAgentSessionFocusOwner,
-  structuredAgentSessionTargetForHost
-} from '@/runtime/structured-agent-session-owner'
+  getStructuredAgentSessionLaunchOwner,
+  getStructuredLaunchStateBySessionId
+} from './structured-agent-session-launch-registry'
+import { structuredAgentSessionFocusOwner } from '@/runtime/structured-agent-session-owner'
 import {
   clearWebSessionFocusIntentIfMatches,
   peekWebSessionFocusIntent,
@@ -32,6 +36,24 @@ type LaunchSurface = {
   executionHostId: ExecutionHostId
   agent: TuiAgent
   surfaceAddress?: StructuredLaunchSurfaceAddress
+}
+
+export function findStructuredLaunchTab(args: {
+  worktreeId: string
+  sessionId: string
+  executionHostId: ExecutionHostId
+}): Tab | null {
+  const owner = getStructuredAgentSessionLaunchOwner(args.sessionId)
+  const tabs = useAppStore.getState().unifiedTabsByWorktree[args.worktreeId]
+  return (
+    tabs?.find(
+      (tab) =>
+        tab.worktreeId === args.worktreeId &&
+        tab.contentType === 'agent-session' &&
+        tab.entityId === args.sessionId &&
+        (tab.executionHostId ?? owner) === args.executionHostId
+    ) ?? null
+  )
 }
 
 export function captureStructuredLaunchSurfaceAddress(
@@ -188,12 +210,7 @@ export function openStructuredAgentSessionProvisionalTab(args: {
   activate?: boolean
 }): Tab {
   const state = useAppStore.getState()
-  const target = structuredAgentSessionTargetForHost(args.executionHostId)
-  const existing = findStructuredAgentSessionTab(state.unifiedTabsByWorktree, {
-    workspaceId: args.worktreeId,
-    sessionId: args.sessionId,
-    ...(target ? { target } : {})
-  })
+  const existing = findStructuredLaunchTab(args)
   if (existing) {
     if (args.activate !== false) {
       state.focusGroup(args.worktreeId, existing.groupId)
@@ -252,18 +269,32 @@ export function materializeStructuredLaunchSurface(launch: LaunchSurface, activa
 
 export function restoreStructuredLaunchSurfaces(): void {
   const state = useAppStore.getState()
-  const validWorkspaces = new Set([
-    ...state.allWorktrees().map((worktree) => worktree.id),
-    ...state.folderWorkspaces.map((workspace) => folderWorkspaceToWorktree(workspace).id)
-  ])
+  const catalog = {
+    workspaces: [
+      ...state.allWorktrees(),
+      ...state.folderWorkspaces.flatMap((workspace) => {
+        const group = findIndexedProjectGroupOwner(state.projectGroups, workspace.projectGroupId)
+        const host = workspace.executionHostId || workspace.connectionId ? workspace : group
+        const owned = host && { ...workspace, executionHostId: getCatalogOwnerHostId(host) }
+        return owned ? [folderWorkspaceToWorktree(owned)] : []
+      })
+    ]
+  }
   for (const record of readStructuredAgentLaunchRecords()) {
     if (
       record.executionHostId !== 'local' ||
       record.lifecycle !== 'visibility-unknown' ||
-      !record.surfaceAddress ||
-      !validWorkspaces.has(record.surfaceAddress.worktreeId) ||
-      getExecutionHostIdForWorktree(state, record.surfaceAddress.worktreeId) !== 'local'
+      !record.surfaceAddress
     ) {
+      continue
+    }
+    const workspace = findIndexedWorktreeOwner(catalog, record.surfaceAddress.worktreeId)
+    if (!workspace || workspace.runtimeOwnerEnvironmentId?.trim()) {
+      continue
+    }
+    const repo = findIndexedRepoOwner(state.repos, workspace.repoId)
+    const host = workspace.hostId ?? (repo ? getCatalogOwnerHostId(repo) : undefined)
+    if (host !== getStructuredAgentSessionLaunchOwner(record.sessionId)) {
       continue
     }
     reserveStructuredLaunchSlot(record)

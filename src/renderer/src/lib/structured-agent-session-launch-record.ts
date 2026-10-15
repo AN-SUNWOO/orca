@@ -36,7 +36,9 @@ export function parseStructuredLaunchSurfaceAddress(
   return {
     worktreeId: value.worktreeId,
     precedingTabIds: value.precedingTabIds,
-    ...('targetGroupId' in value ? { targetGroupId: value.targetGroupId } : {})
+    ...('targetGroupId' in value && typeof value.targetGroupId === 'string'
+      ? { targetGroupId: value.targetGroupId }
+      : {})
   }
 }
 

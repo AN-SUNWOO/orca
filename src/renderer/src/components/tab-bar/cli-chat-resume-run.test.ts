@@ -90,9 +90,7 @@ function deferred<T>() {
   })
   return { promise, resolve }
 }
-function refuse(
-  reason: 'transcriptNotFound' | 'transcriptEmpty' | 'transcriptUnreadable'
-): AgentSessionWireRefusal {
+function refuse(reason: 'transcriptNotFound' | 'transcriptUnreadable'): AgentSessionWireRefusal {
   return {
     code: 'agent_session_identity_required',
     message: 'private host error',
@@ -205,11 +203,7 @@ describe('CLI identity resume through the existing launch owner', () => {
   })
 
   it('keeps ordinary refusals hidden and distinguishes unsaved from unreadable content', async () => {
-    for (const reason of [
-      'transcriptNotFound',
-      'transcriptEmpty',
-      'transcriptUnreadable'
-    ] as const) {
+    for (const reason of ['transcriptNotFound', 'transcriptUnreadable'] as const) {
       mocks.call.mockResolvedValue({ ok: false, refusal: refuse(reason) })
       await runCliChatResume(SOURCE)
       expect(tabs()).toEqual([])

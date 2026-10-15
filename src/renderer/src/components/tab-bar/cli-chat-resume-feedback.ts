@@ -34,10 +34,7 @@ export async function reportCliChatResumeFailure(
     return
   }
   if (refusal?.code === 'agent_session_identity_required') {
-    if (
-      refusal.details?.reason === 'transcriptNotFound' ||
-      refusal.details?.reason === 'transcriptEmpty'
-    ) {
+    if (refusal.details?.reason === 'transcriptNotFound') {
       toast.error(
         translate(
           'components.native-chat.resumeInNewChat.notSavedYet',

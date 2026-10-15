@@ -1,9 +1,8 @@
 import {
   materializeStructuredLaunchSurface,
-  removeStructuredLaunchSlot
+  removeStructuredLaunchSlot,
+  findStructuredLaunchTab
 } from './structured-agent-session-launch-surface'
-import { findStructuredAgentSessionTab } from './structured-agent-session-tab-activation'
-import { useAppStore } from '@/store'
 import { StructuredAgentSessionCreateRefusalError } from '@/lib/launch-structured-agent-session'
 import {
   settleStructuredLaunchCallers,
@@ -38,14 +37,7 @@ export function maybeCleanupLaunchState(state: StructuredLaunchState): void {
 }
 
 function cleanupUnmaterializedLaunch(state: StructuredLaunchState): void {
-  if (
-    state.intent.surfaceAddress &&
-    !findStructuredAgentSessionTab(useAppStore.getState().unifiedTabsByWorktree, {
-      workspaceId: state.intent.worktreeId,
-      sessionId: state.intent.sessionId,
-      target: state.intent.target
-    })
-  ) {
+  if (state.intent.surfaceAddress && !findStructuredLaunchTab(state.intent)) {
     removeStructuredLaunchSlot(state.intent.worktreeId, state.intent.sessionId)
     cleanupLaunchState(state)
   }

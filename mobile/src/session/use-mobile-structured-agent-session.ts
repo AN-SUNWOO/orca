@@ -86,7 +86,7 @@ export function useMobileStructuredAgentSession(args: {
   // Against a host that predates the quiet repeated Stop, a Stop of a turn still being stopped joins it.
   const inFlightStopsRef = useRef(new Map<string, Promise<boolean>>())
   const stateArgs = { client, sessionId, sessionKey, enabled, connected }
-  const { state, stateRef, queuedMessages, queuePause, loadingOlder, loadEarlier } =
+  const { state, stateRef, queuedMessages, queuePause, olderPages, loadEarlier } =
     useMobileStructuredAgentState(stateArgs)
 
   const mutate = useMobileStructuredAgentMutate({
@@ -290,8 +290,10 @@ export function useMobileStructuredAgentSession(args: {
       transcriptLoading: status === 'loading',
       error: state.error,
       readFailedFinally: status === 'error' && isFinalAgentSessionReadRefusal(state.readRefusal),
-      hasMore: state.hasOlder,
-      loadingEarlier: loadingOlder,
+      // History that can never be read from here ends paging; its line says so.
+      hasMore: state.hasOlder && olderPages !== 'unavailable',
+      loadingEarlier: olderPages === 'loading',
+      olderPages,
       loadEarlier
     },
     isWorking,

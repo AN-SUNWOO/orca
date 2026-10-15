@@ -3,7 +3,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   AgentJournalCursor,
-  AgentJournalRenderItem
+  AgentJournalRenderItem,
+  AgentJournalResetReason
 } from '../../../src/shared/agent-session-journal-types'
 import type { AgentSessionHistoryPage } from '../../../src/shared/agent-session-wire'
 import type { RpcClient } from '../transport/rpc-client'
@@ -59,9 +60,10 @@ describe('useMobileStructuredAgentState older history', () => {
   })
 
   /** Mounts the hook on a session whose newest rows are `newest` (by default one of the
-   *  session's own, at 1000), with the host serving `older` by the cursor each read asks before. */
+   *  session's own, at 1000), with the host serving `older` by the cursor each read asks before:
+   *  a page, a reset, or a thrown error. */
   async function mountWithOlderPages(
-    older: Record<number, AgentSessionHistoryPage | undefined>,
+    older: Record<number, AgentSessionHistoryPage | AgentJournalResetReason | Error | undefined>,
     newest: AgentJournalRenderItem[] = [said(1_000)]
   ) {
     let onFrame: ((value: unknown) => void) | null = null
@@ -71,10 +73,16 @@ describe('useMobileStructuredAgentState older history', () => {
         return { ok: true, result: {} }
       }
       historyCursors.push(params.cursor.sequence)
-      const olderPage = older[params.cursor.sequence]
+      const olderPage = older[params.cursor.sequence] ?? 'cursor_ahead'
+      if (olderPage instanceof Error) {
+        throw olderPage
+      }
       return {
         ok: true,
-        result: olderPage ? { ok: true, page: olderPage } : { ok: false, reset: 'cursor_ahead' }
+        result:
+          typeof olderPage === 'string'
+            ? { ok: false, reset: olderPage }
+            : { ok: true, page: olderPage }
       }
     })
     const subscribe = vi.fn(
@@ -155,8 +163,32 @@ describe('useMobileStructuredAgentState older history', () => {
     const { hook, historyCursors } = await mountWithOlderPages({}, range(800, 1_000, 'task-1'))
 
     await vi.waitFor(() => expect(historyCursors).toEqual([800]))
-    await vi.waitFor(() => expect(hook.current!.loadingOlder).toBe(false))
+    await vi.waitFor(() => expect(hook.current!.olderPages).toBe('idle'))
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(historyCursors).toEqual([800])
+  })
+
+  it('keeps the chat readable when an older page fails, retries on a tap, and ends at unreadable history', async () => {
+    const older: Parameters<typeof mountWithOlderPages>[0] = { 1000: new Error('timed out') }
+    const { hook } = await mountWithOlderPages(older)
+
+    act(() => hook.current!.loadEarlier())
+    await vi.waitFor(() => expect(hook.current!.olderPages).toBe('failed'))
+    expect(hook.current!.state.status).toBe('ready')
+    expect(hook.current!.state.items.map((item) => item.sequence)).toEqual([1_000])
+
+    older[1000] = page(range(900, 1_000), true)
+    older[900] = Object.assign(new Error('agent_session_journal_unreadable'), {
+      data: {
+        refusal: { code: 'agent_session_journal_unreadable', details: { reason: 'journalCorrupt' } }
+      }
+    })
+    act(() => hook.current!.loadEarlier())
+    await vi.waitFor(() => expect(hook.current!.state.items[0]?.sequence).toBe(900))
+    expect(hook.current!.olderPages).toBe('idle')
+
+    act(() => hook.current!.loadEarlier())
+    await vi.waitFor(() => expect(hook.current!.olderPages).toBe('unavailable'))
+    expect(hook.current!.state.status).toBe('ready')
   })
 })

@@ -304,6 +304,48 @@ describe('MobileNativeChatComposer', () => {
     expect(focus).toHaveBeenCalledTimes(1)
   })
 
+  it('is one row until focused or drafted, keeps its field across the switch, and puts Stop in Send’s slot', async () => {
+    let fieldMounts = 0
+    const props = {
+      onChangeText: vi.fn(),
+      onSend: vi.fn().mockResolvedValue(true),
+      onAttachImage: vi.fn(),
+      onMicPress: vi.fn(),
+      sendSurfaceId: 'tab-a',
+      getSendCompletionGeneration: getCurrentSendCompletionGeneration,
+      stop: { onStop: vi.fn(), held: false }
+    }
+    const draw = (value: string, sendDisabled = false) =>
+      createElement(MobileNativeChatComposer, { ...props, value, sendDisabled })
+    await act(async () => {
+      renderer = create(draw(''), {
+        createNodeMock: (element) => {
+          fieldMounts += element.type === 'TextInput' ? 1 : 0
+          return {}
+        }
+      })
+    })
+    const bar = () => renderer!.root.findByProps({ testID: 'native-chat-composer' })
+    const labelled = (label: string) => renderer!.root.findAllByProps({ accessibilityLabel: label })
+    const field = () => renderer!.root.findByType('TextInput')
+    expect(bar().props.style).toMatchObject({ flexDirection: 'row' })
+    expect(labelled('Stop the agent')).toHaveLength(1)
+    expect(labelled('Send message')).toHaveLength(0)
+
+    await act(async () => field().props.onFocus())
+    expect(bar().props.style).not.toHaveProperty('flexDirection')
+    await act(async () => field().props.onBlur())
+    expect(bar().props.style).toMatchObject({ flexDirection: 'row' })
+
+    // A typed draft stays expanded unfocused and takes Send back, unless a prompt card owns Send.
+    await act(async () => renderer!.update(draw('queue this')))
+    expect(bar().props.style).not.toHaveProperty('flexDirection')
+    expect(labelled('Send message')).toHaveLength(1)
+    await act(async () => renderer!.update(draw('queue this', true)))
+    expect(labelled('Stop the agent')).toHaveLength(1)
+    expect(fieldMounts).toBe(1)
+  })
+
   it('renders a removable thumbnail for each pending image attachment', async () => {
     const onRemoveAttachment = vi.fn()
     await act(async () => {

@@ -62,17 +62,20 @@ vi.mock('./MobileAgentWorkingIndicator', () => ({
 // the only composer behaviour these banner tests exercise.
 vi.mock('./MobileNativeChatComposer', async () => {
   const React = await import('react')
+  const { MobileNativeChatStopButton } = await import('./MobileNativeChatStopButton')
   return {
     MobileNativeChatComposer: (props: {
       onSend: (text: string) => Promise<boolean>
       disabled?: boolean
       placeholder?: string
+      stop?: { onStop?: () => void; held: boolean } | null
     }) =>
-      React.createElement('Composer', {
-        ...props,
-        accessibilityLabel: 'Send message',
-        onPress: () => props.onSend('hi')
-      })
+      React.createElement(
+        'Composer',
+        { ...props, accessibilityLabel: 'Send message', onPress: () => props.onSend('hi') },
+        // The real composer draws Stop in Send's slot while its draft is empty, as here.
+        props.stop ? React.createElement(MobileNativeChatStopButton, props.stop) : null
+      )
   }
 })
 

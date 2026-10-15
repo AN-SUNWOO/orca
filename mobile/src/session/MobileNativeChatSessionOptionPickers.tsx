@@ -34,6 +34,12 @@ export type MobileNativeChatSessionOptionPickersProps = {
    *  window would be submitted as part of the user's prompt. The composer blocks
    *  the reverse direction on `pendingId`; this is the same guard mirrored. */
   sendInFlight?: boolean
+  /** The collapsed composer hides the pills but keeps the drawer mounted. */
+  pillsHidden?: boolean
+  /** A pill opened the drawer; fires before the keyboard is dismissed. */
+  onDrawerOpen?: () => void
+  /** The drawer's sheet has fully left the screen, however it closed. */
+  onDrawerAfterClose?: () => void
 }
 
 /** Full access reads in the warning colour wherever it is shown. */
@@ -45,7 +51,10 @@ function permissionChoiceColor(value: string | undefined): string | undefined {
 export function MobileNativeChatSessionOptionPickers({
   controller,
   isWorking,
-  sendInFlight = false
+  sendInFlight = false,
+  pillsHidden = false,
+  onDrawerOpen,
+  onDrawerAfterClose
 }: MobileNativeChatSessionOptionPickersProps): React.JSX.Element | null {
   const [openDescriptorId, setOpenDescriptorId] = useState<string | null>(null)
   const [lastRequest, setLastRequest] = useState(controller.optionPickerRequest)
@@ -74,6 +83,7 @@ export function MobileNativeChatSessionOptionPickers({
 
   const closePicker = (): void => setOpenDescriptorId(null)
   const openPicker = (): void => {
+    onDrawerOpen?.()
     Keyboard.dismiss()
     setOpenDescriptorId(model?.id ?? null)
   }
@@ -113,20 +123,22 @@ export function MobileNativeChatSessionOptionPickers({
   const pillsBusy = pendingId !== null || sendInFlight
 
   return (
-    <View style={styles.pills}>
-      {permission && permissionChoice ? (
+    // One tree in both modes: re-parenting the drawer would remount an open sheet.
+    <View style={pillsHidden ? styles.pillsHidden : styles.pills}>
+      {!pillsHidden && permission && permissionChoice ? (
         <Pill
           label={permissionChoice.label}
           accessibleName={`Permissions, ${permissionChoice.label}`}
           disabled={pillsBusy}
           labelColor={permissionChoiceColor(permissionChoice.value)}
           onPress={() => {
+            onDrawerOpen?.()
             Keyboard.dismiss()
             setOpenDescriptorId(permission.id)
           }}
         />
       ) : null}
-      {model ? (
+      {model && !pillsHidden ? (
         <Pill
           label={pillLabel}
           accessibleName={`Model, ${pillLabel}`}
@@ -134,7 +146,11 @@ export function MobileNativeChatSessionOptionPickers({
           onPress={openPicker}
         />
       ) : null}
-      <BottomDrawer visible={activeDescriptor !== undefined} onClose={closePicker}>
+      <BottomDrawer
+        visible={activeDescriptor !== undefined}
+        onClose={closePicker}
+        onAfterClose={onDrawerAfterClose}
+      >
         {activeDescriptor ? (
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
@@ -203,6 +219,10 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     minWidth: 0,
     gap: spacing.xs
+  },
+  // Out of the row's flow, so the collapsed composer spends no gap on an empty slot.
+  pillsHidden: {
+    position: 'absolute'
   },
   sheet: {
     paddingBottom: spacing.xs

@@ -327,7 +327,10 @@ describe('MobileNativeChatView', () => {
       expect(props.activeTurnIsWorking).toBe(false)
       expect(footerProps()).toBeNull()
       expect(workingIndicators()).toHaveLength(1)
-      expect(renderer!.root.findByType('WorkingIndicator').parent?.props.pointerEvents).toBe('none')
+      expect(
+        renderer!.root.find((node) => String(node.type) === 'WorkingIndicator').parent?.props
+          .pointerEvents
+      ).toBe('none')
       const list = renderer!.root.find((node) => String(node.type) === 'FlatList')
       expect(list.props.ListFooterComponent).toBeNull()
       expect(list.props.contentContainerStyle).toBe(styles.listContentUnderFloatingControls)

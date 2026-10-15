@@ -1,7 +1,13 @@
 import { translate } from '@/i18n/i18n'
 import type { NativeChatAttachmentOwner } from './native-chat-attachment-upload'
 
+export type NativeChatResolvedPathOperation = {
+  apply: (insertReferences: ((paths: string[]) => void) | null) => boolean
+  cancel: () => void
+}
+
 export type NativeChatResolvedPathOptions = {
+  operation?: NativeChatResolvedPathOperation
   /** Revalidates the destination without granting workspace-file provenance. */
   destinationIsCurrent?: () => boolean
   /** Revalidates internal path ownership when an IME-delayed attachment is applied. */

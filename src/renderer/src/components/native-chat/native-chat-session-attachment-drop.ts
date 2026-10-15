@@ -10,15 +10,27 @@ import {
   type NativeChatRuntimeSessionAttachmentOwner
 } from './native-chat-attachment-upload'
 
+export type NativeChatPendingAttachmentOptions = {
+  insertReferences?: ((paths: string[]) => void) | null
+}
+
 /** The composer's pending-chip controls, as an upload drives them. */
 export type NativeChatPendingAttachmentChips = {
   begin: (previewUrl?: string, pendingName?: string) => string | null
-  resolve: (id: string, path: string, connectionId?: string | null) => void
+  resolve: (
+    id: string,
+    path: string,
+    connectionId?: string | null,
+    options?: NativeChatPendingAttachmentOptions
+  ) => boolean
   /** Removes the chip; false when the user already removed it, so its file must not attach. */
   drop: (id: string) => boolean
   /** Adds stored files as `@path` references to the scope's draft, which keeps them through an
    *  input-method composition or a remount. */
-  attachReferences: (references: { id: string; path: string }[]) => void
+  attachReferences: (
+    references: { id: string; path: string }[],
+    options?: NativeChatPendingAttachmentOptions
+  ) => boolean
 }
 
 /**

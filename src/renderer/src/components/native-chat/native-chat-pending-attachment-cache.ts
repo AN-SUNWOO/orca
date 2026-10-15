@@ -116,19 +116,20 @@ export function settleNativeChatPendingAttachmentReferences(
   scopeKey: string,
   references: { id: string; path: string }[],
   insertAtCaret?: (paths: string[]) => void
-): void {
+): boolean {
   const owner = pendingOwners.get(scopeKey)
   const paths = references.flatMap(({ id, path }) =>
     takeNativeChatPendingAttachment(scopeKey, id) ? [path] : []
   )
   if (paths.length === 0) {
-    return
+    return false
   }
   if (insertAtCaret) {
     insertAtCaret(paths)
   } else {
     appendNativeChatDraftCache(scopeKey, paths.map(formatNativeChatFileReference).join(' '), owner)
   }
+  return true
 }
 
 export function clearNativeChatPendingAttachments(scopeKey: string): void {

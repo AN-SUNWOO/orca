@@ -143,13 +143,13 @@ export function MobileNativeChatComposer({
     !sending &&
     !isAttaching &&
     !sessionOptionDispatching
-  const draftShape = { draft: value, attachmentCount: attachments.length }
+  const composerContent = { draft: value, attachmentCount: attachments.length }
   const pickerOpen = pickerHold !== null && sessionOptions != null
-  const expanded = mobileNativeChatComposerExpanded({ focused, pickerOpen, ...draftShape })
+  const expanded = mobileNativeChatComposerExpanded({ focused, pickerOpen, ...composerContent })
   const showsStop = mobileNativeChatComposerShowsStop({
     canStop: stop !== null,
     sendBlocked: sendDisabled,
-    ...draftShape
+    ...composerContent
   })
 
   const trigger = useMemo(() => detectAutocompleteTrigger(value, cursor), [value, cursor])

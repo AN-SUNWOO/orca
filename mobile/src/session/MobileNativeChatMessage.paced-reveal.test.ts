@@ -41,13 +41,19 @@ describe('a growing reply on the phone', () => {
   let renderer: ReactTestRenderer | undefined
   let chat: MobileNativeChatReplyReveals
 
-  function render(text: string | string[], working = true): void {
+  function render(text: string | string[], working = true, runningTool = false): void {
     const message: NativeChatMessage = {
       id: 'a1',
       role: 'assistant',
       source: 'transcript',
       timestamp: null,
-      blocks: (typeof text === 'string' ? [text] : text).map((part) => ({ type: 'text', text: part }))
+      blocks: (typeof text === 'string' ? [text] : text).map((part) => ({
+        type: 'text',
+        text: part
+      }))
+    }
+    if (runningTool) {
+      message.blocks.push({ type: 'tool-call', name: 'Read', input: {}, state: 'running' })
     }
     const row = createElement(MobileNativeChatMessage, {
       message,
@@ -156,6 +162,12 @@ describe('a growing reply on the phone', () => {
     expect(drawn()).toBeLessThan(second.length)
     advance(DELAY)
     expect(drawn()).toBe(second.length)
+  })
+
+  it('draws completed prose in full on first mount beside a running tool', () => {
+    render(first, true, true)
+    expect(contents()).toEqual([first])
+    expect(renderer!.root.findByType('ToolRun').props.blocks[0].state).toBe('running')
   })
 
   it('draws the text as it arrives with reduced motion', () => {

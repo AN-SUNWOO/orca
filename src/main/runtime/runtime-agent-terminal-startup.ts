@@ -38,9 +38,7 @@ import { resolveWslSessionContext } from '../daemon/wsl-session-context'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
 
 /** No launch command could be built for a requested `startupAgent`. */
-export class AgentLaunchUnbuildableError extends Error {
-  override name = 'AgentLaunchUnbuildableError'
-}
+export class AgentLaunchUnbuildableError extends Error {}
 
 type AgentTerminalPlanHost = {
   store: RuntimeStore | null | undefined

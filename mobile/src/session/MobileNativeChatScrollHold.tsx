@@ -16,7 +16,7 @@ type Scroller = {
   querySelectorAll: (selector: string) => ArrayLike<RowElement>
 }
 
-/** The message the reader was on, by its row's id, and where it was. */
+/** A message the reader was on, by its row's id, and where it was. */
 type Held = { rowId: string; top: number }
 
 type Props = {
@@ -38,8 +38,9 @@ function messageRows(scroller: Scroller): RowElement[] {
   return Array.from(scroller.querySelectorAll(`[data-testid^="${ROW_ID_PREFIX}"]`))
 }
 
-/** The first message on screen: the one the reader is reading. */
-function firstMessageOnScreen(scroller: Scroller): Held | null {
+/** The messages the reader is reading, top first: those on screen, or the nearest one when none is
+ *  (only the live status line is). */
+function messagesOnScreen(scroller: Scroller): Held[] {
   const view = scroller.getBoundingClientRect()
   const rows = messageRows(scroller)
   // Rows in normal flow have ordered bottoms, so the first one on screen is found without
@@ -54,12 +55,18 @@ function firstMessageOnScreen(scroller: Scroller): Held | null {
       high = middle
     }
   }
-  if (low === rows.length) {
-    return null
+  const held: Held[] = []
+  for (let index = Math.max(Math.min(low, rows.length - 1), 0); index < rows.length; index += 1) {
+    const { top } = rows[index].getBoundingClientRect()
+    const rowId = rows[index].getAttribute('data-testid')
+    if (held.length > 0 && top >= view.bottom) {
+      break
+    }
+    if (rowId !== null) {
+      held.push({ rowId, top })
+    }
   }
-  const { top } = rows[low].getBoundingClientRect()
-  const rowId = rows[low].getAttribute('data-testid')
-  return rowId !== null && top < view.bottom ? { rowId, top } : null
+  return held
 }
 
 /** iOS is still bouncing the list past an end. A write then lands while WebKit owns the scroll, and
@@ -69,27 +76,29 @@ function overscrolled({ scrollTop, scrollHeight, clientHeight }: Scroller): bool
 }
 
 /** Keeps the page's view on the same message when rows above it change, by putting the first
- *  message that was on screen back where it was. A class because only `getSnapshotBeforeUpdate`
- *  sees that message before the new rows are in the document. A native list holds its own place
- *  (`maintainVisibleContentPosition`). */
+ *  message that was on screen back where it was. When the update dropped that message (the 2,000
+ *  cap trims the oldest), the nearest one below it that the update kept stands in. A class because
+ *  only `getSnapshotBeforeUpdate` sees those messages before the new rows are in the document. A
+ *  native list holds its own place (`maintainVisibleContentPosition`). */
 export class MobileNativeChatScrollHold extends Component<Props> {
-  getSnapshotBeforeUpdate(previous: Props): Held | null {
+  getSnapshotBeforeUpdate(previous: Props): Held[] | null {
     if (Platform.OS !== 'web' || previous.headKey === this.props.headKey) {
       return null
     }
     const scroller = this.props.listRef.current?.getScrollableNode()
-    return scroller && !overscrolled(scroller) ? firstMessageOnScreen(scroller) : null
+    return scroller && !overscrolled(scroller) ? messagesOnScreen(scroller) : null
   }
 
-  componentDidUpdate(_previous: Props, _state: unknown, held: Held | null): void {
-    const scroller = held ? this.props.listRef.current?.getScrollableNode() : null
+  componentDidUpdate(_previous: Props, _state: unknown, held: Held[] | null): void {
+    const scroller = held?.length ? this.props.listRef.current?.getScrollableNode() : null
     if (!held || !scroller) {
       return
     }
-    const { rowId, top } = held
-    const row = messageRows(scroller).find((each) => each.getAttribute('data-testid') === rowId)
-    if (row) {
-      scroller.scrollTop += row.getBoundingClientRect().top - top
+    const rows = new Map(messageRows(scroller).map((row) => [row.getAttribute('data-testid'), row]))
+    const kept = held.find(({ rowId }) => rows.has(rowId))
+    const row = kept && rows.get(kept.rowId)
+    if (kept && row) {
+      scroller.scrollTop += row.getBoundingClientRect().top - kept.top
     }
   }
 

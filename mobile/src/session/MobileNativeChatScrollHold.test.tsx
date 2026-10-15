@@ -95,6 +95,35 @@ describe('MobileNativeChatScrollHold', () => {
     expect(node.scrollTop).toBe(40)
   })
 
+  it('at the 2,000 cap, holds the nearest message the trim keeps', async () => {
+    // The oldest message, trimmed, was the first on screen; the browser kept the offset.
+    const reading = scrollerOver(
+      [
+        ['oldest', -50, null],
+        ['kept', 50, -50]
+      ],
+      400
+    )
+    await show('oldest', reading.listRef)
+    await show('kept', reading.listRef)
+    expect(reading.node.scrollTop).toBe(300)
+
+    // Only the live status line is on screen, below the last message.
+    act(() => renderer?.unmount())
+    renderer = null
+    const footer = scrollerOver(
+      [
+        ['oldest', -800, null],
+        ['kept', -300, -400],
+        [null, 500, 400]
+      ],
+      400
+    )
+    await show('oldest', footer.listRef)
+    await show('kept', footer.listRef)
+    expect(footer.node.scrollTop).toBe(300)
+  })
+
   it('leaves the view to iOS while it bounces the list past the top', async () => {
     const { node, listRef } = scrollerOver([['reading', 100, 2_100]], -15)
     await show('a', listRef)

@@ -11,6 +11,7 @@ type Tagged = {
   querySelectorAll: (selector: string) => ArrayLike<Tagged>
 }
 type Scroller = Tagged & { scrollTop: number; scrollHeight: number; clientHeight: number }
+export type MobileNativeChatScrollNode = Scroller
 
 /** Part of what the reader sees: a tool line or its run (`member`), else a row; where it was, and
  *  the message that placed its row. */
@@ -20,7 +21,11 @@ type Props = {
   rowKeys: Pick<MobileNativeChatRowKeys, 'scope' | 'sourceHead' | 'current' | 'placement'>
   /** Whether the reader follows the end, which then owns the scroll. */
   isFollowing: () => boolean
-  listRef: RefObject<{ getScrollableNode: () => Scroller | null | undefined } | null>
+  /** On the page, the list makes the correction (`keepInPlace`) so none is written mid-scroll. */
+  listRef: RefObject<{
+    getScrollableNode: () => Scroller | null | undefined
+    keepInPlace?: (drift: number) => void
+  } | null>
 }
 
 const ROW = 'chat-row:'
@@ -135,7 +140,8 @@ export class MobileNativeChatScrollHold extends Component<Props> {
   }
 
   componentDidUpdate(_previous: Props, _state: unknown, held: Unit[] | null): void {
-    const scroller = held?.length ? this.props.listRef.current?.getScrollableNode() : null
+    const list = this.props.listRef.current
+    const scroller = held?.length ? list?.getScrollableNode() : null
     if (!held || !scroller) {
       return
     }
@@ -145,7 +151,9 @@ export class MobileNativeChatScrollHold extends Component<Props> {
       if (node) {
         const drift = node.getBoundingClientRect().top - unit.top
         // Sub-pixel drift is layout noise; a write would stop iOS momentum for nothing.
-        if (Math.abs(drift) >= 0.5) {
+        if (Math.abs(drift) >= 0.5 && list?.keepInPlace) {
+          list.keepInPlace(drift)
+        } else if (Math.abs(drift) >= 0.5) {
           scroller.scrollTop += drift
         }
         return

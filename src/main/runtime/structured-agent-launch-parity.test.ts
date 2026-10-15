@@ -250,6 +250,8 @@ async function installFakeBinaries(bin: string): Promise<void> {
     )
   }
   await writeExecutable(join(bin, 'node'), 'exit 0')
+  // The Antigravity server runs only beside its harness.
+  await writeExecutable(join(bin, 'localharness_external'), 'exit 0')
 }
 
 /** The settings every default case runs with. */

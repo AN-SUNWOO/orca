@@ -26,6 +26,7 @@ import { MobileSourceCopyButton } from '../components/MobileSourceCopyButton'
 import { nativeChatMessagePlainText } from './mobile-native-chat-message-plain-text'
 import { deriveNativeChatRowContent } from '../../../src/shared/native-chat-row-content'
 import { MobileNativeChatReasoningRow } from './MobileNativeChatReasoningRow'
+import { mobileNativeChatRowId } from './MobileNativeChatScrollHold'
 import { MobileNativeChatTurnStatus } from './MobileNativeChatTurnStatus'
 import { MobileNativeChatSubagentGroup } from './MobileNativeChatSubagentGroup'
 import { ToolRun } from './MobileNativeChatToolRun'
@@ -134,6 +135,7 @@ function Prose({
 
 function MobileNativeChatMessageImpl({
   message,
+  rowKey,
   mayStillGrow = false,
   toolsExpanded = false,
   fontScale = 1,
@@ -153,6 +155,8 @@ function MobileNativeChatMessageImpl({
   onToggleSubagentGroup
 }: {
   message: NativeChatMessage
+  /** The row's place on the page, kept while older messages join it; tags the row. */
+  rowKey?: string
   /** The newest assistant row of a live turn with no prompt open: its last text may still grow. */
   mayStillGrow?: boolean
   toolsExpanded?: boolean
@@ -236,7 +240,7 @@ function MobileNativeChatMessageImpl({
       <>
         {turnStatusAbove ? statusRow : null}
         {draws ? (
-          <View style={styles.row}>
+          <View style={styles.row} testID={mobileNativeChatRowId(rowKey ?? message.id)}>
             <MobileNativeChatReasoningRow
               message={message}
               markdown={markdown}
@@ -268,7 +272,10 @@ function MobileNativeChatMessageImpl({
     <>
       {/* A turn with no user bubble carries its bar above its first row. */}
       {turnStatusAbove ? statusRow : null}
-      <View style={[styles.row, isUser && styles.rowUser]}>
+      <View
+        style={[styles.row, isUser && styles.rowUser]}
+        testID={mobileNativeChatRowId(rowKey ?? message.id)}
+      >
         <Content
           onLongPress={onLongPress}
           style={[

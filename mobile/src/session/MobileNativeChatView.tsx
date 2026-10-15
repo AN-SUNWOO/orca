@@ -252,7 +252,8 @@ export function MobileNativeChatView({
     beginMomentum,
     endMomentum,
     scrollMayLoadEarlier,
-    recordScrollMetrics
+    recordScrollMetrics,
+    isFollowing
   } = useMobileNativeChatTailFollow<NativeChatMessage>({ hasItems: data.length > 0 })
 
   const handleSend = useCallback(
@@ -312,6 +313,7 @@ export function MobileNativeChatView({
     ({ item, index }: { item: NativeChatMessage; index: number }) => (
       <MobileNativeChatMessage
         message={item}
+        rowKey={rowKeys.keyOf(item)}
         toolsExpanded={toolsExpanded}
         fontScale={fontScale}
         onOpenFile={onOpenFile}
@@ -321,7 +323,7 @@ export function MobileNativeChatView({
         {...turns.resolveRow(index, item)}
       />
     ),
-    [toolsExpanded, fontScale, onOpenFile, structuredActivityUi, turns, unsentNotices]
+    [toolsExpanded, fontScale, onOpenFile, structuredActivityUi, turns, unsentNotices, rowKeys]
   )
 
   const history = useMobileNativeChatPageHistory(turns.listMessages, renderItem, rowKeys)
@@ -363,7 +365,7 @@ export function MobileNativeChatView({
         </View>
       ) : (
         <GestureHandlerRootView style={styles.listWrap}>
-          <MobileNativeChatScrollHold headKey={turns.listMessages[0]?.id} listRef={listRef} />
+          <MobileNativeChatScrollHold rowKeys={rowKeys} {...{ listRef, isFollowing }} />
           <GestureDetector gesture={pinchGesture}>
             <FlatList
               ref={listRef}

@@ -55,6 +55,8 @@ export type MobileNativeChatTailFollow<TItem> = {
    *  gets the place-hold's write while WebKit owns the scroll, and the list stops scrolling. */
   scrollMayLoadEarlier: () => boolean
   recordScrollMetrics: (event: NativeScrollEvent) => void
+  /** Whether the reader follows the end now; read at commit by the page's place-hold. */
+  isFollowing: () => boolean
 }
 
 /** Sole owner of transcript scroll position.
@@ -217,6 +219,8 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     []
   )
 
+  const isFollowing = useCallback(() => followingRef.current, [])
+
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
 
   return {
@@ -230,6 +234,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     beginMomentum,
     endMomentum,
     scrollMayLoadEarlier,
-    recordScrollMetrics
+    recordScrollMetrics,
+    isFollowing
   }
 }

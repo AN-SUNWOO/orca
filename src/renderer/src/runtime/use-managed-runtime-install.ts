@@ -7,9 +7,12 @@ import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { useAppStore } from '@/store'
 import {
   hostStructuredAgentsReadFailed,
+  loadHostStructuredAgents,
+  readHostStructuredAgentsForRuntime,
   subscribeHostStructuredAgents
 } from './host-structured-agents'
 import {
+  ensureLocalRuntimeCapabilities,
   readLocalRuntimeCapabilitiesOrUnknown,
   subscribeLocalRuntimeCapabilitiesKnown
 } from './local-runtime-capabilities'
@@ -26,7 +29,7 @@ import { useHostStructuredAgent } from './use-host-structured-agent'
 export type ManagedRuntimeInstallObservation =
   /** Orca provides no runtime for this agent on this host, or the host cannot install one. */
   | { kind: 'inactive' }
-  /** The host's capabilities or agent list have not loaded, so neither is known yet. */
+  /** A reachable host has not yet answered its capabilities or agent list. */
   | { kind: 'pending' }
   | {
       kind: 'active'
@@ -58,6 +61,12 @@ export function useManagedRuntimeInstall(
       ? null
       : lastVerifiedRuntimeStatus(state.runtimeStatusByEnvironmentId.get(environmentId))
   )
+  // The entry's own status clears on a lost contact; the verified one above outlives it.
+  const reachable = useAppStore(
+    (state) =>
+      environmentId === null ||
+      Boolean(state.runtimeStatusByEnvironmentId.get(environmentId)?.status)
+  )
   const contactEpoch = useAppStore((state) =>
     environmentId === null
       ? 0
@@ -75,15 +84,16 @@ export function useManagedRuntimeInstall(
   const runtimeId = remote?.runtimeId ?? null
   const executionHostId =
     environmentId === null ? LOCAL_EXECUTION_HOST_ID : toRuntimeExecutionHostId(environmentId)
-  const readListFailed = useCallback(
-    () => hostStructuredAgentsReadFailed(executionHostId, runtimeId),
+  const readList = useCallback(
+    (): 'loaded' | 'failed' | null =>
+      readHostStructuredAgentsForRuntime(executionHostId, runtimeId)
+        ? 'loaded'
+        : hostStructuredAgentsReadFailed(executionHostId, runtimeId)
+          ? 'failed'
+          : null,
     [executionHostId, runtimeId]
   )
-  const listFailed = useSyncExternalStore(
-    subscribeHostStructuredAgents,
-    readListFailed,
-    readListFailed
-  )
+  const list = useSyncExternalStore(subscribeHostStructuredAgents, readList, readList)
   const subject = useMemo((): ManagedRuntimeInstallSubject | null => {
     if (!capable || (environmentId !== null && runtimeId === null)) {
       return null
@@ -104,18 +114,32 @@ export function useManagedRuntimeInstall(
   }, [subject, contactEpoch])
   const read = useCallback(() => (subject ? readManagedRuntimeInstall(subject) : null), [subject])
   const snapshot = useSyncExternalStore(subscribeManagedRuntimeInstalls, read, read)
-  return useMemo((): ManagedRuntimeInstallObservation => {
-    if (capable === false || (record && !managed)) {
+  const observation = useMemo((): ManagedRuntimeInstallObservation => {
+    if (capable === false || (list === 'loaded' && !managed)) {
       return INACTIVE
     }
     if (subject && managed && snapshot) {
       return { kind: 'active', subject, snapshot }
     }
     // A failed list leaves the chat's composer and the host's refusal, and Settings says so.
-    if (subject && listFailed) {
+    if (subject && list === 'failed') {
       return { kind: 'active', subject, snapshot: READ_FAILED }
     }
-    // Claude and Codex run the program every build ships, so they never wait on the host's list.
-    return isAgentSessionHandleProvider(agent) ? INACTIVE : PENDING
-  }, [agent, capable, listFailed, managed, record, snapshot, subject])
+    // Only an answer a reachable host still owes may hold the slot; an unreachable one leaves the
+    // composer and the host's refusal. Claude and Codex run the program every build ships.
+    return reachable && !isAgentSessionHandleProvider(agent) ? PENDING : INACTIVE
+  }, [agent, capable, list, managed, reachable, snapshot, subject])
+  const pending = observation.kind === 'pending'
+  const hostCapabilities = remote?.capabilities
+  // The slot waits on the host's answer, so make sure it was asked.
+  useEffect(() => {
+    if (pending && list === null) {
+      void (
+        environmentId === null
+          ? ensureLocalRuntimeCapabilities()
+          : Promise.resolve(hostCapabilities)
+      ).then((capabilities) => loadHostStructuredAgents(executionHostId, capabilities, runtimeId))
+    }
+  }, [environmentId, executionHostId, hostCapabilities, list, pending, runtimeId])
+  return observation
 }

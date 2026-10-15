@@ -72,9 +72,8 @@ ORCA_BACKGROUND_LAUNCH=1 node config/scripts/verify-darwin-terminal-node.mjs
 
 It builds the runtime, checks real PTY input and filesystem/DNS/crypto operations,
 observes all four idle worker generations refresh, bounds their advancement, and
-checks fresh asynchronous work. It inspects only its own test process. A prior
-manual arm64 Node source build passed this sequence; CI covers physical arm64
-and Intel. Cold source compilation is substantial and is cached separately from
+checks fresh asynchronous work. It inspects only its own test process. Both a manual arm64 source build and the repository-built runtime passed this
+sequence; CI covers physical arm64 and Intel. Cold source compilation is substantial and is cached separately from
 packaging retries.
 
 ## Coverage and remaining risks
@@ -88,7 +87,10 @@ No automatic restart or queued-input replay is part of this patch.
 Linux/Windows and WSL are unaffected by the Darwin-only change. Standalone/SSH
 server runtimes and the development Electron fallback do not receive this patch.
 Mobile/relay clients benefit only when their execution host uses the patched
-helper. Older macOS releases, signed packaged launch, battery impact and extended
-soak remain verification gaps. Do not infer remote process death from missing
+helper. An isolated Developer ID signed copy of the installed helper, with the
+repository-built runtime substituted, served a PTY under hardened runtime. Its
+protocol 45 required a matching smoke-test handshake; this checkout uses 46. A
+complete package build, launchd/TCC attribution, older macOS releases, battery
+impact and extended soak remain verification gaps. Do not infer remote process death from missing
 callbacks or loss of contact. The experimental reliability gate records these
 limits; an upstream merge and a Node release can eventually replace this backport.

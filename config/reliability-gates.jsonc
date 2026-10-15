@@ -22,7 +22,7 @@
       "providers": ["daemon", "local", "ssh", "remote-runtime", "mobile-relay"],
       "coveredPlatforms": ["macos"],
       "coveredProviders": ["daemon"],
-      "coverageNotes": "A manual patched Node arm64 build passed real PTY input, filesystem/DNS/crypto and idle-wait generation checks. The committed verifier builds the shipping helper runtime. Physical Intel CI, signed packaging and older macOS remain unverified. Standalone/SSH servers and the Electron fallback do not receive the patch; mobile/relay inherit only their execution host runtime.",
+      "coverageNotes": "The repository arm64 build and committed verifier passed real PTY input, filesystem/DNS/crypto and idle-wait generation checks. An isolated signed installed helper with patched Node also served a PTY. Physical Intel CI, a complete package build and older macOS remain unverified. Standalone/SSH servers and the Electron fallback do not receive the patch; mobile/relay inherit only their execution host runtime.",
       "motivatingLinks": [
         "docs/bug-reproductions/darwin-worker-wakeup.md",
         "https://github.com/libuv/libuv/pull/5351"
@@ -45,7 +45,7 @@
           "command": "ORCA_BACKGROUND_LAUNCH=1 node config/scripts/verify-darwin-terminal-node.mjs",
           "result": "passed",
           "durationSeconds": 32,
-          "summary": "Equivalent manual Node 24.21.0 arm64 source build passed real PTY input, fs/DNS/crypto and all four idle-generation checks. Repository build-wrapper execution is pending; this is not signed packaging proof."
+          "summary": "Repository-built Node 24.21.0 arm64 passed real PTY input, fs/DNS/crypto and all four bounded idle-generation checks. Cached verifier execution took about 32 seconds; this is not full package-build proof."
         }
       ],
       "runtimeBudget": {
@@ -69,7 +69,7 @@
       ],
       "knownGaps": [
         "The natural Orca workload that strands a worker for half a generation range remains unknown.",
-        "No physical Intel, older macOS, signed packaged launch or battery measurement yet.",
+        "No physical Intel, older macOS, full package build, launchd/TCC attribution or battery measurement yet.",
         "Existing daemons require deliberate restart; standalone/SSH macOS servers and Electron fallback remain unpatched."
       ],
       "demotionRule": "Keep experimental until native runtime and signed packaging evidence is stable; investigate failures without weakening generation bounds or silently using an official unpatched binary."

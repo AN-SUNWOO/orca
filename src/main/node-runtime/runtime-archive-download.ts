@@ -4,7 +4,6 @@ import { open, rm } from 'node:fs/promises'
 import { runProcess } from '@orca/process-host'
 import type { ProcessResult } from '@orca/process-host/process-spec'
 import { waitForPromiseWithSignal } from '../../shared/abort-signal-reason'
-import { isDefinitiveAbsence } from '../../shared/definitive-filesystem-absence'
 import { resolveExecutableCommand } from '../../shared/node-cli-command-resolution'
 import { getZipExtractorCommand } from '../../shared/zip-extractor-command'
 import type { MainHttpClient } from '../network/http-client'
@@ -15,60 +14,45 @@ const MAX_RUNTIME_ARCHIVE_BYTES = 200 * 1024 * 1024
 /** Pauses before attempts 2..n; a network change or a CDN 5xx usually clears within seconds. */
 export const RUNTIME_ARCHIVE_RETRY_DELAYS_MS = [1_000, 3_000, 9_000]
 
-/**
- * Why the extractor needs a message of its own: `unzip` is absent from a minimal POSIX install,
- * and a bare `spawn unzip ENOENT` names neither the missing tool nor the override. A misconfigured
- * `ORCA_UNZIP_BIN` whose parent is a file reports ENOTDIR instead, which is the same verdict.
- *
- * The errno is the program path's, not the caller's: `runProcess` leaves cwd unset, so the child
- * inherits the parent's without resolving it. Measured on macOS, Linux and Windows — spawn still
- * succeeds from a deleted cwd, even though `process.cwd()` itself throws ENOENT there.
- */
+/** Extracts with the program `missingArchiveExtractor` checks, so an install that passed that
+ *  check before downloading finds it here too. */
 export async function extractRuntimeArchive(
   runtime: { label: string; members: readonly string[] },
   archivePath: string,
   extractDir: string,
   signal?: AbortSignal
 ): Promise<ProcessResult> {
-  const { label } = runtime
-  const command = archiveExtractorCommand(archivePath, extractDir, runtime.members)
-  try {
-    return await runProcess({
-      program: command.file,
-      args: command.args,
-      timeoutMs: 120_000,
-      signal
-    })
-  } catch (error) {
-    if (isDefinitiveAbsence(error)) {
-      const override = archivePath.endsWith('.zip')
-        ? ', or set ORCA_UNZIP_BIN to an unzip-compatible extractor.'
-        : '.'
-      throw new Error(
-        `${label} archive extraction could not run ${command.file}: install ${command.label}${override}`,
-        { cause: error }
-      )
-    }
-    throw error
+  const command = archiveExtractor(archivePath, extractDir, runtime.members)
+  if (!command.program) {
+    throw new Error(`Installing ${runtime.label} on this host needs ${command.label}.`)
   }
+  return await runProcess({
+    program: command.program,
+    args: command.args,
+    timeoutMs: 120_000,
+    signal
+  })
 }
 
 /** The extractor an archive named `archiveName` needs when this host lacks it, so an install can
  *  refuse before it downloads anything; null when the host has it. */
 export function missingArchiveExtractor(archiveName: string): string | null {
-  const command = archiveExtractorCommand(archiveName, '', [])
-  return resolveExecutableCommand(command.file) ? null : command.label
+  const command = archiveExtractor(archiveName, '', [])
+  return command.program ? null : command.label
 }
 
-function archiveExtractorCommand(
+/** `program` is the extractor's full path on this host (PATH, then the usual install folders), or
+ *  null when it has none. */
+function archiveExtractor(
   archivePath: string,
   extractDir: string,
   members: readonly string[]
-): { file: string; args: string[]; label: string } {
+): { program: string | null; args: string[]; label: string } {
   // Why tar for .tar.gz: every POSIX host and Windows 10+ ships it; Node publishes no zip there.
-  return archivePath.endsWith('.zip')
+  const { file, ...command } = archivePath.endsWith('.zip')
     ? getZipExtractorCommand(archivePath, extractDir)
     : { file: 'tar', args: ['-xzf', archivePath, '-C', extractDir, ...members], label: 'tar' }
+  return { ...command, program: resolveExecutableCommand(file) }
 }
 
 /** Retries transient network failures; a checksum mismatch or a cancel is final. */

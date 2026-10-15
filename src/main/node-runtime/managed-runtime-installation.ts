@@ -63,7 +63,11 @@ export class ManagedRuntimeInstallation {
     await this.state.waitForChange(shown, STATUS_WAIT_MS, signal)
     const { value: operation, revision } = this.state.get()
     const pin = this.runtime.pin()
-    const { release, broken } = resolveInstalledRuntimeRelease(this.root, pin)
+    const { release, broken, unreadable } = resolveInstalledRuntimeRelease(this.root, pin)
+    // Unknown is not absent: a failed read keeps each client's last answer.
+    if (unreadable && !release?.current) {
+      throw new Error(`Couldn't read the installed ${this.runtime.label} files on this host.`)
+    }
     const source = (await this.deps.findExternal()) ? 'external' : release ? 'managed' : null
     const missingProgram = pin && missingArchiveExtractor(pin.url)
     return {

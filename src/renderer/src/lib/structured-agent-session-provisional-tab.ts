@@ -24,6 +24,18 @@ import {
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
+import { holdEmptyWorkspaceDefaultSurfaceForLaunch } from './empty-workspace-default-surface-claims'
+import {
+  clearWebSessionFocusIntentIfMatches,
+  peekWebSessionFocusIntent,
+  resolveWebSessionVisibleTabId
+} from '@/runtime/web-session-focus-intent'
+import { structuredAgentSessionFocusOwner } from '@/runtime/structured-agent-session-owner'
+import {
+  deleteStructuredLaunchStateIfCurrent,
+  getStructuredLaunchStateBySessionId,
+  notifyStructuredLaunchListeners
+} from './structured-agent-session-launch-registry'
 
 type LocalProvisionalLaunch = StructuredAgentLaunchHandle & { tab: Tab }
 
@@ -31,6 +43,7 @@ type LocalProvisionalLaunch = StructuredAgentLaunchHandle & { tab: Tab }
 export type StructuredAgentSessionProvisionalLaunch =
   | LocalProvisionalLaunch
   | HostAdmittedStructuredLaunch
+  | (StructuredAgentLaunchHandle & { tab: null })
 
 export function openStructuredAgentSessionProvisionalTab(args: {
   worktreeId: string
@@ -45,9 +58,9 @@ export function openStructuredAgentSessionProvisionalTab(args: {
   const tabId = structuredAgentSessionTabId(args.sessionId)
   const existing = (state.unifiedTabsByWorktree[args.worktreeId] ?? []).find(
     (candidate) =>
-      candidate.id === tabId &&
       candidate.contentType === 'agent-session' &&
-      candidate.entityId === args.sessionId
+      candidate.entityId === args.sessionId &&
+      (!candidate.executionHostId || candidate.executionHostId === args.executionHostId)
   )
   if (existing) {
     if (args.activate !== false) {
@@ -95,6 +108,8 @@ type ProvisionalLaunchArgs = {
   target?: AgentSessionLaunchTarget
   targetGroupId?: string
   activate?: boolean
+  /** Identity-only resumes publish on commit; unknown outcomes keep their recovery tab. */
+  deferPublication?: true
   /** Lets workspace flows reveal before the chat's tab is owned: before its host is asked, when no
    *  session id exists yet. */
   beforeOpen?: (sessionId?: string) => boolean | void
@@ -116,7 +131,7 @@ export function beginStructuredAgentSessionProvisionalLaunch(
     // No host to ask: the launch path refuses it with its own message.
     return beginLocalProvisionalLaunch(args)
   }
-  if (args.beforeOpen?.() === false) {
+  if (!args.deferPublication && args.beforeOpen?.() === false) {
     return null
   }
   return beginHostAdmittedStructuredLaunch({
@@ -148,7 +163,12 @@ export function beginStructuredAgentSessionProvisionalLaunch(
   })
 }
 
-function beginLocalProvisionalLaunch(args: ProvisionalLaunchArgs): LocalProvisionalLaunch | null {
+function beginLocalProvisionalLaunch(
+  args: ProvisionalLaunchArgs
+): LocalProvisionalLaunch | (StructuredAgentLaunchHandle & { tab: null }) | null {
+  if (args.deferPublication) {
+    return beginDeferredPublication(args)
+  }
   const handle = args.plan.begin(args.hooks, args.target)
   if (!handle) {
     return null
@@ -176,4 +196,60 @@ function beginLocalProvisionalLaunch(args: ProvisionalLaunchArgs): LocalProvisio
     handle.cancel()
     throw error
   }
+}
+
+function beginDeferredPublication(
+  args: ProvisionalLaunchArgs
+): (StructuredAgentLaunchHandle & { tab: null }) | null {
+  const worktreeId = args.target?.worktreeId ?? args.plan.worktreeId
+  if (!worktreeId || !args.plan.resumeFrom || args.plan.prompt) {
+    throw new Error('Deferred publication requires an identity-only resume.')
+  }
+  const releaseHold = holdEmptyWorkspaceDefaultSurfaceForLaunch(worktreeId)
+  let handle: StructuredAgentLaunchHandle | null
+  try {
+    handle = args.plan.begin(args.hooks, args.target)
+  } catch (error) {
+    releaseHold()
+    throw error
+  }
+  if (!handle) {
+    releaseHold()
+    return null
+  }
+  const launch = handle
+  const target = structuredAgentSessionTargetForHost(launch.executionHostId)
+  const settlement = launch.settlement
+    .then((result) => {
+      if (result.kind === 'structured' || result.kind === 'visibility-unknown') {
+        const state = useAppStore.getState()
+        const owner = target && structuredAgentSessionFocusOwner(target)
+        const focus = owner && peekWebSessionFocusIntent(owner, worktreeId)
+        const hostTabId = `agent-session:${launch.sessionId}`
+        const activate =
+          args.activate !== false &&
+          focus?.hostTabId === hostTabId &&
+          (focus.expectedCurrentLocalTabId === undefined ||
+            focus.expectedCurrentLocalTabId === resolveWebSessionVisibleTabId(state, worktreeId))
+        openStructuredAgentSessionProvisionalTab({
+          worktreeId,
+          executionHostId: launch.executionHostId,
+          sessionId: launch.sessionId,
+          agent: args.plan.agent,
+          ...(args.targetGroupId ? { targetGroupId: args.targetGroupId } : {}),
+          activate
+        })
+        if (owner) {
+          clearWebSessionFocusIntentIfMatches(owner, worktreeId, hostTabId)
+        }
+      } else if (!launch.joined && (result.kind === 'failed' || result.kind === 'cancelled')) {
+        const failed = getStructuredLaunchStateBySessionId(launch.sessionId)
+        if (failed?.callers.outcome === 'failed' && deleteStructuredLaunchStateIfCurrent(failed)) {
+          notifyStructuredLaunchListeners()
+        }
+      }
+      return result
+    })
+    .finally(releaseHold)
+  return { ...launch, tab: null, settlement }
 }

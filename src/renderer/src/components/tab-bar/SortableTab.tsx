@@ -21,6 +21,7 @@ import {
 import { preventMiddleButtonDefault } from './middle-button-default-guard'
 import { useSortableTabRename } from './use-sortable-tab-rename'
 import { SortableTabContextMenu } from './SortableTabContextMenu'
+import { useSortableTabContextMenu } from './use-sortable-tab-context-menu'
 import { translate } from '@/i18n/i18n'
 import { TAB_LABEL_WIDTH_CLASSES } from './tab-width-rules'
 import { useTabStripSlotProps } from './use-tab-strip-slot-props'
@@ -139,7 +140,12 @@ export default function SortableTab({
   })
 
   // Why: no transform/transition/opacity so tabs stay anchored during drag, only the insertion bar moves (see TabBar.tsx).
-  const [menuOpen, setMenuOpen] = useState(false)
+  const {
+    open: menuOpen,
+    openingId,
+    onOpenChange: setMenuOpen,
+    onComplete
+  } = useSortableTabContextMenu()
   const [menuPoint, setMenuPoint] = useState({ x: 0, y: 0 })
   const {
     isEditing,
@@ -401,6 +407,8 @@ export default function SortableTab({
         groupId={groupId}
         isActive={isActive}
         open={menuOpen}
+        openingId={openingId}
+        onSessionSwitchComplete={onComplete}
         point={menuPoint}
         tabCount={tabCount}
         hasTabsToRight={hasTabsToRight}

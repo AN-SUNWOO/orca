@@ -10,19 +10,25 @@ import { ResumeInNewCliTooltipText } from './ai-vault-session-cli-fork-copy'
 export function AiVaultSessionSurfaceSwitchMenuItems({
   menuKind,
   tooltipSide,
+  chatPending,
   onResumeInNewChat,
   onResumeInNewCli
 }: {
   menuKind: 'dropdown' | 'context'
   tooltipSide: 'left' | 'right'
-  onResumeInNewChat?: () => void
+  chatPending?: boolean
+  onResumeInNewChat?: (event: Event) => void
   onResumeInNewCli?: () => void
 }): React.JSX.Element {
   const Item = menuKind === 'context' ? ContextMenuItem : DropdownMenuItem
   return (
     <>
       {onResumeInNewChat ? (
-        <Item onSelect={onResumeInNewChat}>
+        <Item
+          onSelect={onResumeInNewChat}
+          disabled={chatPending}
+          aria-busy={chatPending || undefined}
+        >
           <MessagesSquare className="size-3.5" />
           {translate(
             'auto.components.right.sidebar.AiVaultSessionRow.resumeInNewNativeChat',

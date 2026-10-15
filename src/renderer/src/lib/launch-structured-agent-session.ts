@@ -47,6 +47,7 @@ export type StructuredAgentSessionLaunchIntent = {
   createMessageSupport?: boolean
   createPrepared?: true
   prepareCreate?: () => void
+  beforeCreate?: () => boolean
   /** The saved selection create seeds, read when the intent is built. */
   seedOptions?: Readonly<Record<string, string>>
 }

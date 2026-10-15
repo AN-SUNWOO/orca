@@ -7,6 +7,7 @@ import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { AiVaultSessionSurfaceSwitchMenuItems } from '../right-sidebar/AiVaultSessionSurfaceSwitchMenuItems'
 import { useAiVaultSessionLaunchActions } from '../right-sidebar/ai-vault-session-launch-actions'
+import { CliChatResumeMenuItems } from './CliChatResumeMenuItems'
 import {
   lookupTabSessionHistoryRow,
   resolveTabSessionHistorySubject,
@@ -69,7 +70,7 @@ function useTabSessionSwitch(
 
 /** The Session History row's "Resume in New Native Chat" / "Resume in New CLI", offered on the tab
  *  that shows that session and hidden wherever the row would not offer it. */
-export function TabSessionSurfaceSwitchMenuItems({
+function HistoryTabSessionSurfaceSwitchMenuItems({
   tab,
   nativeChat,
   leadingSeparator
@@ -117,5 +118,18 @@ export function TabSessionSurfaceSwitchMenuItems({
         }
       />
     </>
+  )
+}
+
+export function TabSessionSurfaceSwitchMenuItems(props: {
+  tab: Pick<TerminalTab, 'id' | 'worktreeId'>
+  nativeChat?: NativeChatTabSession
+  leadingSeparator: boolean
+  onComplete?: () => void
+}): React.JSX.Element | null {
+  return props.nativeChat ? (
+    <HistoryTabSessionSurfaceSwitchMenuItems {...props} />
+  ) : (
+    <CliChatResumeMenuItems {...props} />
   )
 }

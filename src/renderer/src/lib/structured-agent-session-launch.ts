@@ -68,9 +68,11 @@ export { useStructuredAgentSessionLaunchSelection } from './structured-agent-ses
 type StructuredLaunchStateResult = {
   state: StructuredLaunchState
   caller: StructuredLaunchCaller
+  joined: boolean
 }
 
 export type StructuredAgentLaunchResult = {
+  joined: boolean
   sessionId: string
   executionHostId: ExecutionHostId
   launchResult: Promise<StructuredAgentLaunchReceipt>
@@ -182,7 +184,7 @@ function joinStructuredLaunchState(
     stagedPrompt
   })
   trackStructuredLaunchPromptOutcome(existing, caller)
-  return { state: existing, caller }
+  return { state: existing, caller, joined: true }
 }
 
 function structuredAgentLaunchState(
@@ -204,6 +206,7 @@ function structuredAgentLaunchState(
     options.resumeFrom,
     options.hostSeedOptions
   )
+  intent.beforeCreate = options.beforeCreate
   const text = launchPromptText(options)
   const stagedPrompt = text
     ? stageStructuredLaunchPrompt(intent.sessionId, text, promptOwner(options))
@@ -241,7 +244,8 @@ function structuredAgentLaunchState(
   trackLaunchSettlement(state, state.promise)
   return {
     state,
-    caller
+    caller,
+    joined: false
   }
 }
 
@@ -263,8 +267,9 @@ export function startStructuredAgentLaunch(
   agent: TuiAgent,
   options: StructuredAgentLaunchOptions
 ): StructuredAgentLaunchResult {
-  const { state, caller } = structuredAgentLaunchState(worktreeId, agent, options)
+  const { state, caller, joined } = structuredAgentLaunchState(worktreeId, agent, options)
   return {
+    joined,
     sessionId: state.intent.sessionId,
     executionHostId: state.intent.executionHostId,
     launchResult: state.promise,

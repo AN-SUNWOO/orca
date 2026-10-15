@@ -9,30 +9,37 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { resetAiVaultForcedRescanThrottleForTest } from '../right-sidebar/ai-vault-session-refresh'
-import { cacheAiVaultSessionList } from '../right-sidebar/ai-vault-session-list-request'
 import { TabSessionSurfaceSwitchMenuItems } from './TabSessionSurfaceSwitchMenuItems'
 
 const mocks = vi.hoisted(() => {
   const state: {
     subject: Record<string, unknown> | null
     move: { action: string; worktreeId: string } | null
+    cliSource: Record<string, unknown> | null
     launchActionArgs: unknown[]
-  } = { subject: null, move: null, launchActionArgs: [] }
+  } = { subject: null, move: null, launchActionArgs: [], cliSource: null }
   return {
     ...state,
     handleResumeInNewChat: vi.fn(),
     handleResumeInNewCli: vi.fn(),
     resolveSwitch: vi.fn(),
+    runCliChatResume: vi.fn(async () => {}),
     listSessions: vi.fn(),
     cancelListSessions: vi.fn(async () => {})
   }
 })
 
-vi.mock('../../store', () => ({
+vi.mock('@/store', () => ({
   useAppStore: Object.assign(
     (selector: (state: Record<string, unknown>) => unknown) => selector({ settings: null }),
     { getState: () => ({}) }
   )
+}))
+
+vi.mock('./cli-chat-resume-source', () => ({ resolveCliChatResumeSource: () => mocks.cliSource }))
+vi.mock('./cli-chat-resume-run', () => ({
+  runCliChatResume: mocks.runCliChatResume,
+  useCliChatResumePending: () => false
 }))
 
 vi.mock('./tab-session-history-switch', async (importOriginal) => ({
@@ -88,20 +95,14 @@ const CHAT_SUBJECT = {
   request: PANEL_REQUEST
 }
 
-const CLI_SUBJECT = {
-  kind: 'cli',
-  agent: 'claude',
-  providerSessionId: 'claude-session-1',
-  workspaceId: 'wt-1',
-  request: PANEL_REQUEST
-}
-
 function listResult(sessions: AiVaultSession[]) {
   return { sessions, issues: [], scannedAt: 'now' }
 }
 
 beforeEach(() => {
   resetAiVaultForcedRescanThrottleForTest()
+  mocks.cliSource = null
+  mocks.runCliChatResume.mockClear()
   mocks.subject = null
   mocks.move = null
   mocks.launchActionArgs = []
@@ -181,40 +182,22 @@ describe('TabSessionSurfaceSwitchMenuItems', () => {
     })
   })
 
-  it('runs the Session History "Resume in New Native Chat" handler for a CLI tab', async () => {
-    const cliRow = { ...CHAT_ROW, structuredSession: undefined }
-    mocks.listSessions.mockResolvedValue({
-      sessions: [cliRow],
-      issues: [],
-      scannedAt: 'now'
-    })
-    mocks.subject = CLI_SUBJECT
-    mocks.move = { action: 'resume-in-new-chat', worktreeId: 'wt-1' }
-    await renderItems()
-
-    expect(screen.queryByText('Resume in New CLI')).toBeNull()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Resume in New Native Chat' }))
-    expect(mocks.handleResumeInNewChat).toHaveBeenCalledWith(cliRow, 'wt-1')
-  })
-
-  it('offers nothing before the fresh answer and never shows a stale cached row', async () => {
-    // The cached row predates a chat taking the conversation; only the fresh reply knows.
-    const cliRow = { ...CHAT_ROW, structuredSession: undefined }
-    cacheAiVaultSessionList(PANEL_REQUEST, listResult([cliRow]), { replaceHostEntries: false })
-    mocks.listSessions.mockResolvedValue(listResult([CHAT_ROW]))
-    mocks.subject = CLI_SUBJECT
-    mocks.move = { action: 'resume-in-new-chat', worktreeId: 'wt-1' }
-    // The real gate refuses a chat-owned row (pinned in tab-session-history-switch.parity.test.ts).
-    mocks.resolveSwitch.mockImplementation((_state: unknown, session: AiVaultSession) =>
-      session.structuredSession ? null : mocks.move
-    )
+  it('offers and dispatches a CLI identity while History never answers', async () => {
+    const source = {
+      tabId: 'tab-1',
+      workspaceId: 'wt-1',
+      paneKey: 'tab-1:leaf',
+      agent: 'claude',
+      providerSessionId: 'provider-1',
+      executionHostId: 'local'
+    }
+    mocks.cliSource = source
+    mocks.listSessions.mockReturnValue(new Promise(() => {}))
     renderItemsNow()
-
-    expect(screen.queryByRole('menuitem')).toBeNull()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Resume in New Native Chat' }))
     await act(async () => {})
-    expect(mocks.listSessions).toHaveBeenCalledWith(expect.objectContaining({ force: undefined }))
-    expect(mocks.resolveSwitch).toHaveBeenCalledWith(expect.anything(), CHAT_ROW, CLI_SUBJECT)
-    expect(screen.queryByRole('menuitem')).toBeNull()
+    expect(mocks.runCliChatResume).toHaveBeenCalledWith(source)
+    expect(mocks.listSessions).not.toHaveBeenCalled()
   })
 
   it('offers the move once the fresh answer has it', async () => {

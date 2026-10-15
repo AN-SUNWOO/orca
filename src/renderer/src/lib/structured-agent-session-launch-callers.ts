@@ -24,6 +24,8 @@ export type StructuredAgentLaunchOptions = {
   executionHostId?: ExecutionHostId
   /** The saved selection a paired host reported it will seed; read only by the starting caller. */
   hostSeedOptions?: Readonly<Record<string, string>>
+  /** Final admission of a source-bound action, immediately before its first create is sent. */
+  beforeCreate?: () => boolean
 }
 
 export type StructuredLaunchCaller = {

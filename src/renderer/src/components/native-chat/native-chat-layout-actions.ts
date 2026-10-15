@@ -5,6 +5,7 @@ import { structuredAgentSessionTargetForHost } from '@/runtime/structured-agent-
 import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
+import { captureNativeChatComposerFocusIntent } from '@/components/native-chat/use-native-chat-composer-reveal-focus'
 import { requestActiveTerminalPaneSplit } from '@/components/tab-bar/request-active-terminal-pane-split'
 import type { NativeChatSplitDirection } from './native-chat-split-shortcut'
 
@@ -82,8 +83,10 @@ export function runNativeChatSplitTarget(
   if (!executionHostId || !structuredAgentSessionTargetForHost(executionHostId)) {
     return false
   }
+  const focusIntent = captureNativeChatComposerFocusIntent()
   const groupId = state.createEmptySplitGroup(source.worktreeId, target.groupId, direction)
   if (!groupId) {
+    focusIntent.cancel()
     return false
   }
   try {
@@ -96,6 +99,7 @@ export function runNativeChatSplitTarget(
         executionHostId
       }),
       hooks: {},
+      focusIntent,
       onHostDeclined: null,
       targetGroupId: groupId
     })

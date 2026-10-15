@@ -1,7 +1,7 @@
 import type { AppState } from '@/store/types'
 import { useAppStore } from '@/store'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
-import { structuredAgentSessionOwnerForTab } from '@/runtime/structured-agent-session-owner'
+import { structuredAgentSessionTargetForHost } from '@/runtime/structured-agent-session-owner'
 import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
@@ -78,8 +78,8 @@ export function runNativeChatSplitTarget(
   if (!source) {
     return false
   }
-  const executionHostId = structuredAgentSessionOwnerForTab(state, source.tab)
-  if (!executionHostId) {
+  const executionHostId = source.tab.executionHostId
+  if (!executionHostId || !structuredAgentSessionTargetForHost(executionHostId)) {
     return false
   }
   const groupId = state.createEmptySplitGroup(source.worktreeId, target.groupId, direction)

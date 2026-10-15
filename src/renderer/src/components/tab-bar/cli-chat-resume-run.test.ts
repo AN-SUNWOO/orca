@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CliChatResumeSource } from './cli-chat-resume-source'
 import type { AgentSessionWireRefusal } from '../../../../shared/agent-session-wire'
 import type { StructuredAgentSessionCreateParams } from '../../../../shared/structured-agent-session-create'
@@ -71,6 +71,7 @@ import {
   resetWebSessionFocusIntentForTests
 } from '@/runtime/web-session-focus-intent'
 import { structuredAgentSessionFocusOwner } from '@/runtime/structured-agent-session-owner'
+import { registerSessionTabIpcBridge } from '@/hooks/ipc-events/session-tab-ipc-bridge'
 
 const SOURCE: CliChatResumeSource = {
   tabId: 'tab-1',
@@ -81,6 +82,7 @@ const SOURCE: CliChatResumeSource = {
   executionHostId: 'local'
 }
 const tabs = () => useAppStore.getState().unifiedTabsByWorktree['wt-1'] ?? []
+afterEach(() => vi.unstubAllGlobals())
 function deferred<T>() {
   let resolve: (value: T) => void = () => {}
   const promise = new Promise<T>((done) => {
@@ -272,10 +274,29 @@ describe('CLI identity resume through the existing launch owner', () => {
     expect(tabs()).toHaveLength(1)
   })
 
-  it.each(['reply', 'inventory'] as const)(
-    'fills the original slot after sibling drag, append and later selection (%s first)',
-    async (first) => {
+  it.each([
+    ['reply', 'B', 'B E S R', 'B E S D R'],
+    ['inventory', 'E', 'S B R E', 'S B D R E'],
+    ['reply', 'E', 'S B E R', 'S B D E R'],
+    ['inventory', 'B', 'R S E B', 'R S E D B']
+  ])(
+    'keeps canonical membership through registered IPC (%s first, move %s to %s)',
+    async (first, mover, requested, expected) => {
       const [e, source, browser] = seedTabs()
+      let move: Parameters<typeof window.api.ui.onMoveSessionTab>[0] = () => {}
+      vi.stubGlobal('api', {
+        ...window.api,
+        ui: {
+          ...window.api?.ui,
+          onCloseSessionTab: () => () => {},
+          onSessionTabCloseRequest: () => () => {},
+          onMoveSessionTab: (callback: typeof move) => {
+            move = callback
+            return () => {}
+          }
+        }
+      })
+      registerSessionTabIpcBridge([])
       const reply = deferred<unknown>()
       mocks.call.mockReturnValue(reply.promise)
       const running = runCliChatResume(SOURCE)
@@ -285,10 +306,32 @@ describe('CLI identity resume through the existing launch owner', () => {
       const store = useAppStore.getState()
       const order = store.groupsByWorktree['wt-1'][0].tabOrder
       expect(order).toEqual([e.id, source.id, browser.id, slotId])
-      store.reorderUnifiedTabs(e.groupId, [browser.id, e.id, source.id, slotId])
       const later = useAppStore
         .getState()
         .createUnifiedTab('wt-1', 'editor', { id: 'R', entityId: 'R' })
+      const beforeNoop = useAppStore.getState()
+      move({
+        kind: 'reorder',
+        worktreeId: 'wt-1',
+        targetGroupId: e.groupId,
+        tabId: browser.id,
+        tabOrder: [e.id, source.id, browser.id, later.id]
+      })
+      expect(useAppStore.getState()).toBe(beforeNoop)
+      move({
+        kind: 'reorder',
+        worktreeId: 'wt-1',
+        targetGroupId: e.groupId,
+        tabId: mover,
+        tabOrder: requested.split(' ')
+      })
+      const expectedOrder = expected.split(' ').map((id) => (id === 'D' ? slotId : id))
+      expect(useAppStore.getState().groupsByWorktree['wt-1'][0].tabOrder).toEqual(expectedOrder)
+      expect(readStructuredAgentLaunchRecord(sessionId)?.surfaceAddress).toEqual({
+        worktreeId: 'wt-1',
+        targetGroupId: e.groupId,
+        precedingTabIds: expectedOrder.slice(0, expectedOrder.indexOf(slotId))
+      })
       const other = useAppStore.getState().createUnifiedTab('wt-1', 'editor', {
         entityId: 'other',
         split: { splitDirection: 'right', sourceGroupId: e.groupId }
@@ -302,7 +345,7 @@ describe('CLI identity resume through the existing launch owner', () => {
       expect(
         useAppStore.getState().groupsByWorktree['wt-1'].find((group) => group.id === e.groupId)
           ?.tabOrder
-      ).toEqual([browser.id, e.id, source.id, slotId, later.id])
+      ).toEqual(expectedOrder)
       expect(useAppStore.getState().activeGroupIdByWorktree['wt-1']).toBe(other.groupId)
       useAppStore.getState().moveUnifiedTabToGroup(slotId, other.groupId)
       applyStructuredSessionTabSnapshots([

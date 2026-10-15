@@ -108,7 +108,7 @@ export type TabsSlice = {
   reorderUnifiedTabs: (
     groupId: string,
     tabIds: string[],
-    opts?: { recordInteraction?: boolean }
+    opts?: { recordInteraction?: boolean; projectedMoveTabId?: string }
   ) => void
   setTabLabel: (tabId: string, label: string) => void
   /** Set a tab's view mode (terminal vs native chat). Patches only that tab. */

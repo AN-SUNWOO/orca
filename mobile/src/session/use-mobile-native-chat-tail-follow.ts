@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
-import {
-  Platform,
-  type FlatList,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent
-} from 'react-native'
+import { Platform, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import type { MobileNativeChatScrollNode } from './MobileNativeChatScrollHold'
 
 /** Distance from the bottom, in points, still treated as "at the tail". */
 const AT_TAIL_SLOP = 80
@@ -26,9 +22,6 @@ export function mobileNativeChatRowAnchor(hasHeader: boolean): { minIndexForVisi
   return hasHeader ? ANCHOR_BELOW_HEADER : ANCHOR_AT_FIRST_ROW
 }
 
-/** The part of the page list's scrollable DOM node the pin reads. */
-type PageScroller = { scrollTop: number; scrollHeight: number }
-
 function distanceFromTail(event: NativeScrollEvent): number {
   const { contentOffset, contentSize, layoutMeasurement } = event
   return contentSize.height - (contentOffset.y + layoutMeasurement.height)
@@ -38,14 +31,27 @@ function isAtTail(event: NativeScrollEvent): boolean {
   return distanceFromTail(event) <= AT_TAIL_SLOP
 }
 
-export type MobileNativeChatTailFollow<TItem> = {
-  /** Attach to the transcript list; the hook scrolls through this ref alone. */
-  listRef: RefObject<FlatList<TItem> | null>
+function atPageEnd({ scrollTop, scrollHeight, clientHeight }: MobileNativeChatScrollNode): boolean {
+  return scrollTop >= scrollHeight - clientHeight - PAGE_MOVE_SLOP
+}
+
+/** What the owner and the place-hold use of a transcript list: native's FlatList, or the page's. */
+export type MobileNativeChatListHandle = {
+  scrollToEnd: (params: { animated: boolean }) => void
+  scrollToOffset: (params: { animated: boolean; offset: number }) => void
+  getScrollableNode: () => MobileNativeChatScrollNode | null | undefined
+}
+
+export type MobileNativeChatTailFollow = {
+  /** The transcript list; the hook scrolls through this ref alone. */
+  listRef: RefObject<MobileNativeChatListHandle | null>
+  /** The list's `ref`. */
+  attachList: (list: MobileNativeChatListHandle | null) => void
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
-  /** Passive maintenance: re-pin after the viewport resizes. */
+  /** Passive maintenance: re-pin after the viewport resizes, or on the page the content too. */
   pinToTail: () => void
-  /** Content-size maintenance using the list's authoritative measured height. */
+  /** Native content-size maintenance using the list's authoritative measured height. */
   pinToTailAfterContentResize: (_width: number, height: number) => void
   /** Explicit jump — send, or the jump-to-latest control. Resumes following. */
   jumpToTail: () => void
@@ -75,14 +81,17 @@ export type MobileNativeChatTailFollow<TItem> = {
  *  the view argue with itself. Only the user's own gestures and explicit jumps
  *  move intent; metrics only decide where a *released* gesture leaves us.
  */
-export function useMobileNativeChatTailFollow<TItem>(args: {
+export function useMobileNativeChatTailFollow(args: {
   /** Guards `scrollToEnd` against an empty list. */
   hasItems: boolean
   /** The chat shown; on the page another one opens following, whatever the reader did here. */
   scopeKey: string
-}): MobileNativeChatTailFollow<TItem> {
+}): MobileNativeChatTailFollow {
   const { hasItems, scopeKey } = args
-  const listRef = useRef<FlatList<TItem> | null>(null)
+  const listRef = useRef<MobileNativeChatListHandle | null>(null)
+  const attachList = useCallback((list: MobileNativeChatListHandle | null) => {
+    listRef.current = list
+  }, [])
   const [following, setFollowingFlag] = useState(true)
   const [atTail, setAtTailFlag] = useState(true)
   // Event handlers read intent at event time, before a re-render lands.
@@ -115,16 +124,13 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     if (!followingRef.current || !hasItems) {
       return
     }
-    if (listReportsGestures()) {
-      listRef.current?.scrollToEnd({ animated: false })
+    const scroller = listReportsGestures() ? null : listRef.current?.getScrollableNode()
+    // Already there: a write would only stop iOS momentum, or land while it bounces past the end.
+    if (scroller && atPageEnd(scroller)) {
       return
     }
-    // Why not `scrollToEnd`: its estimate can land short, and the page reads a move up as the reader's.
-    // The live height: the last reported one can still be the previous chat's.
-    const scroller: PageScroller | null | undefined = listRef.current?.getScrollableNode()
-    if (scroller) {
-      listRef.current?.scrollToOffset({ animated: false, offset: scroller.scrollHeight })
-    }
+    // The page's list scrolls to its live height, so this lands at the end.
+    listRef.current?.scrollToEnd({ animated: false })
   }, [hasItems])
 
   const pinToTailAfterContentResize = useCallback(
@@ -240,14 +246,14 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       return
     }
     jumpToTail()
-    const scroller: PageScroller | null | undefined = listRef.current?.getScrollableNode()
-    pageOffsetRef.current = scroller?.scrollTop ?? 0
+    pageOffsetRef.current = listRef.current?.getScrollableNode()?.scrollTop ?? 0
   }, [scopeKey, jumpToTail])
 
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
 
   return {
     listRef,
+    attachList,
     showJumpToTail: !following && !atTail,
     pinToTail,
     pinToTailAfterContentResize,

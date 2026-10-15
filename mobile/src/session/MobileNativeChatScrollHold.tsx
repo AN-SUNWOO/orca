@@ -11,6 +11,7 @@ type Tagged = {
   querySelectorAll: (selector: string) => ArrayLike<Tagged>
 }
 type Scroller = Tagged & { scrollTop: number; scrollHeight: number; clientHeight: number }
+export type MobileNativeChatScrollNode = Scroller
 
 /** Part of what the reader sees: a tool line or its run (`member`), else a row; where it was, and
  *  the message that placed its row. */

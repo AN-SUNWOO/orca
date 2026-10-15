@@ -4787,6 +4787,7 @@
           "peopleRequired": "Selecciona al menos un compañero de equipo.",
           "publishCancelled": "Subida cancelada. La copia preparada todavía está disponible para volver a intentarlo.",
           "publishFailed": "No se pudo publicar esta habilidad. La copia preparada todavía está disponible para volver a intentarlo.",
+          "nameTaken": "El nombre de habilidad “{{name}}” ya está en uso. Cambia el nombre de tu habilidad para compartirla.",
           "copied": "Compartir enlace copiado",
           "preparing": "Preparando vista previa…",
           "ready": "Enlace de habilidad listo",

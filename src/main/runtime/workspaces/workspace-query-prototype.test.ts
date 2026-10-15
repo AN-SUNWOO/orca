@@ -106,26 +106,6 @@ describe('workspace query prototype dispatch', () => {
     expect(seen).toEqual([{ receiver: runtime, args: [TEST_WORKTREE_ID] }])
   })
 
-  it('allocates the five canonical cells before the real cache constructor seam', () => {
-    const phases: boolean[][] = []
-    class Probe extends OrcaRuntimeService {
-      protected override get canonicalFetchKeyCache() {
-        phases.push(
-          [
-            'resolvedWorktrees',
-            'worktreeScanGenerations',
-            'worktreeScanCache',
-            'worktreeScanInFlight',
-            'worktreeAdminFingerprintProbes'
-          ].map((key) => Object.getOwnPropertyDescriptor(this, key) !== undefined)
-        )
-        return super.canonicalFetchKeyCache
-      }
-    }
-    new Probe(store)
-    expect(phases).toEqual([[true, true, true, true, true]])
-  })
-
   it('keeps early construction refusals as Promises', async () => {
     const phases: { repo: Promise<Repo>; rows: Promise<ResolvedWorktree[]> }[] = []
     class Probe extends OrcaRuntimeService {

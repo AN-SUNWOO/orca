@@ -37,7 +37,6 @@ export const SQLITE_RUNTIME_INCLUDE = [
   'src/main/automations/automation-workspace-host-attribution.test.ts',
   'src/main/automations/automation-wsl-move-refusal.test.ts',
   'src/main/automations/automation-zero-grace-tick-latency.test.ts',
-  'src/main/automations/refused-manual-run.test.ts',
   'src/main/automations/retained-run-reconciliation.test.ts',
   'src/main/automations/run-completion-watcher.test.ts',
   'src/main/automations/service-precheck.test.ts',

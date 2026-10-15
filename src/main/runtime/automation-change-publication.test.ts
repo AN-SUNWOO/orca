@@ -14,11 +14,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { installFakeAppEnvironment } from '../../../config/scripts/vitest-host-ports-setup'
-import type { Automation } from '../../shared/automations-types'
+import type { Automation, AutomationRun } from '../../shared/automations-types'
 import type { Repo } from '../../shared/repo-types'
 import type { SshTarget } from '../../shared/ssh-types'
 import { getDefaultPersistedState } from '../../shared/constants'
 import type { AutomationsChangedPayload } from '../../shared/runtime-client-events'
+import { AUTOMATION_OWNER_CONFLICT_CODES } from '../../shared/automation-owner-conflict'
+import type { AutomationOwnerPrecondition } from '../../shared/automation-owner-precondition'
+import { AutomationService } from '../automations/service'
 import { Store, initDataPath } from '../persistence'
 import { OrcaRuntimeService } from './orca-runtime'
 import * as worktreeChangeInvalidators from '../ipc/worktree-change-invalidators'
@@ -123,6 +126,25 @@ async function makeRuntime() {
   )
   return { store, runtime, published }
 }
+
+async function makeManualRunRuntime() {
+  const { store, runtime } = await makeRuntime()
+  runtime.setAutomationService(new AutomationService(store, { tickMs: 60_000 }))
+  return { store, runtime }
+}
+
+type RuntimeWithRunNow = {
+  runAutomationNow: (
+    id: string,
+    expectedOwner?: AutomationOwnerPrecondition
+  ) => Promise<AutomationRun>
+}
+
+const runNow = async (
+  runtime: RuntimeWithRunNow,
+  id: string,
+  expectedOwner?: AutomationOwnerPrecondition
+): Promise<AutomationRun> => await runtime.runAutomationNow(id, expectedOwner)
 
 beforeEach(() => {
   testState.dir = mkdtempSync(join(tmpdir(), 'automation-publish-'))
@@ -248,5 +270,39 @@ describe('scoped automationsChanged publication', () => {
     await update
 
     expect(published).toEqual([{ reason: 'definition' }])
+  })
+})
+
+// Manual refusals record host loss while preserving typed conflicts for stale callers.
+describe('manual run refused before dispatch', () => {
+  it('answers the caller with the conflict and still leaves the user a run record', async () => {
+    const { store, runtime } = await makeManualRunRuntime()
+
+    await expect(runNow(runtime, 'orphan-1')).rejects.toMatchObject({
+      code: AUTOMATION_OWNER_CONFLICT_CODES.targetRemoved
+    })
+
+    // Manual and scheduled refusals use the same run-history reason.
+    expect(store.listAutomationRuns('orphan-1')).toMatchObject([
+      {
+        status: 'skipped_unavailable',
+        trigger: 'manual',
+        error: 'The automation host is no longer registered, so this automation has nowhere to run.'
+      }
+    ])
+  })
+
+  // A stale caller must not fill run history with refusals the owner can still run.
+  it('writes nothing when the refusal is about a stale caller, not a lost host', async () => {
+    const { store, runtime } = await makeManualRunRuntime()
+    const stale = {
+      selector: { kind: 'ssh', targetId: 'ssh-1', targetGeneration: 6 }
+    } as const satisfies AutomationOwnerPrecondition
+
+    await expect(runNow(runtime, 'ssh-1-a', stale)).rejects.toMatchObject({
+      code: AUTOMATION_OWNER_CONFLICT_CODES.ownerChanged
+    })
+
+    expect(store.listAutomationRuns('ssh-1-a')).toEqual([])
   })
 })

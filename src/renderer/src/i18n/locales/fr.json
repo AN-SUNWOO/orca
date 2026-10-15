@@ -4806,6 +4806,7 @@
           "peopleRequired": "Sélectionnez au moins un membre de l'équipe.",
           "publishCancelled": "Téléversement annulé. La copie préparée reste disponible pour une nouvelle tentative.",
           "publishFailed": "Impossible de publier ce skill. La copie préparée reste disponible pour une nouvelle tentative.",
+          "nameTaken": "Le nom de skill « {{name}} » est déjà utilisé. Renommez votre skill pour le partager.",
           "copied": "Lien de partage copié",
           "preparing": "Préparation de l'aperçu…",
           "ready": "Lien du skill prêt",

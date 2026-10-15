@@ -4925,6 +4925,7 @@
           "peopleRequired": "Select at least one teammate.",
           "publishCancelled": "Upload cancelled. The prepared copy is still available to retry.",
           "publishFailed": "Could not publish this skill. The prepared copy is still available to retry.",
+          "nameTaken": "The skill name “{{name}}” is already in use. Rename your skill to share it.",
           "copied": "Share link copied",
           "preparing": "Preparing preview…",
           "ready": "Skill link ready",

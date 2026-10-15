@@ -4813,6 +4813,7 @@
           "peopleRequired": "选择至少一名队友。",
           "publishCancelled": "上传已取消。准备好的副本仍然可以重试。",
           "publishFailed": "无法发布该技能。准备好的副本仍然可以重试。",
+          "nameTaken": "技能名称“{{name}}”已被使用。请重命名您的技能后再共享。",
           "copied": "分享链接已复制",
           "preparing": "正在准备预览...",
           "ready": "技能链接已准备好",

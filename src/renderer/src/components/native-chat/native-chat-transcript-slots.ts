@@ -33,7 +33,7 @@ import {
   estimateNativeChatRowHeight,
   nativeChatRowContentMetrics
 } from './native-chat-row-height-estimate'
-import type { NativeChatResolvedPrompt } from './native-chat-resolution-receipt'
+import type { NativeChatResolvedPrompt } from '../../../../shared/native-chat-resolution-receipt'
 import type { NativeChatTurnDiff } from './native-chat-turn-diffs'
 import {
   NO_NATIVE_CHAT_SUBAGENT_CHOICES,

@@ -2952,6 +2952,14 @@
         "sendConfirmBody_one": "You are about to send a message. Do you want to clear the {{count}} message previously queued?",
         "sendConfirmBody_other": "You are about to send a message. Do you want to clear the {{count}} messages previously queued?"
       },
+      "receipt": {
+        "cancelled": "Cancelled",
+        "cancelledBy": "Cancelled on {{device}}",
+        "emptyAnswer": "Empty answer",
+        "resolved": "Resolved",
+        "resolver": "Answered on {{device}}",
+        "unavailable": "Selected answer unavailable"
+      },
       "state": {
         "empty": {
           "subtitle": "Ask {{value0}} to inspect code, explain output, or make a change.",

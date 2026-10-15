@@ -27,6 +27,13 @@ import {
 } from '../../../src/shared/agent-session-host-status-rows'
 import { MobileNativeChatTurnStatus } from './MobileNativeChatTurnStatus'
 import { MobileNativeChatNoticeRow } from './MobileNativeChatNoticeRow'
+import { MobileNativeChatAwaitingInputRow } from './MobileNativeChatAwaitingInputRow'
+import { MobileNativeChatResolutionReceipt } from './MobileNativeChatResolutionReceipt'
+import {
+  nativeChatAskRunBlocks,
+  nativeChatAskRunSubject
+} from '../../../src/shared/native-chat-ask-row'
+import type { NativeChatResolvedPrompt } from '../../../src/shared/native-chat-resolution-receipt'
 import { MobileNativeChatSubagentGroup } from './MobileNativeChatSubagentGroup'
 import { ToolRun } from './MobileNativeChatToolRun'
 import type { NativeChatTurnStatus } from './use-mobile-native-chat-turn-status'
@@ -144,6 +151,8 @@ function MobileNativeChatMessageImpl({
   reasoningExpanded,
   onToggleReasoning,
   unsentNotice,
+  receipt,
+  awaiting,
   subagentGroupsOpen,
   onToggleSubagentGroup
 }: {
@@ -175,6 +184,8 @@ function MobileNativeChatMessageImpl({
   onToggleReasoning?: (key: string) => void
   /** Why the host did not deliver this message, when it is drawn as not sent. */
   unsentNotice?: string
+  receipt?: NativeChatResolvedPrompt
+  awaiting?: boolean
   /** The roster groups the reader opened, held by the transcript; only a roster row gets it. */
   subagentGroupsOpen?: ReadonlySet<string>
   onToggleSubagentGroup?: (groupId: string) => void
@@ -186,7 +197,8 @@ function MobileNativeChatMessageImpl({
   // Separate the agent's words from its tool activity: prose renders first, the
   // tool calls fold into a collapsible run beneath. The user's own messages get
   // an inverted (filled accent) bubble so they stand apart from agent prose.
-  const { prose, tools } = splitNativeChatBlocks(message.blocks)
+  const { prose, tools: blocksOfTools } = splitNativeChatBlocks(message.blocks)
+  const { asks, unansweredAsks, work: tools } = nativeChatAskRunBlocks(blocksOfTools)
   // A roster draws as its group row, which replaces its frozen sentence.
   const drawnProse = withoutSubagentGroupTwins(prose)
   // The agent did not write a system row: its words draw as a notice or a faint aside.
@@ -205,6 +217,18 @@ function MobileNativeChatMessageImpl({
     !turnExpanded &&
     !toolsExpanded
   const showToolRun = tools.length > 0 && !settledToolsHidden
+  const askPending = structuredActivityUi
+    ? selectActiveToolCall(unansweredAsks, { activeTurnIsWorking }) !== null
+    : unansweredAsks.length > 0
+  const askRow =
+    asks.length > 0 && !settledToolsHidden ? (
+      <MobileNativeChatAwaitingInputRow
+        subject={nativeChatAskRunSubject(asks)}
+        pending={askPending}
+        fontScale={fontScale}
+        listsQuestions={false}
+      />
+    ) : null
   // Mount selection UI only for the message being copied.
   const [actionsOpen, setActionsOpen] = useState(false)
   // Keep the memoized Markdown context stable as the message streams.
@@ -226,6 +250,21 @@ function MobileNativeChatMessageImpl({
       onToggleExpanded={turnKey && onToggleTurn ? () => onToggleTurn(turnKey) : undefined}
     />
   ) : null
+  if (receipt) {
+    return (
+      <>
+        {turnStatusAbove ? statusRow : null}
+        <View style={styles.row}>
+          <MobileNativeChatResolutionReceipt
+            body={receipt}
+            awaiting={awaiting}
+            fontScale={fontScale}
+          />
+        </View>
+        {turnStatusAbove ? null : statusRow}
+      </>
+    )
+  }
   if (isReasoning) {
     // The same text the live line's selector reads, so the two agree on whether there is any.
     const markdown = deriveNativeChatRowContent(message.blocks).markdown
@@ -320,6 +359,7 @@ function MobileNativeChatMessageImpl({
               )
             }
           </MobileNativeChatPacedProse>
+          {askRow}
           {showToolRun ? (
             <ToolRun
               // Why: a global toggle intentionally resets all per-run/per-line

@@ -12,17 +12,12 @@ import { MobileMarkdown } from '../components/MobileMarkdown'
 import { MobileSelectableText as Text } from '../components/MobileSelectableText'
 import { INLINE_TEXT_SELECTION } from '../components/inline-text-selection'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { MONO_SIZE, TEXT_SIZE } from './mobile-native-chat-message-styles'
+import { MONO_SIZE, TEXT_SIZE, scaledType } from './mobile-native-chat-message-styles'
 
 const TONE_COLOR: Record<NativeChatNoticeTone, string> = {
   warning: colors.statusAmber,
   error: colors.statusRed,
   notice: colors.textMuted
-}
-
-/** Pinch-zoomed type keeps its leading, so zoomed lines never overlap. */
-function scaledType(size: number, fontScale: number, leading = 6) {
-  return { fontSize: size * fontScale, lineHeight: (size + leading) * fontScale }
 }
 
 /** A row the agent did not write in its own words, drawn as desktop's `NativeChatNoticeRow` and

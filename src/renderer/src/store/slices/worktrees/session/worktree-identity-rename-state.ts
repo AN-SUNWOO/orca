@@ -224,14 +224,18 @@ export function buildWorktreeRenameState(
       )
     : s.sleepingAgentSessionsByPaneKey
 
+  const explicitlySleptChatsByWorkspace = withRenamedSleptChatWorkspace(
+    s.explicitlySleptChatsByWorkspace,
+    oldWorktreeId,
+    newWorktreeId
+  )
+
   return {
     ...renameWorktreeLayoutKeys(s, oldWorktreeId, newWorktreeId, withNewBrowserWorktreeId),
     ...(renamed as Partial<AppState>),
-    explicitlySleptChatsByWorkspace: withRenamedSleptChatWorkspace(
-      s.explicitlySleptChatsByWorkspace,
-      oldWorktreeId,
-      newWorktreeId
-    ),
+    ...(explicitlySleptChatsByWorkspace !== s.explicitlySleptChatsByWorkspace
+      ? { explicitlySleptChatsByWorkspace }
+      : {}),
     ...(browserPagesByWorkspace !== s.browserPagesByWorkspace ? { browserPagesByWorkspace } : {}),
     ...(recentlyClosedBrowserPagesByWorkspace !== s.recentlyClosedBrowserPagesByWorkspace
       ? { recentlyClosedBrowserPagesByWorkspace }

@@ -400,6 +400,7 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
       })}\n`
     const pending = Promise.withResolvers<string>()
     const fallback = Promise.withResolvers<void>()
+    const fallbackDone = Promise.withResolvers<void>()
     let fallbackStarted = false
     let answers: (string | Promise<string>)[] = [listed('first'), pending.promise, 'bad']
     const asked: ListingCall[] = []
@@ -422,7 +423,15 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
           await fallback.promise
         }
         const { discoverSkills } = await import('../../skills/discovery')
-        return discoverSkills({ ...args, homeDir: join(directory, 'home'), refresh: true })
+        const result = await discoverSkills({
+          ...args,
+          homeDir: join(directory, 'home'),
+          refresh: true
+        })
+        if (fallbackStarted) {
+          fallbackDone.resolve()
+        }
+        return result
       }
     })
     const record = store.getRecord(SESSION)!
@@ -438,7 +447,7 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
     await vi.waitFor(() => expect(fallbackStarted).toBe(true))
     clock -= 30_000
     fallback.resolve()
-    await new Promise((resolve) => setTimeout(resolve, 20))
+    await fallbackDone.promise
     expect(commandNames()).toContain('first')
     pending.resolve(listed('second'))
     await vi.waitFor(() => expect(commandNames()).toContain('second'))

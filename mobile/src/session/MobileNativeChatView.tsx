@@ -247,10 +247,7 @@ export function MobileNativeChatView({
     jumpToTail,
     scrollMayLoadEarlier,
     recordScrollMetrics
-  } = useMobileNativeChatTailFollow<NativeChatMessage>({
-    hasItems: data.length > 0,
-    scopeKey: sendSurfaceId
-  })
+  } = useMobileNativeChatTailFollow<NativeChatMessage>({ hasItems: data.length > 0 })
 
   const handleSend = useCallback(
     async (text: string): Promise<boolean> => {

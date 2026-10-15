@@ -733,10 +733,6 @@ describe('MobileNativeChatView', () => {
         list().props.onContentSizeChange(320, 1_800)
       })
       expect(scrollToOffset).not.toHaveBeenCalled()
-
-      // Another chat opens at its newest message.
-      await update({ folded: [assistantTurn('a1', 'Latest')], sendSurfaceId: 'tab-b' })
-      pinnedTo(1_800)
     })
 
     it('pins a resized viewport to the measured end, never the list estimate', async () => {

@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import {
   Platform,
   type FlatList,
@@ -110,10 +102,8 @@ export type MobileNativeChatTailFollow<TItem> = {
 export function useMobileNativeChatTailFollow<TItem>(args: {
   /** Guards `scrollToEnd` against an empty list. */
   hasItems: boolean
-  /** The chat shown; another one opens at its newest message, whatever the reader did here. */
-  scopeKey: string
 }): MobileNativeChatTailFollow<TItem> {
-  const { hasItems, scopeKey } = args
+  const { hasItems } = args
   const listRef = useRef<FlatList<TItem> | null>(null)
   // Event handlers read intent at event time; only the control they decide is rendered.
   const followingRef = useRef(true)
@@ -126,7 +116,6 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const pageContentHeightRef = useRef(0)
   const pageViewportHeightRef = useRef(0)
   const pageTouchRef = useRef<PageTouch | null>(null)
-  const scopeKeyRef = useRef(scopeKey)
 
   // Single writers, so the event-time refs and the rendered control cannot disagree.
   const setFollowing = useCallback((next: boolean) => {
@@ -334,14 +323,6 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     () => listReportsGestures() && userScrollActiveRef.current,
     []
   )
-
-  // Before paint, so the next chat never shows where the reader left the last one.
-  useLayoutEffect(() => {
-    if (scopeKeyRef.current !== scopeKey) {
-      scopeKeyRef.current = scopeKey
-      jumpToTail()
-    }
-  }, [scopeKey, jumpToTail])
 
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
 

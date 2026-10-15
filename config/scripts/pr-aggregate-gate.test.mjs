@@ -69,7 +69,7 @@ describe('runner-free PR aggregate success', () => {
   })
 
   it('accepts every canonical routing combination without allocating the aggregate runner', () => {
-    expect(aggregateSelectors).toHaveLength(13)
+    expect(aggregateSelectors).toHaveLength(14)
     const failures = []
     for (let mask = 0; mask < 2 ** aggregateSelectors.length; mask += 1) {
       const selectors = Object.fromEntries(

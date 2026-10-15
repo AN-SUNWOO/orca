@@ -94,14 +94,18 @@ function createReadOwner(
       snapshot.current ||
       (action.type === 'event' &&
         action.event.type !== 'end' &&
-        !(action.event.type === 'batch' && action.event.hasNewer))
+        !(action.event.type === 'batch' && action.event.hasNewer) &&
+        state.requestTransfer === undefined)
     if (state !== snapshot.state || current !== snapshot.current) {
       setSnapshot({ ...snapshot, state, current })
     }
   }
   const markStale = (): void => {
-    if (snapshot.current) {
-      setSnapshot({ ...snapshot, current: false })
+    const state = reduceStructuredAgentSession(snapshot.state, {
+      type: 'requests-detached'
+    })
+    if (snapshot.current || snapshot.state.requestTransfer) {
+      setSnapshot({ ...snapshot, state, current: false })
     }
   }
   const setProviderSession = (providerSession: AgentProviderSessionMetadata | undefined): void => {
@@ -198,8 +202,10 @@ function createReadOwner(
     }
   }
 
-  let olderPage: { shouldStop: () => boolean; promise: Promise<NativeChatOlderPageResult> } | null =
-    null
+  let olderPage: {
+    shouldStop: () => boolean
+    promise: Promise<NativeChatOlderPageResult>
+  } | null = null
 
   const start = (): void => {
     if (snapshot.state.epoch === null) {

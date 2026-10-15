@@ -44,7 +44,10 @@ import type { NativeChatRewindHost } from './use-native-chat-rewind'
 
 export type { StructuredPromptItem } from './structured-agent-session-message-projection'
 
-type StructuredPromptCancelTarget = { itemId: string; expectedRevision: number }
+type StructuredPromptCancelTarget = {
+  itemId: string
+  expectedRevision: number
+}
 
 export function useStructuredAgentSession(args: {
   sessionId: string
@@ -141,7 +144,10 @@ export function useStructuredAgentSession(args: {
     hostStopping,
     mutate
   })
-  const prompts = pendingStructuredSessionPrompts(transportState.journalItems)
+  const prompts = pendingStructuredSessionPrompts(
+    transportState.journalItems,
+    transportState.currentRequests
+  )
   const promptsUnanswerableHere = pendingPromptsAllUnanswerableHere(prompts)
   // A send after a command the queue will run goes behind it, even with follow-ups off.
   // A host's queue waits on any pending prompt, and nothing here can settle one this build cannot

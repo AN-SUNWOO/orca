@@ -28,7 +28,10 @@ import {
   type MobileQueuePause
 } from './mobile-structured-queued-message-feed'
 
-type QueuedFeed = { messages: MobileQueuedMessageFeed; pause: MobileQueuePause }
+type QueuedFeed = {
+  messages: MobileQueuedMessageFeed
+  pause: MobileQueuePause
+}
 const NO_QUEUED_FEED: QueuedFeed = { messages: null, pause: null }
 
 const MAX_RETAINED_SESSION_STATES = 32
@@ -188,6 +191,7 @@ export function useMobileStructuredAgentState(args: {
       return
     }
     if (!connected) {
+      apply({ type: 'requests-detached' })
       // The cleanup above drops the dead hold and stream; keyed state keeps this
       // session's transcript visible while another tab can be selected.
       return
@@ -209,6 +213,7 @@ export function useMobileStructuredAgentState(args: {
       }
     })
     return () => {
+      apply({ type: 'requests-detached' })
       endStream()
       void held
         .then(() =>
@@ -252,7 +257,10 @@ export function useMobileStructuredAgentState(args: {
         // Mobile draws only the session's own rows, so a page of a subagent's rows alone
         // would land as nothing; read on until a page adds a row the reader can see. Older
         // hosts send one for any burst; current ones when the page's byte bound cuts it short.
-        const pages: { requestedCursor: AgentJournalCursor; page: AgentSessionHistoryPage }[] = []
+        const pages: {
+          requestedCursor: AgentJournalCursor
+          page: AgentSessionHistoryPage
+        }[] = []
         let requestedCursor = cursor
         while (pages.length < OLDER_PAGES_PER_LOAD) {
           const result = await callAgentSession<AgentSessionHistoryResult>(

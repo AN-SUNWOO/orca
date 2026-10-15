@@ -57,6 +57,7 @@ export function useStructuredAgentSessionTransportState(
   }, [enabled, journalItems, latestTurn, state.backgroundTasks, turnId])
   return {
     journalItems,
+    currentRequests: enabled ? state.currentRequests : undefined,
     latestTurn,
     subagentRoster,
     submissions,

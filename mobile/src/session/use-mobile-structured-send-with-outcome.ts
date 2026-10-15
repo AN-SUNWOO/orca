@@ -1,3 +1,4 @@
+import { selectAgentSessionCurrentRequests } from '../../../src/shared/agent-session-current-requests'
 // The structured composer's one send seam: a slash command dispatches as a
 // conversation command, and everything else goes out as an
 // `agentSession.send` — carrying `delivery: 'queue-if-active'` only when the
@@ -113,7 +114,7 @@ export function useMobileStructuredSendWithOutcome(args: {
         pending: commandPending,
         controller: { agent: agent ?? undefined, ...controller },
         busy: () =>
-          stateRef.current.items.some(
+          selectAgentSessionCurrentRequests(stateRef.current).some(
             (item) => pendingStructuredApproval(item) || pendingStructuredQuestion(item)
           )
             ? 'prompt'
@@ -124,7 +125,7 @@ export function useMobileStructuredSendWithOutcome(args: {
         waitsInLine: (command) =>
           command === 'compact' &&
           commandsWait &&
-          !pendingPromptsAllUnanswerableHere(stateRef.current.items),
+          !pendingPromptsAllUnanswerableHere(selectAgentSessionCurrentRequests(stateRef.current)),
         onError: onSendError,
         timeoutMs
       })
@@ -153,7 +154,10 @@ export function useMobileStructuredSendWithOutcome(args: {
         expectedRuntimeFence: currentFence,
         text,
         attachments: sendAttachments,
-        ...(mobileStructuredSendQueues(queueCapable, stateRef.current.items)
+        ...(mobileStructuredSendQueues(
+          queueCapable,
+          selectAgentSessionCurrentRequests(stateRef.current)
+        )
           ? { delivery: 'queue-if-active' as const }
           : {}),
         ...(options ? { options } : {}),

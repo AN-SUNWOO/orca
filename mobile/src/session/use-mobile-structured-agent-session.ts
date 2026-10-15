@@ -1,3 +1,4 @@
+import { selectAgentSessionCurrentRequests } from '../../../src/shared/agent-session-current-requests'
 import { useCallback, useMemo, useRef } from 'react'
 import { encodeNativeChatTranscriptIdentity } from '../../../src/shared/native-chat-transcript-retention'
 import { projectStructuredAgentSessionMessages } from '../../../src/shared/structured-agent-session-message-projection'
@@ -206,22 +207,25 @@ export function useMobileStructuredAgentSession(args: {
       stopRequestInFlight,
       ...(stopping
         ? {
-            afterStop: mobileStructuredSendQueues(queueCapable, state.items)
+            afterStop: mobileStructuredSendQueues(
+              queueCapable,
+              selectAgentSessionCurrentRequests(state)
+            )
               ? ('queue' as const)
               : ('send' as const)
           }
         : {})
     }),
-    [thinking, activityText, stopping, stopRequestInFlight, queueCapable, state.items]
+    [thinking, activityText, stopping, stopRequestInFlight, queueCapable, state]
   )
   const status = state.status === 'idle' ? 'idle' : state.status
   const approvalPrompt = useMemo(
-    () => state.items.find(pendingStructuredApproval) ?? null,
-    [state.items]
+    () => selectAgentSessionCurrentRequests(state).find(pendingStructuredApproval) ?? null,
+    [state.items, state.currentRequests]
   )
   const questionPrompt = useMemo(
-    () => state.items.find(pendingStructuredQuestion) ?? null,
-    [state.items]
+    () => selectAgentSessionCurrentRequests(state).find(pendingStructuredQuestion) ?? null,
+    [state.items, state.currentRequests]
   )
   // What a refused command's line on the phone stands on.
   const commandRefusalCauses = useMemo(
@@ -300,7 +304,10 @@ export function useMobileStructuredAgentSession(args: {
       void stopPress.track(() => requestCancel())
     },
     cancelPrompt: (prompt?: { itemId: string; expectedRevision: number }) =>
-      requestCancel(prompt ?? pendingStructuredPromptIdentity(stateRef.current.items)),
+      requestCancel(
+        prompt ??
+          pendingStructuredPromptIdentity(selectAgentSessionCurrentRequests(stateRef.current))
+      ),
     permission: projectStructuredPermission(approvalPrompt),
     question: projectStructuredQuestion(questionPrompt, groupedDraft),
     respondPermission,

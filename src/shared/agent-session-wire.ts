@@ -1,4 +1,5 @@
 import type { AgentSessionUnavailable } from './agent-session-availability'
+import type { AgentSessionCurrentRequestsPart } from './agent-session-current-requests'
 import type { AgentSessionCurrentWorkFields } from './agent-session-current-work-wire'
 import type {
   AgentSessionBackgroundTask,
@@ -152,7 +153,11 @@ export type AgentSessionHistoryPage = {
 } & AgentSessionCurrentWorkFields
 
 export type AgentSessionHistoryResult =
-  | { ok: true; page: AgentSessionHistoryPage; providerSession?: AgentProviderSessionMetadata }
+  | {
+      ok: true
+      page: AgentSessionHistoryPage
+      providerSession?: AgentProviderSessionMetadata
+    }
   /** Every reset carries a byte-bounded tail page so recovery cannot exceed
    *  remote outbound admission or require another call before resubscribing. */
   | {
@@ -175,7 +180,11 @@ export type AgentSessionJournalBatch = {
 
 /** Every published frame: the host wall clock (ms epoch, see `AgentSessionHistoryPage`), and what
  *  rides beside its `queuedMessages`. */
-type AgentSessionFrameFields = { hostNow?: number } & AgentSessionQueuePublicationFields
+type AgentSessionFrameFields = {
+  hostNow?: number
+  /** Lossless current-request projection; absent from older hosts. */
+  currentRequests?: AgentSessionCurrentRequestsPart
+} & AgentSessionQueuePublicationFields
 
 export type AgentSessionSubscribeEvent =
   | ({
@@ -487,11 +496,17 @@ export type AgentSessionOptionsResult = {
    *  `agentSession.threadGoal` never offers the controls. `current` is the
    *  latest goal the whole journal records, for a client whose loaded page
    *  starts after it. */
-  threadGoal?: { current: AgentJournalThreadGoal | null; contextFloor?: AgentJournalCursor }
+  threadGoal?: {
+    current: AgentJournalThreadGoal | null
+    contextFloor?: AgentJournalCursor
+  }
   /** Present only where this session writes context facts to its turn rows.
    *  `current` is the newest of each part the whole journal records, for a
    *  client whose loaded page starts after the row that carries it. */
-  contextUsage?: { current: AgentSessionContextUsage; contextFloor?: AgentJournalCursor }
+  contextUsage?: {
+    current: AgentSessionContextUsage
+    contextFloor?: AgentJournalCursor
+  }
   /** This session takes image attachments. Absent = unknown (an older host). */
   acceptsImages?: boolean
   models: AgentSessionModelOption[]

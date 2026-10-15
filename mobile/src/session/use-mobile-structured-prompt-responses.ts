@@ -1,3 +1,4 @@
+import { selectAgentSessionCurrentRequests } from '../../../src/shared/agent-session-current-requests'
 import { useCallback, useState } from 'react'
 import type { AgentSessionPromptResult } from '../../../src/shared/agent-session-wire'
 import type { AgentJournalQuestionItem } from '../../../src/shared/agent-session-journal-types'
@@ -54,7 +55,7 @@ export function useMobileStructuredPromptResponses(args: {
     async (optionId: string): Promise<boolean> => {
       const target = structuredApprovalResponseTarget(
         optionId,
-        stateRef.current.items.find(pendingStructuredApproval) ?? null
+        selectAgentSessionCurrentRequests(stateRef.current).find(pendingStructuredApproval) ?? null
       )
       if (!target) {
         return false
@@ -107,7 +108,8 @@ export function useMobileStructuredPromptResponses(args: {
 
   const respondQuestion = useCallback(
     async (answer: string): Promise<boolean> => {
-      const prompt = stateRef.current.items.find(pendingStructuredQuestion) ?? null
+      const prompt =
+        selectAgentSessionCurrentRequests(stateRef.current).find(pendingStructuredQuestion) ?? null
       if (prompt?.body.questions) {
         const promptKey = groupedQuestionPromptKey(prompt.itemId, prompt.revision)
         const grouped = advanceGroupedQuestion({

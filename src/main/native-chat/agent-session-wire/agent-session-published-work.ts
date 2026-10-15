@@ -13,7 +13,7 @@ import type { StructuredAgentSessionCurrentWork } from './structured-agent-sessi
  *  Absent, a page states the raw record and no prompt ids, as an older host did. */
 export type AgentSessionPublishedWork = Pick<
   StructuredAgentSessionCurrentWork,
-  'publishedLatestTurn' | 'actionablePromptIds' | 'working'
+  'publishedLatestTurn' | 'actionablePromptIds' | 'actionablePrompts' | 'working' | 'viewKey'
 >
 
 type PublishedWorkFields = Pick<

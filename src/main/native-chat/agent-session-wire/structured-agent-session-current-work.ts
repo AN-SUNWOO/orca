@@ -20,6 +20,7 @@ import {
   type AgentJournalSubmission,
   type AgentJournalTurnScope
 } from '../../../shared/agent-session-journal-types'
+import { compareAgentJournalItems } from '../../../shared/agent-session-journal-position'
 import { isQueuedAgentJournalSubmission } from '../../../shared/agent-session-queued-submission'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import type { AgentSessionLatestTurn } from '../../../shared/agent-session-wire'
@@ -29,7 +30,7 @@ import type { AgentSessionJournal } from '../agent-session-journal/journal-store
 
 export type StructuredAgentSessionCurrentWorkJournal = Pick<
   AgentSessionJournal,
-  'runningTurn' | 'itemFence' | 'visitItems' | 'submissions' | 'wroteBeforeOpen'
+  'runningTurn' | 'itemFence' | 'visitItems' | 'submissions' | 'wroteBeforeOpen' | 'item' | 'cursor'
 >
 
 /** What the host knows of who runs the chat now. */
@@ -48,7 +49,11 @@ export type StructuredAgentSessionWorkEvidence = {
 /** Every fence at or below `fence` was granted by a runtime this one replaced. */
 type StructuredAgentSessionReplacedEnd = { fence: number }
 
-type StructuredAgentSessionSeenEnd = { fence: number; rootGone?: boolean; cause?: string }
+type StructuredAgentSessionSeenEnd = {
+  fence: number
+  rootGone?: boolean
+  cause?: string
+}
 
 /** The live or reserved generation's fence, or null when no generation is live. With no record
  *  nothing has ended: fence 0, under which every item is current, as before records scoped work. */
@@ -110,7 +115,15 @@ function structuredAgentSessionHandsOver(
   )
 }
 
-/** One read of a chat's current work; build a fresh one per decision, since nothing is cached. */
+type PromptProjection = {
+  epoch: string
+  sequence: number
+  fence: number | null
+  items: AgentJournalRenderItem[]
+}
+const promptProjections = new WeakMap<StructuredAgentSessionCurrentWorkJournal, PromptProjection>()
+
+/** Read lease evidence afresh per decision; immutable prompt records share a cursor/fence cache. */
 export class StructuredAgentSessionCurrentWork {
   /** The shared projections' form of this answer (`StructuredAgentSessionWorkScope`). */
   readonly scope: StructuredAgentSessionWorkScope = {
@@ -184,18 +197,39 @@ export class StructuredAgentSessionCurrentWork {
 
   /** The approvals and questions the live generation raised that wait on the person, a
    *  subagent's included. */
-  actionablePromptIds(): string[] {
-    const ids: string[] = []
+  actionablePrompts(): AgentJournalRenderItem[] {
+    const cursor = this.journal.cursor()
+    const prior = promptProjections.get(this.journal)
+    if (
+      prior?.epoch === cursor.epoch &&
+      prior.sequence === cursor.sequence &&
+      prior.fence === this.liveFence
+    ) {
+      return prior.items
+    }
+    const items: AgentJournalRenderItem[] = []
     this.journal.visitItems((itemId, _sequence, body) => {
       if (
         (body.kind === 'approval' || body.kind === 'question') &&
         body.resolution.state === 'pending' &&
         this.isCurrentItem(itemId)
       ) {
-        ids.push(itemId)
+        const item = this.journal.item(itemId)
+        if (item) items.push(item)
       }
     })
-    return ids
+    items.sort(compareAgentJournalItems)
+    const stable =
+      prior?.items.length === items.length &&
+      items.every((item, index) => item === prior.items[index])
+        ? prior.items
+        : items
+    promptProjections.set(this.journal, { ...cursor, fence: this.liveFence, items: stable })
+    return stable
+  }
+
+  actionablePromptIds(): string[] {
+    return this.actionablePrompts().map((item) => item.itemId)
   }
 
   hasActionablePrompt(): boolean {

@@ -1,3 +1,6 @@
+import { emitCurrentRequests } from './agent-session-current-requests'
+import type { AgentSessionPublishedWork } from './agent-session-published-work'
+import type { Subscriber } from './structured-agent-session-subscribers'
 // Which per-emit fields ride one subscriber frame: the provider command catalog,
 // the queue publication (the draft list with the queue's pause) and the strip's
 // background-task roster. Each is deduplicated against the LAST VALUE SENT to that
@@ -137,4 +140,26 @@ export function subscriberQueuedMessagesChanged(
     hooks.readQueuePublication !== undefined &&
     hooks.readQueuePublication(subscriber.sessionId) !== subscriber.queuePublication
   )
+}
+
+/** Dedup advances only after delivery, including a complete current-request transfer. */
+export function emitSubscriberFrame(
+  hooks: SubscriberFieldHooks,
+  subscriber: Subscriber,
+  event: AgentSessionSubscribeEvent,
+  options?: { withholdQueued?: boolean; currentWork?: AgentSessionPublishedWork }
+): void {
+  let history = true
+  emitCurrentRequests(subscriber, event, options?.currentWork, (frame) => {
+    if (!history) {
+      subscriber.emit(frame)
+      return
+    }
+    history = false
+    const built = buildSubscriberFrame(hooks, subscriber, frame, options?.withholdQueued === true)
+    for (const outgoing of built.frames) subscriber.emit(outgoing)
+    subscriber.commands = built.commands
+    if (built.attachedQueued) subscriber.queuePublication = built.queued
+    if (built.backgroundTasks !== undefined) subscriber.backgroundTasks = built.backgroundTasks
+  })
 }

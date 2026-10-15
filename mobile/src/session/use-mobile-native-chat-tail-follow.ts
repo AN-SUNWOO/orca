@@ -40,7 +40,7 @@ function observePageResize(
   scroller: PageScroller | null | undefined,
   onResize: () => void
 ): ResizeObserver | null {
-  if (listReportsGestures() || !scroller || typeof ResizeObserver === 'undefined') {
+  if (!scroller || typeof ResizeObserver === 'undefined') {
     return null
   }
   const observer = new ResizeObserver(onResize)
@@ -147,7 +147,8 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const attachList = useCallback(
     (list: FlatList<TItem> | null) => {
       listRef.current = list
-      const observer = observePageResize(list?.getScrollableNode(), pinPageToEnd)
+      const page = !listReportsGestures()
+      const observer = page ? observePageResize(list?.getScrollableNode(), pinPageToEnd) : null
       return () => {
         observer?.disconnect()
         listRef.current = null

@@ -1,189 +1,160 @@
-import type { AntigravityChatSignInState } from '../../../shared/antigravity-account-types'
+import type {
+  AntigravityChatSignInState,
+  AntigravityChatSignInStatus
+} from '../../../shared/antigravity-account-types'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import {
-  callAntigravityAccounts,
-  callAntigravityChatSignIn
-} from './runtime-antigravity-accounts-client'
+  createRevisionedHostStateStore,
+  type RevisionedHostSnapshot
+} from './revisioned-host-state-store'
+import { callAntigravityChatSignIn } from './runtime-antigravity-accounts-client'
 
 /**
- * Each host's Antigravity chat sign-in as one entry, so every Settings row shows the same flow and
- * saved sign-in. The host runs one flow at a time; a row shown later adopts the running one from
- * the List and follows it, so a sign-in nobody watched stays visible and cancellable.
+ * Each host's Antigravity chat sign-in, followed like an install's status: every Settings row for
+ * a host shows the same flow and saved sign-in, one started or finished from another device too.
  */
 
 export type AntigravityChatSignInView = {
   flow: AntigravityChatSignInState | null
   saved: boolean
-  /** Why the last request failed; empty when it gave no reason. */
+  /** Why this client's last request failed; empty when it gave no reason. */
   error: string | null
   /** The browser could not open the link this client asked for. */
   openFailed: boolean
 }
 
-type Entry = {
-  view: AntigravityChatSignInView
+type Notes = Pick<AntigravityChatSignInView, 'error' | 'openFailed'>
+type Local = {
+  owner: RuntimeClientTarget
   observers: number
-  /** The flow whose Link poll is out; one per entry. */
-  following: string | null
   /** The flow this client started while shown, whose link it opens once. */
   opens: string | null
   starts: number
+  notes: Notes
 }
 
-const EMPTY: AntigravityChatSignInView = {
-  flow: null,
-  saved: false,
-  error: null,
-  openFailed: false
+const NO_NOTES: Notes = { error: null, openFailed: false }
+const hostKey = (owner: RuntimeClientTarget): string =>
+  owner.kind === 'local' ? '' : owner.environmentId
+
+const signIns = createRevisionedHostStateStore<RuntimeClientTarget, AntigravityChatSignInStatus>({
+  key: hostKey,
+  hostKey,
+  read: (owner, shown) =>
+    callAntigravityChatSignIn(owner, 'Status', shown === undefined ? {} : { shown })
+})
+const locals = new Map<string, Local>()
+type Shown = {
+  snapshot: RevisionedHostSnapshot<AntigravityChatSignInStatus>
+  notes: Notes
+  view: AntigravityChatSignInView
 }
-/** The pause before polling again after a failed poll, so a lasting error can't spin. */
-const POLL_RETRY_MS = 2_000
-const entries = new Map<string, Entry>()
+const views = new Map<string, Shown>()
 const listeners = new Set<() => void>()
 
 export const antigravityChatSignInRunning = (
   flow: AntigravityChatSignInState | null
 ): flow is AntigravityChatSignInState => flow?.phase === 'starting' || flow?.phase === 'waiting'
 
-const hostKey = (owner: RuntimeClientTarget): string =>
-  owner.kind === 'local' ? '' : owner.environmentId
-
-function entryFor(owner: RuntimeClientTarget): Entry {
-  let entry = entries.get(hostKey(owner))
-  if (!entry) {
-    entry = { view: EMPTY, observers: 0, following: null, opens: null, starts: 0 }
-    entries.set(hostKey(owner), entry)
-  }
-  return entry
+const flowOf = (owner: RuntimeClientTarget): AntigravityChatSignInState | null => {
+  const snapshot = signIns.read(owner)
+  return snapshot.kind === 'known' ? snapshot.state.flow : null
 }
 
-function set(entry: Entry, patch: Partial<AntigravityChatSignInView>): void {
-  entry.view = { ...entry.view, ...patch }
+function localFor(owner: RuntimeClientTarget): Local {
+  let local = locals.get(hostKey(owner))
+  if (!local) {
+    local = { owner, observers: 0, opens: null, starts: 0, notes: NO_NOTES }
+    locals.set(hostKey(owner), local)
+  }
+  return local
+}
+
+function note(local: Local, patch: Partial<Notes>): void {
+  local.notes = { ...local.notes, ...patch }
   listeners.forEach((listener) => listener())
 }
 
-const message = (cause: unknown): string | null => (cause instanceof Error ? cause.message : null)
+const message = (cause: unknown): string => (cause instanceof Error ? cause.message : '')
 
-async function refresh(owner: RuntimeClientTarget, entry: Entry, pollAfterMs = 0): Promise<void> {
-  // A failed read leaves the row offering sign-in, which is still correct to act on.
-  const read = await callAntigravityAccounts(owner, { runtime: 'host' }, 'List').catch(() => null)
-  const chat = read?.chatSignIn
-  if (!chat) {
-    return
-  }
-  set(entry, { saved: chat.saved })
-  if (chat.flowId && entry.view.flow?.flowId !== chat.flowId) {
-    set(entry, { flow: { flowId: chat.flowId, phase: 'starting' }, error: null })
-  }
-  if (pollAfterMs > 0) {
-    setTimeout(() => void follow(owner, entry), pollAfterMs)
-  } else {
-    void follow(owner, entry)
+/** Opens the link of a flow this client started, once, when the host first shows it. */
+function openStartedLinks(): void {
+  for (const local of locals.values()) {
+    const flow = flowOf(local.owner)
+    if (local.opens && flow?.flowId === local.opens && flow.phase === 'waiting' && flow.url) {
+      const { flowId } = flow
+      local.opens = null
+      void window.api.shell.openUrl(flow.url).catch(() => {
+        if (flowOf(local.owner)?.flowId === flowId) {
+          note(local, { openFailed: true })
+        }
+      })
+    }
   }
 }
+signIns.subscribe(openStartedLinks)
 
-async function follow(owner: RuntimeClientTarget, entry: Entry): Promise<void> {
-  const flow = entry.view.flow
-  if (!antigravityChatSignInRunning(flow) || entry.observers === 0 || entry.following) {
-    return
-  }
-  const { flowId } = flow
-  const current = (): boolean => entry.view.flow?.flowId === flowId
-  entry.following = flowId
-  let next = flow
-  let failed = false
-  try {
-    // A hidden row lets the poll in flight answer, then stops; showing it again resumes.
-    while (antigravityChatSignInRunning(next) && entry.observers > 0 && current()) {
-      const shown = next.phase
-      next = await callAntigravityChatSignIn(owner, 'Link', { flowId, shown })
-      if (!current()) {
-        break
-      }
-      set(entry, { flow: next })
-      if (next.phase === 'waiting' && next.url && entry.opens === flowId) {
-        entry.opens = null
-        void window.api.shell.openUrl(next.url).catch(() => {
-          if (current()) {
-            set(entry, { openFailed: true })
-          }
-        })
-      }
-    }
-  } catch (cause) {
-    if (current()) {
-      set(entry, { flow: null, error: message(cause) ?? '' })
-      failed = true
-    }
-  } finally {
-    entry.following = null
-  }
-  if (failed) {
-    // The host's flow can outlive a failed poll; the List adopts it again so it stays cancellable.
-    void refresh(owner, entry, POLL_RETRY_MS)
-    return
-  }
-  // Settled: the saved sign-in may have changed. Replaced: follow the flow that replaced it.
-  if (current() && !antigravityChatSignInRunning(entry.view.flow)) {
-    void refresh(owner, entry)
-  } else {
-    void follow(owner, entry)
-  }
-}
-
-/** Starts a sign-in on the host, replacing any running one, and follows it while shown. */
+/** Starts a sign-in on the host, replacing any running one; the host's status shows it. */
 export async function startAntigravityChatSignIn(owner: RuntimeClientTarget): Promise<void> {
-  const entry = entryFor(owner)
-  const ticket = ++entry.starts
-  set(entry, { error: null, openFailed: false })
+  const local = localFor(owner)
+  const ticket = ++local.starts
+  note(local, NO_NOTES)
   try {
     const { flowId } = await callAntigravityChatSignIn<{ flowId: string }>(owner, 'Start')
-    if (ticket !== entry.starts) {
-      return
+    // A row that left before the host answered opens nothing; one shown later shows the flow.
+    if (ticket === local.starts) {
+      local.opens = local.observers > 0 ? flowId : null
+      openStartedLinks()
     }
-    // A row that left before the host answered opens nothing; one shown later adopts the flow.
-    entry.opens = entry.observers > 0 ? flowId : null
-    set(entry, { flow: { flowId, phase: 'starting' } })
-    void follow(owner, entry)
   } catch (cause) {
-    if (ticket === entry.starts) {
-      set(entry, { flow: null, error: message(cause) ?? '' })
+    if (ticket === local.starts) {
+      note(local, { error: message(cause) })
     }
   }
 }
 
 export async function cancelAntigravityChatSignIn(owner: RuntimeClientTarget): Promise<void> {
-  const entry = entryFor(owner)
-  const flow = entry.view.flow
+  const flow = flowOf(owner)
   if (flow) {
     await callAntigravityChatSignIn(owner, 'Cancel', { flowId: flow.flowId }).catch(
-      (cause: unknown) => set(entry, { error: message(cause) ?? '' })
+      (cause: unknown) => note(localFor(owner), { error: message(cause) })
     )
   }
 }
 
-/** Reads the host's sign-in while a row shows it. Returns the release. */
+/** Follows the host's sign-in while a row shows it. Returns the release. */
 export function observeAntigravityChatSignIn(owner: RuntimeClientTarget): () => void {
-  const entry = entryFor(owner)
-  entry.observers += 1
-  if (entry.observers === 1) {
-    void refresh(owner, entry)
-  }
+  const local = localFor(owner)
+  local.observers += 1
+  const release = signIns.observe(owner)
   return () => {
-    entry.observers -= 1
-    if (entry.observers === 0) {
-      entry.opens = null
+    release()
+    local.observers -= 1
+    if (local.observers === 0) {
+      local.opens = null
     }
   }
 }
 
 export function readAntigravityChatSignIn(owner: RuntimeClientTarget): AntigravityChatSignInView {
-  return entries.get(hostKey(owner))?.view ?? EMPTY
+  const snapshot = signIns.read(owner)
+  const notes = locals.get(hostKey(owner))?.notes ?? NO_NOTES
+  const cached = views.get(hostKey(owner))
+  if (cached?.snapshot === snapshot && cached.notes === notes) {
+    return cached.view
+  }
+  // A status the host could not report leaves the row offering sign-in, still correct to act on.
+  const known = snapshot.kind === 'known' ? snapshot.state : null
+  const view = { flow: known?.flow ?? null, saved: known?.saved ?? false, ...notes }
+  views.set(hostKey(owner), { snapshot, notes, view })
+  return view
 }
 
 export function subscribeAntigravityChatSignIns(listener: () => void): () => void {
   listeners.add(listener)
+  const unsubscribe = signIns.subscribe(listener)
   return () => {
     listeners.delete(listener)
+    unsubscribe()
   }
 }

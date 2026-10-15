@@ -1,7 +1,7 @@
 import type {
   AntigravityAccountState,
   AntigravityAccountTarget,
-  AntigravityChatSignInState
+  AntigravityChatSignInStatus
 } from '../../../shared/antigravity-account-types'
 import {
   ANTIGRAVITY_ACCOUNTS_RUNTIME_CAPABILITY,
@@ -31,10 +31,10 @@ export async function callAntigravityAccounts(
   )
 }
 
-export async function callAntigravityChatSignIn<TResult = AntigravityChatSignInState>(
+export async function callAntigravityChatSignIn<TResult = AntigravityChatSignInStatus>(
   owner: RuntimeClientTarget,
-  action: 'Start' | 'Link' | 'Cancel',
-  params?: { flowId: string; shown?: AntigravityChatSignInState['phase'] }
+  action: 'Start' | 'Status' | 'Cancel',
+  params?: { flowId: string } | { shown?: number }
 ): Promise<TResult> {
   if (owner.kind === 'environment') {
     await assertRuntimeEnvironmentCapability(
@@ -43,8 +43,8 @@ export async function callAntigravityChatSignIn<TResult = AntigravityChatSignInS
       'This execution host does not support Antigravity chat sign-in yet. Update Orca on that host.'
     )
   }
-  // Link waits up to 25 s on the host for the phase to change.
+  // A status read naming its revision waits up to 25 s on the host.
   return callRuntimeRpc(owner, `accounts.antigravityChatSignIn${action}`, params, {
-    timeoutMs: action === 'Link' ? 35_000 : 20_000
+    timeoutMs: action === 'Status' ? 40_000 : 20_000
   })
 }

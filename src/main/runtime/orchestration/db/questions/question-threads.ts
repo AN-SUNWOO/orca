@@ -170,19 +170,22 @@ export function answerQuestion(
  * (unread reports, unanswered questions) moves to the Run, whose coordinator supervises next.
  */
 function handHelperMailToRun(db: OrchestrationDb, dispatchId: string): void {
-  const helperRun = db.db
+  const helperRun: unknown = db.db
     .prepare(
       `SELECT helper.run_id FROM dispatch_contexts AS helper
        JOIN dispatch_contexts AS creator ON creator.id = helper.creator_dispatch_id
        WHERE helper.creator_dispatch_id = ? AND helper.run_id = creator.run_id LIMIT 1`
     )
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the single selected column is the schema's NOT NULL run_id.
-    .get(dispatchId) as { run_id: string } | undefined
-  if (!helperRun) {
+    .get(dispatchId)
+  const runId =
+    helperRun && typeof helperRun === 'object' && 'run_id' in helperRun
+      ? String(helperRun.run_id)
+      : undefined
+  if (!runId) {
     return
   }
   const mailbox = `dispatch:${dispatchId}`
-  const runMailbox = `run:${helperRun.run_id}`
+  const runMailbox = `run:${runId}`
   const questions = db.db
     .prepare(
       `UPDATE messages SET to_handle = ?, read = 0
@@ -190,7 +193,7 @@ function handHelperMailToRun(db: OrchestrationDb, dispatchId: string): void {
          SELECT message_id FROM question_threads WHERE run_id = ? AND status = 'pending'
        )`
     )
-    .run(runMailbox, helperRun.run_id, mailbox, helperRun.run_id)
+    .run(runMailbox, runId, mailbox, runId)
   const reports = db.db
     .prepare(
       `UPDATE messages SET to_handle = ?
@@ -201,7 +204,7 @@ function handHelperMailToRun(db: OrchestrationDb, dispatchId: string): void {
            SELECT id FROM dispatch_contexts WHERE creator_dispatch_id = ?
          )`
     )
-    .run(runMailbox, helperRun.run_id, mailbox, dispatchId)
+    .run(runMailbox, runId, mailbox, dispatchId)
   if (Number(questions.changes) + Number(reports.changes) > 0) {
     db.fenceUnacknowledgedMailboxDeliveries(mailbox)
   }

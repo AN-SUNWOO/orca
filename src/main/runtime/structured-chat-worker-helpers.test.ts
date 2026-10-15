@@ -65,9 +65,25 @@ function helperSend(type: string, subject: string, helper: { dispatchId: string;
   })
 }
 
-async function subjects(sessionId: string, ack?: unknown): Promise<unknown[]> {
+type InboxMessage = { id: string; subject: string; type: string }
+
+async function check(
+  sessionId: string,
+  ack?: unknown
+): Promise<{ deliveryId: unknown; messages: InboxMessage[] }> {
   const inbox = await call('orchestration.check', ack ? { ack } : {}, { sessionId })
-  return (inbox.messages as { subject: string }[]).map((message) => message.subject)
+  const messages = Array.isArray(inbox.messages)
+    ? inbox.messages.map((message: Record<string, unknown>) => ({
+        id: String(message.id),
+        subject: String(message.subject),
+        type: String(message.type)
+      }))
+    : []
+  return { deliveryId: inbox.deliveryId, messages }
+}
+
+async function subjects(sessionId: string, ack?: unknown): Promise<string[]> {
+  return (await check(sessionId, ack)).messages.map((message) => message.subject)
 }
 
 describe('a worker starting helpers on the Run it works for', () => {
@@ -103,8 +119,8 @@ describe('a worker starting helpers on the Run it works for', () => {
       () => expect(db.db.prepare('SELECT COUNT(*) AS n FROM question_threads').get()).toEqual({ n: 1 }),
       WAIT
     )
-    const inbox = await call('orchestration.check', {}, { sessionId: PEER_CHAT })
-    const messages = inbox.messages as { id: string; subject: string; type: string }[]
+    const inbox = await check(PEER_CHAT)
+    const messages = inbox.messages
     expect(messages.map((message) => message.subject)).toEqual(['Blocked on fixtures', 'Question'])
     await call(
       'orchestration.reply',

@@ -6,6 +6,7 @@ import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
 import type { MobileNativeChatController } from './use-mobile-native-chat-controller'
 
 vi.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
   StyleSheet: { create: (styles: unknown) => styles, absoluteFillObject: {} },
   View: 'View'
 }))

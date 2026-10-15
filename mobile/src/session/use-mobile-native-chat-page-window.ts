@@ -161,7 +161,9 @@ export function useMobileNativeChatPageWindow(args: {
       absorb: null
     }
   }
-  let win = w.current?.scope === rowKeys.scope ? w.current : seatAtEnd()
+  // A chat opens at its end, and so do rows arriving where there were none.
+  const kept = w.current?.scope === rowKeys.scope && w.current.first !== ''
+  let win = kept && w.current ? w.current : seatAtEnd()
   let end = win.last === null ? n : at(win.last, win.lastAt) + 1
   if (following && win.last !== null) {
     // Following draws the end; from far up that is a new window there.

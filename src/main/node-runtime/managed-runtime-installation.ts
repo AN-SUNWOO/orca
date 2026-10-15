@@ -84,6 +84,8 @@ export class ManagedRuntimeInstallation {
       installedVersion: release?.version ?? null,
       installedCurrent: release?.current ?? false,
       ...(pin && !release?.current && broken.includes(pin.version) && { damaged: true }),
+      // A damaged copy is removable too, though no launch runs it.
+      canRemove: release !== null || broken.length > 0,
       source,
       operation
     }

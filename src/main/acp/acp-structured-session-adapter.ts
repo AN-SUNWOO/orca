@@ -131,7 +131,6 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
       if (connection && !(await connection.close().catch(() => false))) {
         // Kept, so the next start or quit closes this same process again; no second one spawns.
         this.starts.retainFailed(sessionId, connection)
-        this.deps.spec.launchGate?.retain(connection)
         throw new AgentSessionAcquisitionExitUnprovenError(error)
       }
       if (attempt.signal.aborted) {

@@ -1,0 +1,63 @@
+import { z } from 'zod'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { shellEscape } from '../ssh/ssh-connection-utils'
+
+export type WslChatHost = {
+  rpc<T>(method: string, params?: unknown): Promise<T>
+  guest(command: string): Promise<string>
+  runtimePid: number
+}
+
+export async function writeChatFixtureFile(
+  host: WslChatHost,
+  path: string,
+  content: string
+): Promise<void> {
+  await host.guest(
+    `printf %s ${shellEscape(Buffer.from(content).toString('base64'))} | base64 -d > ${shellEscape(path)}`
+  )
+}
+
+/** Install the existing SDK wire fixture with the guest's packaged runtime, never a Windows CLI. */
+export async function installWslChatFixture(lane: WslChatHost) {
+  const home = (await lane.guest('printf %s "$HOME"')).trim()
+  const root = `${home}/wsl chat fixture`
+  await lane.guest(`mkdir -p ${shellEscape(root)}`)
+  const runtime = (await lane.guest(`readlink -f /proc/${lane.runtimePid}/exe`)).trim()
+  const script = `${root}/scripted.mjs`
+  const cli = `${root}/claude`
+  await writeChatFixtureFile(
+    lane,
+    script,
+    readFileSync(resolve('src/main/claude/__fixtures__/claude-agent-sdk-scripted-cli.mjs'), 'utf8')
+  )
+  await writeChatFixtureFile(
+    lane,
+    cli,
+    `#!/bin/sh\nexec ${shellEscape(runtime)} ${shellEscape(script)} "$@"\n`
+  )
+  await lane.guest(`chmod 700 ${shellEscape(cli)}`)
+  await lane.rpc('settings.update', {
+    nativeChatInheritShellEnvironment: false,
+    agentCmdOverrides: { claude: shellEscape(cli) },
+    agentDefaultEnv: {
+      claude: {
+        ORCA_SDK_CONTRACT_SCENARIO_PATH: `${root}/scenario.json`,
+        ORCA_SDK_CONTRACT_REPORT_PATH: `${root}/report.json`,
+        ORCA_SDK_CONTRACT_TIMEOUT_MS: '120000'
+      }
+    }
+  })
+  return { home, root }
+}
+
+export const WslChatProviderReport = z.object({
+  execPath: z.string(),
+  cwd: z.string(),
+  argv: z.array(z.string()),
+  env: z.record(z.string(), z.string()),
+  userMessages: z.array(z.object({ message: z.object({ content: z.unknown() }) })),
+  controlRequests: z.array(z.object({ request: z.object({ subtype: z.string() }) })),
+  controlResponses: z.array(z.object({ response: z.object({ response: z.unknown().optional() }) }))
+})

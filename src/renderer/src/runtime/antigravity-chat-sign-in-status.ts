@@ -36,6 +36,8 @@ const EMPTY: AntigravityChatSignInView = {
   error: null,
   openFailed: false
 }
+/** The pause before polling again after a failed poll, so a lasting error can't spin. */
+const POLL_RETRY_MS = 2_000
 const entries = new Map<string, Entry>()
 const listeners = new Set<() => void>()
 
@@ -62,7 +64,7 @@ function set(entry: Entry, patch: Partial<AntigravityChatSignInView>): void {
 
 const message = (cause: unknown): string | null => (cause instanceof Error ? cause.message : null)
 
-async function refresh(owner: RuntimeClientTarget, entry: Entry): Promise<void> {
+async function refresh(owner: RuntimeClientTarget, entry: Entry, pollAfterMs = 0): Promise<void> {
   // A failed read leaves the row offering sign-in, which is still correct to act on.
   const read = await callAntigravityAccounts(owner, { runtime: 'host' }, 'List').catch(() => null)
   const chat = read?.chatSignIn
@@ -73,7 +75,11 @@ async function refresh(owner: RuntimeClientTarget, entry: Entry): Promise<void> 
   if (chat.flowId && entry.view.flow?.flowId !== chat.flowId) {
     set(entry, { flow: { flowId: chat.flowId, phase: 'starting' }, error: null })
   }
-  void follow(owner, entry)
+  if (pollAfterMs > 0) {
+    setTimeout(() => void follow(owner, entry), pollAfterMs)
+  } else {
+    void follow(owner, entry)
+  }
 }
 
 async function follow(owner: RuntimeClientTarget, entry: Entry): Promise<void> {
@@ -85,6 +91,7 @@ async function follow(owner: RuntimeClientTarget, entry: Entry): Promise<void> {
   const current = (): boolean => entry.view.flow?.flowId === flowId
   entry.following = flowId
   let next = flow
+  let failed = false
   try {
     // A hidden row lets the poll in flight answer, then stops; showing it again resumes.
     while (antigravityChatSignInRunning(next) && entry.observers > 0 && current()) {
@@ -106,9 +113,15 @@ async function follow(owner: RuntimeClientTarget, entry: Entry): Promise<void> {
   } catch (cause) {
     if (current()) {
       set(entry, { flow: null, error: message(cause) ?? '' })
+      failed = true
     }
   } finally {
     entry.following = null
+  }
+  if (failed) {
+    // The host's flow can outlive a failed poll; the List adopts it again so it stays cancellable.
+    void refresh(owner, entry, POLL_RETRY_MS)
+    return
   }
   // Settled: the saved sign-in may have changed. Replaced: follow the flow that replaced it.
   if (current() && !antigravityChatSignInRunning(entry.view.flow)) {

@@ -66,9 +66,9 @@ export function hostOffersAntigravityChatSignIn(owner: RuntimeClientTarget): boo
 
 const SETTLED_OPERATION_PHASES = new Set(['succeeded', 'failed', 'cancelled'])
 
-/** Sign-in runs the installed server, so it waits while the host reports nothing to run or an
- *  install or Remove still runs; the install row beside it says why. A status the host could not
- *  report leaves it to the host. */
+/** Sign-in runs the installed server, so it waits while the host reports nothing to run or a
+ *  Remove still runs; an Update keeps the old copy running until it lands. The install row beside
+ *  it says why. A status the host could not report leaves it to the host. */
 export function antigravityChatSignInBlocked(
   install: Extract<ManagedRuntimeInstallObservation, { kind: 'active' }>
 ): boolean {
@@ -77,7 +77,7 @@ export function antigravityChatSignInBlocked(
     return snapshot.kind === 'unknown'
   }
   const { source, operation } = snapshot.state
-  return !source || (operation !== null && !SETTLED_OPERATION_PHASES.has(operation.phase))
+  return !source || (operation?.kind === 'remove' && !SETTLED_OPERATION_PHASES.has(operation.phase))
 }
 
 /** This execution host's sign-in for Antigravity chats, run by the host's own server. Every row

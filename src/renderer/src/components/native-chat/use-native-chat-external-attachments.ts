@@ -1,8 +1,10 @@
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useAppStore } from '@/store'
+import { basename } from '@/lib/path'
 import { NATIVE_FILE_DROP_MAX_PATHS } from '../../../../shared/native-file-drop'
 import {
   nativeChatAttachmentOwnerUnchanged,
+  type NativeChatAttachmentFocusOptions,
   type NativeChatResolvedPathOptions
 } from './native-chat-resolved-path-ownership'
 import {
@@ -24,6 +26,7 @@ import {
 import { userNamedFileAccess } from '@/lib/local-file-access'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { findTerminalTabWorktreeId } from './native-chat-file-link'
+import { isNativeChatImageAttachmentPath } from './native-chat-image-paste'
 
 export type UseNativeChatExternalAttachmentsArgs = {
   terminalTabId: string
@@ -73,9 +76,12 @@ export function useNativeChatExternalAttachments({
   pendingChips,
   setNotice
 }: UseNativeChatExternalAttachmentsArgs): {
-  attachExternalPaths: (paths: string[]) => void
+  attachExternalPaths: (paths: string[], options?: NativeChatAttachmentFocusOptions) => void
   resolveAttachmentOwner: () => NativeChatAttachmentOwner
-  captureExternalDrop: (destinationIsCurrent?: () => boolean) => (paths: string[]) => Promise<void>
+  captureExternalDrop: (
+    destinationIsCurrent?: () => boolean,
+    options?: NativeChatAttachmentFocusOptions
+  ) => (paths: string[]) => Promise<void>
 } {
   const mountedRef = useMountedRef()
   const disabledRef = useRef(disabled)
@@ -119,7 +125,10 @@ export function useNativeChatExternalAttachments({
   }, [])
 
   const captureExternalDrop = useCallback(
-    (destinationIsCurrent: () => boolean = () => true) => {
+    (
+      destinationIsCurrent: () => boolean = () => true,
+      options?: NativeChatAttachmentFocusOptions
+    ) => {
       const owner = resolveAttachmentOwner()
       const capturedWorkspace = workspaceRef.current
       const currentWorktreeId = (): string | null =>
@@ -130,8 +139,6 @@ export function useNativeChatExternalAttachments({
         )
       const capturedWorktreeId = currentWorktreeId()
       const ownerStillCurrent = (): boolean =>
-        // Server uploads settle into the captured scope even while its composer is unmounted.
-        (owner.kind === 'runtime-session' || mountedRef.current) &&
         destinationIsCurrent() &&
         isSameComposerWorkspace(capturedWorkspace, workspaceRef.current) &&
         capturedWorktreeId === currentWorktreeId() &&
@@ -166,48 +173,91 @@ export function useNativeChatExternalAttachments({
             paths,
             owner,
             chips: pendingChipsRef.current,
+            options,
             isAbandoned: () => disabledRef.current,
             ownerStillCurrent,
             setNotice
           })
           return
         }
-        const readablePaths: string[] = []
-        for (const targetPath of paths) {
-          if (disabledRef.current || !mountedRef.current) {
+        const chips = pendingChipsRef.current
+        const pending: { path: string; chipId: string }[] = []
+        try {
+          for (const path of paths) {
+            const chipId = chips.begin(undefined, basename(path))
+            if (chipId) {
+              pending.push({ path, chipId })
+            }
+          }
+          if (pending.length === 0) {
+            return
+          }
+          const readable: typeof pending = []
+          for (const entry of pending) {
+            if (disabledRef.current) {
+              return
+            }
+            if (!ownerStillCurrent()) {
+              setNotice(nativeChatAttachmentOwnerChangedNotice())
+              return
+            }
+            try {
+              await window.api.fs.stat({ filePath: entry.path, access: userNamedFileAccess() })
+              readable.push(entry)
+            } catch {
+              // Skip unreadable paths, matching workspace composer drops.
+              chips.drop(entry.chipId)
+            }
+          }
+          if (disabledRef.current) {
             return
           }
           if (!ownerStillCurrent()) {
             setNotice(nativeChatAttachmentOwnerChangedNotice())
             return
           }
-          try {
-            await window.api.fs.stat({ filePath: targetPath, access: userNamedFileAccess() })
-            readablePaths.push(targetPath)
-          } catch {
-            // Skip unreadable paths, matching workspace composer drops.
+          if (readable.length === 0) {
+            setNotice(nativeChatAttachmentUnreadableNotice())
+            return
+          }
+          const prepared = pending.splice(0)
+          attachResolvedPaths(
+            readable.map(({ path }) => path),
+            undefined,
+            {
+              ...options,
+              destinationIsCurrent: ownerStillCurrent,
+              operation: {
+                apply: (insertReferences) => {
+                  const completion = { focus: false, insertReferences }
+                  let attached = false
+                  for (const { path, chipId } of readable) {
+                    attached =
+                      (isNativeChatImageAttachmentPath(path)
+                        ? chips.resolve(chipId, path, undefined, completion)
+                        : chips.attachReferences([{ id: chipId, path }], completion)) || attached
+                  }
+                  return attached
+                },
+                cancel: () => prepared.forEach(({ chipId }) => chips.drop(chipId))
+              }
+            }
+          )
+        } catch {
+          setNotice(nativeChatAttachmentUnreadableNotice())
+        } finally {
+          for (const { chipId } of pending) {
+            chips.drop(chipId)
           }
         }
-        if (disabledRef.current || !mountedRef.current) {
-          return
-        }
-        if (!ownerStillCurrent()) {
-          setNotice(nativeChatAttachmentOwnerChangedNotice())
-          return
-        }
-        if (readablePaths.length === 0) {
-          setNotice(nativeChatAttachmentUnreadableNotice())
-          return
-        }
-        attachResolvedPaths(readablePaths, undefined, { destinationIsCurrent: ownerStillCurrent })
       }
     },
     [attachResolvedPaths, mountedRef, resolveAttachmentOwner, setNotice]
   )
   const attachExternalPaths = useCallback(
-    (paths: string[]): void => {
+    (paths: string[], options?: NativeChatAttachmentFocusOptions): void => {
       if (!disabledRef.current && mountedRef.current && paths.length > 0) {
-        void captureExternalDrop()(paths)
+        void captureExternalDrop(undefined, options)(paths)
       }
     },
     [captureExternalDrop, mountedRef]

@@ -149,7 +149,7 @@ export function useNativeChatComposerPaste({
       }
       setNotice(null)
       if (copiesFiles) {
-        attachCopiedFiles(copiedFilePaths)
+        attachCopiedFiles(copiedFilePaths, { focus: false })
         return
       }
       if (text) {
@@ -242,7 +242,7 @@ export function useNativeChatComposerPaste({
       // A file manager's copy pastes the files themselves, exactly as dropping them does.
       if (read && read.copiedFilePaths.length > 0) {
         if (canPaste()) {
-          attachCopiedFiles(read.copiedFilePaths)
+          attachCopiedFiles(read.copiedFilePaths, { focus: false })
         }
         return
       }

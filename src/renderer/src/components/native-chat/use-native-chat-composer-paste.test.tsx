@@ -761,10 +761,10 @@ describe('file-manager copies', () => {
     })
     const files = [png('shot.png'), new File(['pdf'], 'b.pdf', { type: 'application/pdf' })]
     await act(async () => probe.latest().handlePaste(fileCopyEvent(files, 'shot.png\nb.pdf')))
-    expect(attachCopiedFiles).toHaveBeenCalledExactlyOnceWith([
-      '/Users/me/shot.png',
-      '/Users/me/b.pdf'
-    ])
+    expect(attachCopiedFiles).toHaveBeenCalledExactlyOnceWith(
+      ['/Users/me/shot.png', '/Users/me/b.pdf'],
+      { focus: false }
+    )
     expect(insertTypedText).not.toHaveBeenCalled()
     expect(mocks.saveClipboardImageAsTempFile).not.toHaveBeenCalled()
   })
@@ -788,7 +788,7 @@ describe('file-manager copies', () => {
           attachCopiedFiles
         })
         await act(async () => probe.latest().pasteFromClipboard())
-        expect(attachCopiedFiles).toHaveBeenCalledExactlyOnceWith(paths)
+        expect(attachCopiedFiles).toHaveBeenCalledExactlyOnceWith(paths, { focus: false })
         expect(insertTypedText).not.toHaveBeenCalled()
         // The copied file itself is attached, never the bitmap rendition beside it.
         expect(mocks.saveClipboardImageAsTempFile).not.toHaveBeenCalled()

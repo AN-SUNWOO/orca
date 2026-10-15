@@ -1,5 +1,12 @@
 import type { NativeChatComposerInput } from './native-chat-composer-input'
-import { useCallback, useEffect, useMemo, useSyncExternalStore, type RefObject } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useSyncExternalStore,
+  type RefObject
+} from 'react'
 import {
   nativeChatComposerTargetIsRemote,
   nativeChatLocalAttachmentUnsupportedNotice,
@@ -15,7 +22,10 @@ import {
 import { useRestoredNativeChatComposerDraftImageCheck } from './native-chat-composer-draft-image-check'
 import type { NativeChatResolvedPathOptions } from './native-chat-resolved-path-ownership'
 import { useNativeChatResolvedPathAttachments } from './use-native-chat-resolved-path-attachments'
-import type { NativeChatPendingAttachmentChips } from './native-chat-session-attachment-drop'
+import type {
+  NativeChatPendingAttachmentChips,
+  NativeChatPendingAttachmentOptions
+} from './native-chat-session-attachment-drop'
 import {
   addNativeChatPendingAttachment,
   clearNativeChatPendingAttachments,
@@ -67,7 +77,7 @@ export function useNativeChatComposerAttachments({
   flushPendingAttachments: () => void
   removeImageAttachment: (id: string) => void
   beginPendingImageAttachment: (previewUrl?: string, pendingName?: string) => string | null
-  resolvePendingImageAttachment: (id: string, path: string, connectionId?: string | null) => void
+  resolvePendingImageAttachment: NativeChatPendingAttachmentChips['resolve']
   revealPendingImageAttachment: (id: string, previewUrl?: string) => void
   dropPendingImageAttachment: (id: string) => boolean
   pendingChips: NativeChatPendingAttachmentChips
@@ -114,6 +124,11 @@ export function useNativeChatComposerAttachments({
       mountedRef.current = false
     }
   }, [mountedRef])
+  useLayoutEffect(() => {
+    if (disabled) {
+      clearNativeChatPendingAttachments(attachmentScopeKey)
+    }
+  }, [attachmentScopeKey, disabled])
 
   const nextAttachmentId = useCallback(() => createUuidV4(), [])
 
@@ -157,6 +172,7 @@ export function useNativeChatComposerAttachments({
       caret,
       disabled,
       isComposing,
+      mountedRef,
       noteAttachmentTargetBlocked,
       setCaret,
       setDraft,
@@ -196,25 +212,30 @@ export function useNativeChatComposerAttachments({
   )
 
   const attachPendingReferences = useCallback(
-    (references: { id: string; path: string }[]) => {
-      settleNativeChatPendingAttachmentReferences(
+    (references: { id: string; path: string }[], options?: NativeChatPendingAttachmentOptions) => {
+      return settleNativeChatPendingAttachmentReferences(
         attachmentScopeKey,
         references,
-        mountedRef.current && !disabledRef.current && !isComposing()
-          ? (paths) => attachResolvedPaths(paths, null)
-          : undefined
+        options?.insertReferences !== undefined
+          ? (options.insertReferences ?? undefined)
+          : mountedRef.current && !disabledRef.current && !isComposing()
+            ? (paths) => attachResolvedPaths(paths, null, options)
+            : undefined
       )
     },
     [attachResolvedPaths, attachmentScopeKey, disabledRef, isComposing, mountedRef]
   )
 
   const resolvePendingImageAttachment = useCallback(
-    (id: string, path: string, connectionId?: string | null) => {
-      if (acceptsImages) {
-        settleNativeChatPendingAttachment(attachmentScopeKey, id, path, connectionId)
-      } else {
-        attachPendingReferences([{ id, path }])
-      }
+    (
+      id: string,
+      path: string,
+      connectionId?: string | null,
+      options?: NativeChatPendingAttachmentOptions
+    ) => {
+      return acceptsImages
+        ? settleNativeChatPendingAttachment(attachmentScopeKey, id, path, connectionId)
+        : attachPendingReferences([{ id, path }], options)
     },
     [acceptsImages, attachPendingReferences, attachmentScopeKey]
   )

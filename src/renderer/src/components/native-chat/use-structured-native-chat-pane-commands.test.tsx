@@ -30,6 +30,7 @@ vi.mock('@/components/ui/dropdown-menu', () => {
     DropdownMenuTrigger: Pass
   }
 })
+vi.mock('./native-chat-layout-actions', () => ({ runNativeChatSplitTarget: vi.fn() }))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string) => fallback
 }))

@@ -26,6 +26,7 @@ vi.mock('react-native', async () => {
     }),
     Platform: platform,
     Pressable: 'Pressable',
+    ScrollView: 'ScrollView',
     StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
     Text: 'Text',
     View: 'View'
@@ -231,6 +232,17 @@ describe('MobileNativeChatView', () => {
     return renderer!.root.find((node) => node.type === 'FlatList')
   }
 
+  /** What the list reports from a scroll, drag or momentum event, in a 500-tall viewport. */
+  function scrollEvent(y: number, contentHeight: number) {
+    return {
+      nativeEvent: {
+        contentOffset: { y },
+        contentSize: { height: contentHeight },
+        layoutMeasurement: { height: 500 }
+      }
+    }
+  }
+
   function renderedRow(id: string): ReturnType<typeof createElement> {
     const listNode = list()
     const data = listNode.props.data as NativeChatMessage[]
@@ -267,13 +279,7 @@ describe('MobileNativeChatView', () => {
   async function scrollAwayFromTail(): Promise<void> {
     await act(async () => {
       list().props.onScrollBeginDrag?.({})
-      list().props.onScroll({
-        nativeEvent: {
-          contentOffset: { y: 200 },
-          contentSize: { height: 1_200 },
-          layoutMeasurement: { height: 500 }
-        }
-      })
+      list().props.onScroll(scrollEvent(200, 1_200))
     })
   }
 
@@ -386,13 +392,7 @@ describe('MobileNativeChatView', () => {
 
     act(() => {
       list().props.onScrollBeginDrag?.({})
-      list().props.onScroll({
-        nativeEvent: {
-          contentOffset: { y: 40 },
-          contentSize: { height: 1_200 },
-          layoutMeasurement: { height: 500 }
-        }
-      })
+      list().props.onScroll(scrollEvent(40, 1_200))
       list().props.onContentSizeChange(320, 950)
     })
 
@@ -407,13 +407,7 @@ describe('MobileNativeChatView', () => {
     scrollToEnd.mockClear()
 
     act(() => {
-      list().props.onScroll({
-        nativeEvent: {
-          contentOffset: { y: 200 },
-          contentSize: { height: 1_200 },
-          layoutMeasurement: { height: 500 }
-        }
-      })
+      list().props.onScroll(scrollEvent(200, 1_200))
       list().props.onContentSizeChange(320, 1_300)
     })
 
@@ -437,20 +431,8 @@ describe('MobileNativeChatView', () => {
       ).toHaveLength(0)
 
       act(() => {
-        list().props.onScroll({
-          nativeEvent: {
-            contentOffset: { y: 700 },
-            contentSize: { height: 1_200 },
-            layoutMeasurement: { height: 500 }
-          }
-        })
-        list().props.onScrollEndDrag?.({
-          nativeEvent: {
-            contentOffset: { y: 700 },
-            contentSize: { height: 1_200 },
-            layoutMeasurement: { height: 500 }
-          }
-        })
+        list().props.onScroll(scrollEvent(700, 1_200))
+        list().props.onScrollEndDrag?.(scrollEvent(700, 1_200))
         list().props.onContentSizeChange(320, 1_250)
         list().props.onMomentumScrollBegin?.({})
       })
@@ -463,13 +445,7 @@ describe('MobileNativeChatView', () => {
       expect(scrollToOffset).not.toHaveBeenCalled()
 
       act(() => {
-        list().props.onMomentumScrollEnd?.({
-          nativeEvent: {
-            contentOffset: { y: 800 },
-            contentSize: { height: 1_300 },
-            layoutMeasurement: { height: 500 }
-          }
-        })
+        list().props.onMomentumScrollEnd?.(scrollEvent(800, 1_300))
         list().props.onContentSizeChange(320, 1_350)
       })
       expect(scrollToEnd).toHaveBeenCalledOnce()
@@ -486,28 +462,10 @@ describe('MobileNativeChatView', () => {
 
     act(() => {
       list().props.onScrollBeginDrag?.({})
-      list().props.onScroll({
-        nativeEvent: {
-          contentOffset: { y: 700 },
-          contentSize: { height: 1_200 },
-          layoutMeasurement: { height: 500 }
-        }
-      })
-      list().props.onScrollEndDrag?.({
-        nativeEvent: {
-          contentOffset: { y: 700 },
-          contentSize: { height: 1_200 },
-          layoutMeasurement: { height: 500 }
-        }
-      })
+      list().props.onScroll(scrollEvent(700, 1_200))
+      list().props.onScrollEndDrag?.(scrollEvent(700, 1_200))
       list().props.onMomentumScrollBegin?.({})
-      list().props.onMomentumScrollEnd?.({
-        nativeEvent: {
-          contentOffset: { y: 200 },
-          contentSize: { height: 1_300 },
-          layoutMeasurement: { height: 500 }
-        }
-      })
+      list().props.onMomentumScrollEnd?.(scrollEvent(200, 1_300))
       list().props.onContentSizeChange(320, 1_350)
     })
 
@@ -527,20 +485,8 @@ describe('MobileNativeChatView', () => {
 
       act(() => {
         list().props.onScrollBeginDrag?.({})
-        list().props.onScroll({
-          nativeEvent: {
-            contentOffset: { y: 200 },
-            contentSize: { height: 1_200 },
-            layoutMeasurement: { height: 500 }
-          }
-        })
-        list().props.onScrollEndDrag?.({
-          nativeEvent: {
-            contentOffset: { y: 620 },
-            contentSize: { height: 1_200 },
-            layoutMeasurement: { height: 500 }
-          }
-        })
+        list().props.onScroll(scrollEvent(200, 1_200))
+        list().props.onScrollEndDrag?.(scrollEvent(620, 1_200))
       })
       await act(async () => {
         vi.advanceTimersByTime(200)
@@ -563,13 +509,7 @@ describe('MobileNativeChatView', () => {
 
       act(() => {
         list().props.onScrollBeginDrag?.({})
-        list().props.onScrollEndDrag?.({
-          nativeEvent: {
-            contentOffset: { y: 700 },
-            contentSize: { height: 1_200 },
-            layoutMeasurement: { height: 500 }
-          }
-        })
+        list().props.onScrollEndDrag?.(scrollEvent(700, 1_200))
         list().props.onContentSizeChange(320, 1_250)
       })
 
@@ -607,19 +547,15 @@ describe('MobileNativeChatView', () => {
     vi.useFakeTimers()
     try {
       // A chat shorter than the screen: its top and its tail are the same place.
-      const shortChat = {
-        contentOffset: { y: 0 },
-        contentSize: { height: 400 },
-        layoutMeasurement: { height: 500 }
-      }
+      const shortChat = scrollEvent(0, 400)
       const folded = [assistantTurn('a1', 'Short history')]
       const onLoadEarlier = vi.fn()
       await render({ folded, hasMore: true, onLoadEarlier })
 
       act(() => {
         list().props.onScrollBeginDrag?.({})
-        list().props.onScroll({ nativeEvent: shortChat })
-        list().props.onScrollEndDrag?.({ nativeEvent: shortChat })
+        list().props.onScroll(shortChat)
+        list().props.onScrollEndDrag?.(shortChat)
       })
       await act(async () => {
         vi.advanceTimersByTime(200)
@@ -639,13 +575,7 @@ describe('MobileNativeChatView', () => {
   it('pages in history only from a scroll the reader made', async () => {
     const onLoadEarlier = vi.fn()
     await render({ folded: [assistantTurn('a1', 'Latest')], hasMore: true, onLoadEarlier })
-    const nearTop = {
-      nativeEvent: {
-        contentOffset: { y: 40 },
-        contentSize: { height: 520 },
-        layoutMeasurement: { height: 500 }
-      }
-    }
+    const nearTop = scrollEvent(40, 520)
 
     // The tail pin of a chat barely taller than the screen reports an offset near the top too.
     act(() => list().props.onScroll(nearTop))
@@ -693,13 +623,7 @@ describe('MobileNativeChatView', () => {
 
     function scrolledTo(y: number, contentHeight: number) {
       Object.assign(pageScroller, { scrollTop: y, scrollHeight: contentHeight })
-      return {
-        nativeEvent: {
-          contentOffset: { y },
-          contentSize: { height: contentHeight },
-          layoutMeasurement: { height: 500 }
-        }
-      }
+      return scrollEvent(y, contentHeight)
     }
 
     it('holds a following reader at the live end through growth, a late size report and layout', async () => {
@@ -746,6 +670,36 @@ describe('MobileNativeChatView', () => {
       act(() => list().props.onLayout?.({}))
       expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 6_100 })
       expect(scrollToEnd).not.toHaveBeenCalled()
+    })
+
+    // What the page's scroller tells the browser: the transcript's wrapper, then the end marker.
+    function transcriptStyle(): unknown[] {
+      const page = list().props.renderScrollComponent({ children: 'rows' })
+      const [content, marker, ...rest] = page.type(page.props).props.children
+      expect(rest).toHaveLength(0)
+      expect(marker.props.style).toEqual({ height: 1 })
+      expect(content.props.children).toBe('rows')
+      return content.props.style
+    }
+
+    it('keeps a following reader at the cap out of the browser anchoring while the oldest row is trimmed', async () => {
+      const turns = ['a1', 'a2', 'a3', 'a4'].map((id) => assistantTurn(id, id))
+      const jumps = () =>
+        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
+      await render({ folded: turns.slice(0, 3) })
+      act(() => list().props.onScroll(scrolledTo(500, 1_000)))
+
+      // Trim plus append of the same height: no size change, so the owner rightly does nothing.
+      await update({ folded: turns.slice(1) })
+      expect(scrollToOffset).not.toHaveBeenCalled()
+      expect(jumps()).toHaveLength(0)
+      expect(transcriptStyle()).toContainEqual({ overflowAnchor: 'none' })
+
+      // Parked, the browser may anchor a message again; the jump back follows the end once more.
+      act(() => list().props.onScroll(scrolledTo(300, 1_000)))
+      expect(transcriptStyle()).not.toContainEqual({ overflowAnchor: 'none' })
+      act(() => jumps()[0].props.onPress())
+      expect(transcriptStyle()).toContainEqual({ overflowAnchor: 'none' })
     })
 
     it('loads older history from the Load earlier control, not from reaching the top', async () => {

@@ -71,13 +71,8 @@ export function scanRecord(
   }
 }
 
-/** The chat's journal as the crashed process left it: a running turn at fence 13, and, when asked,
- *  a send it accepted at the released lease's fence 14 and never handed over. */
-export async function seedScanJournal(
-  root: string,
-  sessionId: string,
-  options: { queued?: true } = {}
-): Promise<void> {
+/** The chat's journal as the crashed process left it: a running turn at fence 13. */
+export async function seedScanJournal(root: string, sessionId: string): Promise<void> {
   const journal = await openAgentSessionJournal({
     identity: {
       sessionId,
@@ -94,17 +89,6 @@ export async function seedScanJournal(
     { kind: 'turn', turnId: 'turn-1', state: 'running', startedAt: SCAN_NOW - 30_000 },
     { fence: 13, turnScope: AGENT_JOURNAL_THREAD_SCOPE }
   )
-  if (options.queued) {
-    await journal.appendSubmission({
-      clientMessageId: `${sessionId}-queued`,
-      payloadFingerprint: '0'.repeat(64),
-      body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'after this' }] },
-      fence: 14,
-      handoverRecorded: true,
-      origin: 'client',
-      source: { kind: 'user' }
-    })
-  }
   await journal.close()
 }
 

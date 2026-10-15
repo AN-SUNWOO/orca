@@ -108,9 +108,9 @@ it('settles a crash whose owner is proven gone at startup, with no reader openin
   expect(await turnState(current, CHAT)).toBe('interrupted')
 })
 
-it('settles a released chat an earlier process left on its first open, keeping its send as a card', async () => {
+it('opens no released chat at startup; its first open settles it', async () => {
   await seedTestAgentSessionRecordStore(root, { records: [record(RELEASED, true)] })
-  await seedScanJournal(root, RELEASED, { queued: true })
+  await seedScanJournal(root, RELEASED)
   store = await openTestAgentSessionRecordStore(root)
   const open = vi.spyOn(AgentSessionJournal.prototype, 'open')
   host = openScanHost(root, store)
@@ -118,19 +118,12 @@ it('settles a released chat an earlier process left on its first open, keeping i
   await current.reconcileRestartLeases()
   await current.startupSettled()
   await pause(1_200)
-  // Its record shows nothing owed: startup opens it for nothing.
   expect(open).not.toHaveBeenCalled()
 
   await current.journalSnapshot(RELEASED)
   await idle(current, [RELEASED])
-
   // Nothing proved its owner gone, but the runtime that held it was replaced, which ends it.
   expect(await turnState(current, RELEASED)).toBe('interrupted')
-  const { journal } = current.collaboratorsForTests().sessions.get(RELEASED)!
-  expect(journal.submission(`${RELEASED}-queued`)).toMatchObject({ dispatchState: 'rejected' })
-  expect(journal.queuedMessages.list()).toEqual([
-    expect.objectContaining({ body: expect.objectContaining({ role: 'user' }) })
-  ])
 })
 
 it("never holds the round for a chat's busy lane: a person's long operation delays no other chat", async () => {

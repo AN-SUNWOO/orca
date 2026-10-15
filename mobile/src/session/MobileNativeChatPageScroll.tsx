@@ -1,12 +1,5 @@
 import type { Ref } from 'react'
-import { ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native'
-
-declare module 'react-native/Libraries/StyleSheet/StyleSheetTypes' {
-  // oxlint-disable-next-line typescript/consistent-type-definitions -- declaration merging needs an interface.
-  interface ViewStyle {
-    overflowAnchor?: 'auto' | 'none' // RN Web passes it through to CSS
-  }
-}
+import { ScrollView, StyleSheet, View, type ScrollViewProps, type ViewStyle } from 'react-native'
 
 /** The page's scroller: the transcript in one wrapper, then a 1 px end marker. While the reader
  *  follows, the wrapper is out of the browser's scroll anchoring, so the marker is its anchor and
@@ -28,8 +21,7 @@ export function MobileNativeChatPageScroll({
   )
 }
 
-const pageScroll = StyleSheet.create({
-  fill: { flexGrow: 1 },
-  outOfAnchoring: { overflowAnchor: 'none' },
-  endMarker: { height: 1 }
-})
+// RN Web passes it through to CSS; ViewStyle doesn't name it.
+const outOfAnchoring: ViewStyle & { overflowAnchor: 'none' } = { overflowAnchor: 'none' }
+
+const pageScroll = StyleSheet.create({ fill: { flexGrow: 1 }, outOfAnchoring, endMarker: { height: 1 } })

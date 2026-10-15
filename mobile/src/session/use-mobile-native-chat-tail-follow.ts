@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { createElement, useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import {
   Platform,
   type FlatList,
+  type FlatListProps,
   type NativeScrollEvent,
-  type NativeSyntheticEvent
+  type NativeSyntheticEvent,
+  type ScrollViewProps
 } from 'react-native'
+import { MobileNativeChatPageScroll } from './MobileNativeChatPageScroll'
 
 /** Distance from the bottom, in points, still treated as "at the tail". */
 const AT_TAIL_SLOP = 80
@@ -59,9 +62,13 @@ function isAtTail(event: NativeScrollEvent): boolean {
 }
 
 export type MobileNativeChatTailFollow<TItem> = {
-  /** The list's `ref`, which the hook scrolls through alone; on the page it also watches the list
-   *  resize for as long as it is mounted. */
-  attachList: (list: FlatList<TItem> | null) => () => void
+  /** Spread on the list. `ref`: the hook scrolls through it alone; on the page it also watches the
+   *  list resize while mounted. The page's scroller keeps the end as the browser's anchor while
+   *  the reader follows. */
+  listProps: {
+    ref: (list: FlatList<TItem> | null) => () => void
+    renderScrollComponent: FlatListProps<TItem>['renderScrollComponent']
+  }
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
   /** Passive maintenance: re-pin after the viewport resizes. */
@@ -268,10 +275,19 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
 
   const isFollowing = useCallback(() => followingRef.current, [])
 
+  const renderPageScroll = useCallback(
+    (props: ScrollViewProps) =>
+      createElement(MobileNativeChatPageScroll, { ...props, endAnchored: following }),
+    [following]
+  )
+
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
 
   return {
-    attachList,
+    listProps: {
+      ref: attachList,
+      renderScrollComponent: listReportsGestures() ? undefined : renderPageScroll
+    },
     showJumpToTail: !following && !atTail,
     pinToTail,
     pinToTailAfterContentResize,

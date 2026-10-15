@@ -26,6 +26,7 @@ vi.mock('react-native', async () => {
     }),
     Platform: platform,
     Pressable: 'Pressable',
+    ScrollView: 'ScrollView',
     StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
     Text: 'Text',
     View: 'View'
@@ -746,6 +747,35 @@ describe('MobileNativeChatView', () => {
       act(() => list().props.onLayout?.({}))
       expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 6_100 })
       expect(scrollToEnd).not.toHaveBeenCalled()
+    })
+
+    it('keeps a following reader at the cap out of the browser anchoring while the oldest row is trimmed', async () => {
+      const turns = ['a1', 'a2', 'a3', 'a4'].map((id) => assistantTurn(id, id))
+      // What the page's scroller tells the browser: the transcript's wrapper, then the end marker.
+      const scroller = () => {
+        const page = list().props.renderScrollComponent({ children: 'rows' })
+        const [wrapper, marker, ...rest] = page.type(page.props).props.children
+        expect(rest).toHaveLength(0)
+        expect(marker.props.style).toEqual({ height: 1 })
+        return wrapper
+      }
+      const jumps = () =>
+        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
+      await render({ folded: turns.slice(0, 3) })
+      act(() => list().props.onScroll(scrolledTo(500, 1_000)))
+
+      // Trim plus append of the same height: no size change, so the owner rightly does nothing.
+      await update({ folded: turns.slice(1) })
+      expect(scrollToOffset).not.toHaveBeenCalled()
+      expect(jumps()).toHaveLength(0)
+      expect(scroller().props.children).toBe('rows')
+      expect(scroller().props.style).toContainEqual({ overflowAnchor: 'none' })
+
+      // Parked, the browser may anchor a message again; the jump back follows the end once more.
+      act(() => list().props.onScroll(scrolledTo(300, 1_000)))
+      expect(scroller().props.style).not.toContainEqual({ overflowAnchor: 'none' })
+      act(() => jumps()[0].props.onPress())
+      expect(scroller().props.style).toContainEqual({ overflowAnchor: 'none' })
     })
 
     it('loads older history from the Load earlier control, not from reaching the top', async () => {

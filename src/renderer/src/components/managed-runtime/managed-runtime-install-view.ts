@@ -77,6 +77,17 @@ function settledView(
     action: label === null ? null : { kind: 'install', label }
   })
   const install = translate('components.managed-runtime.install', 'Install {{agent}}', { agent })
+  // A launch runs the copy found outside Orca's, so a download would never be used.
+  if (state.source === 'external') {
+    return view(
+      translate(
+        'components.managed-runtime.external',
+        'Uses the copy of {{agent}} found on this host.',
+        { agent }
+      ),
+      null
+    )
+  }
   if (state.installedVersion !== null) {
     // Reinstall and Update belong to Settings; an installed chat shows its composer instead.
     const settings = surface === 'settings'
@@ -98,22 +109,29 @@ function settledView(
             : null
         )
   }
-  if (state.source === 'external') {
-    return view(
-      translate('components.managed-runtime.external', 'Uses a copy found on this host.'),
-      install
-    )
-  }
   if (!state.available) {
     return view(
-      translate(
-        'components.managed-runtime.unavailable',
-        '{{agent}} is not available on this host.',
-        {
-          agent
-        }
-      ),
+      state.missingProgram
+        ? translate(
+            'components.managed-runtime.missingProgram',
+            'Installing {{agent}} on this host needs {{program}}.',
+            { agent, program: state.missingProgram }
+          )
+        : translate(
+            'components.managed-runtime.unavailable',
+            '{{agent}} is not available on this host.',
+            { agent }
+          ),
       null
+    )
+  }
+  // Install repairs it, so it is offered as Install rather than as a retry.
+  if (state.damaged) {
+    return view(
+      translate('components.managed-runtime.damaged', 'This copy of {{agent}} is damaged.', {
+        agent
+      }),
+      install
     )
   }
   const retry = translate('components.managed-runtime.retry', 'Retry installation')

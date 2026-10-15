@@ -82,6 +82,21 @@ describe('managedRuntimeInstallView', () => {
       null,
       null
     ])
+    expect(shown({ available: false, missingProgram: 'unzip' }, 'chat')).toEqual([
+      'Installing Fake on this host needs unzip.',
+      null,
+      null
+    ])
+    expect(shown({ damaged: true }, 'chat')).toEqual([
+      'This copy of Fake is damaged.',
+      'Install Fake',
+      null
+    ])
+    expect(shown({ ...installed, source: 'external' }, 'settings')).toEqual([
+      'Uses the copy of Fake found on this host.',
+      null,
+      null
+    ])
   })
 
   it('never reads a failed status read as not installed', () => {

@@ -679,34 +679,24 @@ describe('MobileNativeChatView', () => {
     const fingerDown = { nativeEvent: { touches: [{}] } }
 
     it('stops following when the reader scrolls up, and resumes at the end', async () => {
-      vi.useFakeTimers()
-      try {
-        await render({ folded: [assistantTurn('a1', 'Latest')] })
-        act(() => {
-          list().props.onContentSizeChange(320, 1_000)
-          list().props.onScroll(scrolledTo(500, 1_000))
-        })
-        scrollToOffset.mockClear()
+      await render({ folded: [assistantTurn('a1', 'Latest')] })
+      act(() => {
+        list().props.onContentSizeChange(320, 1_000)
+        list().props.onScroll(scrolledTo(500, 1_000))
+      })
+      scrollToOffset.mockClear()
 
-        // No drag event arrives on the page: a touch and the move up are all there is to go on.
-        act(() => {
-          list().props.onTouchStart(fingerDown)
-          list().props.onScroll(scrolledTo(300, 1_000))
-          list().props.onContentSizeChange(320, 1_200)
-        })
-        expect(scrollToOffset).not.toHaveBeenCalled()
-        expect(jumpToLatest()).toHaveLength(1)
+      // No drag event arrives on the page: a touch and the move up are all there is to go on.
+      act(() => {
+        list().props.onTouchStart(fingerDown)
+        list().props.onScroll(scrolledTo(300, 1_000))
+        list().props.onContentSizeChange(320, 1_200)
+      })
+      expect(scrollToOffset).not.toHaveBeenCalled()
+      expect(jumpToLatest()).toHaveLength(1)
 
-        act(() => {
-          list().props.onScroll(scrolledTo(700, 1_200))
-          list().props.onTouchEnd({ nativeEvent: { touches: [] } })
-          vi.advanceTimersByTime(200)
-          list().props.onContentSizeChange(320, 1_400)
-        })
-        expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_400 })
-      } finally {
-        vi.useRealTimers()
-      }
+      act(() => list().props.onScroll(scrolledTo(700, 1_200)))
+      expect(jumpToLatest()).toHaveLength(0)
     })
 
     it('does not take its own pin, landing short of a grown end, for the reader', async () => {

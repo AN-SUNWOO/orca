@@ -21,7 +21,7 @@ vi.mock('react-native', async () => {
 
 it('on the page, only the reader detaches, and nothing moves the view under a finger', () => {
   vi.useFakeTimers()
-  let follow: ReturnType<typeof useMobileNativeChatTailFollow<number>> | undefined
+  let follow: ReturnType<typeof useMobileNativeChatTailFollow<number>>
   function Probe() {
     follow = useMobileNativeChatTailFollow({ items: [1], scopeKey: 'chat' })
     return createElement(FlatList<number>, {
@@ -30,24 +30,15 @@ it('on the page, only the reader detaches, and nothing moves the view under a fi
       renderItem: () => null
     })
   }
-  const view = () => {
-    if (!follow) {
-      throw new Error('not rendered')
-    }
-    return follow
-  }
-  const scroll = (y: number, height: number) => {
-    view().recordScrollMetrics({
+  const scroll = (y: number, height: number) =>
+    follow.recordScrollMetrics({
       contentOffset: { x: 0, y },
       contentSize: { width: 320, height },
       layoutMeasurement: { width: 320, height: 500 },
       contentInset: { top: 0, bottom: 0, left: 0, right: 0 },
       zoomScale: 1
     })
-  }
-  const grow = (height: number) => {
-    view().pinToTailAfterContentResize(320, height)
-  }
+  const grow = (height: number) => follow.pinToTailAfterContentResize(320, height)
   // The browser's live touches list after each event.
   const touches = (count: number) => ({
     nativeEvent: { touches: Array.from({ length: count }, () => ({})) }
@@ -65,36 +56,36 @@ it('on the page, only the reader detaches, and nothing moves the view under a fi
       scroll(400, 1_000)
       grow(1_500)
     })
-    expect(view().following).toBe(true)
-    expect(view().showJumpToTail).toBe(false)
+    expect(follow!.following).toBe(true)
+    expect(follow!.showJumpToTail).toBe(false)
     pinnedTo(1_500)
 
     // A held finger: output below it never pins, and shows the way back.
     scrollToOffset.mockClear()
     act(() => {
       scroll(1_000, 1_500)
-      view().listInputProps.onTouchStart(touches(1))
+      follow.listInputProps.onTouchStart(touches(1))
       grow(1_700)
     })
     expect(scrollToOffset).not.toHaveBeenCalled()
-    expect(view().showJumpToTail).toBe(true)
+    expect(follow!.showJumpToTail).toBe(true)
 
     // That touch's end is lost with its removed element; the next touch lists only itself.
     act(() => {
-      view().listInputProps.onTouchStart(touches(1))
+      follow.listInputProps.onTouchStart(touches(1))
       scroll(800, 1_700)
       grow(1_900)
-      view().listInputProps.onTouchEnd(touches(0))
+      follow.listInputProps.onTouchEnd(touches(0))
       vi.advanceTimersByTime(200)
     })
-    expect(view().following).toBe(false)
-    expect(view().showJumpToTail).toBe(true)
+    expect(follow!.following).toBe(false)
+    expect(follow!.showJumpToTail).toBe(true)
 
     // Back at the end, following resumes once the gesture is over.
     act(() => {
-      view().listInputProps.onTouchStart(touches(1))
+      follow.listInputProps.onTouchStart(touches(1))
       scroll(1_400, 1_900)
-      view().listInputProps.onTouchEnd(touches(0))
+      follow.listInputProps.onTouchEnd(touches(0))
       grow(2_000)
     })
     expect(scrollToOffset).not.toHaveBeenCalled()
@@ -107,39 +98,39 @@ it('on the page, only the reader detaches, and nothing moves the view under a fi
     scrollToOffset.mockClear()
     act(() => {
       scroll(1_500, 2_000)
-      view().listInputProps.onTouchStart(touches(1))
+      follow.listInputProps.onTouchStart(touches(1))
       scroll(1_460, 2_000)
-      view().listInputProps.onTouchEnd(touches(0))
+      follow.listInputProps.onTouchEnd(touches(0))
       vi.advanceTimersByTime(200)
       grow(2_300)
     })
-    expect(view().following).toBe(false)
-    expect(view().showJumpToTail).toBe(true)
+    expect(follow!.following).toBe(false)
+    expect(follow!.showJumpToTail).toBe(true)
 
     // A cancelled touch, then RN Web's queued final notification, never snaps.
     act(() => {
-      view().listInputProps.onTouchStart(touches(1))
-      view().listInputProps.onTouchCancel(touches(0))
+      follow.listInputProps.onTouchStart(touches(1))
+      follow.listInputProps.onTouchCancel(touches(0))
       setTimeout(() => scroll(1_460, 2_300), 100)
       vi.advanceTimersByTime(500)
     })
     expect(scrollToOffset).not.toHaveBeenCalled()
-    expect(view().showJumpToTail).toBe(true)
+    expect(follow!.showJumpToTail).toBe(true)
 
     // A wheel is the reader's too; an explicit jump drops it, so the re-pin chase cannot detach.
     act(() => {
-      view().jumpToTail()
+      follow.jumpToTail()
       scroll(1_800, 2_300)
-      view().listInputProps.onWheel?.({ deltaY: -40, ctrlKey: false })
+      follow.listInputProps.onWheel?.({ deltaY: -40, ctrlKey: false })
       scroll(1_760, 2_300)
     })
-    expect(view().following).toBe(false)
+    expect(follow!.following).toBe(false)
     act(() => {
-      view().jumpToTail()
+      follow.jumpToTail()
       scroll(1_500, 2_300)
     })
-    expect(view().following).toBe(true)
-    expect(view().showJumpToTail).toBe(false)
+    expect(follow!.following).toBe(true)
+    expect(follow!.showJumpToTail).toBe(false)
     pinnedTo(2_300)
   } finally {
     act(() => renderer?.unmount())

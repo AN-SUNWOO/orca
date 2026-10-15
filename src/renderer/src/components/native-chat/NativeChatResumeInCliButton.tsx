@@ -17,10 +17,12 @@ import {
 export function NativeChatResumeInCliButton({
   tabId,
   worktreeId,
+  groupId,
   nativeChat
 }: {
   tabId: string
   worktreeId: string
+  groupId: string
   nativeChat: NativeChatTabSession
 }): React.JSX.Element {
   const [pending, setPending] = useState(false)
@@ -37,6 +39,7 @@ export function NativeChatResumeInCliButton({
       )
     )
   const resume = async (): Promise<void> => {
+    const targetGroupId = groupId
     const isOpen = () =>
       useAppStore.getState().unifiedTabsByWorktree[worktreeId]?.some((tab) => tab.id === tabId) ??
       false
@@ -62,7 +65,7 @@ export function NativeChatResumeInCliButton({
     }
     const move = row ? resolveTabSessionSwitch(useAppStore.getState(), row, subject) : null
     if (row && move?.action === 'resume-in-new-cli') {
-      launch.handleResumeInNewCli(row, move.worktreeId)
+      launch.handleResumeInNewCli(row, move.worktreeId, targetGroupId)
     } else {
       unavailable()
     }

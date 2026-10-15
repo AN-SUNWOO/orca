@@ -38,10 +38,6 @@ export function NativeChatPaneHeader({
     : theme === 'light' || (theme === 'system' && !systemDark)
   const split = translate('components.native-chat.splitRight', 'Split Chat Right')
   const splitShortcut = useShortcutKeyDetails('terminal.splitRight')
-  const close = translate(
-    'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
-    'Close Pane'
-  )
   return (
     <div
       className="pane-title-bar z-20"
@@ -55,6 +51,7 @@ export function NativeChatPaneHeader({
           <NativeChatResumeInCliButton
             tabId={tabId}
             worktreeId={worktreeId}
+            groupId={groupId}
             nativeChat={nativeChat}
           />
         ) : null}
@@ -85,7 +82,7 @@ export function NativeChatPaneHeader({
                 type="button"
                 variant="pane-title-close"
                 size="icon-xs"
-                aria-label={close}
+                aria-label={actions.closeLabel}
                 onClick={(event) => {
                   event.stopPropagation()
                   actions.onClosePane()
@@ -95,7 +92,7 @@ export function NativeChatPaneHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={4}>
-              {close}
+              {actions.closeLabel}
             </TooltipContent>
           </Tooltip>
         ) : null}

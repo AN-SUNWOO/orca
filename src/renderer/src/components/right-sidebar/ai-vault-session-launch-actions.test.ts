@@ -153,6 +153,30 @@ describe('Resume in New CLI launch', () => {
     expect(mocks.toastError).not.toHaveBeenCalled()
   })
 
+  it('keeps the chosen chat group while fork preparation and focus changes are pending', async () => {
+    let finishFork: ((value: { session: AiVaultSession; copied: boolean }) => void) | undefined
+    mocks.prepareAiVaultSessionForFork.mockReturnValue(
+      new Promise((resolve) => {
+        finishFork = resolve
+      })
+    )
+    renderActions().handleResumeInNewCli(owned, 'worktree-1', 'chat-group')
+    mocks.getState.mockReturnValue({
+      activeWorktreeId: 'worktree-1',
+      activeGroupIdByWorktree: { 'worktree-1': 'other-group' },
+      settings: {}
+    })
+    finishFork?.({ session: owned, copied: false })
+
+    await waitFor(() => expect(mocks.launchAiVaultSessionInNewTab).toHaveBeenCalledOnce())
+    expect(mocks.launchAiVaultSessionInNewTab).toHaveBeenCalledWith({
+      agent: 'claude',
+      worktreeId: 'worktree-1',
+      targetGroupId: 'chat-group',
+      ...FORK_STARTUP
+    })
+  })
+
   it.each(['omp', 'opencode2'] as const)(
     'opens the %s copy with the actual CLI in the chosen workspace',
     async (agent) => {

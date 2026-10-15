@@ -116,9 +116,8 @@ export function deliverToSubscriber(
       })
       return
     }
-    // A phone's app ends a stream that outruns its unacked window, so a gap of more than one page
-    // arrives as the newest page instead; older rows load on scroll.
-    if (page.hasNewer && subscriber.boundedFrames) {
+    // Replaying an unbounded gap blocks the host; older rows remain available on scroll.
+    if (page.hasNewer && subscriber.snapshotCatchUp !== false) {
       const tail = withPublishedWork(
         readAgentSessionHydrationPage(journal, subscriber.fence, reader),
         work

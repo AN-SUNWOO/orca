@@ -39,6 +39,8 @@ export type AgentSessionSubscribeInput = {
   /** Every frame to fit a phone's bridge frame; the RPC sets it for every phone. */
   boundedFrames?: boolean
   readsCurrentRequests?: boolean
+  /** False for desktops that need exact replay to keep send echoes and current requests. */
+  snapshotCatchUp?: boolean
 }
 
 export type Subscriber = CurrentRequestsSubscriber & {
@@ -48,6 +50,7 @@ export type Subscriber = CurrentRequestsSubscriber & {
   cursor: AgentJournalCursor
   fence: number
   boundedFrames: boolean
+  snapshotCatchUp?: boolean
   commands?: AgentSessionSlashCommand[] | null
   /** The last draft list actually SENT — never advanced on a page that withheld
    *  it, or the final replacement would be suppressed by the identity dedup. */
@@ -99,6 +102,7 @@ export class AgentSessionSubscribers {
     cursor?: AgentJournalCursor
     boundedFrames?: boolean
     readsCurrentRequests?: boolean
+    snapshotCatchUp?: boolean
   }): () => void {
     const liveCursor = input.journal.cursor()
     const subscriber: Subscriber = {
@@ -108,7 +112,8 @@ export class AgentSessionSubscribers {
       cursor: input.cursor ?? { epoch: liveCursor.epoch, sequence: 0 },
       fence: input.fence,
       readsCurrentRequests: input.readsCurrentRequests === true,
-      boundedFrames: input.boundedFrames === true
+      boundedFrames: input.boundedFrames === true,
+      snapshotCatchUp: input.snapshotCatchUp !== false
     }
     const session = this.bySession.get(input.sessionId) ?? new Map<string, Subscriber>()
     session.set(input.id, subscriber)

@@ -286,8 +286,7 @@ export function createCodexJournalTranslator(
       const unhandled = genericFrames.appendUnhandled(
         `notification:${event.method}`,
         event.params,
-        event.threadId,
-        { coveredByTypedTranslator: event.method === 'thread/status/changed' }
+        event.threadId
       )
       if (unhandled.accepted && event.method === 'error') {
         commands.errorShown(event.params)

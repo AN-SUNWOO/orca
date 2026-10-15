@@ -455,7 +455,7 @@ describe('codex journal translation', () => {
         notification('future/notification', { message: 'Provider note', value: index })
       )
     }
-    translator.handle(notification('future/failure', { error: 'provider exploded' }))
+    translator.handle(notification('warning', { message: 'provider exploded' }))
     window.fire()
 
     const generic = tap.rows.filter(
@@ -463,7 +463,7 @@ describe('codex journal translation', () => {
     )
     expect(generic).toHaveLength(MAX_CODEX_GENERIC_ROWS_PER_TURN + 1)
     expect(generic.at(-1)?.body).toMatchObject({
-      providerFrame: { kind: 'notification:future/failure' }
+      providerFrame: { kind: 'notification:warning' }
     })
     // Only the 3 capped noise frames reduce to a summary; the error is not counted there.
     expect(tap.rows.filter((row) => row.key.includes('provider-frame-suppressed'))).toHaveLength(1)

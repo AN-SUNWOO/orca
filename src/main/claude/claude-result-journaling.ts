@@ -80,7 +80,7 @@ export function journalClaudeResult(
       message,
       failure?.text,
       undefined,
-      undefined,
+      { reportsFailure: failure !== null },
       // A result that settles no turn is a CHILD's result: this
       // translator only ever opens root turns.
       settlesTurn

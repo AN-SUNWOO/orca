@@ -7,7 +7,6 @@ import {
   type AgentSessionAttachResult,
   type AgentSessionMutationResult
 } from '../../../shared/agent-session-wire'
-import type { StructuredAgentSessionCaller } from './structured-agent-session-host-types'
 import {
   AgentSessionRefusalError,
   agentSessionRefusalError,
@@ -31,7 +30,6 @@ import {
 } from './structured-agent-session-provider-support'
 import { performSend } from './structured-agent-session-turns'
 import { observedReceipt } from './structured-agent-session-operation-settlement'
-import { attachStructuredAgentSession } from './structured-agent-session-attach-orchestration'
 import { readAgentSessionHydrationPage } from './agent-session-history-page'
 import { resolveAgentSessionReplayOutcome } from './structured-agent-session-replay-outcome'
 import type { CliSourceStopHost } from '../../runtime/structured-agent-cli-stop'
@@ -329,24 +327,6 @@ async function foundConversation(
     if (!committed && !existing) {
       await session.journal.close()
     }
-  }
-}
-
-/** Host entry points that open a chat: attach an existing one or create a new one. */
-export function structuredAgentSessionEntryDelegates(
-  context: () => StructuredAgentSessionAttachContext
-) {
-  return {
-    attach: (
-      caller: StructuredAgentSessionCaller,
-      params: AgentSessionAttachParams,
-      options?: Parameters<typeof attachStructuredAgentSession>[3]
-    ) => attachStructuredAgentSession(context(), caller.callerKey, params, options),
-    create: (
-      caller: StructuredAgentSessionCaller,
-      params: AgentSessionAttachParams,
-      options?: StructuredAgentSessionCreateOptions
-    ) => createStructuredAgentSession(context(), caller.callerKey, params, options)
   }
 }
 

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { codexProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
 import type { AgentStatusIpcPayload } from '../../../shared/agent-status-types'
-import type { CliSourceStopHost } from '../../runtime/structured-agent-cli-stop'
+import type * as CliStop from '../../runtime/structured-agent-cli-stop'
 import { createRestTestRig, type RestTestRig } from './structured-agent-session-rest-test-rig'
 import { createTestParams, CREATE_TEST_CALLER } from './structured-agent-session-create-test-fixture'
 import {
@@ -14,7 +14,7 @@ const stop = vi.hoisted(() => ({
   capture: vi.fn(), judge: vi.fn(), probe: vi.fn()
 }))
 vi.mock('../../runtime/structured-agent-cli-stop', async (load) => ({
-  ...await load<typeof import('../../runtime/structured-agent-cli-stop')>(),
+  ...await load<typeof CliStop>(),
   captureCliSourceProcessIdentities: stop.capture,
   stopCliSourceAndJudge: stop.judge,
   probeCliSourceSurvivors: stop.probe
@@ -34,7 +34,7 @@ const row = (paneKey: string): AgentStatusIpcPayload => ({
   stateStartedAt: 1,
   providerSession: { key: 'session_id', id: HOST_TEST_THREAD, transcriptPath: '/saved.jsonl' }
 })
-const sourceHost: CliSourceStopHost = {
+const sourceHost: CliStop.CliSourceStopHost = {
   rows: () => rows,
   resolvePane: () => ({ ptyId: 'pty-source', connected: true }),
   sleeping: () => false,

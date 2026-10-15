@@ -17,7 +17,7 @@ vi.mock('./use-mobile-structured-agent-state', () => ({
   useMobileStructuredAgentState: () => ({
     state,
     stateRef,
-    loadingOlder: false,
+    olderPages: 'idle',
     loadEarlier: vi.fn()
   })
 }))

@@ -187,9 +187,9 @@ describe('useMobileNativeChatPageHistory', () => {
 
     // A failed page ends the tap with the retry line; the next tap clears it and reads on.
     expect(session.current?.loadingEarlier).toBe(false)
-    expect(session.current?.loadEarlierFailed).toBe(true)
+    expect(session.current?.olderPages).toBe('failed')
     act(() => session.current?.loadEarlier(firstPageRowId))
-    expect(session.current?.loadEarlierFailed).toBe(false)
+    expect(session.current?.olderPages).toBe('loading')
     await answer()
 
     expect(sendRequest).toHaveBeenCalledTimes(3)

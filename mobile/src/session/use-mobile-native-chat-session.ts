@@ -13,6 +13,7 @@ import {
   type MobileNativeChatStreamFrame
 } from './mobile-native-chat-stream-frame'
 import { structuredSessionRandomUuid } from './structured-session-operation-id'
+import { useMobileOlderPageLoader, type OlderPagePhase } from './use-mobile-older-page-loader'
 
 export type MobileNativeChatStatus =
   | 'idle'
@@ -42,8 +43,8 @@ export type MobileNativeChatSession = {
   hasMore: boolean
   /** Whether an older-history page is currently loading. */
   loadingEarlier: boolean
-  /** The last older-history page the reader asked for never arrived. */
-  loadEarlierFailed?: boolean
+  /** How the last older-history read the reader asked for ended. */
+  olderPages?: OlderPagePhase
   /** Grow the window to page in older history. Given the first row a list draws from some
    *  messages, it reads on until that row changes. */
   loadEarlier: (
@@ -56,12 +57,11 @@ const INITIAL_LIMIT = 40
 const PAGE = 60
 const MAX_MESSAGES = 2000
 
-type PageWindow = { nextLimit: number; pageLimit: number }
-/** 'end': no older history, or the page was superseded; 'failed': it never arrived. */
-type PageOutcome = 'more' | 'end' | 'failed'
-
 /** The next older page, or null once the window holds the most it may. */
-function nextPageWindow(limit: number, listLength: number): PageWindow | null {
+function nextPageWindow(
+  limit: number,
+  listLength: number
+): { nextLimit: number; pageLimit: number } | null {
   // Live output grows the list past the last read, so the next page counts from what is held.
   const held = Math.max(limit, listLength)
   const nextLimit = Math.min(held + PAGE, MAX_MESSAGES)
@@ -119,9 +119,7 @@ export function useMobileNativeChatSession(args: {
   const status = settled ? settled.status : initialStatus
   const [error, setError] = useState<string | undefined>(undefined)
   const [hasMore, setHasMore] = useState(false)
-  const [loadingEarlier, setLoadingEarlier] = useState(false)
-  const [loadEarlierFailed, setLoadEarlierFailed] = useState(false)
-  const loadingEarlierRef = useRef(false)
+  const { phase: olderPages, load: loadOlderPages, supersede } = useMobileOlderPageLoader()
   const beforeOffsetRef = useRef<number | null>(null)
   // Stateful id-dedup merger: caches the id→index map so each live append frame
   // costs O(incoming), not O(existing+incoming) (#18). `replaceList` resets the
@@ -131,7 +129,6 @@ export function useMobileNativeChatSession(args: {
   // Tracks the live session so a late loadEarlier resolve can detect a swap.
   const sessionIdRef = useRef<string | null>(sessionId)
   sessionIdRef.current = sessionId
-  const streamGenerationRef = useRef(0)
   // Whether this subscription already delivered its base snapshot; later
   // snapshots on the same subscription are reconnect replays, not fresh bases.
   const snapshotSeenRef = useRef(false)
@@ -154,12 +151,9 @@ export function useMobileNativeChatSession(args: {
     let cancelled = false
     // Why: disconnect/agent/session loss must invalidate a page request before
     // the early idle/waiting return can clear the visible source.
-    streamGenerationRef.current += 1
+    supersede()
     limitRef.current = INITIAL_LIMIT
-    loadingEarlierRef.current = false
     snapshotSeenRef.current = false
-    setLoadingEarlier(false)
-    setLoadEarlierFailed(false)
     setList([])
     setError(undefined)
     setHasMore(false)
@@ -218,16 +212,13 @@ export function useMobileNativeChatSession(args: {
           // Why: a replaced window fences an in-flight older page, and any replay fences a
           // cursorless page, which replaces the list. A cursor page survives a contiguous
           // replay; one that re-cut the cursor fails the page's own cursor check.
-          streamGenerationRef.current += 1
-          loadingEarlierRef.current = false
-          setLoadingEarlier(false)
+          supersede()
         }
         if (applied.windowReplaced) {
           // Only a genuinely fresh window resets the grown read window — an
           // overlapping reconnect replay keeps the paged-in history and limit.
           limitRef.current = INITIAL_LIMIT
           beforeOffsetRef.current = applied.beforeOffset ?? null
-          setLoadEarlierFailed(false)
           setHasMore(applied.hasMore ?? applied.messages.length >= INITIAL_LIMIT)
         }
         setMessages(applied.messages)
@@ -240,9 +231,7 @@ export function useMobileNativeChatSession(args: {
         if (applied.cursorInvalidated) {
           // Fall back to a growing-tail read so history trimmed by live appends
           // cannot leave a gap between the retained window and the old cursor.
-          streamGenerationRef.current += 1
-          loadingEarlierRef.current = false
-          setLoadingEarlier(false)
+          supersede()
           beforeOffsetRef.current = null
         }
         setRead({ client, identity, status: applied.pending ? 'awaiting-transcript' : 'ready' })
@@ -251,34 +240,41 @@ export function useMobileNativeChatSession(args: {
 
     return () => {
       cancelled = true
-      // Why: ends an older-page read still reading on, including at unmount.
-      streamGenerationRef.current += 1
+      supersede()
       unsubscribe()
     }
-  }, [client, agent, sessionId, transcriptPath, identity, setList])
+  }, [client, agent, sessionId, transcriptPath, identity, setList, supersede])
 
-  const loadEarlier = useCallback(
-    (firstDrawnRowId?: (messages: readonly NativeChatMessage[]) => string | undefined) => {
-      if (!client || !agent || !sessionId || loadingEarlierRef.current || !hasMore) {
+  const loadEarlier = useCallback<MobileNativeChatSession['loadEarlier']>(
+    (firstDrawnRowId) => {
+      if (!client || !agent || !sessionId || !hasMore) {
         return
       }
       // Capture the session this page belongs to; a swap underneath us must not
       // apply this read's result onto the new session (mirrors desktop's guard).
       const requestSessionId = sessionId
-      const requestGeneration = streamGenerationRef.current
-      const ownsLatch = (): boolean =>
-        sessionIdRef.current === requestSessionId &&
-        streamGenerationRef.current === requestGeneration
-      /** Lands one older page from the then-current cursor. */
-      const readPage = async ({ nextLimit, pageLimit }: PageWindow): Promise<PageOutcome> => {
+      // A page counts messages, but the reader sees folded rows: a tool run with no words that
+      // fills a page draws nothing, so one tap reads on until a new row is drawn.
+      const drawn = firstDrawnRowId?.(mergerRef.current.list)
+      loadOlderPages(async ({ timeoutMs, isCurrent }) => {
+        const page = nextPageWindow(limitRef.current, mergerRef.current.list.length)
+        if (!page) {
+          setHasMore(false)
+          return 'end'
+        }
+        const { nextLimit, pageLimit } = page
         const beforeOffset = beforeOffsetRef.current
-        const response = await nativeChatSessionPageRead.request(client, {
-          agent,
-          sessionId,
-          limit: beforeOffset === null ? nextLimit : pageLimit,
-          ...(beforeOffset === null ? {} : { beforeOffset }),
-          ...(transcriptPath ? { transcriptPath } : {})
-        })
+        const response = await nativeChatSessionPageRead.request(
+          client,
+          {
+            agent,
+            sessionId,
+            limit: beforeOffset === null ? nextLimit : pageLimit,
+            ...(beforeOffset === null ? {} : { beforeOffset }),
+            ...(transcriptPath ? { transcriptPath } : {})
+          },
+          { timeoutMs, budgetSpansConnect: true }
+        )
         const accepted = nativeChatSessionPageRead.interpret(response)
         if (!accepted.accepted) {
           return 'failed'
@@ -296,7 +292,11 @@ export function useMobileNativeChatSession(args: {
         }
         // Lands only on the window and cursor it was asked from; otherwise the window it
         // read against is gone, and the reader pages again from the new one.
-        if (!ownsLatch() || beforeOffsetRef.current !== beforeOffset) {
+        if (
+          !isCurrent() ||
+          sessionIdRef.current !== requestSessionId ||
+          beforeOffsetRef.current !== beforeOffset
+        ) {
           return 'end'
         }
         limitRef.current = nextLimit
@@ -311,50 +311,15 @@ export function useMobileNativeChatSession(args: {
           more = result.messages.length >= nextLimit
         }
         setHasMore(more)
-        return more ? 'more' : 'end'
-      }
-      let page = nextPageWindow(limitRef.current, mergerRef.current.list.length)
-      if (!page) {
-        setHasMore(false)
-        return
-      }
-      loadingEarlierRef.current = true
-      setLoadingEarlier(true)
-      setLoadEarlierFailed(false)
-      void (async () => {
-        let failed = false
-        try {
-          // A page counts messages, but the reader sees folded rows: a tool run with no words that
-          // fills a page draws nothing, so one tap reads on until a new row is drawn.
-          const drawn = firstDrawnRowId?.(mergerRef.current.list)
-          while (page) {
-            const outcome = await readPage(page)
-            failed = outcome === 'failed'
-            if (
-              outcome !== 'more' ||
-              !firstDrawnRowId ||
-              firstDrawnRowId(mergerRef.current.list) !== drawn
-            ) {
-              return
-            }
-            page = nextPageWindow(limitRef.current, mergerRef.current.list.length)
-          }
-          setHasMore(false)
-        } catch {
-          // Contained here, not raised: nothing awaits this page, so a transport drop or a
-          // teardown abandon would reach the document as an unhandled rejection.
-          failed = true
-        } finally {
-          // A late page from a prior tab must not unlock or flag the current tab's request.
-          if (ownsLatch()) {
-            loadingEarlierRef.current = false
-            setLoadingEarlier(false)
-            setLoadEarlierFailed(failed)
-          }
+        if (!more) {
+          return 'end'
         }
-      })()
+        return firstDrawnRowId && firstDrawnRowId(mergerRef.current.list) === drawn
+          ? 'drew-nothing'
+          : 'drew'
+      })
     },
-    [client, agent, sessionId, transcriptPath, hasMore, setList]
+    [client, agent, sessionId, transcriptPath, hasMore, setList, loadOlderPages]
   )
 
   // Held for any unsettled read, not just an in-flight one: a stream error or a
@@ -373,8 +338,8 @@ export function useMobileNativeChatSession(args: {
     transcriptLoading: status === 'loading' || status === 'awaiting-transcript',
     error,
     hasMore,
-    loadingEarlier,
-    loadEarlierFailed,
+    loadingEarlier: olderPages === 'loading',
+    olderPages,
     loadEarlier
   }
 }

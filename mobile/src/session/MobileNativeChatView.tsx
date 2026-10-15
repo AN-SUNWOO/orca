@@ -52,6 +52,7 @@ import { MobileNativeChatMessage } from './MobileNativeChatMessage'
 import { MobileNativeChatScrollHold } from './MobileNativeChatScrollHold'
 import { mobileNativeChatUnsentNotices } from './mobile-native-chat-unsent-notices'
 import type { MobileNativeChatStatus } from './use-mobile-native-chat-session'
+import type { OlderPagePhase } from './use-mobile-older-page-loader'
 
 /** Why the composer input is locked: the transport is disconnected, or the
  *  terminal subscription has not acknowledged its input lease yet. */
@@ -87,8 +88,7 @@ type Props = ComposerTrayProps & {
    *  by the overlay against the transcript catching up. */
   streaming: string | null
   hasMore?: boolean
-  loadingEarlier?: boolean
-  loadEarlierFailed?: boolean
+  olderPages?: OlderPagePhase
   onLoadEarlier?: () => void
   onSend: (text: string) => Promise<boolean>
   /** Route identity used to fence accepted sends that settle after a tab/view switch. */
@@ -175,8 +175,7 @@ export function MobileNativeChatView({
   onStop,
   streaming,
   hasMore,
-  loadingEarlier,
-  loadEarlierFailed,
+  olderPages = 'idle',
   onLoadEarlier,
   onSend,
   sendSurfaceId,
@@ -277,11 +276,12 @@ export function MobileNativeChatView({
       const { contentOffset } = e.nativeEvent
       recordScrollMetrics(e.nativeEvent)
       // Near the top — page in older history. Only the reader's drag: a pin reports offsets too.
-      if (contentOffset.y < 60 && hasMore && !loadingEarlier && scrollMayLoadEarlier()) {
+      // After a failure only a tap retries, so a reader still at the top can't loop the spinner.
+      if (contentOffset.y < 60 && hasMore && olderPages === 'idle' && scrollMayLoadEarlier()) {
         loadEarlier()
       }
     },
-    [hasMore, loadingEarlier, loadEarlier, scrollMayLoadEarlier, recordScrollMetrics]
+    [hasMore, olderPages, loadEarlier, scrollMayLoadEarlier, recordScrollMetrics]
   )
 
   // Per-turn status rows: one live indicator while the turn runs, then a settled
@@ -384,7 +384,7 @@ export function MobileNativeChatView({
               onLayout={pinToTail}
               maintainVisibleContentPosition={mobileNativeChatRowAnchor(hasMore === true)}
               ListHeaderComponent={history.withHistory(
-                mobileNativeChatListHeader(hasMore, loadingEarlier, loadEarlierFailed, loadEarlier)
+                mobileNativeChatListHeader(hasMore, olderPages, loadEarlier)
               )}
               ListFooterComponent={mobileNativeChatListFooter(
                 liveStatus,

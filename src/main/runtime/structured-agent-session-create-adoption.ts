@@ -151,5 +151,4 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
     throw agentSessionRefusalError('agent_session_identity_required',
       { reason: 'transcriptUnreadable' }, error instanceof Error ? error.message : String(error))
   }
-
 }

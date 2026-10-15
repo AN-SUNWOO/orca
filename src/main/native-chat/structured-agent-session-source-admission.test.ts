@@ -54,8 +54,8 @@ it('creates from the host hook path when Claude filename differs, then checks ac
   const importer = CLAUDE_CLI_CONVERSATIONS.transcriptImport!
   const find = vi.spyOn(importer, 'findTranscript')
   const adoption = await resolveStructuredAgentSessionAdoptionForCreate({
-    host: null, settings: {}, agent: 'claude', transcriptImport: importer, providerSessionId: id,
-    selfSessionId: 'new-chat', selectedAccountHome: { variable: 'CLAUDE_CONFIG_DIR', path: root },
+    settings: {}, agent: 'claude', transcriptImport: importer, providerSessionId: id,
+    selectedAccountHome: { variable: 'CLAUDE_CONFIG_DIR', path: root },
     launchEnv: {}, workspaceCwd: root, resolveTranscriptPath: sourcePath
   })
   expect(adoption.transcriptPath).toBe(transcriptPath)
@@ -74,8 +74,8 @@ it('creates from the host hook path when Claude filename differs, then checks ac
     await symlink(foreign, escaped)
   }
   await expect(resolveStructuredAgentSessionAdoptionForCreate({
-    host: null, settings: {}, agent: 'claude', transcriptImport: importer, providerSessionId: id,
-    selfSessionId: 'another-chat', selectedAccountHome: { variable: 'CLAUDE_CONFIG_DIR', path: root },
+    settings: {}, agent: 'claude', transcriptImport: importer, providerSessionId: id,
+    selectedAccountHome: { variable: 'CLAUDE_CONFIG_DIR', path: root },
     launchEnv: {}, workspaceCwd: root, resolveTranscriptPath: () => escaped
   })).rejects.toMatchObject({ refusal: { details: { reason: 'transcriptUnreadable' } } })
   expect(find).not.toHaveBeenCalled()

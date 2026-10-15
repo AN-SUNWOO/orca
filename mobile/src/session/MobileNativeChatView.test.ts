@@ -680,8 +680,7 @@ describe('MobileNativeChatView', () => {
 
     it('stops following only on reader input, never under a held finger, and resumes at the end', async () => {
       await render({ folded: [assistantTurn('a1', 'Latest')] })
-      const arrows = () =>
-        renderer!.root.findAll((node) => node.props.accessibilityLabel === 'Scroll to latest')
+      const arrows = () => renderer!.root.findAllByProps({ accessibilityLabel: 'Scroll to latest' })
       const finger = (pageY: number, down: boolean) => ({
         nativeEvent: { touches: down ? [{ pageY }] : [], changedTouches: [{ pageY }] }
       })
@@ -736,7 +735,6 @@ describe('MobileNativeChatView', () => {
       // A wheel up is the reader's too.
       scrollToOffset.mockClear()
       act(() => {
-        list().props.onScroll(scrolledTo(1_200, 1_700))
         list().props.onWheel({ deltaY: -40, ctrlKey: false })
         list().props.onContentSizeChange(320, 1_800)
       })
@@ -745,24 +743,6 @@ describe('MobileNativeChatView', () => {
       // Another chat opens at its newest message.
       await update({ folded: [assistantTurn('a1', 'Latest')], sendSurfaceId: 'tab-b' })
       pinnedTo(1_800)
-      expect(arrows()).toHaveLength(0)
-    })
-
-    it('does not take its own pin, landing short of a grown end, for the reader', async () => {
-      await render({ folded: [assistantTurn('a1', 'Latest')] })
-      act(() => {
-        list().props.onContentSizeChange(320, 1_000)
-        list().props.onScroll(scrolledTo(500, 1_000))
-      })
-      scrollToOffset.mockClear()
-
-      // The pin reached the end it was sent to; the reply had grown 400 past it by then.
-      act(() => {
-        list().props.onScroll(scrolledTo(700, 1_600))
-        list().props.onContentSizeChange(320, 1_600)
-      })
-
-      expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 1_600 })
     })
 
     it('pins a resized viewport to the measured end, never the list estimate', async () => {

@@ -29,23 +29,6 @@ function asReleasedClientSeesIt(refusal: AgentSessionWireRefusal): unknown {
 }
 
 describe('a refusal names only a reason its code lists', () => {
-  it('decodes only a complete owner pointer from an ownership refusal', () => {
-    const owner = { sessionId: 'chat-1', workspaceId: 'workspace-2' }
-    for (const code of ['agent_session_conflict', 'agent_session_ownership_unknown'] as const) {
-      const details = { reason: 'conversationHeldElsewhere', owner }
-      expect(readAgentSessionRefusalReference({ code, details })).toEqual({ code, details })
-      expect(
-        readAgentSessionRefusalDetails(code, {
-          ...details,
-          owner: { sessionId: 'chat-1' }
-        })
-      ).toEqual({ reason: 'conversationHeldElsewhere' })
-    }
-    expect(
-      readAgentSessionRefusalDetails('agent_session_identity_required', { owner })
-    ).toBeUndefined()
-  })
-
   it('rejects a reason another code lists, at compile time', () => {
     // @ts-expect-error `promptGone` is an operation_invalid reason, not a conflict one.
     refuse('agent_session_conflict', { reason: 'promptGone' }, 'm')

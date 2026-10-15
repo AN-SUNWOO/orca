@@ -273,10 +273,8 @@ export function useMobileStructuredAgentState(args: {
         return 'end'
       }
       if (!result.ok) {
-        // A stale window is the subscription's to replace; anything else can't be read from here.
-        return result.reset === 'epoch_changed' || result.reset === 'cursor_ahead'
-          ? 'end'
-          : 'unavailable'
+        // Every reset reason makes the subscription reload a fresh window, which replaces this one.
+        return 'end'
       }
       if (!intact()) {
         return 'drew-nothing'

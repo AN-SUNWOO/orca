@@ -61,7 +61,7 @@ describe('useMobileStructuredAgentState older history', () => {
 
   /** Mounts the hook on a session whose newest rows are `newest` (by default one of the
    *  session's own, at 1000), with the host serving `older` by the cursor each read asks before:
-   *  a page, a reset, or a thrown transport error. */
+   *  a page, a reset, or a thrown error. */
   async function mountWithOlderPages(
     older: Record<number, AgentSessionHistoryPage | AgentJournalResetReason | Error | undefined>,
     newest: AgentJournalRenderItem[] = [said(1_000)]
@@ -178,7 +178,11 @@ describe('useMobileStructuredAgentState older history', () => {
     expect(hook.current!.state.items.map((item) => item.sequence)).toEqual([1_000])
 
     older[1000] = page(range(900, 1_000), true)
-    older[900] = 'cursor_compacted'
+    older[900] = Object.assign(new Error('agent_session_journal_unreadable'), {
+      data: {
+        refusal: { code: 'agent_session_journal_unreadable', details: { reason: 'journalCorrupt' } }
+      }
+    })
     act(() => hook.current!.loadEarlier())
     await vi.waitFor(() => expect(hook.current!.state.items[0]?.sequence).toBe(900))
     expect(hook.current!.olderPages).toBe('idle')

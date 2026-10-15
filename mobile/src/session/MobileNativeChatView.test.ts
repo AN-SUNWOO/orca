@@ -676,7 +676,8 @@ describe('MobileNativeChatView', () => {
       }
     }
 
-    const fingerDown = { nativeEvent: { touches: [{}] } }
+    const row = new EventTarget()
+    const fingerDown = { nativeEvent: { target: row, touches: [{ target: row }] } }
 
     it('stops following when the reader scrolls up, and resumes at the end', async () => {
       await render({ folded: [assistantTurn('a1', 'Latest')] })

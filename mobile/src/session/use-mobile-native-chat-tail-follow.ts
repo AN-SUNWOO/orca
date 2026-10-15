@@ -14,6 +14,7 @@ import {
   type MobileNativeChatTailFollow,
   type PageTouchEvent
 } from './mobile-native-chat-scroll-policy'
+import { PageTouchTargets } from './mobile-native-chat-page-touch-targets'
 export { mobileNativeChatRowAnchor } from './mobile-native-chat-scroll-policy'
 export type { MobileNativeChatTailFollow } from './mobile-native-chat-scroll-policy'
 
@@ -64,8 +65,8 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const pageContentHeightRef = useRef(0)
   const pageViewportHeightRef = useRef(0)
   const pageReaderMovedUpRef = useRef(false)
-  // Page gesture: a finger on the list per the browser's live touches, then scroll quiet.
-  const pageTouchingRef = useRef(false)
+  // Page gesture: a reader's touch on the list, then scroll quiet.
+  const [pageTouches] = useState(() => new PageTouchTargets())
   const pageGestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scopeKeyRef = useRef(scopeKey)
 
@@ -85,8 +86,8 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   }, [])
 
   const pageGestureLive = useCallback(
-    () => pageTouchingRef.current || pageGestureTimerRef.current !== null,
-    []
+    () => pageTouches.touching || pageGestureTimerRef.current !== null,
+    [pageTouches]
   )
 
   /** Page: a pin under a live gesture would move the view under the reader's finger, and iOS
@@ -143,12 +144,12 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   }, [])
 
   const clearPageGesture = useCallback(() => {
-    pageTouchingRef.current = false
+    pageTouches.retire([])
     if (pageGestureTimerRef.current !== null) {
       clearTimeout(pageGestureTimerRef.current)
       pageGestureTimerRef.current = null
     }
-  }, [])
+  }, [pageTouches])
 
   const jumpToTail = useCallback(() => {
     clearUserScrollSettle()
@@ -166,7 +167,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       clearTimeout(pageGestureTimerRef.current)
       pageGestureTimerRef.current = null
     }
-    if (pageTouchingRef.current) {
+    if (pageTouches.touching) {
       return
     }
     pageGestureTimerRef.current = setTimeout(() => {
@@ -176,25 +177,29 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
         pinToTail()
       }
     }, PAGE_GESTURE_QUIET_MS)
-  }, [pinToTail, setAtTail])
+  }, [pageTouches, pinToTail, setAtTail])
 
-  // Why the live touches list, not the touches this list saw end: a touch whose element is removed
-  // mid-touch ends on that element, out of React's reach.
-  const notePageTouches = useCallback(
-    (event: PageTouchEvent) => {
+  // A touch can end long after the render that saw it start.
+  const extendPageGestureRef = useRef(extendPageGesture)
+  useLayoutEffect(() => {
+    extendPageGestureRef.current = extendPageGesture
+  }, [extendPageGesture])
+
+  const notePageTouchStart = useCallback(
+    ({ nativeEvent }: PageTouchEvent) => {
       if (!listReportsGestures()) {
-        pageTouchingRef.current = event.nativeEvent.touches.length > 0
+        pageTouches.noteStart(nativeEvent, () => extendPageGestureRef.current())
         extendPageGesture()
       }
     },
-    [extendPageGesture]
+    [extendPageGesture, pageTouches]
   )
 
   const attachList = useCallback(
     (list: FlatList<TItem> | null) => {
       listRef.current = list
       if (!list) {
-        // Touches on a removed list end out of React's reach.
+        // A removed list's touches no longer hold pins, nor keep its listeners.
         clearPageGesture()
       }
     },
@@ -304,9 +309,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     listRef,
     listInputProps: {
       ref: attachList,
-      onTouchStart: notePageTouches,
-      onTouchEnd: notePageTouches,
-      onTouchCancel: notePageTouches,
+      onTouchStart: notePageTouchStart,
       ...(Platform.OS === 'web' && {
         onWheel: (event) => {
           // Only a move up detaches; a wheel down would just hold pins off.

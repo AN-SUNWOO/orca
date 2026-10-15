@@ -39,10 +39,12 @@ it('on the page, only the reader detaches, and nothing moves the view under a fi
       zoomScale: 1
     })
   const grow = (height: number) => follow.pinToTailAfterContentResize(320, height)
-  // The browser's live touches list after each event.
-  const touches = (count: number) => ({
-    nativeEvent: { touches: Array.from({ length: count }, () => ({})) }
-  })
+  const row = new EventTarget()
+  const touch = (target: EventTarget) =>
+    follow.listInputProps.onTouchStart({ nativeEvent: { target, touches: [{ target }] } })
+  // The browser sends a touch's end to the element it started on, in the document or not.
+  const lift = (target: EventTarget, type = 'touchend') =>
+    target.dispatchEvent(Object.assign(new Event(type), { touches: [] }))
   const pinnedTo = (offset: number) =>
     expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset })
   let renderer: ReactTestRenderer | undefined
@@ -64,18 +66,28 @@ it('on the page, only the reader detaches, and nothing moves the view under a fi
     scrollToOffset.mockClear()
     act(() => {
       scroll(1_000, 1_500)
-      follow.listInputProps.onTouchStart(touches(1))
+      touch(row)
       grow(1_700)
     })
     expect(scrollToOffset).not.toHaveBeenCalled()
     expect(follow!.showJumpToTail).toBe(true)
 
-    // That touch's end is lost with its removed element; the next touch lists only itself.
+    // The row under the finger is replaced, so React never sees the lift; its element still does.
     act(() => {
-      follow.listInputProps.onTouchStart(touches(1))
+      lift(row)
+      vi.advanceTimersByTime(200)
+    })
+    pinnedTo(1_700)
+    expect(follow!.showJumpToTail).toBe(false)
+
+    // A move up under a finger is the reader's.
+    scrollToOffset.mockClear()
+    act(() => {
+      scroll(1_200, 1_700)
+      touch(row)
       scroll(800, 1_700)
       grow(1_900)
-      follow.listInputProps.onTouchEnd(touches(0))
+      lift(row)
       vi.advanceTimersByTime(200)
     })
     expect(follow!.following).toBe(false)
@@ -83,9 +95,9 @@ it('on the page, only the reader detaches, and nothing moves the view under a fi
 
     // Back at the end, following resumes once the gesture is over.
     act(() => {
-      follow.listInputProps.onTouchStart(touches(1))
+      touch(row)
       scroll(1_400, 1_900)
-      follow.listInputProps.onTouchEnd(touches(0))
+      lift(row)
       grow(2_000)
     })
     expect(scrollToOffset).not.toHaveBeenCalled()
@@ -98,9 +110,9 @@ it('on the page, only the reader detaches, and nothing moves the view under a fi
     scrollToOffset.mockClear()
     act(() => {
       scroll(1_500, 2_000)
-      follow.listInputProps.onTouchStart(touches(1))
+      touch(row)
       scroll(1_460, 2_000)
-      follow.listInputProps.onTouchEnd(touches(0))
+      lift(row)
       vi.advanceTimersByTime(200)
       grow(2_300)
     })
@@ -109,8 +121,8 @@ it('on the page, only the reader detaches, and nothing moves the view under a fi
 
     // A cancelled touch, then RN Web's queued final notification, never snaps.
     act(() => {
-      follow.listInputProps.onTouchStart(touches(1))
-      follow.listInputProps.onTouchCancel(touches(0))
+      touch(row)
+      lift(row, 'touchcancel')
       setTimeout(() => scroll(1_460, 2_300), 100)
       vi.advanceTimersByTime(500)
     })

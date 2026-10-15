@@ -16,8 +16,9 @@ export type PageScrollKeyEvent = {
   target?: EventTarget | null
   nativeEvent?: { isComposing?: boolean }
 }
-/** The touches still on the screen, after this event. */
-export type PageTouchEvent = { nativeEvent: { touches: ArrayLike<unknown> } }
+/** The touches still on the screen after a touch event, each with the element it started on. */
+export type PageTouches = { touches: ArrayLike<{ target?: unknown }> }
+export type PageTouchEvent = { nativeEvent: PageTouches & { target?: unknown } }
 
 export type MobileNativeChatTailFollow<TItem> = {
   /** Attach to the transcript list; the hook scrolls through this ref alone. */
@@ -25,8 +26,6 @@ export type MobileNativeChatTailFollow<TItem> = {
   listInputProps: {
     ref: (list: FlatList<TItem> | null) => void
     onTouchStart: (event: PageTouchEvent) => void
-    onTouchEnd: (event: PageTouchEvent) => void
-    onTouchCancel: (event: PageTouchEvent) => void
     onWheel?: (event: { deltaY: number; ctrlKey: boolean; defaultPrevented?: boolean }) => void
     onKeyDown?: (event: PageScrollKeyEvent) => void
   }

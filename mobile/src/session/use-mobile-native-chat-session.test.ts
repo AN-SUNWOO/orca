@@ -157,12 +157,11 @@ describe('useMobileNativeChatSession', () => {
       })
 
       expect(sendRequest).toHaveBeenCalledTimes(requestsAtCap + 1)
-      expect(sendRequest).toHaveBeenLastCalledWith('nativeChat.readSession', {
-        agent: 'claude',
-        sessionId: 'session',
-        limit: 60,
-        beforeOffset: 500
-      })
+      expect(sendRequest).toHaveBeenLastCalledWith(
+        'nativeChat.readSession',
+        { agent: 'claude', sessionId: 'session', limit: 60, beforeOffset: 500 },
+        expect.objectContaining({ budgetSpansConnect: true })
+      )
     }
   )
 
@@ -293,11 +292,11 @@ describe('useMobileNativeChatSession', () => {
     )
     act(() => state?.loadEarlier())
 
-    expect(sendRequest).toHaveBeenCalledWith('nativeChat.readSession', {
-      agent: 'claude',
-      sessionId: 'session',
-      limit: 100
-    })
+    expect(sendRequest).toHaveBeenCalledWith(
+      'nativeChat.readSession',
+      { agent: 'claude', sessionId: 'session', limit: 100 },
+      expect.objectContaining({ budgetSpansConnect: true })
+    )
   })
 
   it('clears hasMore when a replaced window is shorter than the initial page', async () => {
@@ -385,11 +384,11 @@ describe('useMobileNativeChatSession', () => {
 
     act(() => state?.loadEarlier())
     await answer({ id: 'x', ok: false, error: { code: 'refused', message: 'refused' } })
-    expect(state?.loadEarlierFailed).toBe(true)
+    expect(state?.olderPages).toBe('failed')
     expect(state?.loadingEarlier).toBe(false)
     act(() => state?.loadEarlier())
     expect(sendRequest).toHaveBeenCalledTimes(3)
-    expect(state?.loadEarlierFailed).toBe(false)
+    expect(state?.olderPages).toBe('loading')
   })
 
   it('keeps the base snapshot authoritative when a live append arrives first', async () => {
@@ -470,11 +469,11 @@ describe('useMobileNativeChatSession', () => {
     act(() => state?.loadEarlier())
 
     // 70 rows held plus one page: a read of 100 would come back shorter than the list it replaces.
-    expect(sendRequest).toHaveBeenLastCalledWith('nativeChat.readSession', {
-      agent: 'claude',
-      sessionId: 'session',
-      limit: 130
-    })
+    expect(sendRequest).toHaveBeenLastCalledWith(
+      'nativeChat.readSession',
+      { agent: 'claude', sessionId: 'session', limit: 130 },
+      expect.objectContaining({ budgetSpansConnect: true })
+    )
   })
 })
 

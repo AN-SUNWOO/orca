@@ -32,14 +32,14 @@ export const mobileSessionFrameStyles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs
   },
-  // One button style for every header and tab-strip action; the 4pt gap keeps touch areas from overlapping.
+  // Each 36pt visual reserves 4pt per side for its 44pt touch area.
   headerButton: {
     width: 36,
     height: 36,
     borderRadius: radii.button,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: spacing.xs / 2
+    marginHorizontal: spacing.xs
   },
   headerButtonPressed: {
     backgroundColor: colors.bgRaised

@@ -126,7 +126,14 @@ export type TabsSlice = {
   closeOtherTabs: (tabId: string) => string[]
   closeTabsToRight: (tabId: string) => string[]
   closeTabsToLeft: (tabId: string) => string[]
-  ensureWorktreeRootGroup: (worktreeId: string) => string
+  ensureWorktreeRootGroup: (
+    worktreeId: string,
+    orderSlot?: {
+      tabId: string
+      targetGroupId?: string
+      precedingTabIds: readonly string[]
+    }
+  ) => string
   focusGroup: (worktreeId: string, groupId: string) => void
   closeEmptyGroup: (worktreeId: string, groupId: string) => boolean
   createEmptySplitGroup: (

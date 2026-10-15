@@ -10,9 +10,7 @@ import type { ExecutionHostId } from '../../../shared/execution-host'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { defaultAgentChatLabel } from '../../../shared/agent-session-chat-label'
 import { structuredAgentSessionTabId } from '../../../shared/structured-agent-session-projection'
-import { insertTabIdIntoOrder } from '../../../shared/workspace-layout/tab-order'
 import { useAppStore } from '@/store'
-import { ensureGroup } from '@/store/slices/tab-group-state'
 import { resolveUnifiedTabCreatePlacement } from '@/store/slices/tabs/tabs-create-placement'
 import type { StructuredLaunchSurfaceAddress } from './structured-agent-session-launch-record'
 import {
@@ -129,54 +127,11 @@ export function reserveStructuredLaunchSlot(launch: LaunchSurface): void {
   if (!address || launch.executionHostId !== 'local') {
     return
   }
-  const state = useAppStore.getState()
-  const tabId = structuredAgentSessionTabId(launch.sessionId)
-  const groups = state.groupsByWorktree[address.worktreeId] ?? []
-  if (groups.some((group) => group.tabOrder.includes(tabId))) {
-    return
-  }
-  const { group, groupsByWorktree, activeGroupIdByWorktree } = ensureGroup(
-    state.groupsByWorktree,
-    state.activeGroupIdByWorktree,
-    address.worktreeId,
-    groups.some((entry) => entry.id === address.targetGroupId)
-      ? address.targetGroupId
-      : state.activeGroupIdByWorktree[address.worktreeId]
-  )
-  // Only reload reconstructs a missing slot; live sibling mutations use canonical order.
-  const preceding = new Set(address.precedingTabIds)
-  const anchor = group.tabOrder.findLast((id) => preceding.has(id))
-  const order = insertTabIdIntoOrder(
-    group.tabOrder,
-    state.unifiedTabsByWorktree[address.worktreeId] ?? [],
-    tabId,
-    false,
-    anchor
-  )
-  if (!anchor && address.precedingTabIds.length === 0) {
-    order.splice(order.indexOf(tabId), 1)
-    const firstUnpinned = order.findIndex(
-      (id) =>
-        !state.unifiedTabsByWorktree[address.worktreeId]?.find((tab) => tab.id === id)?.isPinned
-    )
-    order.splice(firstUnpinned === -1 ? order.length : firstUnpinned, 0, tabId)
-  }
   trackSlotAddresses()
-  useAppStore.setState({
-    groupsByWorktree: {
-      ...groupsByWorktree,
-      [address.worktreeId]: groupsByWorktree[address.worktreeId].map((entry) =>
-        entry.id === group.id ? { ...entry, tabOrder: order } : entry
-      )
-    },
-    activeGroupIdByWorktree,
-    layoutByWorktree: {
-      ...state.layoutByWorktree,
-      [address.worktreeId]: state.layoutByWorktree[address.worktreeId] ?? {
-        type: 'leaf',
-        groupId: group.id
-      }
-    }
+  useAppStore.getState().ensureWorktreeRootGroup(address.worktreeId, {
+    tabId: structuredAgentSessionTabId(launch.sessionId),
+    targetGroupId: address.targetGroupId,
+    precedingTabIds: address.precedingTabIds
   })
 }
 
@@ -187,18 +142,10 @@ export function removeStructuredLaunchSlot(worktreeId: string, sessionId: string
     return
   }
   const groups = state.groupsByWorktree[worktreeId] ?? []
-  if (!groups.some((group) => group.tabOrder.includes(tabId))) {
-    return
+  for (const group of groups.filter((entry) => entry.tabOrder.includes(tabId))) {
+    const order = group.tabOrder.filter((id) => id !== tabId)
+    state.reorderUnifiedTabs(group.id, order, { recordInteraction: false })
   }
-  useAppStore.setState({
-    groupsByWorktree: {
-      ...state.groupsByWorktree,
-      [worktreeId]: groups.map((group) => ({
-        ...group,
-        tabOrder: group.tabOrder.filter((id) => id !== tabId)
-      }))
-    }
-  })
 }
 
 export function openStructuredAgentSessionProvisionalTab(args: {

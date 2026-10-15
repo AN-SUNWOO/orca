@@ -387,7 +387,22 @@ describe('CLI identity resume through the existing launch owner', () => {
       surfaceAddress: { worktreeId: 'wt-1', precedingTabIds: [] }
     }
     writeStructuredAgentLaunchRecord(record)
+    const firstGroup = vi.fn()
+    const unsubscribe = useAppStore.subscribe((state) => {
+      const group = state.groupsByWorktree['wt-1']?.[0]
+      if (group) {
+        firstGroup(group)
+      }
+    })
     reserveStructuredLaunchSlot(record)
+    unsubscribe()
+    expect(firstGroup).toHaveBeenCalledTimes(1)
+    expect(firstGroup.mock.calls[0][0]).toMatchObject({
+      tabOrder: ['structured-agent-session-reload-pending'],
+      activeTabId: null
+    })
+    expect(firstGroup.mock.calls[0][0].recentTabIds ?? []).toEqual([])
+    expect(tabs()).toHaveLength(0)
     const session = buildWorkspaceSessionPayload(useAppStore.getState())
     stopStructuredLaunchSlotTracking()
     resetStructuredAgentLaunchPersistenceForTests()

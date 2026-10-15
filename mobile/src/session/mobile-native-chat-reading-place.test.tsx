@@ -20,7 +20,12 @@ vi.mock('react-native', () => ({
   View: 'div',
   Pressable: 'button'
 }))
-vi.mock('lucide-react-native', () => ({ ChevronDown: () => null, SquareChevronRight: () => null }))
+vi.mock('lucide-react-native', () => ({
+  ChevronDown: () => null,
+  SquareChevronRight: () => null,
+  SquareTerminal: () => null,
+  Wrench: () => null
+}))
 vi.mock('./mobile-native-chat-message-styles', () => ({ styles: {} }))
 
 const say = (id: string, role: 'user' | 'assistant', text: string): NativeChatMessage => ({

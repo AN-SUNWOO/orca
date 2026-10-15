@@ -168,11 +168,6 @@ function PulsingText({
   )
 }
 
-function firstLine(blocks: readonly NativeChatBlock[]): string | null {
-  const [pair] = pairToolBlocks(blocks, 1)
-  return pair ? nativeChatToolLineIdentity(pair.call ?? pair.result!, new Map(), true) : null
-}
-
 /** How many lines now come before `line`; none when it left the run. */
 function linesAbove(blocks: readonly NativeChatBlock[], line: string): number {
   const seen = new Map<string, number>()
@@ -203,21 +198,21 @@ export function ToolRun({
   const [open, setOpen] = useState(defaultExpanded)
   // `requested` is what Show more asked for; `before` the lines older calls added above the open
   // run's first line, so the lines the reader was on stay shown.
-  const [reveal, setReveal] = useState(() => ({
+  const [reveal, setReveal] = useState<{ requested: number; before: number; first?: string }>({
     requested: TOOL_PAIR_REVEAL_PAGE,
-    before: 0,
-    first: defaultExpanded ? firstLine(blocks) : null
-  }))
-  const first = open ? firstLine(blocks) : null
-  if (first !== reveal.first) {
-    const before = first && reveal.first ? reveal.before + linesAbove(blocks, reveal.first) : 0
-    setReveal({ ...reveal, before, first })
-  }
+    before: 0
+  })
   const shown = reveal.before + reveal.requested
   const pairs = useMemo(
     () => (open ? pairToolBlocks(blocks, shown + 1) : []),
     [blocks, open, shown]
   )
+  const [head] = pairs
+  const first = head && nativeChatToolLineIdentity(head.call ?? head.result!, new Map(), true)
+  if (first !== reveal.first) {
+    const before = first && reveal.first ? reveal.before + linesAbove(blocks, reveal.first) : 0
+    setReveal({ ...reveal, before, first })
+  }
   const visiblePairs = pairs.slice(0, shown)
   const seen = new Map<string, number>()
   // What the reader asked to see sets each diff's share, not lines an older page added.

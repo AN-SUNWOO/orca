@@ -52,6 +52,7 @@ jobs:
       package_windows: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package_windows }}
       layout_oracle: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.layout_oracle }}
       verify_fast_path: ${{ steps.verify_fast_path.outputs.canonical }}
+      darwin_terminal_node: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.darwin_terminal_node }}
       e2e_should_run: ${{ steps.e2e_filter.outputs.should_run }}
       test_files: ${{ steps.e2e_filter.outputs.test_files }}
       e2e_run_changed: ${{ steps.e2e_filter.outputs.e2e_run_changed }}
@@ -154,9 +155,10 @@ jobs:
           PACKAGE: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package }}
           PACKAGE_WINDOWS: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.package_windows }}
           LAYOUT_ORACLE: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.layout_oracle }}
+          DARWIN_TERMINAL_NODE: ${{ steps.readiness.outputs.reused != 'true' && steps.filter.outputs.darwin_terminal_node }}
         run: |
           canonical=1
-          for selected in "$STATIC_ANALYSIS" "$TYPECHECK" "$GIT_COMPATIBILITY" "$CODEX_INDEX_HEAL_CONTRACT" "$XTERM_PATCH_SYNC" "$SHELL_CONTRACTS" "$TEST" "$MOBILE_WEB_APP" "$CROSS_VERSION_WIRE" "$MANAGED_HOOK_NODE18" "$PACKAGE" "$PACKAGE_WINDOWS" "$LAYOUT_ORACLE"; do
+          for selected in "$STATIC_ANALYSIS" "$TYPECHECK" "$GIT_COMPATIBILITY" "$CODEX_INDEX_HEAL_CONTRACT" "$XTERM_PATCH_SYNC" "$SHELL_CONTRACTS" "$TEST" "$MOBILE_WEB_APP" "$CROSS_VERSION_WIRE" "$MANAGED_HOOK_NODE18" "$PACKAGE" "$PACKAGE_WINDOWS" "$LAYOUT_ORACLE" "$DARWIN_TERMINAL_NODE"; do
             case "$selected" in
               true|false) ;;
               *) canonical=0 ;;
@@ -1525,6 +1527,34 @@ jobs:
     with:
       ref: ${{ github.event.pull_request.head.sha }}
 
+  darwin_terminal_node:
+    name: mac terminal worker wakeup (${{ matrix.os }})
+    needs: [code_paths, preflight]
+    if: >-
+      !cancelled() && needs.preflight.result == 'success' &&
+      needs.code_paths.outputs.darwin_terminal_node == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      ORCA_BACKGROUND_LAUNCH: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/install-node-dependencies
+        with:
+          native-runtime: node
+      - uses: actions/cache@v5
+        with:
+          path: out/node-runtime-cache
+          key: darwin-terminal-node-${{ runner.arch }}-${{ hashFiles('src/shared/node-runtime-pin.ts', 'config/node-runtime-patches/**', 'config/scripts/build-darwin-terminal-node.mjs') }}
+      - name: Build and verify the shipping terminal runtime
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/verify-darwin-terminal-node.mjs
+
   verify:
     name: PR checks passed
     # GitHub accepts skipped required jobs; only mismatches need a runner to fail with details.
@@ -1581,6 +1611,10 @@ jobs:
         (
           (needs.code_paths.outputs.layout_oracle == 'true' && needs.layout_oracle.result == 'success') ||
           (needs.code_paths.outputs.layout_oracle == 'false' && needs.layout_oracle.result == 'skipped')
+        ) &&
+        (
+          (needs.code_paths.outputs.darwin_terminal_node == 'true' && needs.darwin_terminal_node.result == 'success') ||
+          (needs.code_paths.outputs.darwin_terminal_node == 'false' && needs.darwin_terminal_node.result == 'skipped')
         )
       )
     needs:
@@ -1597,6 +1631,7 @@ jobs:
       - package
       - package_windows
       - layout_oracle
+      - darwin_terminal_node
     # Only failures and noncanonical routing allocate this runner.
     runs-on: ubuntu-slim
     timeout-minutes: 5
@@ -1638,6 +1673,8 @@ jobs:
           PACKAGE_WINDOWS_SHOULD_RUN: ${{ needs.code_paths.outputs.package_windows }}
           LAYOUT_ORACLE: ${{ needs.layout_oracle.result }}
           LAYOUT_ORACLE_SHOULD_RUN: ${{ needs.code_paths.outputs.layout_oracle }}
+          DARWIN_TERMINAL_NODE: ${{ needs.darwin_terminal_node.result }}
+          DARWIN_TERMINAL_NODE_SHOULD_RUN: ${{ needs.code_paths.outputs.darwin_terminal_node }}
         run: |
           if [ "$CODE_PATHS" != "success" ]; then
             exit 1
@@ -1673,4 +1710,5 @@ jobs:
           check_job package "$PACKAGE" "$PACKAGE_SHOULD_RUN"
           check_job package_windows "$PACKAGE_WINDOWS" "$PACKAGE_WINDOWS_SHOULD_RUN"
           check_job layout_oracle "$LAYOUT_ORACLE" "$LAYOUT_ORACLE_SHOULD_RUN"
+          check_job darwin_terminal_node "$DARWIN_TERMINAL_NODE" "$DARWIN_TERMINAL_NODE_SHOULD_RUN"
           exit "$failed"

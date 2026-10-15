@@ -33,7 +33,8 @@ export const PR_CHECK_JOBS = [
   'managed_hook_node18',
   'package',
   'package_windows',
-  'layout_oracle'
+  'layout_oracle',
+  'darwin_terminal_node'
 ]
 
 const ALWAYS_ON_CODE_JOBS = new Set(['static_analysis', 'typecheck', 'test'])
@@ -542,6 +543,20 @@ function jobDetector(job) {
       return (files) => files.some(isWindowsPackagePath)
     case 'layout_oracle':
       return (files) => files.some(isLayoutOracleSource)
+    case 'darwin_terminal_node':
+      return (files) =>
+        files.some((file) =>
+          matchesPrefix(file, [
+            'config/node-runtime-patches/',
+            'config/scripts/build-darwin-terminal-node',
+            'config/scripts/verify-darwin-terminal-node',
+            'config/scripts/darwin-terminal-node-',
+            'config/scripts/__fixtures__/darwin-terminal-worker-wait',
+            'config/scripts/__fixtures__/darwin-threadpool-wait',
+            'config/scripts/macos-terminal-host-bundle',
+            'src/shared/node-runtime-pin.ts'
+          ])
+        )
     default:
       return () => true
   }

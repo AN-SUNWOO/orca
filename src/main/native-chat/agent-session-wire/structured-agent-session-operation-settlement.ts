@@ -40,7 +40,11 @@ export async function runSettledAgentSessionMutation<TValue>(input: {
           })
       )
     : undefined
-  const context = receipt ? { ...input.context, operationReceipt: receipt } : input.context
+  const context = {
+    ...input.context,
+    ...(receipt ? { operationReceipt: receipt } : {}),
+    intentReceipt: observedReceipt(input.store, input.store.operationIntentReceipt(operation))
+  }
   let outcome: TurnOutcome<TValue> | undefined
   try {
     const ran = await input.plan.run(context)

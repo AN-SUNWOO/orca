@@ -72,6 +72,8 @@ export type AgentSessionTurnContext = {
   failureTextContext?: AgentSessionFailureWordsContext
   /** The operation's success, committed with the row that accepts it (`settlesWithWrite` or `commandReceipt`). */
   operationReceipt?: AgentSessionOperationReceipt
+  /** Saves user intent before provider effects; never proves the provider applied it. */
+  intentReceipt?: AgentSessionOperationReceipt
   now: () => number
 }
 

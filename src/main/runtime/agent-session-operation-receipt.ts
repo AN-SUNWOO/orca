@@ -1,5 +1,8 @@
 import type { JournalOperationReceipt } from '../native-chat/agent-session-journal/journal-row-writer'
-import type { AgentSessionOperationOutcome } from '../../shared/agent-session-operation-ledger'
+import {
+  agentSessionOperationKey,
+  type AgentSessionOperationOutcome
+} from '../../shared/agent-session-operation-ledger'
 import {
   insertAcceptedAgentSessionOperationInto,
   settleAgentSessionOperationInto,
@@ -10,6 +13,21 @@ import type { AgentSessionStoreTransactions } from './agent-session-store-transa
 export type AgentSessionOperationReceiptInput =
   | Parameters<typeof settleAgentSessionOperationInto>[1]
   | (AgentSessionOperationAcceptance & { outcome: AgentSessionOperationOutcome })
+
+/** Carries admission across a pre-effect write without claiming the provider succeeded. */
+export function agentSessionOperationIntentReceipt(
+  transactions: AgentSessionStoreTransactions,
+  args: { callerKey: string; operationId: string }
+): JournalOperationReceipt {
+  return transactions.receipt((draft) => {
+    const key = agentSessionOperationKey(args.callerKey, args.operationId)
+    const admitted = draft.operations.get(key)
+    if (!admitted) {
+      throw new Error('user intent requires an admitted operation')
+    }
+    draft.operations.set(key, { ...admitted })
+  })
+}
 
 export function agentSessionOperationOutcomeReceipt(
   transactions: AgentSessionStoreTransactions,

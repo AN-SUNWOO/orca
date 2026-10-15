@@ -13,7 +13,8 @@ import {
 import {
   hostTestMessage,
   HOST_TEST_SESSION as SESSION,
-  HOST_TEST_THREAD as THREAD
+  HOST_TEST_THREAD as THREAD,
+  HOST_TEST_NOW
 } from './structured-agent-session-host-test-data'
 import type { AgentSessionTurnContext } from './structured-agent-session-turns'
 import {
@@ -24,7 +25,12 @@ import {
 import { runCommandReceiptMutation } from './structured-agent-session-command-receipt'
 import { createStructuredAgentSessionLogger } from './structured-agent-session-logger'
 import { codexProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
-import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-test-support'
+import {
+  NO_STRUCTURED_AGENTS,
+  claudeAndCodexAgents
+} from './structured-agent-session-adapter-router-test-support'
+import { threadGoalPlan } from './structured-agent-session-thread-goal'
+import { openTestJournalHostDatabase } from '../agent-session-journal/journal-host-database-test-support'
 
 const DRAFT_RECEIPT: MutationCommandReceipt<unknown> = {
   result: () => ({ kind: 'queued-draft', messageId: 'draft' })
@@ -66,6 +72,49 @@ async function context(): Promise<AgentSessionTurnContext> {
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
+})
+
+it('saves goal intent FULL before provider work without acknowledging a rejected goal', async () => {
+  const ctx = await context()
+  const { store, root } = hostTestState()
+  const change = { kind: 'set' as const, objective: 'Ship the parser' }
+  ctx.now = () => HOST_TEST_NOW
+  const operation = envelope('agentSession.threadGoal', { change })
+  await store.admitMutationOperation({
+    callerKey: 'test',
+    envelope: operation,
+    hostFingerprint: operation.payloadFingerprint,
+    now: ctx.now()
+  })
+  const db = openTestJournalHostDatabase(root).db
+  const modes: number[] = []
+  const exec = db.exec.bind(db)
+  vi.spyOn(db, 'exec').mockImplementation((sql) => {
+    if (sql === 'COMMIT') {
+      modes.push(Number(db.pragma('synchronous', { simple: true })))
+    }
+    exec(sql)
+  })
+  ctx.adapter.changeThreadGoal = async () => {
+    expect(modes).toEqual([2])
+    expect(ctx.journal.snapshot().items).toHaveLength(1)
+    return { ok: false, rejected: 'Goal rejected' }
+  }
+  ctx.agents = claudeAndCodexAgents(ctx.adapter)
+  const plan = threadGoalPlan({ envelope: operation, change })
+  if (plan.commandReceipt) {
+    throw new Error('goals settle the provider outcome separately')
+  }
+  const result = await runSettledAgentSessionMutation({
+    store,
+    operationCallerKey: 'test',
+    envelope: operation,
+    context: ctx,
+    plan
+  })
+  expect(result).toMatchObject({ ok: false, refusal: { message: 'Goal rejected' } })
+  expect(ctx.journal.snapshot().items).toEqual([])
+  expect(store.getOperationRow('test', operation.clientOperationId)?.outcome.status).toBe('failed')
 })
 
 it('rethrows a throw from a plan answered by its write, writing nothing and leaving the row pending', async () => {

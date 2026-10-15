@@ -47,7 +47,10 @@ vi.mock('@/components/tab-bar/tab-move-to-pane-column', () => ({
 }))
 vi.mock('./use-structured-chat-pane-actions', () => ({
   useStructuredChatPaneActions: () => ({
-    onSplitRight: vi.fn(), onSplitDown: vi.fn(), canClosePane: false, onClosePane: vi.fn()
+    onSplitRight: vi.fn(),
+    onSplitDown: vi.fn(),
+    canClosePane: false,
+    onClosePane: vi.fn()
   })
 }))
 vi.mock('./use-native-chat-tab-owner', () => ({

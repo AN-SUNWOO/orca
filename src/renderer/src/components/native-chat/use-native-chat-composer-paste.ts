@@ -134,20 +134,12 @@ export function useNativeChatComposerPaste({
       if (event.defaultPrevented) {
         return
       }
+      // Copied files attach themselves, never a picture or label pasted beside them.
       const copiedFilePaths = clipboardEventCopiedFilePaths(event)
-      if (copiedFilePaths.length > 0) {
-        event.preventDefault()
-        if (canPaste()) {
-          setNotice(null)
-          attachCopiedFiles(copiedFilePaths)
-        } else {
-          showPasteUnavailable()
-        }
-        return
-      }
-      const imageFile = clipboardEventImageFile(event)
-      const text = clipboardEventPromptText(event, imageFile !== null)
-      if (!imageFile && !text) {
+      const copiesFiles = copiedFilePaths.length > 0
+      const imageFile = copiesFiles ? null : clipboardEventImageFile(event)
+      const text = copiesFiles ? '' : clipboardEventPromptText(event, imageFile !== null)
+      if (!copiesFiles && !imageFile && !text) {
         return
       }
       event.preventDefault()
@@ -156,6 +148,10 @@ export function useNativeChatComposerPaste({
         return
       }
       setNotice(null)
+      if (copiesFiles) {
+        attachCopiedFiles(copiedFilePaths)
+        return
+      }
       if (text) {
         try {
           assertClipboardTextWithinLimit(text, { maxBytes: NATIVE_CHAT_CONTEXT_PASTE_MAX_BYTES })

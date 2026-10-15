@@ -33,9 +33,11 @@ export function useMobileOlderPageLoader(): {
   const [phase, setPhase] = useState<OlderPagePhase>('idle')
   // Only the running read's token may settle the phase, so a superseded read's late reply can't.
   const tokenRef = useRef<object | null>(null)
+  // History that can't be read stays so until the window is replaced, whatever re-triggers a read.
+  const unavailableRef = useRef(false)
 
   const load = useCallback((reader: OlderPageReader) => {
-    if (tokenRef.current) {
+    if (tokenRef.current || unavailableRef.current) {
       return
     }
     const token = {}
@@ -60,6 +62,7 @@ export function useMobileOlderPageLoader(): {
       .then((step) => {
         if (isCurrent()) {
           tokenRef.current = null
+          unavailableRef.current = step === 'unavailable'
           setPhase(step === 'failed' || step === 'unavailable' ? step : 'idle')
         }
       })
@@ -67,6 +70,7 @@ export function useMobileOlderPageLoader(): {
 
   const supersede = useCallback(() => {
     tokenRef.current = null
+    unavailableRef.current = false
     setPhase('idle')
   }, [])
 

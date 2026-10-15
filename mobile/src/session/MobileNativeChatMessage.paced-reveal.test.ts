@@ -127,7 +127,9 @@ describe('a growing reply on the phone', () => {
     render(first)
     advance(caughtUp ? DELAY : DELAY / 2)
     render([first, second])
-    if (!caughtUp) expect(contents()[0].length).toBeLessThan(first.length)
+    if (!caughtUp) {
+      expect(contents()[0].length).toBeLessThan(first.length)
+    }
     expect(contents()[1].length).toBeLessThan(second.length)
     advance(DELAY / 2)
     const before = drawn()

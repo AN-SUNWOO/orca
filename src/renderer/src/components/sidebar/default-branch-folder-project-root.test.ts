@@ -4,7 +4,7 @@ import type { Repo } from '../../../../shared/repo-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { isDefaultBranchWorkspace } from '../../../../shared/worktree/workspace-kinds'
-import { computeVisibleWorktreeIds } from './visible-worktrees'
+import { computeVisibleWorktreeIds } from './compute-visible-worktrees'
 
 function makeRepo(id: string, path: string, kind: Repo['kind']): Repo {
   return { id, path, displayName: id, badgeColor: '#000', addedAt: 0, kind }

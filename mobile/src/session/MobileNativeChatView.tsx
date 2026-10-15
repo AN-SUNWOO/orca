@@ -88,6 +88,7 @@ type Props = ComposerTrayProps & {
   streaming: string | null
   hasMore?: boolean
   loadingEarlier?: boolean
+  loadEarlierFailed?: boolean
   onLoadEarlier?: () => void
   onSend: (text: string) => Promise<boolean>
   /** Route identity used to fence accepted sends that settle after a tab/view switch. */
@@ -175,6 +176,7 @@ export function MobileNativeChatView({
   streaming,
   hasMore,
   loadingEarlier,
+  loadEarlierFailed,
   onLoadEarlier,
   onSend,
   sendSurfaceId,
@@ -382,7 +384,7 @@ export function MobileNativeChatView({
               onLayout={pinToTail}
               maintainVisibleContentPosition={mobileNativeChatRowAnchor(hasMore === true)}
               ListHeaderComponent={history.withHistory(
-                mobileNativeChatListHeader(hasMore, loadingEarlier, loadEarlier)
+                mobileNativeChatListHeader(hasMore, loadingEarlier, loadEarlierFailed, loadEarlier)
               )}
               ListFooterComponent={mobileNativeChatListFooter(
                 liveStatus,

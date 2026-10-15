@@ -103,6 +103,7 @@ export function createPtyApi(): NonNullable<Partial<PreloadApi>['pty']> {
     clearPendingPaneSerializer: () => Promise.resolve(),
     reportRendererSerializerReady: () => Promise.resolve(),
     management: {
+      asyncIoHealth: () => Promise.resolve({ state: 'unsupported' as const }),
       listSessions: () => Promise.resolve({ sessions: [], degraded: false }),
       killAll: () => Promise.resolve({ killedCount: 0, remainingCount: 0, killedSessionIds: [] }),
       killOne: () => Promise.resolve({ success: false }),

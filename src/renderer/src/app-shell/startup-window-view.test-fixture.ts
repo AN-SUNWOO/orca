@@ -185,7 +185,8 @@ export function projectStartupWindowView(state: AppState): Record<string, unknow
     for (const row of state.tabsByWorktree[key] ?? []) {
       const panes = state.terminalLayoutsByTabId[row.id]
       const terminal = `${key} terminal ${row.id}`
-      view[`${terminal} title`] = row.customTitle ?? row.title
+      // Phones and the CLI show the row title; the desktop tab shows its tab-bar label.
+      view[`${terminal} phone and CLI title`] = row.customTitle ?? row.title
       view[`${terminal} panes`] = panes?.root ? paneView(panes.root, panes) : null
       view[`${terminal} focused pane`] = panes?.root
         ? leafPosition(panes.root, panes.activeLeafId)

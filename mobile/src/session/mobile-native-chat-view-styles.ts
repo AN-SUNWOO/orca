@@ -105,5 +105,11 @@ export const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.metaSize,
     fontWeight: '600'
+  },
+  loadEarlierFailedText: {
+    color: colors.textMuted,
+    fontSize: typography.metaSize,
+    textAlign: 'center',
+    marginTop: spacing.xs
   }
 })

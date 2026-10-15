@@ -19712,6 +19712,11 @@
       "resumed_one": "{{count}} agent session resumed.",
       "resumed_other": "{{count}} agent sessions resumed."
     },
+    "stalledDaemonBanner": {
+      "body": "Background work on this computer is stalled. Typing and new terminals may not work. Restarting the terminal service ends its running terminals and commands.",
+      "review": "Review restart options",
+      "title": "Terminal service may need a restart"
+    },
     "severedDaemonBanner": {
       "unknownCount": "its running terminals",
       "count": "{{count}} running terminals",
@@ -20090,6 +20095,22 @@
       "cancel": "Cancel",
       "noTransition": "No status change to {{column}} is available for {{key}}.",
       "queryTooLong": "The Jira query is too long. Shorten the query or clear filters."
+    },
+    "favourites": {
+      "loadFailed": "Could not load Jira favourites.",
+      "clearFailed": "Could not clear the saved filter. Retry after it finishes loading or saving.",
+      "applyFailed": "Could not apply the Jira favourite.",
+      "siteMismatch": "Choose a project from the favourite’s Jira site, or clear the project filter.",
+      "label": "Jira favourites",
+      "chooseSite": "Choose one connected Jira site to use its favourites.",
+      "unsupported": "Update the Jira host to use favourites.",
+      "refresh": "Refresh",
+      "loading": "Loading favourites…",
+      "find": "Find a Jira favourite",
+      "empty": "No Jira favourites found.",
+      "truncated": "Some favourites could not be listed. Manage your favourites in Jira to narrow the list.",
+      "clear": "Clear Jira favourite",
+      "activeLabel": "Jira favourites: {{name}}"
     }
   }
 }

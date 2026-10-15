@@ -31,7 +31,7 @@ import { FilterToggleRow } from './FilterToggleRow'
 import { useShortcutLabel } from '@/hooks/useShortcutLabel'
 import { searchRepos } from '@/lib/repo-search'
 import { DEFAULT_SHOW_SLEEPING_WORKSPACES } from '../../../../shared/constants'
-import { isSleepingSweepExemptionNarrowingList } from './visible-worktrees'
+import { isSleepingSweepExemptionNarrowingList } from '../../../../shared/workspace-view/workspace-row-filters'
 import { translate } from '@/i18n/i18n'
 
 type SidebarFilterProps = {
@@ -115,7 +115,7 @@ const SidebarFilter = React.memo(function SidebarFilter({
   // Why counted: turning the exemption off is the only way that row narrows the
   // list — but only while its parent row is on, which is also when it renders.
   const hasSleepingExemptionFilter = isSleepingSweepExemptionNarrowingList(
-    showSleepingWorkspaces,
+    !showSleepingWorkspaces,
     alwaysShowDefaultBranchWorkspace
   )
   const hasAnyFilter =

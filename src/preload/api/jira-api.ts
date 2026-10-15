@@ -1,4 +1,5 @@
 import type { JiraMediaFormat } from '../../shared/jira-attachment-image'
+import type { JiraFavouriteFilterList } from '../../shared/jira-favourite-filters'
 import type {
   JiraIssueSummaryGenerationRequest,
   JiraIssueSummaryGenerationCancellation,
@@ -84,6 +85,7 @@ export type JiraApi = {
     mediaFormat?: JiraMediaFormat
   }) => Promise<JiraComment[]>
   listProjects: (args?: { siteId?: JiraSiteSelection }) => Promise<JiraProject[]>
+  listFavouriteFilters: (args: { siteId: string }) => Promise<JiraFavouriteFilterList>
   listIssueTypes: (args: { projectIdOrKey: string; siteId?: string }) => Promise<JiraIssueType[]>
   listCreateFields: (args: {
     projectIdOrKey: string

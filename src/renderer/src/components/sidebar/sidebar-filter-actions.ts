@@ -1,6 +1,9 @@
-import { ALL_EXECUTION_HOSTS_SCOPE } from '../../../../shared/execution-host'
+import {
+  ALL_EXECUTION_HOSTS_SCOPE,
+  type ExecutionHostId,
+  type ExecutionHostScope
+} from '../../../../shared/execution-host'
 import { DEFAULT_SHOW_SLEEPING_WORKSPACES } from '../../../../shared/constants'
-import type { SidebarFilterState } from './visible-worktree-kinds'
 
 /**
  * Whether the sidebar is currently filtered, and what "clear filters" should undo.
@@ -9,6 +12,29 @@ import type { SidebarFilterState } from './visible-worktree-kinds'
  * about the filter CHROME, not about which rows survive filtering.
  */
 
+/** Inputs describing sidebar filter settings that the Clear Filters path owns. */
+export type SidebarFilterState = {
+  showSleepingWorkspaces: boolean
+  filterRepoIds: readonly string[]
+  hideDefaultBranchWorkspace: boolean
+  hideAutomationGeneratedWorkspaces: boolean
+  hideCliCreatedWorkspaces: boolean
+  hideDetachedHeadWorkspaces: boolean
+  hideWorkspacesFromOtherDevices: boolean
+  /** Keeps each project's main workspace out of the "Hide sleeping" sweep; absent means on. */
+  alwaysShowDefaultBranchWorkspace?: boolean
+  visibleWorkspaceHostIds?: readonly ExecutionHostId[] | null
+  workspaceHostScope?: ExecutionHostScope
+}
+
+/**
+ * Whether at least one sidebar filter is active — drives the "Clear Filters"
+ * escape hatch in the empty-state message.
+ *
+ * Why include hideDefaultBranchWorkspace here: without it, a user whose only
+ * worktree is the default-branch row and who toggles hide-on would see the
+ * "No workspaces found" message with no in-sidebar recovery path.
+ */
 export function sidebarHasActiveFilters(state: SidebarFilterState): boolean {
   return (
     state.showSleepingWorkspaces !== DEFAULT_SHOW_SLEEPING_WORKSPACES ||

@@ -119,6 +119,7 @@ export function MobileNativeChatOverlay({
           onOpenFile={onOpenFile}
           hasMore={session.hasMore}
           loadingEarlier={session.loadingEarlier}
+          loadEarlierFailed={session.loadEarlierFailed}
           onLoadEarlier={session.loadEarlier}
           onSend={images.sendNativeChat}
           sendSurfaceId={sendSurfaceId}

@@ -1,21 +1,20 @@
 import { useCallback, useMemo } from 'react'
 import { useAppStore } from '@/store'
 import { DEFAULT_SHOW_SLEEPING_WORKSPACES } from '../../../../../../shared/constants'
-import {
-  computeClearFilterActions,
-  sidebarHasActiveFilters,
-  isAutomationGeneratedWorkspace,
-  isCliCreatedWorkspace,
-  isDetachedHeadWorkspace,
-  isSleepingSweepExemptWorkspace
-} from '../../visible-worktrees'
+import { computeClearFilterActions, sidebarHasActiveFilters } from '../../visible-worktrees'
 import type { Worktree } from '../../../../../../shared/worktree/types'
 import { parseWorkspaceKey } from '../../../../../../shared/workspace-scope'
 import {
   getWorktreeExecutionHostId,
   getSettingsFocusedExecutionHostId
 } from '../../../../../../shared/execution-host'
-import { isDefaultBranchWorkspace } from '../../../../../../shared/worktree/workspace-kinds'
+import {
+  isAutomationGeneratedWorkspace,
+  isCliCreatedWorkspace,
+  isDefaultBranchWorkspace,
+  isDetachedHeadWorkspace
+} from '../../../../../../shared/worktree/workspace-kinds'
+import { isSleepingSweepExempt } from '../../../../../../shared/workspace-view/workspace-row-filters'
 import { getFolderWorkspaceExecutionHostIdForRows } from './host-filtering'
 import {
   getPairedDeviceIdsByEnvironment,
@@ -128,7 +127,7 @@ export function useSidebarWorktreeFilters() {
         getAgentStatusEpochNow(state.agentStatusEpoch)
       )
       if (
-        !isSleepingSweepExemptWorkspace(worktree, state.alwaysShowDefaultBranchWorkspace) &&
+        !isSleepingSweepExempt(worktree.isMainWorktree, state.alwaysShowDefaultBranchWorkspace) &&
         isInactiveWorkspace(
           worktree.id,
           tabsByWorktree,

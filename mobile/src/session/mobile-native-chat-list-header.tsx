@@ -7,6 +7,7 @@ import { styles } from './mobile-native-chat-view-styles'
 export function mobileNativeChatListHeader(
   hasMore: boolean | undefined,
   loadingEarlier: boolean | undefined,
+  loadEarlierFailed: boolean | undefined,
   loadEarlier: () => void
 ): ReactElement | null {
   if (!hasMore) {
@@ -19,6 +20,11 @@ export function mobileNativeChatListHeader(
       ) : (
         <Text style={styles.loadEarlierText}>Load earlier messages</Text>
       )}
+      {loadEarlierFailed && !loadingEarlier ? (
+        <Text style={styles.loadEarlierFailedText}>
+          Couldn't load earlier messages. Tap to try again.
+        </Text>
+      ) : null}
     </Pressable>
   )
 }

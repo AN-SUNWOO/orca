@@ -354,6 +354,44 @@ describe('useMobileNativeChatSession', () => {
     expect(state?.loadingEarlier).toBe(false)
   })
 
+  it('lands a page across a same-cursor replay, and flags a refused page until the next tap', async () => {
+    const pages: ((response: unknown) => void)[] = []
+    const sendRequest = vi.fn(() => new Promise((resolve) => pages.push(resolve)))
+    const window = Array.from({ length: 40 }, (_unused, index) => message(`win-${index}`))
+    const snapshot = { type: 'snapshot', messages: window, hasMore: true, beforeOffset: 100 }
+    const subscribe: RpcClient['subscribe'] = vi.fn((_method, _params, onData) => {
+      emit = onData
+      onData(snapshot)
+      return () => {}
+    })
+    await mount({ sendRequest, subscribe } as unknown as RpcClient)
+    const answer = (response: unknown) =>
+      act(async () => {
+        pages.at(-1)?.(response)
+        await Promise.resolve()
+      })
+
+    // A reconnect re-subscribes and replays the same newest window while the page is out.
+    act(() => state?.loadEarlier())
+    await act(async () => emit(snapshot))
+    await answer({
+      ok: true,
+      result: { messages: [message('older')], hasMore: true, beforeOffset: 40 }
+    })
+    expect(state?.messages.map((entry) => entry.id)).toEqual([
+      'older',
+      ...window.map((entry) => entry.id)
+    ])
+
+    act(() => state?.loadEarlier())
+    await answer({ id: 'x', ok: false, error: { code: 'refused', message: 'refused' } })
+    expect(state?.loadEarlierFailed).toBe(true)
+    expect(state?.loadingEarlier).toBe(false)
+    act(() => state?.loadEarlier())
+    expect(sendRequest).toHaveBeenCalledTimes(3)
+    expect(state?.loadEarlierFailed).toBe(false)
+  })
+
   it('keeps the base snapshot authoritative when a live append arrives first', async () => {
     const sendRequest = vi.fn()
     const subscribe: RpcClient['subscribe'] = vi.fn((_method, _params, onData) => {

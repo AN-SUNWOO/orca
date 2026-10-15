@@ -42,6 +42,8 @@ export type MobileNativeChatSession = {
   hasMore: boolean
   /** Whether an older-history page is currently loading. */
   loadingEarlier: boolean
+  /** The last older-history page the reader asked for never arrived. */
+  loadEarlierFailed?: boolean
   /** Grow the window to page in older history. */
   loadEarlier: () => void
 }
@@ -103,6 +105,7 @@ export function useMobileNativeChatSession(args: {
   const [error, setError] = useState<string | undefined>(undefined)
   const [hasMore, setHasMore] = useState(false)
   const [loadingEarlier, setLoadingEarlier] = useState(false)
+  const [loadEarlierFailed, setLoadEarlierFailed] = useState(false)
   const loadingEarlierRef = useRef(false)
   const beforeOffsetRef = useRef<number | null>(null)
   // Stateful id-dedup merger: caches the id→index map so each live append frame
@@ -141,6 +144,7 @@ export function useMobileNativeChatSession(args: {
     loadingEarlierRef.current = false
     snapshotSeenRef.current = false
     setLoadingEarlier(false)
+    setLoadEarlierFailed(false)
     setList([])
     setError(undefined)
     setHasMore(false)
@@ -192,9 +196,13 @@ export function useMobileNativeChatSession(args: {
           // follows is still this subscription's base, not a reconnect replay.
           snapshotSeenRef.current = true
         }
-        if (applied.windowReplaced || frame.type === 'snapshot') {
-          // Why: any authoritative window (and any replay merge) invalidates an
-          // in-flight older-page request; stale results must not land on it.
+        if (
+          applied.windowReplaced ||
+          (frame.type === 'snapshot' && beforeOffsetRef.current === null)
+        ) {
+          // Why: a replaced window fences an in-flight older page, and any replay fences a
+          // cursorless page, which replaces the list. A cursor page survives a contiguous
+          // replay; one that re-cut the cursor fails the page's own cursor check.
           streamGenerationRef.current += 1
           loadingEarlierRef.current = false
           setLoadingEarlier(false)
@@ -250,7 +258,11 @@ export function useMobileNativeChatSession(args: {
     const beforeOffset = beforeOffsetRef.current
     loadingEarlierRef.current = true
     setLoadingEarlier(true)
+    setLoadEarlierFailed(false)
+    const ownsLatch = (): boolean =>
+      sessionIdRef.current === requestSessionId && streamGenerationRef.current === requestGeneration
     void (async () => {
+      let failed = true
       try {
         const response = await nativeChatSessionPageRead.request(client, {
           agent,
@@ -274,11 +286,10 @@ export function useMobileNativeChatSession(args: {
         if ('error' in result) {
           return
         }
-        // Drop a stale resolve from a session that swapped underneath us.
-        if (
-          sessionIdRef.current !== requestSessionId ||
-          streamGenerationRef.current !== requestGeneration
-        ) {
+        // Lands only on the window and cursor it was asked from; otherwise the window it
+        // read against is gone, and the reader pages again from the new one.
+        failed = false
+        if (!ownsLatch() || beforeOffsetRef.current !== beforeOffset) {
           return
         }
         limitRef.current = nextLimit
@@ -294,18 +305,14 @@ export function useMobileNativeChatSession(args: {
           setHasMore(result.messages.length >= nextLimit)
         }
       } catch {
-        // Nothing awaits this page, so a rejected request — a transport drop, or the client
-        // abandoning it at teardown — would otherwise reach the document as an unhandled
-        // rejection. Swallowed to match the operation's own skip policy: a page that never
-        // arrives leaves the window the subscription already delivered.
+        // Contained here, not raised: nothing awaits this page, so a transport drop or a
+        // teardown abandon would reach the document as an unhandled rejection.
       } finally {
-        // A late page from a prior tab must not unlock the current tab's request.
-        if (
-          sessionIdRef.current === requestSessionId &&
-          streamGenerationRef.current === requestGeneration
-        ) {
+        // A late page from a prior tab must not unlock or flag the current tab's request.
+        if (ownsLatch()) {
           loadingEarlierRef.current = false
           setLoadingEarlier(false)
+          setLoadEarlierFailed(failed)
         }
       }
     })()
@@ -328,6 +335,7 @@ export function useMobileNativeChatSession(args: {
     error,
     hasMore,
     loadingEarlier,
+    loadEarlierFailed,
     loadEarlier
   }
 }

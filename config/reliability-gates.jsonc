@@ -62,7 +62,7 @@
       },
       "redGreenEvidence": {
         "status": "complete",
-        "evidence": "Upstream real-worker half-range witness: baseline four idle workers with zero jobs/callbacks and queued work; patch four jobs/callbacks and empty queue. An ordinary sequential workload also reproduced the exact half-range signature, zero fresh stat callbacks and no real PTY echo after 15 seconds. Idle-generation regression fails without the patch and passes with it."
+        "evidence": "Upstream real-worker half-range witness: baseline four idle workers with zero jobs/callbacks and queued work; patch four jobs/callbacks and empty queue. An ordinary sequential workload also reproduced the exact half-range signature, zero fresh stat callbacks and no real PTY echo after 15 seconds. The patched runtime completed 30 million sequential jobs, a fresh stat and real PTY echo. Idle-generation regression fails without the patch and passes with it."
       },
       "promotionCriteria": [
         "Collect physical arm64/Intel CI, signed helper launch and older macOS evidence, then repeated soak before promotion."

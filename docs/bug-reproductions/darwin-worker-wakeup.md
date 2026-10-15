@@ -67,7 +67,9 @@ echo after 15 seconds; six jobs remained queued and U caught L. One worker had
 stayed parked while millions of sequential jobs ran through the others. This
 provides an ordinary scheduling path to the exact live-daemon signature. An
 otherwise similar 30-million-job run completed, so the scheduling is intermittent.
-It still does not identify the exact sequence of Orca's own job producers.
+The patched runtime completed all 30 million jobs, a fresh filesystem request
+and real PTY echo. This still does not identify the exact sequence of Orca's own
+job producers.
 
 The repository now includes a portable-to-both-macOS-architectures N-API workload
 and PTY oracle with no private pthread fields. Run it after the normal check:

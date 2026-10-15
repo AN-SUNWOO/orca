@@ -1,12 +1,13 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import {
   isSubagentGroupBlock,
+  isToolResultBlock,
   type NativeChatBlock,
   type NativeChatMessage
 } from '../../../src/shared/native-chat-types'
 
 /** Where each drawn row sits on the page. A folded row's id is its first message's, so older
- *  messages joining a run would replace the row; its key stays while any of its messages draw. */
+ *  messages joining a run would replace the row; its key stays while what it is made of draws. */
 export type MobileNativeChatRowKeys = {
   /** The source window's first message: it changes when a page, a cap trim or a replacement lands,
    *  even while every row keeps its key. */
@@ -16,10 +17,14 @@ export type MobileNativeChatRowKeys = {
   current: (key: string) => string | undefined
 }
 
+type Sources = { identity: string[]; content: string[] }
+
 type Assigned = {
   rows: readonly NativeChatMessage[]
   messages: readonly NativeChatMessage[]
   keyById: ReadonlyMap<string, string>
+  /** Each row's sources, when that render worked them out. */
+  sources?: readonly Sources[]
 }
 
 /** The fold keeps its sources' block objects, so a block names the message it came from. */
@@ -35,70 +40,78 @@ function blockOwners(messages: readonly NativeChatMessage[]): Map<NativeChatBloc
   return owners
 }
 
-/** The messages a row draws, newest first, then the row itself. A roster's group block is made by
- *  the fold, so its group stands for it. */
-function membersOf(row: NativeChatMessage, owners: Map<NativeChatBlock, string>): string[] {
-  const members: string[] = []
-  for (let at = row.blocks.length - 1; at >= 0; at -= 1) {
-    const block = row.blocks[at]!
-    const member = isSubagentGroupBlock(block)
-      ? `subagent-group:${block.groupId}`
-      : owners.get(block)
-    if (member !== undefined) {
-      members.push(member)
+/** What a row draws, by message and kind, and which of it makes the row what it is: a run is
+ *  its assistant and its calls. Its results are content only, so a result left on a row of its
+ *  own never takes the run's key. The fold makes a roster's group block; its group stands in. */
+function sourcesOf(row: NativeChatMessage, owners: Map<NativeChatBlock, string>): Sources {
+  const own = new Set<string>()
+  const results = new Set<string>()
+  for (const block of row.blocks) {
+    const owner = owners.get(block)
+    if (isSubagentGroupBlock(block)) {
+      own.add(`subagent-group:${block.groupId}`)
+    } else if (owner !== undefined && isToolResultBlock(block)) {
+      results.add(`result:${owner}`)
+    } else if (owner !== undefined) {
+      own.add(`body:${owner}`)
     }
   }
-  members.push(row.id)
-  return members
+  const content = [...own, ...results]
+  const identity = own.size > 0 ? [...own] : results.size > 0 ? [...results] : [`body:${row.id}`]
+  return { identity, content: content.length > 0 ? content : identity }
+}
+
+function sourcesByRow(
+  rows: readonly NativeChatMessage[],
+  messages: readonly NativeChatMessage[]
+): Sources[] {
+  const owners = blockOwners(messages)
+  return rows.map((row) => sourcesOf(row, owners))
 }
 
 export function assignMobileNativeChatRowKeys(
   previous: Assigned | null,
   rows: readonly NativeChatMessage[],
   messages: readonly NativeChatMessage[]
-): { keyById: Map<string, string>; moved: Map<string, string | undefined> } {
+): Pick<Assigned, 'sources'> & {
+  keyById: Map<string, string>
+  moved: Map<string, string | undefined>
+} {
   const keyById = new Map<string, string>()
   const taken = new Set<string>()
   const take = (row: NativeChatMessage, key: string): void => {
     keyById.set(row.id, key)
     taken.add(key)
   }
-  // A surviving row keeps its key before any vanished one is handed on.
-  for (const row of rows) {
-    const key = previous?.keyById.get(row.id)
-    if (key !== undefined) {
-      take(row, key)
-    }
-  }
   const ids = new Set(rows.map((row) => row.id))
-  const vanished = previous?.rows.filter((row) => !ids.has(row.id)) ?? []
-  const keyByMember = new Map<string, string>()
-  let members: string[][] = []
-  if (previous && vanished.length > 0) {
-    const keyOfVanished = (row: NativeChatMessage): string => previous.keyById.get(row.id) ?? row.id
-    // Own ids first: a sidecar keeps its own row while giving its results to the run.
-    vanished.forEach((row) => keyByMember.set(row.id, keyOfVanished(row)))
-    const previousOwners = blockOwners(previous.messages)
-    for (const row of vanished) {
-      for (const member of membersOf(row, previousOwners)) {
-        if (!keyByMember.has(member)) {
-          keyByMember.set(member, keyOfVanished(row))
-        }
+  let before: readonly Sources[] = []
+  let now: Sources[] | undefined
+  if (previous?.rows.every((row) => ids.has(row.id))) {
+    // Nothing left: every row keeps its key.
+    for (const row of rows) {
+      const key = previous.keyById.get(row.id)
+      if (key !== undefined) {
+        take(row, key)
       }
     }
-    const owners = blockOwners(messages)
-    members = rows.map((row) => membersOf(row, owners))
-    // Newest first, rows and members: when a cap trim splits a run, the run (not the orphan
-    // result above it) keeps the key, and an orphan merging into the run after it takes the run's.
-    for (let at = rows.length - 1; at >= 0; at -= 1) {
-      const row = rows[at]!
-      const handed = keyById.has(row.id)
-        ? undefined
-        : members[at]!.map((m) => keyByMember.get(m)).find((k) => k !== undefined && !taken.has(k))
-      if (handed !== undefined) {
-        take(row, handed)
+  } else if (previous) {
+    before = previous.sources ?? sourcesByRow(previous.rows, previous.messages)
+    now = sourcesByRow(rows, messages)
+    const was = new Map<string, number>()
+    before.forEach(({ identity }, at) => identity.forEach((source) => was.set(source, at)))
+    // A row continues the one row its identity came from, if that row's went nowhere else. Two
+    // would be one key for two rows, so neither inherits rather than one being picked by position.
+    const origins = now.map(({ identity }) => new Set(identity.flatMap((s) => was.get(s) ?? [])))
+    const heirs = new Map<number, number>()
+    origins.forEach((from) => from.forEach((at) => heirs.set(at, (heirs.get(at) ?? 0) + 1)))
+    origins.forEach((from, at) => {
+      const [origin] = from
+      const only = origin !== undefined && from.size === 1 && heirs.get(origin) === 1
+      const key = only ? previous.keyById.get(previous.rows[origin]!.id) : undefined
+      if (key !== undefined) {
+        take(rows[at]!, key)
       }
-    }
+    })
   }
   for (const row of rows.filter((unkeyed) => !keyById.has(unkeyed.id))) {
     let key = row.id
@@ -107,21 +120,27 @@ export function assignMobileNativeChatRowKeys(
     }
     take(row, key)
   }
-  // A key no row kept names the first row now drawing one of its messages.
-  const moved = new Map<string, string | undefined>()
-  for (const key of keyByMember.values()) {
-    if (!taken.has(key)) {
-      moved.set(key, undefined)
-    }
-  }
-  rows.forEach((row, at) => {
-    for (const key of (members[at] ?? []).map((member) => keyByMember.get(member))) {
-      if (key !== undefined && moved.has(key) && moved.get(key) === undefined) {
-        moved.set(key, keyById.get(row.id))
-      }
+  // A key no row kept names the first row that took in what it drew. Results left on rows of their
+  // own when a run's last call went name none: the run ended, and its key goes with it.
+  const drawnAt = new Map<string, number>()
+  now?.forEach(({ identity, content }, at) => {
+    if (!identity[0]!.startsWith('result:')) {
+      content.forEach((s) => {
+        if (!drawnAt.has(s)) {
+          drawnAt.set(s, at)
+        }
+      })
     }
   })
-  return { keyById, moved }
+  const moved = new Map<string, string | undefined>()
+  before.forEach(({ content }, at) => {
+    const key = previous?.keyById.get(previous.rows[at]!.id)
+    if (key !== undefined && !taken.has(key)) {
+      const holder = rows[Math.min(...content.map((s) => drawnAt.get(s) ?? Infinity))]
+      moved.set(key, holder && keyById.get(holder.id))
+    }
+  })
+  return { keyById, moved, ...(now ? { sources: now } : {}) }
 }
 
 /** Row keys for one shown chat, against the last committed render only, so what a key held dies

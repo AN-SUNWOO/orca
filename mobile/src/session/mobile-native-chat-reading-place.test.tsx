@@ -7,9 +7,17 @@ import {
 } from 'react-test-renderer'
 import { expect, it, vi } from 'vitest'
 import { splitNativeChatBlocks } from '../../../src/shared/native-chat-tool-fold'
-import type { NativeChatBlock, NativeChatMessage } from '../../../src/shared/native-chat-types'
+import {
+  isSubagentGroupBlock,
+  type NativeChatBlock,
+  type NativeChatMessage
+} from '../../../src/shared/native-chat-types'
 import { foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
-import { useMobileNativeChatRowKeys } from './mobile-native-chat-row-keys'
+import {
+  assignMobileNativeChatRowKeys,
+  useMobileNativeChatRowKeys,
+  type MobileNativeChatRowKeys
+} from './mobile-native-chat-row-keys'
 import { MobileNativeChatScrollHold, mobileNativeChatRowId } from './MobileNativeChatScrollHold'
 import { ToolRun } from './MobileNativeChatToolRun'
 import { useMobileNativeChatPageHistory } from './use-mobile-native-chat-page-history'
@@ -123,6 +131,8 @@ function Row({ message, rowKey }: { message: NativeChatMessage; rowKey: string }
 
 type Scroller = ReturnType<typeof page>
 
+let shownKeys!: MobileNativeChatRowKeys
+
 function Chat(props: {
   messages: NativeChatMessage[]
   following: boolean
@@ -131,6 +141,7 @@ function Chat(props: {
 }): ReactElement {
   const folded = useMemo(() => foldMobileNativeChatMessages(props.messages), [props.messages])
   const keys = useMobileNativeChatRowKeys(folded, props.messages, 'chat')
+  shownKeys = keys
   const renderRow = ({ item }: { item: NativeChatMessage }) =>
     h(Row, { message: item, rowKey: keys.keyOf(item) })
   const history = useMobileNativeChatPageHistory(folded, renderRow, keys)
@@ -191,6 +202,8 @@ it('keeps the line a reader was on, its run open, when older messages join the r
   expect(chat0.scroller.top('chat-member:call:c24')).toBe(0)
   expect(chat0.lines('chat-member:call:c24')).toBe(opened)
   expect(chat0.drawn('chat-member:call:c1')).toBe(1)
+  // The result row the window opened on is now drawn by the run.
+  expect(shownKeys.current('r21')).toBe('a22')
 
   // A reply and a send land after the run: what the reader had loaded stays drawn.
   chat0.show([...oldHostTail(), say('done', 'assistant', 'Done'), say('ask', 'user', 'next')])
@@ -223,10 +236,70 @@ it('at the cap, a trim and an append of equal height hold a parked reader and le
     }
   }
 
-  // A trim that leaves the top run's first result alone above it keeps the run open on the reader.
-  const top = mount([...chat.slice(3), ...rows])
-  top.press(mobileNativeChatRowId('a1'))
-  top.scroller.scrollTop = top.scroller.top('chat-member:call:c5') + top.scroller.scrollTop
-  top.show([...chat.slice(4), ...rows, say('done', 'assistant', 'Done')])
-  expect(top.scroller.top('chat-member:call:c5')).toBe(0)
+  // Trims split the top run: sequential calls leave a result above it; parallel calls (each call,
+  // then each output, or all outputs in one message) leave results below it. The run keeps its key
+  // either way; a result never does.
+  const output = (n: number): NativeChatMessage => ({
+    ...say(`o${n}`, 'user', ''),
+    role: 'tool',
+    blocks: [{ type: 'tool-result', callId: `c${n}`, output: 'ok' }]
+  })
+  const six = [1, 2, 3, 4, 5, 6]
+  const calls = (id: string) =>
+    six.map((n) => ({ ...say(`${id}${n}`, 'assistant', ''), blocks: [edit(n)] }))
+  const outputs = { ...output(1), id: 'U', blocks: six.flatMap((n) => output(n).blocks) }
+  for (const [source, head, orphan, last, absorbed] of [
+    [chat.slice(3, 15), 'a1', 'r1', 11, []],
+    [calls('p').concat(six.map(output)), 'p1', 'o1', 6, ['o1', 'o2', 'o3', 'o4']],
+    [calls('q').concat(outputs), 'q1', 'U', 6, ['U']]
+  ] as const) {
+    const top = mount([...source, ...rows])
+    top.press(mobileNativeChatRowId(head))
+    top.scroller.scrollTop = top.scroller.top('chat-member:call:c6') + top.scroller.scrollTop - 10
+    const trim = (trimmed: number) => {
+      top.show([...source.slice(trimmed), ...rows, say(`done${trimmed}`, 'assistant', 'Done')])
+      const run = top.root().find((n) => n.props.testID === mobileNativeChatRowId(head))
+      expect(run.findAll((n) => n.props.testID === 'chat-member:call:c6')).toHaveLength(1)
+      expect(top.scroller.top('chat-member:call:c6')).toBe(10)
+    }
+    trim(1)
+    expect(top.drawn(mobileNativeChatRowId(orphan))).toBe(1)
+    // A second single trim, then two at once.
+    trim(2)
+    trim(4)
+    // Paging back folds every result that was split off into the run again.
+    top.show([...source, ...rows, say('done4', 'assistant', 'Done')])
+    expect(absorbed.map(shownKeys.current)).toEqual(absorbed.map(() => head))
+    // Once its last call leaves, the run is gone; its outputs don't take its key.
+    top.show([...source.slice(last), ...rows, say('done', 'assistant', 'Done')])
+    expect(top.drawn(mobileNativeChatRowId(head))).toBe(0)
+  }
+})
+
+it('a subagent roster keeps its key when an older sibling joins it and when its first sibling is trimmed', () => {
+  const sibling = (id: string): NativeChatMessage => ({
+    ...say(id, 'user', ''),
+    role: 'system',
+    blocks: [
+      { type: 'text', text: `Ran subagent ${id}` },
+      { type: 'subagent', id: `agent-${id}`, label: id, state: 'completed', groupId: 'turn-1' }
+    ]
+  })
+  const all = [
+    say('u', 'user', 'go'),
+    sibling('s1'),
+    sibling('s2'),
+    sibling('s3'),
+    say('t', 'assistant', 'Done')
+  ]
+  let previous: Parameters<typeof assignMobileNativeChatRowKeys>[0] = null
+  const rosterKey = (messages: NativeChatMessage[]): string | undefined => {
+    const rows = foldMobileNativeChatMessages(messages)
+    const { keyById } = assignMobileNativeChatRowKeys(previous, rows, messages)
+    previous = { rows, messages, keyById }
+    return keyById.get(rows.find((row) => row.blocks.some(isSubagentGroupBlock))!.id)
+  }
+  const key = rosterKey(all.slice(2))
+  expect(rosterKey(all)).toBe(key)
+  expect(rosterKey(all.slice(2))).toBe(key)
 })

@@ -157,7 +157,6 @@ const REASON_WORDS = {
   agent_session_identity_required: {
     recordMissing: causeWords('chatNotFound', 'goElsewhere', 'startNewChat'),
     transcriptNotFound: codeWords('retry'),
-    transcriptEmpty: codeWords('retry'),
     transcriptUnreadable: causeWords('historyUnavailable', 'retry', 'tryAgain')
   },
   agent_session_operation_conflict: {

@@ -97,7 +97,12 @@ describe('the shared connection', () => {
       exec(sql)
     })
     await journal.appendSubmission(SUBMISSION)
-    await journal.resolveDispatch({ clientMessageId: 'msg-1', state: 'pending', fence: 1 })
+    await journal.resolveDispatch({
+      clientMessageId: 'msg-1',
+      state: 'pending',
+      fence: 1,
+      turnScope: AGENT_JOURNAL_THREAD_SCOPE
+    })
     await journal.appendLifecycleBatch({
       settlementId: 'dispatch-settlement',
       fence: 1,

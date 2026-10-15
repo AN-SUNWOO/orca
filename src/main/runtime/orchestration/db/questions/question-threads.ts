@@ -11,6 +11,8 @@ export function createQuestion(
     askerHandle: string
     question: string
     options?: string[]
+    /** The asker's report mailbox; the Run when omitted. */
+    to?: string
   }
 ): { question: QuestionRow; message: MessageRow } {
   this.db.exec('BEGIN IMMEDIATE')
@@ -29,7 +31,7 @@ export function createQuestion(
     }
     const message = this.insertMessage({
       from: `dispatch:${params.dispatchId}`,
-      to: `run:${params.runId}`,
+      to: params.to ?? `run:${params.runId}`,
       subject: 'Question',
       body: params.question,
       type: 'question',
@@ -75,19 +77,40 @@ export function answerQuestion(
   params: {
     messageId: string
     runId: string
-    consumerGeneration: number
     body: string
-  }
+  } & (
+    | { consumerGeneration: number }
+    /** A worker answering its own helper, fenced on its Dispatch instead of the Run's consumer. */
+    | { answeredBy: { dispatchId: string; consumerGeneration: number } }
+  )
 ): { question: QuestionRow; message: MessageRow; duplicate: boolean } {
+  const answeredBy = 'answeredBy' in params ? params.answeredBy : null
+  const byDispatch = answeredBy?.dispatchId ?? null
+  const generation = 'consumerGeneration' in params ? params.consumerGeneration : null
   this.db.exec('BEGIN IMMEDIATE')
   try {
-    this.requireCurrentConsumer(params.runId, params.consumerGeneration)
+    if (generation !== null) {
+      this.requireCurrentConsumer(params.runId, generation)
+    }
     const question = this.getQuestionRaw(params.messageId)
     if (!question || question.run_id !== params.runId) {
       throw new OrchestrationError(
         'question_not_found',
         `Question ${params.messageId} was not found in Run ${params.runId}.`
       )
+    }
+    if (answeredBy !== null) {
+      const answerer = this.getDispatchContextById(answeredBy.dispatchId)
+      if (
+        this.getMessageById(question.message_id)?.to_handle !== `dispatch:${answeredBy.dispatchId}` ||
+        (answerer?.status !== 'pending' && answerer?.status !== 'dispatched') ||
+        answerer.consumer_generation !== answeredBy.consumerGeneration
+      ) {
+        throw new OrchestrationError(
+          'consumer_fenced',
+          `Question ${params.messageId} was not asked of active Dispatch ${answeredBy.dispatchId}.`
+        )
+      }
     }
     if (question.status === 'closed') {
       throw new OrchestrationError(
@@ -111,7 +134,7 @@ export function answerQuestion(
     }
 
     const message = this.insertMessage({
-      from: `run:${params.runId}`,
+      from: byDispatch !== null ? `dispatch:${byDispatch}` : `run:${params.runId}`,
       to: `dispatch:${question.dispatch_id}`,
       subject: 'Re: Question',
       body: params.body,
@@ -127,7 +150,7 @@ export function answerQuestion(
              answered_by_generation = ?, answered_at = datetime('now')
          WHERE message_id = ? AND status = 'pending'`
       )
-      .run(message.id, params.body, params.consumerGeneration, question.message_id)
+      .run(message.id, params.body, generation, question.message_id)
     const answered = this.getQuestionRaw(question.message_id) as QuestionRow
     const storedMessage = this.getMessageById(message.id) as MessageRow
     this.db.exec('COMMIT')
@@ -142,7 +165,51 @@ export function answerQuestion(
   }
 }
 
+/**
+ * A settled worker no longer reads its mailbox, so what its helpers sent it and it never handled
+ * (unread reports, unanswered questions) moves to the Run, whose coordinator supervises next.
+ */
+function handHelperMailToRun(db: OrchestrationDb, dispatchId: string): void {
+  const helperRun = db.db
+    .prepare(
+      `SELECT helper.run_id FROM dispatch_contexts AS helper
+       JOIN dispatch_contexts AS creator ON creator.id = helper.creator_dispatch_id
+       WHERE helper.creator_dispatch_id = ? AND helper.run_id = creator.run_id LIMIT 1`
+    )
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the single selected column is the schema's NOT NULL run_id.
+    .get(dispatchId) as { run_id: string } | undefined
+  if (!helperRun) {
+    return
+  }
+  const mailbox = `dispatch:${dispatchId}`
+  const runMailbox = `run:${helperRun.run_id}`
+  const questions = db.db
+    .prepare(
+      `UPDATE messages SET to_handle = ?, read = 0
+       WHERE run_id = ? AND to_handle = ? AND id IN (
+         SELECT message_id FROM question_threads WHERE run_id = ? AND status = 'pending'
+       )`
+    )
+    .run(runMailbox, helperRun.run_id, mailbox, helperRun.run_id)
+  const reports = db.db
+    .prepare(
+      `UPDATE messages SET to_handle = ?
+       WHERE run_id = ? AND to_handle = ? AND read = 0
+         AND delivery_contract = 'current_delivery'
+         AND type IN ('worker_done', 'escalation', 'status')
+         AND json_valid(payload) AND json_extract(payload, '$.dispatchId') IN (
+           SELECT id FROM dispatch_contexts WHERE creator_dispatch_id = ?
+         )`
+    )
+    .run(runMailbox, helperRun.run_id, mailbox, dispatchId)
+  if (Number(questions.changes) + Number(reports.changes) > 0) {
+    db.fenceUnacknowledgedMailboxDeliveries(mailbox)
+  }
+}
+
 export function closeQuestionsForDispatch(this: OrchestrationDb, dispatchId: string): string[] {
+  // Every settlement path closes the settled Dispatch's own questions here.
+  handHelperMailToRun(this, dispatchId)
   const rows = this.db
     .prepare("SELECT message_id FROM question_threads WHERE dispatch_id = ? AND status = 'pending'")
     .all(dispatchId) as { message_id: string }[]

@@ -1,6 +1,10 @@
 import { defineMethod } from '../../../core'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { isGroupAddress } from '../../../../orchestration/groups'
+import {
+  dispatchReportMailbox,
+  isDispatchReportType
+} from '../../../../orchestration/dispatch-report-mailbox'
 import { orchestrationSkillRecoveryData } from '../../../../../../shared/orchestration-rpc-contract'
 import {
   SendParams,
@@ -134,7 +138,11 @@ export const ORCHESTRATION_SEND_METHODS = [
         (!to ||
           ((params.type === 'worker_done' || params.type === 'heartbeat') && routing.dispatchId))
       ) {
-        to = `run:${routing.run.id}`
+        const reporting =
+          routing.dispatchId && isDispatchReportType(params.type)
+            ? db.getDispatchContextById(routing.dispatchId)
+            : undefined
+        to = reporting ? dispatchReportMailbox(db, reporting) : `run:${routing.run.id}`
       }
       if (!to) {
         throw new OrchestrationError(

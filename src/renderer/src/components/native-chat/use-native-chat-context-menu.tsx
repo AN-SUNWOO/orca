@@ -41,6 +41,7 @@ import { isEditableTarget } from '@/lib/editable-target'
 import { NativeChatCopyOrcaSessionIdMenuItem } from './NativeChatCopyOrcaSessionIdMenuItem'
 import { NativeChatSelectionQuote } from './NativeChatSelectionQuote'
 import type { NativeChatComposerHandle } from './native-chat-composer-types'
+import type { useStructuredChatPaneActions } from './use-structured-chat-pane-actions'
 
 type NativeChatContextMenuState = {
   open: boolean
@@ -60,10 +61,7 @@ type UseNativeChatContextMenuArgs = {
   actions: NativeChatContextMenuActions
   showTerminalPaneActions?: boolean
   splitShortcutLabels?: { right: string; down: string }
-  chatPaneActions?: Pick<
-    NativeChatContextMenuActions,
-    'onSplitRight' | 'onSplitDown' | 'canClosePane' | 'onClosePane'
-  >
+  chatPaneActions?: ReturnType<typeof useStructuredChatPaneActions>
   /** A structured chat tab's Orca session ID; a chat in a terminal pane is that terminal's agent. */
   resolveOrcaSessionId?: () => Promise<string | null>
 }
@@ -374,10 +372,7 @@ export function useNativeChatContextMenu({
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={chatPaneActions.onClosePane}>
                 <X />
-                {translate(
-                  'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
-                  'Close Pane'
-                )}
+                {chatPaneActions.closeLabel}
               </DropdownMenuItem>
             </>
           ) : null}

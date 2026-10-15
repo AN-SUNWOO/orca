@@ -109,7 +109,9 @@ function Harness({
     composerRef: createRef(),
     onSwitchToTerminal,
     showTerminalPaneActions: !structured,
-    chatPaneActions: structured ? emptyNativeChatContextMenuActions : undefined,
+    chatPaneActions: structured
+      ? { ...emptyNativeChatContextMenuActions, closeLabel: 'Close tab' }
+      : undefined,
     resolveOrcaSessionId: orcaSessionId === undefined ? undefined : async () => orcaSessionId,
     actions: {
       ...emptyNativeChatContextMenuActions,

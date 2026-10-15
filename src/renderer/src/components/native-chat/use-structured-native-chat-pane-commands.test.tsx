@@ -43,7 +43,8 @@ vi.mock('./use-structured-chat-pane-actions', () => ({
   useStructuredChatPaneActions: () => ({
     onSplitRight: vi.fn(),
     onSplitDown: vi.fn(),
-    canClosePane: false,
+    canClosePane: true,
+    closeLabel: 'Close tab',
     onClosePane: vi.fn()
   })
 }))
@@ -97,7 +98,10 @@ describe('a structured chat tab', () => {
   })
 
   it("offers Copy Orca Session ID, asking the tab's host for this session's Orca session ID", async () => {
-    renderToStaticMarkup(<StructuredChatTab />)
+    const markup = renderToStaticMarkup(<StructuredChatTab />)
+
+    expect(markup).toContain('Close tab')
+    expect(markup).not.toContain('Close Pane')
 
     const item = items.list.find(
       (candidate) => childrenText(candidate.children) === 'Copy Orca Session ID'

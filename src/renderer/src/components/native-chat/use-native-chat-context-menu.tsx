@@ -60,7 +60,10 @@ type UseNativeChatContextMenuArgs = {
   actions: NativeChatContextMenuActions
   showTerminalPaneActions?: boolean
   splitShortcutLabels?: { right: string; down: string }
-  chatPaneActions?: Pick<NativeChatContextMenuActions, 'onSplitRight' | 'onSplitDown' | 'canClosePane' | 'onClosePane'>
+  chatPaneActions?: Pick<
+    NativeChatContextMenuActions,
+    'onSplitRight' | 'onSplitDown' | 'canClosePane' | 'onClosePane'
+  >
   /** A structured chat tab's Orca session ID; a chat in a terminal pane is that terminal's agent. */
   resolveOrcaSessionId?: () => Promise<string | null>
 }
@@ -371,7 +374,10 @@ export function useNativeChatContextMenu({
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={chatPaneActions.onClosePane}>
                 <X />
-                {translate('auto.components.terminal.pane.TerminalContextMenu.8c17d6786d', 'Close Pane')}
+                {translate(
+                  'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
+                  'Close Pane'
+                )}
               </DropdownMenuItem>
             </>
           ) : null}

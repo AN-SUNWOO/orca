@@ -56,8 +56,11 @@ export type TerminalCreateOptions = {
    * and post-start delivery belongs to whoever owns the live PTY.
    */
   startupPrompt?: string
-  /** `draft` puts `startupPrompt` in the agent's composer unsent, through its draft flag or env;
-   *  a draft is not held to the typed-line carry budget. */
+  /**
+   * `draft` puts `startupPrompt` in the agent's composer unsent, through its draft flag or env.
+   * TEMPORARY (createAgentSession parity, removed by the PR that gives prompts and drafts one
+   * delivery policy): a draft skips the typed-line carry rule, as it did before this planner.
+   */
   startupPromptDelivery?: 'auto-submit' | 'draft'
   /**
    * TEMPORARY (createAgentSession parity, removed by the PR that delivers uncarried prompts after

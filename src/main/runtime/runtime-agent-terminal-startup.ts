@@ -196,7 +196,7 @@ async function buildRuntimeAgentTerminalStartupOptions(
     hostIdentity: host.hostIdentity,
     signal: opts.signal
   }
-  // A draft is built as is: the carry rule judges only a prompt that would be submitted.
+  // TEMPORARY (createAgentSession parity, removed with force-line): a draft skips the carry rule.
   const { plan: startupPlan, promptCarried } =
     opts.startupPromptDelivery === 'draft' || forceLine
       ? {

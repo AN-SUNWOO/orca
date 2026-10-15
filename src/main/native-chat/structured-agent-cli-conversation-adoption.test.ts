@@ -141,12 +141,10 @@ function adopt(
     throw new Error(`${agent} registers no transcript import`)
   }
   return resolveStructuredAgentSessionAdoptionForCreate({
-    host: null,
     settings: {},
     agent,
     transcriptImport,
     providerSessionId,
-    selfSessionId: 'chat-1',
     selectedAccountHome,
     launchEnv,
     workspaceCwd

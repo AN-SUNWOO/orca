@@ -24,4 +24,8 @@ export function MobileNativeChatPageScroll({
 // RN Web passes it through to CSS; ViewStyle doesn't name it.
 const outOfAnchoring: ViewStyle & { overflowAnchor: 'none' } = { overflowAnchor: 'none' }
 
-const pageScroll = StyleSheet.create({ fill: { flexGrow: 1 }, outOfAnchoring, endMarker: { height: 1 } })
+const pageScroll = StyleSheet.create({
+  fill: { flexGrow: 1 },
+  outOfAnchoring,
+  endMarker: { height: 1 }
+})

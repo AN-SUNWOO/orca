@@ -12,10 +12,7 @@ import type { AgentStatusIpcPayload } from '../../shared/agent-status-types'
 import type { StructuredAgentSessionStatusSink } from '../native-chat/agent-session-wire/structured-agent-session-status-feed'
 import type { ObservedAgentStatusPaneIdentity } from '../ipc/agent-status-ipc-boundary'
 import type { AgentHookAuthorityAttestation } from '../agent-hooks/server'
-import type {
-  AiVaultPrepareSessionResumeArgs,
-  AiVaultPrepareSessionResumeResult
-} from '../../shared/ai-vault-resume-preparation'
+import type { NativeCodexResumePreparation } from '../codex/codex-ai-vault-session-resume'
 import type { RuntimeDesktopWindowStatus } from '../../shared/runtime-types'
 import type { AgentSessionClaimSigner } from './agent-session-claim-identity'
 import type { OrchestrationEnvironmentTransport } from './orchestration/environment-transport'
@@ -103,9 +100,7 @@ export class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCommands {
       // runs under `orca serve`, so remote/SSH hosts would silently drop
       // managed-Codex sessions. The runtime ctor runs in BOTH window and serve.
       getAdditionalAiVaultCodexHomePaths?: () => readonly string[]
-      prepareAiVaultSessionResume?: (
-        args: AiVaultPrepareSessionResumeArgs
-      ) => Promise<AiVaultPrepareSessionResumeResult>
+      prepareAiVaultSessionResume?: NativeCodexResumePreparation
       prepareCodexStructuredLaunch?: (input: {
         launchEnv: NodeJS.ProcessEnv
       }) => string | null | Promise<string | null>

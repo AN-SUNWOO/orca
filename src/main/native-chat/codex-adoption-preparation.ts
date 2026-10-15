@@ -4,7 +4,7 @@ import {
   isLegacyAgentSessionAccountHome,
   type AgentSessionAccountHome
 } from '../../shared/agent-session-account-home'
-import type { AiVaultSessionResumePreparation } from '../../shared/ai-vault-resume-preparation'
+import type { NativeCodexResumePreparation } from '../codex/codex-ai-vault-session-resume'
 import { getSystemCodexHomePath } from '../codex/codex-home-paths'
 import type { StructuredAgentSessionAdoption } from './structured-agent-session-history-adoption'
 import { admitTranscriptPath } from './transcript-path-admission'
@@ -14,20 +14,21 @@ import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-p
 export async function prepareCodexAdoption(
   source: StructuredAgentSessionAdoption,
   providerSessionId: string,
-  prepare: AiVaultSessionResumePreparation | undefined,
+  prepare: NativeCodexResumePreparation | undefined,
   recognizedHomes: readonly AgentSessionAccountHome[]
 ): Promise<StructuredAgentSessionAdoption> {
   if (!prepare || !isLegacyAgentSessionAccountHome(source.accountHome)) {
     return source
   }
+  const nativeSystemHomePath = getSystemCodexHomePath()
   const result = await prepare({
     agent: 'codex',
     sessionId: providerSessionId,
     filePath: source.transcriptPath,
     codexHome: source.accountHome.path,
     executionHostId: 'local'
-  })
-  const home = result.useRealCodexHome ? getSystemCodexHomePath() : result.substituteCodexHome
+  }, nativeSystemHomePath)
+  const home = result.useRealCodexHome ? nativeSystemHomePath : result.substituteCodexHome
   if (
     !home ||
     normalizeRuntimePathForComparison(home) ===

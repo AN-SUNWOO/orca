@@ -13,7 +13,7 @@ import { agentHookServer } from '../agent-hooks/server'
 import { browserManager } from '../browser/browser-manager'
 import { loadAgentSessionClaimSigner } from '../runtime/agent-session-claim-identity'
 import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
-import { prepareCodexAiVaultSessionResume } from '../codex/codex-ai-vault-session-resume'
+import { codexAiVaultSessionResumePreparation } from '../codex/codex-ai-vault-session-resume'
 import { prepareCodexPinnedLaunchHome } from './codex-session-resume-launch'
 import { resolveHostCodexSessionSourceHome } from '../codex/codex-session-source-home'
 import { agentHookRuntimeDeps } from '../agent-hooks/agent-hook-runtime-deps'
@@ -114,12 +114,11 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
     // Why: source codex-home here (runs in window AND serve) so aiVault.listSessions includes managed-Codex sessions; registerCoreHandlers is window-only.
     getAdditionalAiVaultCodexHomePaths: () =>
       state.codexRuntimeHome?.getHostCodexHomePathsForSessionDiscovery() ?? [],
-    prepareAiVaultSessionResume: (args) =>
-      prepareCodexAiVaultSessionResume(args, {
-        runtimeHome: state.codexRuntimeHome,
-        systemCodexHomePath: resolveHostCodexSessionSourceHome(store.getSettings()),
-        preparePinnedLaunchHome: (home) => prepareCodexPinnedLaunchHome(home)
-      }),
+    prepareAiVaultSessionResume: codexAiVaultSessionResumePreparation(() => ({
+      runtimeHome: state.codexRuntimeHome,
+      systemCodexHomePath: resolveHostCodexSessionSourceHome(store.getSettings()),
+      preparePinnedLaunchHome: (home) => prepareCodexPinnedLaunchHome(home)
+    })),
     ...codexStructuredLaunchHomeResolvers,
     prepareCodexCatalogProbeHome: (homePath) =>
       state.codexRuntimeHome?.prepareHostCodexHomeForReadOnlyAppServer(

@@ -226,7 +226,7 @@ async function decodeWithIdentities(input: {
   identities: AgentJournalItemIdentity[]
   consumedBytes: number
 }> {
-  const source = input.source ? await adoptedTranscriptSourceObserver({
+  const source = input.source ? adoptedTranscriptSourceObserver({
     agent: input.agent, filePath: input.filePath, source: input.source,
     maxSourceBytes: MAX_LEGACY_IMPORT_SOURCE_BYTES
   }) : null
@@ -272,7 +272,9 @@ async function decodeWithIdentities(input: {
     true,
     MAX_LEGACY_IMPORT_SOURCE_BYTES
   )
-  await source?.validate()
+  if (consumedBytes > 0) {
+    await source?.validate()
+  }
   if (pi) {
     return { ...pi.project(), consumedBytes }
   }

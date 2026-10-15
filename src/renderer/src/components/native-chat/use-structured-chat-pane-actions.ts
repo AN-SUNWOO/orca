@@ -14,12 +14,18 @@ export function useStructuredChatPaneActions(tabId: string, worktreeId: string, 
   const groupTabs = useMemo(() => tabs.filter((tab) => tab.groupId === groupId), [tabs, groupId])
   const { closeItem, closeMany } = useTabGroupTabCloseCommands({ worktreeId })
   const { closeGroup } = useTabGroupCloseScopeCommands({
-    worktreeId, groupId, groupTabs, group: groups.find((group) => group.id === groupId) ?? null,
-    closeItem, closeMany
+    worktreeId,
+    groupId,
+    groupTabs,
+    group: groups.find((group) => group.id === groupId) ?? null,
+    closeItem,
+    closeMany
   })
   return {
-    onSplitRight: () => runNativeChatSplitTarget({ kind: 'workspace-tab', unifiedTabId: tabId, groupId }, 'right'),
-    onSplitDown: () => runNativeChatSplitTarget({ kind: 'workspace-tab', unifiedTabId: tabId, groupId }, 'down'),
+    onSplitRight: () =>
+      runNativeChatSplitTarget({ kind: 'workspace-tab', unifiedTabId: tabId, groupId }, 'right'),
+    onSplitDown: () =>
+      runNativeChatSplitTarget({ kind: 'workspace-tab', unifiedTabId: tabId, groupId }, 'down'),
     canClosePane: groups.length > 1,
     onClosePane: closeGroup
   }

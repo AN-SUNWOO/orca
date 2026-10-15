@@ -279,9 +279,14 @@ export function NativeChatStructuredSession(
       data-native-chat-scheme={appearanceStyle.colorScheme}
     >
       {ownerWorktreeId && props.groupId && !props.contextMenuActions ? (
-        <NativeChatPaneHeader tabId={props.tabId} worktreeId={ownerWorktreeId} groupId={props.groupId}
-          nativeChat={{ sessionId: props.sessionId, agent: props.agent }} focused={props.isFocusedGroup === true}
-          colorScheme={appearanceStyle.colorScheme} />
+        <NativeChatPaneHeader
+          tabId={props.tabId}
+          worktreeId={ownerWorktreeId}
+          groupId={props.groupId}
+          nativeChat={{ sessionId: props.sessionId, agent: props.agent }}
+          focused={props.isFocusedGroup === true}
+          colorScheme={appearanceStyle.colorScheme}
+        />
       ) : null}
       <div className="relative flex min-h-0 flex-1 flex-col">
         {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}

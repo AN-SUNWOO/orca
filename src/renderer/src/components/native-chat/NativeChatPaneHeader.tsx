@@ -15,7 +15,14 @@ const HEADER_STYLE: React.CSSProperties & Record<'--orca-pane-title-bg', string>
   '--orca-pane-title-bg': 'var(--chat-canvas)'
 }
 
-export function NativeChatPaneHeader({ tabId, worktreeId, groupId, nativeChat, focused, colorScheme }: {
+export function NativeChatPaneHeader({
+  tabId,
+  worktreeId,
+  groupId,
+  nativeChat,
+  focused,
+  colorScheme
+}: {
   tabId: string
   worktreeId: string
   groupId: string
@@ -26,38 +33,72 @@ export function NativeChatPaneHeader({ tabId, worktreeId, groupId, nativeChat, f
   const actions = useStructuredChatPaneActions(tabId, worktreeId, groupId)
   const theme = useAppStore((state) => state.settings?.theme)
   const systemDark = useSystemPrefersDark()
-  const light = colorScheme ? colorScheme === 'light' : theme === 'light' || (theme === 'system' && !systemDark)
+  const light = colorScheme
+    ? colorScheme === 'light'
+    : theme === 'light' || (theme === 'system' && !systemDark)
   const split = translate('components.native-chat.splitRight', 'Split Chat Right')
   const splitShortcut = useShortcutKeyDetails('terminal.splitRight')
-  const close = translate('auto.components.terminal.pane.TerminalContextMenu.8c17d6786d', 'Close Pane')
+  const close = translate(
+    'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
+    'Close Pane'
+  )
   return (
-    <div className="pane-title-bar z-20" data-chromeless="" data-active-pane={focused ? '' : undefined}
+    <div
+      className="pane-title-bar z-20"
+      data-chromeless=""
+      data-active-pane={focused ? '' : undefined}
       data-pane-title-surface={light ? 'light' : 'dark'}
-      style={HEADER_STYLE}>
+      style={HEADER_STYLE}
+    >
       <div className="pane-title-actions ml-auto flex shrink-0 items-center gap-0">
         {nativeChat.agent && agentForksConversations(nativeChat.agent) ? (
-          <NativeChatResumeInCliButton tabId={tabId} worktreeId={worktreeId} nativeChat={nativeChat} />
+          <NativeChatResumeInCliButton
+            tabId={tabId}
+            worktreeId={worktreeId}
+            nativeChat={nativeChat}
+          />
         ) : null}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="ghost" size="icon-xs" className="pane-title-split-trigger"
-              aria-label={split} onClick={(event) => { event.stopPropagation(); actions.onSplitRight() }}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="pane-title-split-trigger"
+              aria-label={split}
+              onClick={(event) => {
+                event.stopPropagation()
+                actions.onSplitRight()
+              }}
+            >
               <SquareSplitVertical className="size-3" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={4}>
-            {split}<ShortcutKeyCombo keys={splitShortcut.keys} doubleTap={splitShortcut.doubleTap} />
+            {split}
+            <ShortcutKeyCombo keys={splitShortcut.keys} doubleTap={splitShortcut.doubleTap} />
           </TooltipContent>
         </Tooltip>
         {actions.canClosePane ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button type="button" variant="ghost" size="icon-xs" className="pane-title-close"
-                aria-label={close} onClick={(event) => { event.stopPropagation(); actions.onClosePane() }}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="pane-title-close"
+                aria-label={close}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  actions.onClosePane()
+                }}
+              >
                 <X className="size-3" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={4}>{close}</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={4}>
+              {close}
+            </TooltipContent>
           </Tooltip>
         ) : null}
       </div>

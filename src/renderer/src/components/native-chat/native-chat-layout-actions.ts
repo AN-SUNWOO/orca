@@ -96,6 +96,7 @@ export function runNativeChatSplitTarget(
         executionHostId
       }),
       hooks: {},
+      onHostDeclined: null,
       targetGroupId: groupId
     })
     if (!launch) {

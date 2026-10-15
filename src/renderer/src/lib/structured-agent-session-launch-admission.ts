@@ -127,8 +127,8 @@ export async function openDeclinedStructuredLaunchTerminal(args: {
 /**
  * Asks the host that would run a chat, this machine or a paired server, before committing any of it
  * here: no tab, launch record, queued prompt or focus intent exists until it answers. Admitted opens
- * the chat; declined opens the caller's terminal (a resume, which has no terminal equivalent,
- * fails); an unreachable server opens nothing and says so. There is nothing to undo either way.
+ * the chat; declined opens the caller's terminal, or fails when none is allowed (including resume);
+ * an unreachable server opens nothing and says so. There is nothing to undo either way.
  * This machine's "can't answer" or "not resolvable yet" opens the chat, whose own create reports.
  */
 export function beginHostAdmittedStructuredLaunch(args: {
@@ -140,10 +140,12 @@ export function beginHostAdmittedStructuredLaunch(args: {
   /** Commits the admitted chat: the local launch path, told which host admitted it and the saved
    *  selection that host said create will seed. */
   openAdmitted: (seedOptions?: Readonly<Record<string, string>>) => AdmittedLaunch | null
-  /** Told which host declined, since where its terminal opens can depend on it. */
-  onHostDeclined: (
-    target: RuntimeClientTarget
-  ) => Promise<StructuredLaunchTerminal> | StructuredLaunchTerminal
+  /** Told which host declined; null refuses without opening a terminal. */
+  onHostDeclined:
+    | ((
+        target: RuntimeClientTarget
+      ) => Promise<StructuredLaunchTerminal> | StructuredLaunchTerminal)
+    | null
 }): HostAdmittedStructuredLaunch {
   const { plan } = args
   const paired = args.target.kind === 'environment'
@@ -188,13 +190,22 @@ export function beginHostAdmittedStructuredLaunch(args: {
         }
       }
       if (admission.kind === 'declined') {
-        if (plan.resumeFrom) {
-          resolveDelivery(NOT_DELIVERED)
+        if (plan.resumeFrom || args.onHostDeclined === null) {
+          if (args.onHostDeclined === null) {
+            toast.error(
+              translate(
+                'auto.components.native.chat.NativeChatLaunchRetry.failed',
+                'Chat could not be started.'
+              )
+            )
+          }
+          resolveDelivery({ delivered: false, failureNotified: args.onHostDeclined === null })
           return {
             kind: 'failed',
             error: new StructuredAgentSessionCreateRefusalError(
               'structured_agent_session_unsupported'
-            )
+            ),
+            ...(args.onHostDeclined === null ? { notified: true as const } : {})
           }
         }
         // The notice explains a server's refusal; on this machine the terminal opening is the answer.

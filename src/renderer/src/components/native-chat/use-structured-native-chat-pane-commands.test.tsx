@@ -39,12 +39,6 @@ vi.mock('@/components/ui/tooltip', () => {
   const Pass = ({ children }: { children?: ReactNode }) => children
   return { Tooltip: Pass, TooltipTrigger: Pass, TooltipContent: () => null }
 })
-vi.mock('@/components/tab-bar/TabWorkspaceLayoutMenuSection', () => ({
-  TabWorkspaceLayoutMenuSection: () => null
-}))
-vi.mock('@/components/tab-bar/tab-move-to-pane-column', () => ({
-  canMoveTabToNewPaneColumn: () => false
-}))
 vi.mock('./use-structured-chat-pane-actions', () => ({
   useStructuredChatPaneActions: () => ({
     onSplitRight: vi.fn(),

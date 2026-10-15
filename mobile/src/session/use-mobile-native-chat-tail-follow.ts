@@ -41,8 +41,8 @@ function restsAtPageEnd(offset: number, contentHeight: number, viewportHeight: n
 }
 
 /** A reader's touch on the page's list, from its first finger down to its last finger up. A second
- *  finger makes it the text pinch. */
-type PageTouch = { startY: number; wasFollowing: boolean; pinch: boolean }
+ *  finger makes it the text pinch. A list whose content fits the screen is not `scrollable`. */
+type PageTouch = { startY: number; wasFollowing: boolean; pinch: boolean; scrollable: boolean }
 
 /** Holds the first visible row in place when rows above it change. The header is not a row. */
 const ANCHOR_BELOW_HEADER = { minIndexForVisible: 1 } as const
@@ -217,8 +217,12 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     ({ nativeEvent: { touches, changedTouches } }: GestureResponderEvent) => {
       const touch = pageTouchRef.current
       if (!touch || touches.length === 1) {
-        const startY = changedTouches[0]?.pageY ?? 0
-        pageTouchRef.current = { startY, wasFollowing: followingRef.current, pinch: false }
+        pageTouchRef.current = {
+          startY: changedTouches[0]?.pageY ?? 0,
+          wasFollowing: followingRef.current,
+          pinch: false,
+          scrollable: pageContentHeightRef.current - pageViewportHeightRef.current > PAGE_END_SLOP
+        }
       } else {
         touch.pinch = true
       }
@@ -227,9 +231,11 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     [setFollowing]
   )
 
-  /** Page: a touch that never panned (a tap, a resting thumb, a pinch) gives following back and
-   *  catches up; a pan up the screen that rests at the end resumes there. A pan down never does:
-   *  its first scroll event can trail the lift. A lost end leaves following off. */
+  /** Page: following is re-derived at the lift. Only a pan down the screen over a list that can
+   *  scroll takes the view from the end, so every other touch from following (a tap, a resting
+   *  thumb, a pinch, a pan toward the end), and any touch on content that fits, gives it back and
+   *  catches up. A parked reader's pan up the screen that rests at the end resumes there; a pan down
+   *  never does, since its first scroll event can trail the lift. A lost end leaves following off. */
   const notePageTouchEnd = useCallback(
     ({ nativeEvent: { touches, changedTouches } }: GestureResponderEvent) => {
       const touch = pageTouchRef.current
@@ -239,10 +245,17 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       pageTouchRef.current = null
       const towardEnd = touch.startY - (changedTouches[0]?.pageY ?? touch.startY)
       const offset = pageOffsetRef.current
+      const end = Math.max(0, pageContentHeightRef.current - pageViewportHeightRef.current)
+      const panned = !touch.pinch && Math.abs(towardEnd) >= PAGE_PAN_SLOP
+      // No write lands in iOS's bounce after a pan; the scroll event where it settles resumes.
+      if (panned && (offset < 0 || offset > end + PAGE_END_SLOP)) {
+        return
+      }
+      const leftEnd = panned && touch.scrollable && towardEnd < 0
       if (
-        (touch.wasFollowing && (touch.pinch || Math.abs(towardEnd) < PAGE_PAN_SLOP)) ||
-        (towardEnd >= PAGE_PAN_SLOP &&
-          restsAtPageEnd(offset, pageContentHeightRef.current, pageViewportHeightRef.current))
+        (touch.wasFollowing && !leftEnd) ||
+        !touch.scrollable ||
+        (towardEnd >= PAGE_PAN_SLOP && Math.abs(end - offset) <= PAGE_END_SLOP)
       ) {
         jumpToTail()
       }

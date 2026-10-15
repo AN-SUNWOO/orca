@@ -121,6 +121,16 @@ function chatViewElement(overrides: Overrides): ReturnType<typeof createElement>
   })
 }
 
+function scrolledTo(y: number, contentHeight: number) {
+  return {
+    nativeEvent: {
+      contentOffset: { y },
+      contentSize: { height: contentHeight },
+      layoutMeasurement: { height: 500 }
+    }
+  }
+}
+
 describe('MobileNativeChatView', () => {
   let renderer: ReactTestRenderer | null = null
 
@@ -259,13 +269,7 @@ describe('MobileNativeChatView', () => {
   async function scrollAwayFromTail(): Promise<void> {
     await act(async () => {
       list().props.onScrollBeginDrag?.({})
-      list().props.onScroll({
-        nativeEvent: {
-          contentOffset: { y: 200 },
-          contentSize: { height: 1_200 },
-          layoutMeasurement: { height: 500 }
-        }
-      })
+      list().props.onScroll(scrolledTo(200, 1_200))
     })
   }
 
@@ -378,13 +382,7 @@ describe('MobileNativeChatView', () => {
 
     act(() => {
       list().props.onScrollBeginDrag?.({})
-      list().props.onScroll({
-        nativeEvent: {
-          contentOffset: { y: 40 },
-          contentSize: { height: 1_200 },
-          layoutMeasurement: { height: 500 }
-        }
-      })
+      list().props.onScroll(scrolledTo(40, 1_200))
       list().props.onContentSizeChange(320, 950)
     })
 
@@ -668,16 +666,6 @@ describe('MobileNativeChatView', () => {
       platform.OS = 'ios'
     })
 
-    function scrolledTo(y: number, contentHeight: number) {
-      return {
-        nativeEvent: {
-          contentOffset: { y },
-          contentSize: { height: contentHeight },
-          layoutMeasurement: { height: 500 }
-        }
-      }
-    }
-
     it('stops following only on reader input, never under a held finger, and resumes at the end', async () => {
       await render({ folded: [assistantTurn('a1', 'Latest')] })
       const arrows = () => renderer!.root.findAllByProps({ accessibilityLabel: 'Scroll to latest' })
@@ -687,12 +675,18 @@ describe('MobileNativeChatView', () => {
       const pinnedTo = (offset: number) =>
         expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset })
       act(() => {
+        // While the chat fits the screen, a swipe cannot take the view from the end.
+        list().props.onContentSizeChange(320, 400)
+        list().props.onScroll(scrolledTo(0, 400))
+        list().props.onTouchStart(finger(300, true))
+        list().props.onTouchEnd(finger(360, false))
         list().props.onContentSizeChange(320, 1_000)
         list().props.onScroll(scrolledTo(500, 1_000))
         // A clamp, a trim or rows re-measuring move the view up; no reader did.
         list().props.onScroll(scrolledTo(300, 1_000))
         list().props.onContentSizeChange(320, 1_200)
       })
+      expect(scrollToOffset).toHaveBeenCalledWith({ animated: false, offset: 1_000 })
       pinnedTo(1_200)
 
       // A resting thumb: output lands below it, the view stays, and the way back shows.

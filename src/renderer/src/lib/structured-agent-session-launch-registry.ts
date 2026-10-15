@@ -1,4 +1,3 @@
-import { removeStructuredLaunchSlot } from './structured-agent-session-launch-surface'
 import { useSyncExternalStore } from 'react'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { StructuredLaunchFailure } from './structured-agent-session-launch-failure'
@@ -20,6 +19,8 @@ import {
 } from './structured-agent-session-launch-persistence'
 import {
   markStructuredAgentLaunchCancellation,
+  removeStructuredLaunchSlot,
+  type StructuredLaunchSlotOwner,
   resetStructuredAgentLaunchCancellationForTests,
   retireAbsentStructuredAgentLaunchCancellations,
   retireStructuredAgentLaunchCancellation
@@ -222,7 +223,7 @@ function markStructuredAgentSessionLaunchCancelledInternal(
   worktreeId: string,
   sessionId: string,
   executionHostId: ExecutionHostId,
-  notify: boolean
+  owner: StructuredLaunchSlotOwner | undefined
 ): boolean {
   const alreadyCancelled = hasStructuredAgentLaunchCancellationTombstonePersisted(sessionId)
   const state = getStructuredLaunchStateBySessionId(sessionId)
@@ -245,10 +246,10 @@ function markStructuredAgentSessionLaunchCancelledInternal(
   } else if (!alreadyCancelled) {
     markStructuredAgentLaunchCancellation(sessionId, executionHostId, alreadyCancelled)
   }
-  if (notify && surfaceAddress) {
-    removeStructuredLaunchSlot(worktreeId, sessionId)
+  if (owner && surfaceAddress) {
+    removeStructuredLaunchSlot(owner, worktreeId, sessionId)
   }
-  if (!alreadyCancelled && notify) {
+  if (!alreadyCancelled && owner) {
     notifyStructuredLaunchListeners()
   }
   return !alreadyCancelled
@@ -258,13 +259,14 @@ function markStructuredAgentSessionLaunchCancelledInternal(
 export function markStructuredAgentSessionLaunchCancelled(
   worktreeId: string,
   sessionId: string,
-  executionHostId: ExecutionHostId
+  executionHostId: ExecutionHostId,
+  owner: StructuredLaunchSlotOwner
 ): boolean {
   return markStructuredAgentSessionLaunchCancelledInternal(
     worktreeId,
     sessionId,
     executionHostId,
-    true
+    owner
   )
 }
 
@@ -278,7 +280,7 @@ export function markStructuredAgentSessionLaunchCancelledSilently(
     worktreeId,
     sessionId,
     executionHostId,
-    false
+    undefined
   )
 }
 

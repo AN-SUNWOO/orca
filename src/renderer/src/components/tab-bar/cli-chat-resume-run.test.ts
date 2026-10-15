@@ -19,7 +19,10 @@ vi.mock('./cli-chat-resume-source', () => ({ resolveCliChatResumeSource: () => m
 vi.mock('@/runtime/structured-agent-session-client', () => ({
   supportsStructuredAgentSessionCliSource: mocks.sourceCapability,
   supportsStructuredAgentSessionCreateMessage: mocks.createCapability,
-  callStructuredAgentSession: mocks.call
+  callStructuredAgentSession: (...args: unknown[]) =>
+    args[1] === 'agentSession.createSupport'
+      ? Promise.resolve({ supported: true })
+      : mocks.call(...args)
 }))
 vi.mock('@/runtime/structured-session-tab-inventory', () => ({
   readStructuredSessionTabInventory: async () => {

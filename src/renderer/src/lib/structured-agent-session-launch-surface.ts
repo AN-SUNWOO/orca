@@ -135,19 +135,6 @@ export function reserveStructuredLaunchSlot(launch: LaunchSurface): void {
   })
 }
 
-export function removeStructuredLaunchSlot(worktreeId: string, sessionId: string): void {
-  const state = useAppStore.getState()
-  const tabId = structuredAgentSessionTabId(sessionId)
-  if (state.unifiedTabsByWorktree[worktreeId]?.some((tab) => tab.id === tabId)) {
-    return
-  }
-  const groups = state.groupsByWorktree[worktreeId] ?? []
-  for (const group of groups.filter((entry) => entry.tabOrder.includes(tabId))) {
-    const order = group.tabOrder.filter((id) => id !== tabId)
-    state.reorderUnifiedTabs(group.id, order, { recordInteraction: false })
-  }
-}
-
 export function openStructuredAgentSessionProvisionalTab(args: {
   worktreeId: string
   executionHostId: ExecutionHostId

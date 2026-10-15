@@ -70,7 +70,8 @@ export function createTabsCloseActions(
             target,
             worktreeId,
             sessionId: tab.entityId,
-            provisional
+            provisional,
+            layoutOwner: state
           })
         } else {
           // Closing still removes the tab; no host can be named to stop its chat on.

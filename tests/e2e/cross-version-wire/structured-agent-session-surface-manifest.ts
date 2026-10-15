@@ -178,6 +178,8 @@ export function paramsFor(method: string): unknown {
     }
     case 'agentSession.history':
       return { sessionId: SESSION, direction: 'tail' }
+    case 'agentSession.currentRequests':
+      return { sessionId: SESSION, version: '00000000-0000-4000-8000-000000000001' }
     case 'agentSession.acknowledgeAttention':
       return { ...ATTENTION_READ, observedCursor: { ...ATTENTION_READ.observedCursor } }
     case 'agentSession.modelCatalog':

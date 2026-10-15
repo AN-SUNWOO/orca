@@ -11,7 +11,6 @@ import {
   type AgentSessionAccountHome
 } from '../../shared/agent-session-account-home'
 import type { AntigravityChatSignInState } from '../../shared/antigravity-account-types'
-import { delayUnlessAborted } from '../../shared/abort-aware-delay'
 import { createAcpAgentConnection, type AcpAgentConnection } from '../acp/acp-agent-connection'
 import {
   ANTIGRAVITY_LAUNCH_SPEC,
@@ -22,6 +21,7 @@ import { acpPrivateTempConnect } from '../acp/acp-private-temp'
 import type { ConnectAcpAgent } from '../acp/acp-structured-connection'
 import { resolveAcpLaunchInvocation } from '../acp/acp-structured-launch-resolution'
 import { prepareAcpLaunch } from '../acp/acp-structured-launch-preparation'
+import { RevisionedState } from '../runtime/revisioned-state'
 import type { structuredAgentHostLaunchSources } from '../runtime/structured-agent-launch-support'
 import {
   AntigravitySignInCloseUnprovenError,
@@ -38,9 +38,8 @@ const INVALID_LINK = {
 
 type Phase = AntigravityChatSignInState['phase']
 type Flow = {
-  state: AntigravityChatSignInState
+  state: RevisionedState<AntigravityChatSignInState>
   ended: AbortController
-  changed: Set<() => void>
   done: Promise<void>
 }
 
@@ -60,19 +59,19 @@ function publish(
   next: Omit<AntigravityChatSignInState, 'flowId'>,
   cleanupFailed = false
 ): void {
-  if (settled(current.state.phase) && !cleanupFailed) {
+  const { flowId, phase } = current.state.get().value
+  if (settled(phase) && !cleanupFailed) {
     return
   }
-  current.state = { flowId: current.state.flowId, ...next }
+  current.state.set({ flowId, ...next })
   if (settled(next.phase)) {
     current.ended.abort()
   }
-  current.changed.forEach((notify) => notify())
 }
 
 export function startAntigravityChatSignIn(host: AntigravityChatSignInHost): { flowId: string } {
   // A host whose chats are refused (supportsAcpStructuredLocation) signs none in.
-  if (ANTIGRAVITY_LAUNCH_SPEC.managedRuntime?.availableOnHost?.() === false) {
+  if (ANTIGRAVITY_LAUNCH_SPEC.managedRuntime.pin() === null) {
     throw new Error(`Antigravity chats are not available on ${process.platform} ${process.arch}.`)
   }
   const previous = flow
@@ -80,15 +79,17 @@ export function startAntigravityChatSignIn(host: AntigravityChatSignInHost): { f
     publish(previous, { phase: 'cancelled' })
   }
   const current: Flow = {
-    state: { flowId: randomUUID(), phase: 'starting' },
+    state: new RevisionedState<AntigravityChatSignInState>({
+      flowId: randomUUID(),
+      phase: 'starting'
+    }),
     ended: new AbortController(),
-    changed: new Set(),
     done: Promise.resolve()
   }
   flow = current
   // After the replaced flow has let go of the chats' starts.
   current.done = (previous?.done ?? Promise.resolve()).then(() => runFlow(current, host))
-  return { flowId: current.state.flowId }
+  return { flowId: current.state.get().value.flowId }
 }
 
 async function runFlow(current: Flow, host: AntigravityChatSignInHost): Promise<void> {
@@ -121,7 +122,8 @@ async function signIn(current: Flow, host: AntigravityChatSignInHost): Promise<v
       resolveCommandSettings: () => commandSettings,
       dataDirectory
     })
-  const launch = await prepareAcpLaunch(deps, resolve, signal, closed)
+  // Never downloads: an unresolved runtime refuses as a chat start does.
+  const launch = await prepareAcpLaunch(deps, resolve, closed)
   const connect = await acpPrivateTempConnect(deps, closed)
   const cwd = await mkdtemp(join(tmpdir(), 'orca-antigravity-sign-in-'))
   let connection: AcpAgentConnection | null = null
@@ -188,29 +190,23 @@ export async function readAntigravityChatSignInLink(
   shown: Phase | undefined,
   signal?: AbortSignal
 ): Promise<AntigravityChatSignInState> {
-  const current = flow?.state.flowId === flowId ? flow : null
-  if (current && current.state.phase === shown && !settled(shown)) {
-    const changed = new AbortController()
-    const notify = (): void => changed.abort()
-    current.changed.add(notify)
-    try {
-      await delayUnlessAborted(
-        LINK_WAIT_MS,
-        AbortSignal.any([changed.signal, ...(signal ? [signal] : [])])
-      )
-    } finally {
-      current.changed.delete(notify)
-    }
+  const current = flow?.state.get().value.flowId === flowId ? flow : null
+  if (!current) {
+    return { flowId, phase: 'cancelled' }
   }
-  return current?.state ?? { flowId, phase: 'cancelled' }
+  const { value, revision } = current.state.get()
+  if (value.phase === shown && !settled(shown)) {
+    await current.state.waitForChange(revision, LINK_WAIT_MS, signal)
+  }
+  return current.state.get().value
 }
 
 export function cancelAntigravityChatSignIn(flowId: string): AntigravityChatSignInState {
-  if (flow?.state.flowId !== flowId) {
+  if (flow?.state.get().value.flowId !== flowId) {
     throw new Error('That Antigravity sign-in is no longer running.')
   }
   publish(flow, { phase: 'cancelled' })
-  return flow.state
+  return flow.state.get().value
 }
 
 /** `saved` is a stat of the server's own sign-in file; nothing reads it. */
@@ -226,5 +222,5 @@ export async function readAntigravityChatSignInStatus(
     (file) => file.isFile(),
     () => false
   )
-  return { saved, signingIn: flow !== null && !settled(flow.state.phase) }
+  return { saved, signingIn: flow !== null && !settled(flow.state.get().value.phase) }
 }

@@ -26,6 +26,14 @@ vi.mock('../provider-process/provider-process-teardown', () => ({
 
 const GOOGLE_LINK =
   'https://accounts.google.com/o/oauth2/v2/auth?response_type=code&state=s1&redirect_uri=http%3A%2F%2F127.0.0.1%3A41234%2F'
+// Any host, even one without a published server build, signs in against the fake.
+const PIN = {
+  version: '1.3.0',
+  url: 'https://example.test/agy.zip',
+  archiveSha256: 'a'.repeat(64),
+  archiveBytes: 1,
+  members: []
+}
 const folders: string[] = []
 afterEach(async () => {
   vi.restoreAllMocks()
@@ -34,7 +42,7 @@ afterEach(async () => {
 
 /** A sign-in on a scratch data folder whose server prints `link` when asked to authenticate. */
 async function signInAgainst(link: string, configure?: (connection: AcpAgentConnection) => void) {
-  vi.spyOn(ANTIGRAVITY_LAUNCH_SPEC.managedRuntime, 'availableOnHost').mockReturnValue(true)
+  vi.spyOn(ANTIGRAVITY_LAUNCH_SPEC.managedRuntime, 'pin').mockReturnValue(PIN)
   const stateDirectory = await mkdtemp(join(tmpdir(), 'orca-agy-sign-in-'))
   folders.push(stateDirectory)
   const agent = new AcpScriptedAgent()
@@ -133,7 +141,6 @@ it('retains an unclosed sign-in child for both launch entry points until its exi
     prepareAcpStructuredLaunch(
       {
         spec: ANTIGRAVITY_LAUNCH_SPEC,
-        dataDirectory: (await old.host.launchSources()).dataDirectory,
         resolveLaunch: async () => ({
           ...launch,
           env,
@@ -174,4 +181,24 @@ it('retains an unclosed sign-in child for both launch entry points until its exi
     await expect(stat(env.TMPDIR)).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(stat(cwd)).rejects.toMatchObject({ code: 'ENOENT' })
   })
+})
+
+it('fails without downloading anything while the server is not installed', async () => {
+  vi.spyOn(ANTIGRAVITY_LAUNCH_SPEC.managedRuntime, 'pin').mockReturnValue(PIN)
+  const dataDirectory = await mkdtemp(join(tmpdir(), 'orca-agy-sign-in-'))
+  folders.push(dataDirectory)
+  const connect = vi.fn<ConnectAcpAgent<AcpAgentConnection>>()
+  const { flowId } = startAntigravityChatSignIn({
+    launchSources: async () => ({
+      accountHome: { variable: 'GEMINI_HOME', path: join(dataDirectory, 'antigravity-chat') },
+      env: { PATH: join(dataDirectory, 'empty-bin') },
+      commandSettings: {},
+      dataDirectory
+    }),
+    stopLiveChats: async () => {},
+    connect
+  })
+  const state = await readAntigravityChatSignInLink(flowId, 'starting')
+  expect(state).toMatchObject({ phase: 'failed', error: expect.stringContaining('not installed') })
+  expect(connect).not.toHaveBeenCalled()
 })

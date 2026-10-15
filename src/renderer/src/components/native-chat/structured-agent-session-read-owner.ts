@@ -3,7 +3,6 @@ import type { AgentProviderSessionMetadata } from '../../../../shared/agent-sess
 import { agentProviderSessionsEqual } from '../../../../shared/agent-session-resume'
 import {
   AGENT_SESSION_HISTORY_MAX_LIMIT,
-  type AgentSessionHistoryPage,
   type AgentSessionHistoryResult
 } from '../../../../shared/agent-session-wire'
 import {

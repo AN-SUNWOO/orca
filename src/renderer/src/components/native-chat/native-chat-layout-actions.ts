@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom'
 import type { AppState } from '@/store/types'
 import { useAppStore } from '@/store'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
@@ -84,10 +85,18 @@ export function runNativeChatSplitTarget(
     return false
   }
   const focusIntent = captureNativeChatComposerFocusIntent()
-  const groupId = state.createEmptySplitGroup(source.worktreeId, target.groupId, direction)
+  const groupId = flushSync(() =>
+    state.createEmptySplitGroup(source.worktreeId, target.groupId, direction)
+  )
   if (!groupId) {
     focusIntent.cancel()
     return false
+  }
+  // Host admission can outlive this action; the source draft must stop owning keyboard input.
+  if (typeof document !== 'undefined') {
+    document
+      .querySelector<HTMLElement>(`[data-tab-group-body-id="${groupId}"]`)
+      ?.focus({ preventScroll: true })
   }
   try {
     const launch = beginStructuredAgentSessionProvisionalLaunch({

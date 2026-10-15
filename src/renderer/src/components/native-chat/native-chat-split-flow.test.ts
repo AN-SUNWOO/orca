@@ -1,4 +1,8 @@
-import { expect, it, vi } from 'vitest'
+// @vitest-environment happy-dom
+import { expect, it, onTestFinished, vi } from 'vitest'
+import { createElement, useSyncExternalStore } from 'react'
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import { createTestStore } from '@/store/slices/store-test-helpers'
 import { createTabsSliceMockApi } from '@/store/slices/tabs-slice-test-harness'
 import { isEmptyWorkspaceDefaultSurfacePending } from '@/lib/empty-workspace-default-surface-claims'
@@ -49,9 +53,33 @@ it.each(['right', 'down'] as const)(
       unifiedTabId: source.id,
       groupId: source.groupId
     } as const
+    const sourceField = document.body.appendChild(document.createElement('textarea'))
+    sourceField.value = 'Source draft'
+    const container = document.body.appendChild(document.createElement('div'))
+    function SplitBodies() {
+      const groupId = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().activeGroupIdByWorktree[worktreeId]
+      )
+      return createElement('div', { 'data-tab-group-body-id': groupId, tabIndex: -1 })
+    }
+    const root = createRoot(container)
+    onTestFinished(() => {
+      root.unmount()
+      container.remove()
+      sourceField.remove()
+    })
+    flushSync(() => root.render(createElement(SplitBodies)))
+    sourceField.focus()
+    const initialAdmission = Promise.withResolvers<{ supported: boolean }>()
+    mocks.createSupport.mockReturnValueOnce(initialAdmission.promise)
     expect(runNativeChatSplitTarget(target, direction)).toBe(true)
     const state = store.getState()
     const groupId = state.activeGroupIdByWorktree[worktreeId]
+    expect(document.activeElement?.getAttribute('data-tab-group-body-id')).toBe(groupId)
+    expect(sourceField.value).toBe('Source draft')
+    expect(mocks.begin).not.toHaveBeenCalled()
+    initialAdmission.resolve({ supported: true })
     expect(state.layoutByWorktree[worktreeId]).toMatchObject({
       type: 'split',
       direction: direction === 'right' ? 'horizontal' : 'vertical',

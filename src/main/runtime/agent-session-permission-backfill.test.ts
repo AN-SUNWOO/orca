@@ -112,18 +112,20 @@ describe('existing chat permission backfill', () => {
   })
 
   it.each([
-    ['claude', 'full-access', 'ask'],
-    ['codex', 'ask', 'full-access']
+    ['claude', 'full-access', 'ask', 'ask'],
+    ['codex', 'ask', 'full-access', 'ask'],
+    ['omp', 'ask', 'ask', 'full-access']
   ] as const)(
-    "fills each row from its own agent's Arguments when only %s skips prompts",
-    async (bypassing, claude, codex) => {
+    'fills each row from what its own agent ran with when only %s skips prompts',
+    async (bypassing, claude, codex, omp) => {
       await seedTestAgentSessionRecordStore(root, {
-        records: [record('claude'), record('codex'), record('pi')]
+        records: [record('claude'), record('codex'), record('omp'), record('pi')]
       })
       const store = await openTestAgentSessionRecordStore(root)
       await store.backfillChatPermissionModes((provider) => provider === bypassing)
       expect(store.getRecord('session-claude')?.permissionMode).toBe(claude)
       expect(store.getRecord('session-codex')?.permissionMode).toBe(codex)
+      expect(store.getRecord('session-omp')?.permissionMode).toBe(omp)
       expect(store.getRecord('session-pi')?.permissionMode).toBeUndefined()
     }
   )

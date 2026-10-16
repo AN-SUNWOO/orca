@@ -20,6 +20,11 @@ import {
 } from './orcad-migration-catalog-import'
 import { OrcaRuntimeWithResolveWaiter } from './orca-runtime-resolve-waiter'
 import type { RuntimeStore } from './runtime-store-contract'
+import type { SessionReadTerminalScrollbackResult } from '../../shared/rpc-contract/session-terminal-scrollback-params'
+import {
+  readHostTerminalScrollback,
+  type HostTerminalScrollbackReadRequest
+} from './host-terminal-scrollback-read'
 
 type MigrationStoreKey =
   | 'stageOrcadMigrationCatalog'
@@ -145,6 +150,25 @@ export abstract class OrcaRuntimeWithMigrationCatalog extends OrcaRuntimeWithRes
 
   private readonly migrationWorktreeHasLiveShells = (worktreeId: string): boolean =>
     this.getLivePtyIdsForWorktree(worktreeId).size > 0
+
+  /** A migrated pane's stored scrollback, for a client whose own copy is gone or never existed. */
+  async readTerminalScrollbackForClient(
+    request: HostTerminalScrollbackReadRequest
+  ): Promise<SessionReadTerminalScrollbackResult> {
+    const store = this.store
+    const readSnapshot = store?.readTerminalScrollbackSnapshot
+    if (!store || !readSnapshot) {
+      throw new Error('runtime_unavailable')
+    }
+    return readHostTerminalScrollback(
+      {
+        resolveWorktreeId: async (selector) => (await this.resolveWorktreeSelector(selector)).id,
+        getWorkspaceSession: (worktreeId) => this.workspaceSessions.get(worktreeId),
+        readSnapshot: (ref) => readSnapshot.call(store, ref)
+      },
+      request
+    )
+  }
 
   // The capability check covers the captured Store, not a different virtual return.
   private requireMigrationStore(...methods: MigrationStoreKey[]): RuntimeStore {

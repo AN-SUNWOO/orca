@@ -85,6 +85,7 @@ export function createWebWorkspaceSessionApi(): Partial<PreloadApi> {
       closeTerminalSurface: async () => {},
       // localStorage writes synchronously, so there is no deferred web flush.
       flush: async () => {},
+      // No local snapshot store: host-run panes read theirs from the host (host-terminal-scrollback-hydration).
       readTerminalScrollback: () => null
     }
   }

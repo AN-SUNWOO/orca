@@ -44,13 +44,8 @@ export const TERMINAL_SEND_METHODS = [
       async () => {
       await assertTerminalSendTextWithinLimit(params.text)
       await assertTerminalSendTextWithinLimit(params.resolvedLaunchDraft?.text)
-      if (params.text) {
-        await assertLegacyAiVaultResumeCommandAllowed(params.text, () =>
-          runtime.ensureStructuredAgentSessionHost()
-        )
-      }
-      if (params.resolvedLaunchDraft?.text) {
-        await assertLegacyAiVaultResumeCommandAllowed(params.resolvedLaunchDraft.text, () =>
+      for (const text of [params.text, params.resolvedLaunchDraft?.text]) {
+        await assertLegacyAiVaultResumeCommandAllowed(text ?? '', () =>
           runtime.ensureStructuredAgentSessionHost()
         )
       }

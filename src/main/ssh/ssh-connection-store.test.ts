@@ -58,6 +58,29 @@ describe('SshConnectionStore', () => {
     expect(mockStore.addSshTarget).toHaveBeenCalledWith(target)
   })
 
+  it('records consent when the CLI control switch is saved on, and clears the reset notice (#29145)', () => {
+    const target = sshStore.addTarget({
+      label: 'Box',
+      host: 'box',
+      port: 22,
+      username: 'me',
+      allowRemoteCliControl: true
+    })
+    expect(target.allowRemoteCliControlConsent).toBe('desktop-browser-bridge')
+
+    sshStore.updateTarget(target.id, { allowRemoteCliControl: false })
+    expect(mockStore.updateSshTarget).toHaveBeenLastCalledWith(
+      target.id,
+      expect.objectContaining({
+        allowRemoteCliControl: false,
+        allowRemoteCliControlConsent: undefined,
+        allowRemoteCliControlReset: undefined
+      })
+    )
+    sshStore.updateTarget(target.id, { label: 'Renamed' })
+    expect(mockStore.updateSshTarget).toHaveBeenLastCalledWith(target.id, { label: 'Renamed' })
+  })
+
   it('addTarget stamps source as manual by default', () => {
     const target = sshStore.addTarget({
       label: 'My Server',

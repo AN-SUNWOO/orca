@@ -8701,7 +8701,8 @@
           "addDescription": "添加一台可通过 SSH 登录的持久机器。",
           "editingPrefix": "正在编辑",
           "allowRemoteCliControl": "允许此主机的 orca CLI 控制 Orca",
-          "allowRemoteCliControlHelp": "关闭时，在此主机上运行的 orca 命令只能访问其自身的终端。开启后，可让它们访问此计算机上的其他主机、编排、文件和集成。"
+          "allowRemoteCliControlHelp": "开启后，在此主机上运行的 orca 命令可以打开并操作此桌面上的 Orca 浏览器标签页，但仅限此主机的工作区，且仅在主机连接期间。它们无法读取你的文件、剪贴板或 Cookie。关闭时，它们只能访问此主机自身的 Orca 服务器。",
+          "allowRemoteCliControlReset": "更新后 Orca 关闭了此项，因为它现在允许此主机操作你桌面上的浏览器。仅在需要时再重新开启。"
         },
         "TasksPane": {
           "f71d8a9dd3": "任务提供者",

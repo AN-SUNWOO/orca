@@ -16,6 +16,7 @@ import { worktreeIdsEqual } from '../../../shared/worktree/id'
 import { isLocalHookConnectionId } from '../../../shared/wsl-hook-relay-contract'
 import type { EnrichedAgentHookEventPayload } from './server-types'
 import { AgentHookServerAuthorityFences } from './server-authority-fences'
+import { recordAgentExit } from './agent-exit-evidence'
 
 export abstract class AgentHookServerCleanup extends AgentHookServerAuthorityFences {
   /** The resume-identity remnant of a dropped row: a `providerSessionOnly` entry carries no state
@@ -142,10 +143,8 @@ export abstract class AgentHookServerCleanup extends AgentHookServerAuthorityFen
             paneKeys.add(aliasKey)
           }
         }
-        const exit = { at: Date.now(), paneKeys }
-        for (const key of exit.paneKeys) {
-          this.agentExitedAtByPaneKey.set(key, exit)
-        }
+        recordAgentExit(this.agentExitedAtByPaneKey, paneKeys, options.endedPresence)
+        this.scheduleStatusPersist()
       }
       if (!this.hasLiveClaimsForPaneKey(resolvedPaneKey)) {
         continue

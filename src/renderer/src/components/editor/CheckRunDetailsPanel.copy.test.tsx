@@ -5,8 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type { PRCheckDetail, PRCheckRunDetails } from '../../../../shared/github/check-types'
 import { CheckRunDetailsPanel } from './CheckRunDetailsPanel'
+import * as normalization from '@/lib/check-run-details-log-normalization'
+import * as sanitation from '../../../../shared/check-job-log-excerpt'
+import {
+  captured,
+  checkLogDetails,
+  checkLogJob
+} from '@/lib/check-run-details-log-normalization-test-fixture'
 
 const writeClipboardText = vi.fn<(text: string) => Promise<void>>()
+const prCheckDetails = vi.fn()
+const runtimeCall = vi.fn()
 
 vi.mock('@/i18n/i18n', () => ({
   i18n: { language: 'en' },
@@ -39,11 +48,23 @@ vi.mock('./check-run-details-fix-with-ai', () => ({
   })
 }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 beforeEach(() => {
   writeClipboardText.mockReset().mockResolvedValue(undefined)
-  Object.assign(window, { api: { ui: { writeClipboardText } } })
+  prCheckDetails.mockReset()
+  runtimeCall.mockReset()
+  Object.assign(window, {
+    api: {
+      ui: { writeClipboardText },
+      gh: { prCheckDetails },
+      runtime: { call: runtimeCall },
+      runtimeEnvironments: { call: runtimeCall, subscribe: runtimeCall }
+    }
+  })
 })
 
 const check: PRCheckDetail = {
@@ -100,6 +121,45 @@ const details: PRCheckRunDetails = {
 }
 
 describe('CheckRunDetailsPanel card copy actions', () => {
+  it('displays and copies the loaded scrubbed diagnostic without sanitation or another request', async () => {
+    const normalize = vi.spyOn(normalization, 'normalizeCheckRunDetailsLogTails')
+    const sanitize = vi.spyOn(sanitation, 'sanitizeCheckJobLogExcerpt')
+    const loaded = normalization.normalizeCheckRunDetailsLogTails(
+      checkLogDetails([checkLogJob(captured.rawLog)])
+    )
+    if (!loaded) {
+      throw new Error('Expected details')
+    }
+    const panel = (
+      <TooltipProvider>
+        <CheckRunDetailsPanel
+          check={check}
+          details={loaded}
+          loading={false}
+          error={null}
+          openUrl={null}
+          worktreeId={null}
+        />
+      </TooltipProvider>
+    )
+    const view = render(panel)
+    const excerpt = view.container.querySelector('pre')
+    expect(excerpt?.textContent).toContain(captured.expectedDiagnostic)
+    expect(excerpt?.textContent).toContain(captured.expectedStackFrame)
+    expect(excerpt?.textContent).not.toContain('\x1b')
+    view.rerender(panel)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy jobs' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy log excerpt' }))
+    await waitFor(() => expect(writeClipboardText).toHaveBeenCalledTimes(2))
+    expect(writeClipboardText.mock.calls[0][0]).toContain(captured.expectedDiagnostic)
+    expect(writeClipboardText.mock.calls[0][0]).toContain(captured.expectedStackFrame)
+    expect(writeClipboardText).toHaveBeenLastCalledWith(loaded.jobs[0].logTail)
+    expect(normalize).toHaveBeenCalledOnce()
+    expect(sanitize).toHaveBeenCalledOnce()
+    expect(prCheckDetails).not.toHaveBeenCalled()
+    expect(runtimeCall).not.toHaveBeenCalled()
+  })
+
   it('renders a copy action for every card and copies each card payload', async () => {
     render(
       <TooltipProvider>

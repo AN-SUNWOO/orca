@@ -21,6 +21,7 @@ import {
 import { isStaleGrokTurnEnd } from './server-grok-status-rules'
 import { resolveCancelVerdictLatch } from './server-cancel-verdict-latch'
 import { AgentHookServerStatusApplication } from './server-status-application'
+import { claimsPaneAfterExit } from './agent-exit-evidence'
 
 export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusApplication {
   protected readonly claudeOwedNotificationExpiry = new ClaudeOwedNotificationExpiryTimers(
@@ -68,8 +69,14 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
       })
       return undefined
     }
-    if (payload.source !== undefined || payload.agentPresence?.process) {
-      // A hook (not a late terminal repaint) means an agent claimed the pane after the last exit.
+    const priorExit =
+      this.agentExitedAtByPaneKey.get(this.resolvePaneKeyAlias(payload.paneKey)) ??
+      this.agentExitedAtByPaneKey.get(payload.paneKey)
+    // Why the incoming presence: the transition may stamp a stale owner over the sender's own identity.
+    if (
+      priorExit &&
+      claimsPaneAfterExit({ ...payload, agentPresence: incoming.agentPresence }, priorExit)
+    ) {
       this.forgetAgentExit(payload.paneKey)
     }
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Main admits enriched legacy rows; the shared view declares their base event type.

@@ -338,23 +338,31 @@ describe('CI dependency download caches', () => {
   })
 
   it.each([
-    ['pull_request', false, false],
-    ['push', true, false],
-    ['schedule', true, true],
-    ['workflow_dispatch', true, true]
-  ])('retains cache producers and Windows validation on %s', (event, armRuns, sharedPlatforms) => {
-    const shared = workflow('ci-cache-warmup')
-    const platforms = read(workflow('ci-cache-warmup-platforms').jobs['warm-platforms'].uses)
-    const context = { github: { event_name: event } }
-    expect(runInNewContext(platforms.jobs['warm-linux-runtime'].if, context)).toBe(armRuns)
-    expect(runInNewContext(shared.jobs['warm-platforms'].if, context)).toBe(sharedPlatforms)
-    expect(shared.jobs.warm.if).toBeUndefined()
-    expect(platforms.jobs['warm-windows'].if).toBeUndefined()
-    expect(platforms.jobs['warm-windows'].strategy.matrix.os).toEqual([
-      'windows-2022',
-      'windows-11-arm'
-    ])
-  })
+    ['pull_request', false, true, false, false],
+    ['pull_request', true, false, false, false],
+    ['push', false, true, true, false],
+    ['schedule', false, true, true, true],
+    ['workflow_dispatch', false, true, true, true]
+  ])(
+    'retains eligible cache producers and Windows validation on %s (draft %s)',
+    (event, draft, admitted, armRuns, sharedPlatforms) => {
+      const shared = workflow('ci-cache-warmup')
+      const platformWorkflow = workflow('ci-cache-warmup-platforms')
+      const platforms = read(platformWorkflow.jobs['warm-platforms'].uses)
+      const context = { github: { event_name: event, event: { pull_request: { draft } } } }
+      expect(runInNewContext(platforms.jobs['warm-linux-runtime'].if, context)).toBe(armRuns)
+      expect(runInNewContext(shared.jobs['warm-platforms'].if, context)).toBe(sharedPlatforms)
+      expect(runInNewContext(shared.jobs.warm.if ?? 'true', context)).toBe(admitted)
+      expect(runInNewContext(platformWorkflow.jobs['warm-platforms'].if ?? 'true', context)).toBe(
+        admitted
+      )
+      expect(platforms.jobs['warm-windows'].if).toBeUndefined()
+      expect(platforms.jobs['warm-windows'].strategy.matrix.os).toEqual([
+        'windows-2022',
+        'windows-11-arm'
+      ])
+    }
+  )
 
   it('validates the omitted Linux warmer preparation in the real PR consumers', () => {
     const platforms = read(workflow('ci-cache-warmup-platforms').jobs['warm-platforms'].uses)

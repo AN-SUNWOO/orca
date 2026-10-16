@@ -132,7 +132,6 @@ export function NativeChatStructuredSession(
     hostOutage === null
   )
   const submits = useStructuredNativeChatSubmitReveal(controller, provisionalLaunch.retry)
-  const { revealLatest } = submits
   const promptResponse = useStructuredPromptResponseHold(submits.respond)
   const agentLabel = structuredAgentLabel(props.agent)
   const continuation = useNativeChatInterruptedContinuation({
@@ -224,7 +223,7 @@ export function NativeChatStructuredSession(
     optionPickerRequest,
     setOptionPickerRequest,
     onError: reportComposerError,
-    onSubmitted: revealLatest,
+    onSubmitted: submits.revealLatest,
     installBlocked: installSlot.kind !== 'none'
   })
 
@@ -394,9 +393,7 @@ export function NativeChatStructuredSession(
               answerInputRef={questionAnswerInputRef}
             />
           ) : null}
-          {composerShown ? (
-            <NativeChatInstallSlot slot={installSlot} agentLabel={agentLabel} />
-          ) : null}
+          {composerShown && <NativeChatInstallSlot slot={installSlot} agentLabel={agentLabel} />}
           {composerOpen ? (
             <NativeChatComposer
               ref={composerRef}

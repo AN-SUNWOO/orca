@@ -46,7 +46,11 @@ vi.mock('./wsl-host-deployment-store', async (importOriginal) => {
 })
 
 import { encodePairingOffer } from './pairing'
-import { addEnvironmentFromPairingCode, listEnvironments } from './runtime-environment-store'
+import {
+  addEnvironmentFromPairingCode,
+  listEnvironments,
+  markEnvironmentUsed
+} from './runtime-environment-store'
 import {
   addManagedOrcadEnvironment,
   refreshManagedOrcadPairing,
@@ -148,8 +152,16 @@ describe('pairing record golden files', () => {
     capture('add', () => add({}))
     capture('add duplicate id', () => add({ name: 'Other' }))
     capture('add duplicate name', () => add({ id: 'managed-2' }))
+    capture('add bad code with a taken id', () => add({ pairingCode: 'nope' }))
+    capture('add taken id and name with the wrong port', () => add({ pairingCode: code(1234) }))
+    capture('add taken name with the wrong port', () =>
+      add({ id: 'managed-2', pairingCode: code(1234) })
+    )
     capture('add second sorts first', () =>
       add({ id: 'managed-0', name: 'Alpha', pairingCode: code(46_768, 'alpha') })
+    )
+    capture('mark used with a runtime', () =>
+      markEnvironmentUsed(userDataPath, 'managed-1', { runtimeId: 'runtime-a', now: 150 })
     )
     capture('refresh invalid code', () =>
       refreshManagedOrcadPairing(userDataPath, 'managed-1', 'nope', 200)
@@ -174,7 +186,7 @@ describe('pairing record golden files', () => {
     capture('refresh unmanaged', () =>
       refreshManagedOrcadPairing(
         userDataPath,
-        listEnvironments(userDataPath).find((entry) => entry.name === 'Zeta')!.id,
+        listEnvironments(userDataPath).find((entry) => entry.name === 'Zeta')?.id ?? 'missing',
         code(1),
         400
       )
@@ -222,6 +234,9 @@ describe('pairing record golden files', () => {
     capture('refresh invalid code', () =>
       refresh('nope', { localPort: 42_000, remotePort: 6_768 }, 200)
     )
+    capture('mark used with a runtime', () =>
+      markEnvironmentUsed(userDataPath, 'wsl:ubuntu', { runtimeId: 'runtime-w', now: 150 })
+    )
     capture('refresh unchanged', () =>
       refresh(code(42_000), { localPort: 42_000, remotePort: 6_768 }, 200)
     )
@@ -234,6 +249,9 @@ describe('pairing record golden files', () => {
     capture('refresh moved bridge', () =>
       refresh(code(42_001, 'token-2', 'device-9'), { localPort: 42_001, remotePort: 6_769 }, 50)
     )
+    capture('managed refresh of a WSL host', () =>
+      refreshManagedOrcadPairing(userDataPath, 'wsl:ubuntu', code(42_002, 'token-6'), 600)
+    )
     capture('refresh wrong port', () =>
       refresh(code(1234, 'token-5'), { localPort: 42_002, remotePort: 6_769 }, 500)
     )
@@ -244,9 +262,6 @@ describe('pairing record golden files', () => {
         { pairingCode: code(1), localPort: 1, remotePort: 2 },
         500
       )
-    )
-    capture('managed refresh of a WSL host', () =>
-      refreshManagedOrcadPairing(userDataPath, 'wsl:ubuntu', code(42_002, 'token-6'), 600)
     )
     capture('remove', () => removeWslHostEnvironment(userDataPath, 'wsl:ubuntu'))
     capture('remove again', () => removeWslHostEnvironment(userDataPath, 'wsl:ubuntu'))

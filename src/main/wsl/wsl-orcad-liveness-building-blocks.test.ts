@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  confirmsRunning,
+  failedExit,
+  gatherWslLivenessEvidence
+} from './wsl-orcad-liveness-evidence'
+import {
   attachSupervisedWatch,
   cancellableWait,
-  confirmsRunning,
-  disarmSupervised,
   ensureHolderQuietly,
-  failedExit,
-  gatherWslLivenessEvidence,
-  newSupervised,
-  subscribeWake,
-  type WslOrcadTimer
-} from './wsl-orcad-liveness-model'
+  subscribeWake
+} from './wsl-orcad-liveness-monitor'
+import { disarmSupervised, newSupervised, type WslOrcadTimer } from './wsl-orcad-liveness-state'
 import { WslOrcadReconnectBackoff } from './wsl-orcad-reconnect-backoff'
 import type { WslOrcadWatch } from './wsl-orcad-watch'
 

@@ -7,6 +7,7 @@ import { WorktreeForceDeleteButton } from './WorktreeForceDeleteButton'
 import { isNestedWorktreeRemovalError } from '../../../../shared/worktree/nested-removal'
 import {
   isLockedWorktreeRemovalError,
+  SUBMODULE_DIRTY_REMOVAL_DETAIL,
   type WorktreeForceDeleteReason,
   type WorktreeRemovalTarget
 } from '../../../../shared/worktree/removal'
@@ -152,8 +153,10 @@ export function showDeleteWorktreeFailureToast({
         canForceDelete={canForceDelete}
         canWaiveArchiveHook={canWaiveArchiveHook === true}
         showViewChanges={
-          !(isLockedWorktreeRemovalError(error) || forceDeleteReason === 'submodules') ||
-          hasKnownChanges === true
+          !(
+            isLockedWorktreeRemovalError(error) ||
+            (forceDeleteReason === 'submodules' && !error.includes(SUBMODULE_DIRTY_REMOVAL_DETAIL))
+          ) || hasKnownChanges === true
         }
         onViewChanges={onViewChanges}
         onForceDelete={onForceDelete}

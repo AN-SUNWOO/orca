@@ -100,9 +100,10 @@ describe('assertWorktreeCleanForRemoval', () => {
   })
 
   it('still rejects real changes when configured linked paths are ignored', async () => {
-    gitExecFileAsyncMock
-      .mockResolvedValueOnce({ stdout: '?? node_modules\0 M src/index.ts\0', stderr: '' })
-      .mockResolvedValueOnce({ stdout: '1 .M N... 100644 100644 100644 a b src/index.ts\n' })
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: '?? node_modules\0 M src/index.ts\0',
+      stderr: ''
+    })
 
     await expect(
       assertWorktreeCleanForRemoval('/repo-feature', false, {

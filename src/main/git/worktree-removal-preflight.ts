@@ -1,3 +1,5 @@
+import { stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import { SUBMODULE_DIRTY_REMOVAL_DETAIL } from '../../shared/worktree/removal'
 import { gitExecFileAsync } from './runner'
 import type { WorktreeRemovalPreflightOptions } from './worktree-operation-options'
@@ -40,14 +42,12 @@ export async function assertWorktreeCleanForRemoval(
     return
   }
 
-  const entries = blockingEntries ?? stdout.split('\n').filter(Boolean)
-  if (
-    entries.some((entry) => !entry.startsWith('??')) &&
-    (await hasChangedSubmodule(worktreePath, gitOptions))
-  ) {
-    // Why no status lines: Force Delete here also destroys never-pushed submodule commits, so the
-    // refusal must say submodules; the detail still reads as dirty to older classifiers.
-    throw new Error(SUBMODULE_DIRTY_REMOVAL_DETAIL)
+  const blockingStatus = blockingEntries ? blockingEntries.join('\n') : stdout
+  if (await hasPopulatedSubmodule(worktreePath, gitOptions)) {
+    // Why: Force Delete also destroys the submodules' never-pushed commits, which the parent's
+    // status cannot show, so the refusal must say submodules. Status lines go after the detail
+    // because the formatter prefers stdout over the message.
+    throw new Error(`${SUBMODULE_DIRTY_REMOVAL_DETAIL}\n${blockingStatus.trim()}`)
   }
 
   const error = new Error('Worktree has uncommitted or untracked changes.')
@@ -55,28 +55,38 @@ export async function assertWorktreeCleanForRemoval(
   // interior NULs, so attaching it verbatim put raw control bytes into the
   // user-facing removal error — and listed the tolerated shared link, the one
   // entry that is not the user's work and cannot be committed away.
-  ;(error as Error & { stdout?: string }).stdout = blockingEntries
-    ? blockingEntries.join('\n')
-    : stdout
+  ;(error as Error & { stdout?: string }).stdout = blockingStatus
   throw error
 }
 
-/** Porcelain v1 cannot tell a submodule from a file; v2 marks one with an `S...` field. */
-async function hasChangedSubmodule(
+/** Mirrors Git's own submodule refusal: a `.gitmodules` path whose directory holds a `.git`. */
+async function hasPopulatedSubmodule(
   worktreePath: string,
   gitOptions: Omit<WorktreeRemovalPreflightOptions, 'ignoredUntrackedPaths'>
 ): Promise<boolean> {
   try {
     const { stdout } = await gitExecFileAsync(
-      ['status', '--porcelain=v2', '--untracked-files=no', '--ignore-submodules=none'],
+      ['config', '-z', '--file', '.gitmodules', '--get-regexp', '^submodule\\..*\\.path$'],
       {
         ...gitExecOptions(worktreePath, gitOptions),
         timeout: gitOptions.timeout ?? WORKTREE_REMOVAL_PREFLIGHT_TIMEOUT_MS
       }
     )
-    return /^[12u] \S\S S/m.test(stdout)
+    const paths = stdout
+      .split('\0')
+      .map((entry) => entry.slice(entry.indexOf('\n') + 1))
+      .filter(Boolean)
+    const populated = await Promise.all(
+      paths.map((path) =>
+        stat(join(worktreePath, path, '.git')).then(
+          () => true,
+          () => false
+        )
+      )
+    )
+    return populated.includes(true)
   } catch {
-    // The plain dirty refusal still blocks the delete; only its wording is lost.
+    // No .gitmodules exits non-zero. Any failure keeps the plain dirty refusal, which still blocks.
     return false
   }
 }

@@ -144,14 +144,18 @@ describe('worktree removal against the real Git binary', () => {
     expect(await isRegistered(subWorktreePath)).toBe(false)
   })
 
-  it('names submodules when the dirty check refuses over an unrecorded submodule commit', async () => {
-    // Why: the parent sees only `M vendor`, yet Force Delete destroys the submodule's commit.
+  it('names submodules when the dirty check refuses a checkout that has them', async () => {
+    // Why: the parent's status shows only its own file, yet Force Delete destroys the submodule commit.
     const { subWorktreePath } = await addSubmoduleCheckoutWithLocalCommit()
+    await git(['commit', '-qam', 'bump vendor'], subWorktreePath)
+    await writeFile(join(subWorktreePath, 'notes.txt'), 'draft\n')
 
     const refusal = await assertWorktreeCleanForRemoval(subWorktreePath).catch((error) => error)
-    expect(
-      classifyWorktreeForceDeleteReason(formatWorktreeRemovalError(refusal, subWorktreePath, false))
-    ).toBe('submodules')
+    const message = formatWorktreeRemovalError(refusal, subWorktreePath, false)
+    expect(classifyWorktreeForceDeleteReason(message)).toBe('submodules')
+    expect(message).toContain('?? notes.txt')
+    // Older apps offer Force Delete only for this sentence.
+    expect(message).toContain('Worktree has uncommitted or untracked changes')
   })
 
   it('does not delete a checkout through a malformed registration that names its git file', async () => {

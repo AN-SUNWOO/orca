@@ -11723,7 +11723,7 @@
       "commands": [
         "pnpm exec vitest run --config config/vitest.config.ts src/renderer/src/components/terminal-pane/remote-runtime-pty-transport-unpublished-host-graph.test.ts src/renderer/src/runtime/web-session-terminal-handle-events.test.ts",
         "ORCA_BACKGROUND_LAUNCH=1 pnpm exec playwright test tests/e2e/paired-remote-terminal-host-quit-reconnect-input.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1",
-        "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/session-tabs-empty-worktree-publication.test.ts",
+        "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/runtime-terminal-inventory-contracts.test.ts",
         "ORCA_BACKGROUND_LAUNCH=1 pnpm exec playwright test tests/e2e/paired-client-first-terminal-unopened-host-worktree.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1",
         "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/mobile-session-tabs-agent-status-heartbeat.test.ts src/main/runtime/orca-runtime-hook-agent-status-projection.test.ts tests/e2e/session-tabs-decorative-title-fanout.unit.test.ts tests/e2e/session-tabs-rich-status-boundaries.unit.test.ts --maxWorkers=1",
         "pnpm exec vitest run --config config/vitest.config.ts src/renderer/src/components/terminal-pane/terminal-cold-park-pre-gate-loop.react185.test.tsx src/renderer/src/components/terminal-pane/use-parked-terminal-watcher-synchronization.react185.test.tsx src/renderer/src/components/terminal-pane/terminal-cold-park-verdict-loop.test.tsx src/renderer/src/components/terminal-pane/use-terminal-tab-cold-parking.test.ts --maxWorkers=1",
@@ -11796,7 +11796,7 @@
         "tests/e2e/paired-remote-terminal-host-restart-background-sync.spec.ts",
         "src/renderer/src/components/terminal-pane/remote-runtime-pty-transport-unpublished-host-graph.test.ts",
         "tests/e2e/paired-remote-terminal-host-quit-reconnect-input.spec.ts",
-        "src/main/runtime/session-tabs-empty-worktree-publication.test.ts",
+        "src/main/runtime/runtime-terminal-inventory-contracts.test.ts",
         "tests/e2e/paired-client-first-terminal-unopened-host-worktree.spec.ts"
       ],
       "assertionRefs": [
@@ -15897,7 +15897,7 @@
       "commands": [
         "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release-mobile-report.test.ts src/main/runtime/orca-runtime-terminal-handle-incarnation.test.ts src/renderer/src/lib/worker-terminal-takeover-report.test.ts",
         "ORCA_BACKGROUND_LAUNCH=1 mobile/node_modules/.bin/vitest run --config mobile/vitest.config.ts mobile/src/session/mobile-worker-takeover-send-sites.test.ts mobile/src/terminal/worker-terminal-takeover-report.test.ts",
-        "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/pty-inventory-liveness-verdict.test.ts src/main/runtime/orca-runtime-process-incarnation-liveness.test.ts src/main/runtime/mobile-session-terminal-persistence-retirement.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release-recovery.test.ts src/main/runtime/rpc/orchestration-mutation-ledger.test.ts src/main/runtime/orchestration/worker-transcript-read.test.ts src/renderer/src/lib/worker-terminal-takeover-report.test.ts --reporter=dot",
+        "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/runtime-terminal-inventory-contracts.test.ts src/main/runtime/orca-runtime-process-incarnation-liveness.test.ts src/main/runtime/mobile-session-terminal-persistence-retirement.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release-recovery.test.ts src/main/runtime/rpc/orchestration-mutation-ledger.test.ts src/main/runtime/orchestration/worker-transcript-read.test.ts src/renderer/src/lib/worker-terminal-takeover-report.test.ts --reporter=dot",
         "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/orca-runtime-process-incarnation-liveness.test.ts src/main/runtime/mobile-session-terminal-persistence-retirement.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release-recovery.test.ts src/main/runtime/rpc/orchestration-mutation-ledger.test.ts src/main/runtime/orchestration/worker-transcript-read.test.ts src/renderer/src/lib/worker-terminal-takeover-report.test.ts --reporter=dot",
         "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/orca-runtime-process-incarnation-liveness.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release-recovery.test.ts src/main/runtime/rpc/orchestration-mutation-ledger.test.ts src/main/runtime/orchestration/worker-transcript-read.test.ts src/renderer/src/lib/worker-terminal-takeover-report.test.ts --reporter=dot",
         "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-release-recovery.test.ts src/main/runtime/rpc/orchestration-mutation-ledger.test.ts src/main/runtime/orchestration/worker-transcript-read.test.ts src/renderer/src/lib/worker-terminal-takeover-report.test.ts --reporter=dot",
@@ -15908,7 +15908,7 @@
         "src/main/runtime/rpc/methods/orchestration/worker/worker-release-mobile-report.test.ts",
         "mobile/src/session/mobile-worker-takeover-send-sites.test.ts",
         "mobile/src/terminal/worker-terminal-takeover-report.test.ts",
-        "src/main/runtime/pty-inventory-liveness-verdict.test.ts",
+        "src/main/runtime/runtime-terminal-inventory-contracts.test.ts",
         "src/main/runtime/orca-runtime-process-incarnation-liveness.test.ts",
         "src/main/runtime/mobile-session-terminal-persistence-retirement.test.ts",
         "src/main/runtime/rpc/methods/orchestration/worker/worker-release.test.ts",
@@ -15935,7 +15935,7 @@
           ]
         },
         {
-          "file": "src/main/runtime/pty-inventory-liveness-verdict.test.ts",
+          "file": "src/main/runtime/runtime-terminal-inventory-contracts.test.ts",
           "assertions": [
             "320 simultaneously live PTYs retain truthful verdicts with linear identity checks and no detached history",
             "400 unresolved PTY retirements preserve active doubt while bounding history at 256 entries",
@@ -20952,6 +20952,124 @@
         "Reproduce and fix the native trigger; collect cross-platform and soak evidence."
       ],
       "demotionRule": "Keep experimental until the initial trigger and cross-platform behavior are understood."
+    },
+    {
+      "id": "agent-status.nested-provider-roster",
+      "title": "Nested review CLIs cannot replace the active pane status",
+      "maturity": "experimental",
+      "protection": "partial",
+      "owner": "agent-session",
+      "layer": "cross-boundary",
+      "surfaces": [
+        "agent hook normalization",
+        "sidebar child rows",
+        "mobile status snapshots"
+      ],
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "providers": [
+        "local",
+        "daemon",
+        "ssh",
+        "wsl",
+        "remote-runtime"
+      ],
+      "coveredPlatforms": [
+        "macos"
+      ],
+      "coveredProviders": [],
+      "coverageNotes": "Contract tests exercise local HTTP hooks, loopback SSH/WSL relay forwarding and legacy relay snapshots. No live SSH, WSL, Linux or Windows execution is claimed. Daemon PTYs use the same hook ingress; folder workspace routing is covered. Hidden macOS Electron validation used the real WorktreeCardAgents component and store in a temporary harness, receiving real hook IPC: 60 nested Codex updates produced zero row mutations, retained 32 children and kept height at 1170px. Screenshots inspected; synthetic hooks, no new model-backed turn.",
+      "motivatingLinks": [
+        "User report (2026-10-15): Claude status in nwparker/SSH alternates between a 32-child roster and an empty roster when nested Codex reviews report on the inherited terminal pane.",
+        "https://github.com/stablyai/orca/pull/8211",
+        "https://github.com/stablyai/orca/pull/3990"
+      ],
+      "invariant": "A different provider inheriting an active pane key cannot replace its child roster, main turn, prompt, resume identity, model or freshness, nor mutate the owning provider caches. Same-provider children still update; finished or stale owners and distinct execution hosts/workspaces permit provider replacement. WSL local and relay transports retain the same owner.",
+      "oracle": "Send a full Claude child roster, interleave Codex review lifecycle/tool/approval/completion hooks, and require identical snapshots plus zero publications. A later Claude child event must retain the original prompt and roster, and a real child completion must shrink it.",
+      "commands": [
+        "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/agent-hooks/server-nested-agent-roster.test.ts src/main/agent-hooks/server-nested-agent-boundaries.test.ts src/main/agent-hooks/server-nested-agent-consumers.test.ts src/main/agent-hooks/server-nested-agent-model.test.ts src/main/agent-hooks/server-ingest-remote.test.ts src/main/agent-hooks/server-hook-http-ingest.test.ts src/main/agent-hooks/server-turn-started-at.test.ts src/main/agent-hooks/server-status-listener-fanout.test.ts src/main/agent-hooks/terminal-handle-row-identity.test.ts src/renderer/src/store/slices/agent-status-tool-assistant-fields.test.ts src/renderer/src/store/slices/agent-status-provider-session.test.ts src/renderer/src/store/slices/agent-status-nested-resume.test.ts src/wsl-guest/agent-hook-provider-normalization.test.ts --maxWorkers=2",
+        "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/agent-hooks/server-nested-agent-roster.test.ts src/main/agent-hooks/server-nested-agent-model.test.ts src/main/agent-hooks/server-ingest-remote.test.ts src/renderer/src/store/slices/agent-status-tool-assistant-fields.test.ts --maxWorkers=2",
+        "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/agent-hooks/server-nested-agent-roster.test.ts src/main/agent-hooks/server-nested-agent-model.test.ts src/main/agent-hooks/server-ingest-remote.test.ts src/main/agent-hooks/server-agent-presence.test.ts src/renderer/src/store/slices/agent-status-tool-assistant-fields.test.ts src/main/agent-hooks/server-hook-http-ingest.test.ts src/wsl-guest/agent-hook-server.test.ts --maxWorkers=2",
+        "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/agent-hooks/server-nested-agent-roster.test.ts src/main/agent-hooks/server-ingest-remote.test.ts src/main/agent-hooks/server-nested-agent-model.test.ts src/main/agent-hooks/server-hook-http-ingest.test.ts src/main/agent-hooks/server-turn-started-at.test.ts src/main/agent-hooks/server-status-listener-fanout.test.ts src/main/agent-hooks/terminal-handle-row-identity.test.ts src/renderer/src/store/slices/agent-status-tool-assistant-fields.test.ts --maxWorkers=2"
+      ],
+      "testFiles": [
+        "src/main/agent-hooks/server-status-listener-fanout.test.ts",
+        "src/main/agent-hooks/terminal-handle-row-identity.test.ts",
+        "src/wsl-guest/agent-hook-provider-normalization.test.ts",
+        "src/main/agent-hooks/server-nested-agent-boundaries.test.ts",
+        "src/main/agent-hooks/server-nested-agent-consumers.test.ts",
+        "src/renderer/src/store/slices/agent-status-nested-resume.test.ts",
+        "src/main/agent-hooks/server-nested-agent-roster.test.ts",
+        "src/main/agent-hooks/server-nested-agent-model.test.ts",
+        "src/main/agent-hooks/server-ingest-remote.test.ts",
+        "src/renderer/src/store/slices/agent-status-tool-assistant-fields.test.ts"
+      ],
+      "assertionRefs": [
+        {
+          "file": "src/main/agent-hooks/server-nested-agent-roster.test.ts",
+          "assertions": [
+            "keeps Claude children, prompt and turn stable through Codex review hooks",
+            "rejects a nested working snapshot from an older relay without renewing the parent"
+          ]
+        }
+      ],
+      "evidenceRuns": [
+        {
+          "date": "2026-10-15",
+          "runner": "local",
+          "platform": "macos",
+          "command": "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/agent-hooks/server-nested-agent-roster.test.ts src/main/agent-hooks/server-nested-agent-boundaries.test.ts src/main/agent-hooks/server-nested-agent-consumers.test.ts src/main/agent-hooks/server-nested-agent-model.test.ts src/main/agent-hooks/server-ingest-remote.test.ts src/main/agent-hooks/server-hook-http-ingest.test.ts src/main/agent-hooks/server-turn-started-at.test.ts src/main/agent-hooks/server-status-listener-fanout.test.ts src/main/agent-hooks/terminal-handle-row-identity.test.ts src/renderer/src/store/slices/agent-status-tool-assistant-fields.test.ts src/renderer/src/store/slices/agent-status-provider-session.test.ts src/renderer/src/store/slices/agent-status-nested-resume.test.ts src/wsl-guest/agent-hook-provider-normalization.test.ts --maxWorkers=2",
+          "result": "passed",
+          "durationSeconds": 8.75,
+          "summary": "132 tests across 13 files passed after review and CI boundary fixes, including actual mobile transcript selection, renderer Claude resume argv, host/workspace collision replacement, WSL transport equivalence, legacy unstamped local renderer entries, Pi identity-only boundaries, clock rollback and provider-isolated relay HTTP/spool/reconnect/teardown."
+        },
+        {
+          "date": "2026-10-15",
+          "runner": "local",
+          "platform": "macos",
+          "command": "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/agent-hooks/server-nested-agent-roster.test.ts src/main/agent-hooks/server-nested-agent-model.test.ts src/main/agent-hooks/server-ingest-remote.test.ts src/main/agent-hooks/server-agent-presence.test.ts src/renderer/src/store/slices/agent-status-tool-assistant-fields.test.ts src/main/agent-hooks/server-hook-http-ingest.test.ts src/wsl-guest/agent-hook-server.test.ts --maxWorkers=2",
+          "result": "passed",
+          "durationSeconds": 91.45,
+          "summary": "97 tests across seven files passed, including full 32-child local and relay HTTP flows, legacy remote snapshots, model isolation, owner process contracts and renderer ownership. Finished/stale replacement controls added afterward are validated separately."
+        },
+        {
+          "date": "2026-10-15",
+          "runner": "local",
+          "platform": "macos",
+          "command": "ORCA_BACKGROUND_LAUNCH=1 pnpm exec vitest run --config config/vitest.config.ts src/main/agent-hooks/server-nested-agent-roster.test.ts src/main/agent-hooks/server-ingest-remote.test.ts src/main/agent-hooks/server-nested-agent-model.test.ts src/main/agent-hooks/server-hook-http-ingest.test.ts src/main/agent-hooks/server-turn-started-at.test.ts src/main/agent-hooks/server-status-listener-fanout.test.ts src/main/agent-hooks/terminal-handle-row-identity.test.ts src/renderer/src/store/slices/agent-status-tool-assistant-fields.test.ts --maxWorkers=2",
+          "result": "passed",
+          "durationSeconds": 180.43,
+          "summary": "Final implementation passes 64 tests in six files, including local/relay finished-provider replacement, stale-provider replacement, 32-child ownership, legacy remote snapshots, turn clocks and renderer identity."
+        }
+      ],
+      "runtimeBudget": {
+        "p95Seconds": 30,
+        "scope": "Focused local HTTP, relay, legacy snapshot and renderer contracts; excludes package build and machine contention."
+      },
+      "flakeHistory": {
+        "status": "not-started",
+        "evidence": "New gate; no CI soak history."
+      },
+      "redGreenEvidence": {
+        "status": "partial",
+        "evidence": "Live incident records alternate between a Claude 32-child roster and a Codex empty roster. Executing the original HEAD identity function accepts a nested working status; the patched function rejects it. Local and relay HTTP roster tests pass and hidden Electron real-component proof preserves all 32 rendered children through 60 nested hooks. No archived CI red/green run yet."
+      },
+      "performanceBudget": {
+        "required": true,
+        "evidence": "Main reuses the constant-time provider identity decision and publishes no rejected updates. Legacy relays retain provider-specific prompt/tool/previous-status caches, bounded by MAX_CACHED_PANES for each finite provider and cleared on pane teardown or stop; no polling, timers or subprocesses added."
+      },
+      "promotionCriteria": [
+        "Save red/green evidence and CI soak before promotion."
+      ],
+      "knownGaps": [
+        "A nested CLI started before any owner is observed may still establish the initial pane identity.",
+        "Same-provider nested sessions remain governed by the existing process/session ownership rules.",
+        "Live SSH/WSL, Linux, Windows and physical mobile validation are not included."
+      ],
+      "demotionRule": "Keep experimental until CI soak; investigate any roster loss or blocked genuine provider replacement without weakening the snapshot and publication assertions."
     }
   ]
 }

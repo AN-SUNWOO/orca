@@ -14153,10 +14153,7 @@
             "databaseCount_other": "{{value0}} bases de datos",
             "scanning": "Analizando {{value0}}",
             "reading": "Leyendo {{value0}} archivos",
-            "stoppedAfter": "Detenido tras {{value0}}",
-            "scanned": "Analizados {{value0}}",
-            "stoppedAt": "detenido en {{value0}}",
-            "refresh": "Actualizar"
+            "scanned": "Analizados {{value0}}"
           }
         }
       },

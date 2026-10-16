@@ -14157,10 +14157,7 @@
             "databaseCount_other": "{{value0}} 个数据库",
             "scanning": "正在扫描 {{value0}}",
             "reading": "正在读取 {{value0}} 个文件",
-            "stoppedAfter": "扫描 {{value0}} 后停止",
-            "scanned": "已扫描 {{value0}}",
-            "stoppedAt": "停在 {{value0}}",
-            "refresh": "刷新"
+            "scanned": "已扫描 {{value0}}"
           }
         }
       },

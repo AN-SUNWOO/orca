@@ -80,13 +80,28 @@ export function findStructuredAgentCliSourceRow(input: {
   workspaceId: string
   rows: readonly AgentStatusIpcPayload[]
 }): AgentStatusIpcPayload {
+  const row = matchStructuredAgentCliSourceRow(input)
+  if (!row) {
+    throw agentSessionRefusalError(
+      'agent_session_identity_required',
+      { reason: 'transcriptUnreadable' },
+      'The source conversation is no longer available.'
+    )
+  }
+  return row
+}
+
+export function matchStructuredAgentCliSourceRow(input: {
+  agent: StructuredAgentId
+  resumeFrom: StructuredAgentSessionResumeSource
+  workspaceId: string
+  rows: readonly AgentStatusIpcPayload[]
+}): AgentStatusIpcPayload | undefined {
   const source = input.resumeFrom.cliSource
   if (!source) {
-    throw agentSessionRefusalError('agent_session_identity_required', {
-      reason: 'transcriptUnreadable'
-    })
+    return undefined
   }
-  const row = input.rows.find(
+  return input.rows.find(
     (candidate) =>
       source.workspaceId === input.workspaceId &&
       candidate.worktreeId === source.workspaceId &&
@@ -97,12 +112,4 @@ export function findStructuredAgentCliSourceRow(input: {
       CLI_CONVERSATION_ADOPTING_AGENTS[candidate.agentType] === input.agent &&
       candidate.providerSession?.id === input.resumeFrom.providerSessionId
   )
-  if (!row) {
-    throw agentSessionRefusalError(
-      'agent_session_identity_required',
-      { reason: 'transcriptUnreadable' },
-      'The source conversation is no longer available.'
-    )
-  }
-  return row
 }

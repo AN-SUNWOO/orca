@@ -18,7 +18,11 @@ export async function reportCliChatResumeFailure(
     error instanceof StructuredAgentSessionCreateRefusalError ? error.refusal : undefined
   if (refusal?.details?.reason === 'terminalStopUnconfirmed') {
     toast.error(
-      `Could not confirm ${agentLabel(source.agent)} stopped in the terminal. Exit it there, then retry from the chat.`
+      translate(
+        'components.native-chat.stopAndSwitch.stopUnconfirmed',
+        'Could not confirm {{agent}} stopped in the terminal. Exit it there, then retry from the chat.',
+        { agent: agentLabel(source.agent) }
+      )
     )
     return
   }
@@ -40,7 +44,11 @@ export async function reportCliChatResumeFailure(
           'auto.components.right.sidebar.AiVaultPanel.resumeInChatConflict',
           'Another chat is already holding this conversation.'
         )
-      : `Exit ${agentLabel(source.agent)} in the terminal first, then resume this conversation in chat.`)
+      : translate(
+          'components.native-chat.stopAndSwitch.exitFirst',
+          'Exit {{agent}} in the terminal first, then resume this conversation in chat.',
+          { agent: agentLabel(source.agent) }
+        ))
     return
   }
   if (refusal?.code === 'agent_session_identity_required') {

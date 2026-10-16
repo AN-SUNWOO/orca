@@ -172,10 +172,10 @@ export async function commitStructuredAgentSessionCreate(args: {
 }): Promise<AgentSessionMutationResult<AgentSessionAttachResult>> {
   const { prepared } = args
   const tab = prepared.tab
-  if (prepared.atRest || prepared.resumeFrom) {
+  if (prepared.atRest || prepared.resumeFrom?.cliSource) {
     return prepared.host.create(args.caller, prepared.attachParams, {
       ...prepared.atRest,
-      ...(prepared.resumeFrom
+      ...(prepared.resumeFrom?.cliSource
         ? {
             cliSourceStop: {
               host: args.runtime.cliSourceStopHost(),

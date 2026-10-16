@@ -11,7 +11,7 @@ import {
   readProcessTableBeforeDeadline
 } from '../pty-descendant-termination'
 import { DESCENDANT_KILL_VERIFY_MS } from '../pty-descendant-exit-verification'
-import { findStructuredAgentCliSourceRow } from '../native-chat/structured-agent-cli-source'
+import { matchStructuredAgentCliSourceRow } from '../native-chat/structured-agent-cli-source'
 import {
   isWindowsProcessStartTimeAvailable,
   readWindowsProcessIdentityTableFresh
@@ -69,7 +69,7 @@ export async function inspectCliSourceWriters(
 ): Promise<CliSourceWriterInspection | null> {
   const rows = host.rows()
   const source = input.resumeFrom.cliSource
-    ? findStructuredAgentCliSourceRow({ ...input, rows })
+    ? matchStructuredAgentCliSourceRow({ ...input, rows })
     : null
   let sourcePtyId: string | null = null
   let sourceWriterMayLive = false

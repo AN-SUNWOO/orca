@@ -26,20 +26,6 @@ import {
   createRuntime,
   store
 } from '../orca-runtime-test-fixtures.spec'
-import type * as GitRepo from '../../git/repo'
-
-// Why: the fake clone below writes nothing, so the Git-root proof answers as a real clone would.
-const fakeCloneRoot = vi.hoisted(() => ({ enabled: false }))
-vi.mock('../../git/repo', async (importOriginal) => {
-  const actual = await importOriginal<typeof GitRepo>()
-  return {
-    ...actual,
-    isGitRepoAsync: (path: string) =>
-      fakeCloneRoot.enabled ? Promise.resolve(true) : actual.isGitRepoAsync(path),
-    getGitRepoRootAsync: (path: string) =>
-      fakeCloneRoot.enabled ? Promise.resolve(path) : actual.getGitRepoRootAsync(path)
-  }
-})
 
 describe('OrcaRuntimeService', () => {
   it('adopts public clone repos into host-qualified project setup', async () => {
@@ -363,16 +349,22 @@ describe('OrcaRuntimeService', () => {
   })
 
   it('preserves existing badgeColor on runtime cloneRepo folder->git dedupe upgrade', async () => {
+    const destination = await mkdtemp(join(tmpdir(), 'orca-runtime-folder-upgrade-'))
+    const clonePath = join(destination, 'repo-badge-color')
     const spawnSpy = vi.spyOn(gitRunner, 'gitSpawnAfterWindowsEnvironmentReady')
     spawnSpy.mockImplementation(() => {
       const proc = new EventEmitter() as EventEmitter & { stderr: EventEmitter }
       proc.stderr = new EventEmitter()
-      setImmediate(() => proc.emit('close', 0, null))
+      setImmediate(() => {
+        mkdirSync(clonePath, { recursive: true })
+        execFileSync('git', ['init'], { cwd: clonePath, stdio: 'ignore' })
+        proc.emit('close', 0, null)
+      })
       return proc as never
     })
     const existing = {
       id: 'runtime-folder-upgrade',
-      path: '/tmp/repo-badge-color',
+      path: clonePath,
       displayName: 'repo-badge-color',
       badgeColor: '#ec4899',
       addedAt: 1,
@@ -389,10 +381,9 @@ describe('OrcaRuntimeService', () => {
       }
     }
     const runtime = new OrcaRuntimeService(colorStore as never)
-    fakeCloneRoot.enabled = true
 
     try {
-      const repo = await runtime.cloneRepo('https://example.com/repo-badge-color.git', '/tmp')
+      const repo = await runtime.cloneRepo('https://example.com/repo-badge-color.git', destination)
       expect(updates).toEqual([
         { id: existing.id, updates: { kind: 'git', folderUpgradeGitRootPath: existing.path } }
       ])
@@ -401,8 +392,8 @@ describe('OrcaRuntimeService', () => {
       expect(prepareLocalWorktreeRootForRepoMock).toHaveBeenCalledWith(colorStore, upgraded)
       expect(invalidateAuthorizedRootsCacheMock).toHaveBeenCalled()
     } finally {
-      fakeCloneRoot.enabled = false
       spawnSpy.mockRestore()
+      await rm(destination, { recursive: true, force: true })
     }
   })
 

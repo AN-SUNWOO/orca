@@ -14,9 +14,7 @@ import {
   MAX_UNLISTED_ENTRIES,
   noteSessionParseCacheListed,
   resetSessionParseCacheForTests,
-  SESSION_PARSE_CACHE_IDLE_MS,
-  storeSessionParseCacheEntry,
-  sweepSessionParseCache
+  storeSessionParseCacheEntry
 } from './session-parse-cache-store'
 import { createSessionParseStats, parseListedSessionFile } from './session-scanner-parse-cache'
 import type { SessionFileCandidate } from './session-scanner-types'
@@ -33,17 +31,13 @@ afterEach(async () => {
   root = undefined
 })
 
-it('expires rows History stopped listing and count-bounds rows only other readers made', () => {
+it('count-bounds rows only other readers made, never rows History listed', () => {
   const row = { mtimeMs: 1, sizeBytes: 1, platform: 'linux', session: null, resume: null } as const
-  noteSessionParseCacheListed('idle', 0)
-  storeSessionParseCacheEntry('idle', row)
-  noteSessionParseCacheListed('listed', SESSION_PARSE_CACHE_IDLE_MS)
+  noteSessionParseCacheListed('listed')
   storeSessionParseCacheEntry('listed', row)
   for (let index = 0; index <= MAX_UNLISTED_ENTRIES; index++) {
     storeSessionParseCacheEntry(`search-${index}`, row)
   }
-  sweepSessionParseCache(SESSION_PARSE_CACHE_IDLE_MS + 1)
-  expect(getSessionParseCacheEntry('idle')).toBeUndefined()
   expect(getSessionParseCacheEntry('listed')).toBeDefined()
   expect(getSessionParseCacheEntry('search-0')).toBeUndefined()
   expect(getSessionParseCacheEntry(`search-${MAX_UNLISTED_ENTRIES}`)).toBeDefined()

@@ -139,8 +139,8 @@ export async function parseAgentSessionFileCached(
 }
 
 /**
- * A Session History scan's parse. Listing the path first is what puts its row
- * under the idle sweep rather than the count bound kept for other readers.
+ * A Session History scan's parse. Listing the path first is what exempts its row
+ * from the count bound kept for other readers.
  */
 export function parseListedSessionFile(
   candidate: SessionFileCandidate,

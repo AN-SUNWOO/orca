@@ -148,10 +148,8 @@ export function useNewTabAgentMenuRows(worktreeId: string, open: boolean) {
           .join(',')
       : ''
   // Only launch-affecting configuration retires display reads; unrelated settings do not.
-  const owner = useMemo(
-    () => ({ ...facts, open, worktreeId, eligible }),
-    [facts, open, worktreeId, eligible]
-  )
+  // Why not `open`: answers outlive the menu so a reopen shows them at once while they refresh.
+  const owner = useMemo(() => ({ ...facts, worktreeId, eligible }), [facts, worktreeId, eligible])
   const [answers, setAnswers] = useState<{
     owner: typeof owner
     values: Map<TuiAgent, HostChatAnswer>
@@ -176,25 +174,15 @@ export function useNewTabAgentMenuRows(worktreeId: string, open: boolean) {
   }, [open, chatEnabled, facts, worktreeId, catalogLoaded])
   useEffect(() => {
     const target = structuredAgentSessionTargetForHost(owner.executionHostId)
-    if (!owner.open || !target || !owner.eligible) {
+    if (!open || !target || !owner.eligible) {
       return
     }
     let active = true
+    let answered = 0
     const controller = new AbortController()
-    const values = new Map<TuiAgent, HostChatAnswer>()
-    const publish = () => {
-      if (active) {
-        setAnswers({ owner, values: new Map(values) })
-      }
-    }
     const agents = owner.eligible.split(',').filter(isTuiAgent)
+    // Why: a slow host is not a refusal; the deadline only releases the reads.
     const timer = setTimeout(() => {
-      for (const agent of agents) {
-        if (!values.has(agent)) {
-          values.set(agent, 'not-on-host')
-        }
-      }
-      publish()
       active = false
       controller.abort()
     }, 10_000)
@@ -211,9 +199,14 @@ export function useNewTabAgentMenuRows(worktreeId: string, open: boolean) {
           if (!active) {
             return
           }
-          values.set(agent, answerFromSupport(support))
-          publish()
-          if (values.size === agents.length) {
+          setAnswers((previous) => ({
+            owner,
+            values: new Map<TuiAgent, HostChatAnswer>(
+              previous?.owner === owner ? previous.values : []
+            ).set(agent, answerFromSupport(support))
+          }))
+          answered += 1
+          if (answered === agents.length) {
             clearTimeout(timer)
           }
         },
@@ -225,7 +218,7 @@ export function useNewTabAgentMenuRows(worktreeId: string, open: boolean) {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [owner, worktreeId])
+  }, [owner, open, worktreeId])
   const rows = buildNewTabAgentMenuRows({
     settings,
     detectedOnHost: detection.detectedIds,
@@ -233,9 +226,9 @@ export function useNewTabAgentMenuRows(worktreeId: string, open: boolean) {
     catalogLoaded,
     hostChatAnswer: (agent) => {
       const preliminary = hostChatAnswer(inputFor(agent))
+      // Until the host answers, this client's facts decide; the click's admission owns a refusal.
       return ['yes', 'not-yet-known'].includes(preliminary)
-        ? ((answers?.owner === owner && open ? answers.values.get(agent) : undefined) ??
-            'not-yet-known')
+        ? ((answers?.owner === owner ? answers.values.get(agent) : undefined) ?? preliminary)
         : preliminary
     }
   }).map((row) => ({ ...row, executionHostId: parseExecutionHostId(facts.executionHostId)?.id }))

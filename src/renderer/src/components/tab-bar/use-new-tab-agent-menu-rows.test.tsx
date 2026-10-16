@@ -67,14 +67,17 @@ afterEach(() => {
   vi.useRealTimers()
 })
 it.each(['local', 'runtime:server'] as const)(
-  'shows WSL/version refusals with finite workspace-enabled reads on %s',
+  'shows host refusals, keeps them across reopen and never blocks a supported chat on %s',
   async (host) => {
     useAppStore.setState({ activeWorkspaceExecutionHostId: host })
     const hook = renderHook(({ open, id }) => useNewTabAgentMenuRows(id, open), {
       initialProps: { open: false, id: 'one' }
     })
+    const claude = () => hook.result.current.rows.find((row) => row.agent === 'claude')
     expect(mocks.support).not.toHaveBeenCalled()
     hook.rerender({ open: true, id: 'one' })
+    // Before the host answers, a chat this client can see is supported stays clickable.
+    expect(claude()).toMatchObject({ kind: 'chat' })
     await act(async () => {
       pending[0]?.resolve({ kind: 'declined', reason: 'wsl' })
       pending[1]?.resolve({ kind: 'declined', reason: 'unsupported-version' })
@@ -82,20 +85,20 @@ it.each(['local', 'runtime:server'] as const)(
     expect(
       hook.result.current.rows.map((row) => ('reason' in row ? row.reason : row.kind))
     ).toEqual(expect.arrayContaining(['wsl', 'not-on-host', 'cli']))
+    hook.rerender({ open: false, id: 'one' })
+    expect(pending[2]?.signal.aborted).toBe(true)
     hook.rerender({ open: true, id: 'one' })
+    expect(claude()).toMatchObject({ reason: 'wsl' })
     act(() => useAppStore.setState({ activeTabId: 'unrelated' }))
     hook.rerender({ open: true, id: 'two' })
-    expect(pending[0]?.signal.aborted).toBe(true)
-    hook.rerender({ open: false, id: 'two' })
     expect(pending[3]?.signal.aborted).toBe(true)
+    hook.rerender({ open: false, id: 'two' })
     hook.rerender({ open: true, id: 'two' })
-    await act(async () => pending.slice(3, 6).forEach((read) => read.resolve({ kind: 'admitted' })))
-    expect(hook.result.current.rows.some((row) => row.kind === 'chat')).toBe(false)
+    // A reply from the closed menu, or a host past its deadline, never relabels a row.
+    await act(async () => pending[6]?.resolve({ kind: 'declined', reason: 'wsl' }))
     await act(async () => vi.advanceTimersByTimeAsync(10_000))
-    expect(pending[6]?.signal.aborted).toBe(true)
-    expect(hook.result.current.rows.find((row) => row.agent === 'claude')).toMatchObject({
-      reason: 'not-on-host'
-    })
-    expect(mocks.support).toHaveBeenCalledTimes(9)
+    expect(pending[9]?.signal.aborted).toBe(true)
+    expect(claude()).toMatchObject({ kind: 'chat' })
+    expect(mocks.support).toHaveBeenCalledTimes(12)
   }
 )

@@ -5,6 +5,7 @@ import { setupPtyIpcSuite } from './pty-ipc-test-harness'
 import { createDaemonActiveProviderFixtures } from './pty-ipc-daemon-provider-fixtures'
 import { ManagedCodexHomeTemporarilyUnavailableError } from '../codex-accounts/host-codex-managed-home-ownership'
 import { registerPtyHandlers } from './pty/register-handlers'
+import type { PrepareCodexSessionResume } from './pty/host-env/types'
 
 vi.mock('electron', () => import('./pty-ipc-mock-registry').then((m) => m.electronModuleMock()))
 vi.mock('fs', () => import('./pty-ipc-mock-registry').then((m) => m.fsModuleMock()))
@@ -98,7 +99,7 @@ describe('registerPtyHandlers Codex launch refusal on an unreadable managed home
       context?: { unavailableManagedHomePath?: string; launchesCodex?: boolean }
     ) => string | null,
     runtime?: ReturnType<typeof makeRuntime>,
-    prepareCodexSessionResume?: () => Promise<never>
+    prepareCodexSessionResume?: PrepareCodexSessionResume
   ): void {
     handlers.clear()
     registerPtyHandlers(
@@ -404,6 +405,34 @@ describe('registerPtyHandlers Codex launch refusal on an unreadable managed home
     await expect(spawn).resolves.toBe(c.waits ? UNAVAILABLE_MESSAGE : 'spawned')
     expect(daemonSpawn).toHaveBeenCalledTimes(c.waits ? 0 : 1)
   })
+
+  // #29209: a host runtime skips resume prep when the launch env names a client-sent CODEX_HOME.
+  it.each(['window', 'host'] as const)(
+    '%s lane: resume prep sees the request CODEX_HOME',
+    async (lane) => {
+      readFileSyncMock.mockReturnValue(TEST_CODEX_AUTH_JSON)
+      setupDaemonAdapter()
+      const runtime = makeRuntime()
+      const prepareResume = vi.fn<PrepareCodexSessionResume>(async () => null)
+      register(() => TEST_CODEX_HOME, runtime, prepareResume)
+      const controller = runtime.setPtyController.mock.calls[0]?.[0] as RuntimeSpawnController
+      const request = {
+        cols: 80,
+        rows: 24,
+        launchAgent: 'codex',
+        resumeProviderSession: RESUME_SESSION,
+        env: { CODEX_HOME: '/client/codex-home' }
+      } as never
+
+      await (lane === 'host'
+        ? controller.spawn(request)
+        : handlers.get('pty:spawn')!(null, request))
+
+      expect(prepareResume.mock.calls[0]?.[0].launchEnv).toMatchObject({
+        CODEX_HOME: '/client/codex-home'
+      })
+    }
+  )
 
   // Why: only an Orca-launched Codex may wait for Codex's hook hashes; a plain terminal never does.
   describe('which spawns launch prep may make wait', () => {

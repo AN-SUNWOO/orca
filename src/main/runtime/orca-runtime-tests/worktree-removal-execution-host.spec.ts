@@ -149,7 +149,7 @@ class RemovalRuntime extends OrcaRuntimeService {
     return super.localRemovalJobHost(runtimeStore)
   }
 
-  protected override requireStore(): RuntimeStore {
+  override requireStore(): RuntimeStore {
     if (this.stopAtStore) {
       throw this.helperFailure
     }

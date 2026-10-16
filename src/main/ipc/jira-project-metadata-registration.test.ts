@@ -5,10 +5,12 @@ const mocks = vi.hoisted(() => ({
   listProjects: vi.fn(),
   listIssueTypes: vi.fn(),
   listCreateFields: vi.fn(),
-  listPriorities: vi.fn()
+  listPriorities: vi.fn(),
+  listFavouriteFilters: vi.fn()
 }))
 vi.mock('electron', () => ({ ipcMain: { handle: mocks.handle } }))
 vi.mock('./preflight', () => ({ _resetPreflightCache: vi.fn() }))
+vi.mock('../jira/favourite-filters', () => ({ listFavouriteFilters: mocks.listFavouriteFilters }))
 vi.mock('../jira/client', () => ({
   connect: vi.fn(),
   disconnect: vi.fn(),
@@ -56,10 +58,24 @@ describe('Jira project metadata IPC registration', () => {
       'jira:listProjects',
       'jira:listIssueTypes',
       'jira:listCreateFields',
-      'jira:listPriorities'
+      'jira:listPriorities',
+      'jira:listFavouriteFilters'
     ]) {
       expect(mocks.handle.mock.calls.filter(([name]) => name === channel)).toHaveLength(1)
     }
+  })
+
+  it('requires one explicit site for favourite filters and preserves failures', async () => {
+    for (const args of [undefined, {}, { siteId: 'all' }, { siteId: ' ' }]) {
+      await expect(handler('jira:listFavouriteFilters')(undefined, args)).rejects.toThrow()
+    }
+    expect(mocks.listFavouriteFilters).not.toHaveBeenCalled()
+    const error = new Error('catalogue unavailable')
+    mocks.listFavouriteFilters.mockRejectedValueOnce(error)
+    await expect(
+      handler('jira:listFavouriteFilters')(undefined, { siteId: ' site-1 ' })
+    ).rejects.toBe(error)
+    expect(mocks.listFavouriteFilters).toHaveBeenCalledExactlyOnceWith('site-1')
   })
 
   it('retains all-sites selection and site normalization', async () => {

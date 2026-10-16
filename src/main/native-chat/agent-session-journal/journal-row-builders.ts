@@ -13,6 +13,7 @@ import { agentSessionJournalProviderHandle } from '../../../shared/agent-session
 import { journalRowSchemaVersion } from '../../../shared/agent-session-journal-types'
 import { agentJournalLinkageFields } from '../../../shared/agent-session-journal-producer'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
+import { journalItemOwnerFence } from './journal-item-provenance'
 import type { JournalReducerState } from './journal-reducer'
 import type {
   JournalDispatchRow,
@@ -51,7 +52,13 @@ export function journalItemRowBuilder(
   state: () => JournalReducerState,
   address: AgentJournalItemIdentity | string,
   body: AgentJournalItemBody,
-  options: AgentJournalRowAttribution & { fence: number; observedAt?: number; recovered?: true },
+  options: AgentJournalRowAttribution & {
+    fence: number
+    ownerFence?: number
+    executionOwner?: number
+    observedAt?: number
+    recovered?: true
+  },
   revisions?: Map<string, number>
 ): RowBuilder<JournalItemRow> {
   return (seq, ts) =>
@@ -61,6 +68,8 @@ export function journalItemRowBuilder(
       body,
       seq,
       fence: options.fence,
+      ownerFence: options.ownerFence,
+      executionOwner: options.executionOwner,
       ts: options.observedAt ?? ts,
       recovered: options.recovered,
       linkage: options,
@@ -188,7 +197,11 @@ export function journalLifecycleBatchRowBuilder(
           ? { ...mutation, body: turnEndAfterStop(current, resolved, mutation.body) }
           : mutation,
         itemId,
-        revision
+        revision,
+        journalItemOwnerFence(current, resolved, {
+          fence: options.fence,
+          ownerFence: mutation.kind === 'item' ? mutation.ownerFence : undefined
+        })
       )
     })
     const row: JournalLifecycleBatchRow = {
@@ -227,6 +240,9 @@ export function buildJournalItemRow(
     body: AgentJournalItemBody
     seq: number
     fence: number
+    /** The writer's provenance claim (`journalItemOwnerFence`); absent for host bookkeeping. */
+    ownerFence?: number
+    executionOwner?: number
     ts: number
     recovered?: true
     linkage?: AgentJournalProducerLinkage
@@ -246,6 +262,8 @@ export function buildJournalItemRow(
     revision,
     body,
     ...journalRowBase(input.state.epoch, input.seq, input.fence, input.ts, [body]),
+    ownerFence: journalItemOwnerFence(input.state, resolved, input),
+    ...(input.executionOwner === undefined ? {} : { executionOwner: input.executionOwner }),
     ...(input.recovered ? { recovered: input.recovered } : {}),
     turnScope: input.turnScope,
     ...agentJournalLinkageFields(input.linkage)

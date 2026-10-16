@@ -2,7 +2,10 @@ import { ipcMain, type BrowserWindow } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { SSH_CREDENTIAL_TIMEOUT_MS, type SshCredentialKind } from '../ssh/ssh-connection-utils'
 import { recordSshCredentialDeclined } from '../ssh/ssh-credential-decline'
-const pendingRequests = new Map<string, { resolve: (value: string | null) => void }>()
+const pendingRequests = new Map<
+  string,
+  { targetId: string; resolve: (value: string | null) => void; close: () => void }
+>()
 
 function notifyCredentialResolved(
   getMainWindow: () => BrowserWindow | null,
@@ -37,14 +40,23 @@ export function requestCredential(
   const onAbort = (): void => finish(null)
   // Why: an abort is the connection's own teardown; only the user's Cancel (or silence) declines.
   const decline = (): void => {
-    if (pendingRequests.has(requestId)) {
-      recordSshCredentialDeclined(targetId, signal)
+    if (!pendingRequests.has(requestId)) {
+      return
     }
+    recordSshCredentialDeclined(targetId, signal)
     finish(null)
+    // Why: one Cancel answers the host; a queued prompt for it would otherwise open next.
+    for (const [otherId, other] of pendingRequests) {
+      if (otherId !== requestId && other.targetId === targetId) {
+        other.close()
+      }
+    }
   }
   timer = setTimeout(decline, SSH_CREDENTIAL_TIMEOUT_MS)
   pendingRequests.set(requestId, {
-    resolve: (value) => (value === null ? decline() : finish(value))
+    targetId,
+    resolve: (value) => (value === null ? decline() : finish(value)),
+    close: () => finish(null)
   })
   if (signal?.aborted) {
     finish(null)

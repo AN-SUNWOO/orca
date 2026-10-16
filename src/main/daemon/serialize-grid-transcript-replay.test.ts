@@ -226,9 +226,17 @@ describe('serialize round trip over captured PTY transcripts', () => {
       const blocking: string[] = []
       const failureSignatures: string[] = []
       for (const schedule of SCHEDULES) {
+        const cases: SerializeFuzzCase[] = []
+        for (let seed = 1; seed <= SEEDS; seed++) {
+          cases.push(buildReplayCase(transcript, schedule, false, seed))
+        }
         for (const conpty of [false, true]) {
-          for (let seed = 1; seed <= SEEDS; seed++) {
-            const testCase = buildReplayCase(transcript, schedule, conpty, seed)
+          for (const replayCase of cases) {
+            const { seed } = replayCase
+            const testCase: SerializeFuzzCase = {
+              ...replayCase,
+              category: conpty ? 'conpty' : 'normal'
+            }
             const run = await runSerializeFuzzCase(testCase, serializers)
             expect(run.sourceCrash).toBeNull()
             for (const check of run.checks) {

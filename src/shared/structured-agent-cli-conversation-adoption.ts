@@ -12,7 +12,8 @@ export const CLI_CONVERSATION_ADOPTING_AGENTS = {
   omp: 'omp',
   opencode: 'opencode',
   // OpenCode 2.x lists its conversations as `opencode2` rows; an OpenCode chat runs either line.
-  opencode2: 'opencode'
+  opencode2: 'opencode',
+  pi: 'pi'
 } as const
 
 /** A Session History row agent whose conversations a chat can take over. */

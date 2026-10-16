@@ -63,6 +63,7 @@ describe('SSH IPC handlers', () => {
       'ssh-1',
       'env-test',
       undefined,
+      undefined,
       undefined
     )
     expect(mockConnectionManager.connect).not.toHaveBeenCalled()

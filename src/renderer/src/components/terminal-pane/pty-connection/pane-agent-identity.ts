@@ -203,11 +203,16 @@ export function installPaneAgentIdentity(session: ConnectPanePtySession): void {
       session.agentCompletionCoordinator?.observeForegroundAgentProcess(process),
     hasKnownAgentIdentity: session.paneHasKnownAgentIdentity,
     onConfirmedShellForeground: (reason) => {
-      // Why: a confirmed local shell proves any hibernation record for this pane is stale;
-      // otherwise the tab resolver can repaint the exited agent from sleeping occupancy.
+      // Retire stale agent occupancy when a normal exit returns to the shell.
       const state = useAppStore.getState()
       const sleepingRecord = session.getSleepingRecordForPane(state)
-      if (sleepingRecord) {
+      const ptyId = session.transport.getPtyId()
+      const wake = session.hibernatedWakeTarget
+      // A delayed shell read can settle after exit consumes suppression; preserve only that PTY's exact wake record.
+      const isHibernationWakeRecord =
+        (ptyId && state.suppressedPtyExitIds[ptyId]) ||
+        (wake && wake.record === sleepingRecord?.record && (ptyId === null || wake.ptyId === ptyId))
+      if (sleepingRecord && !isHibernationWakeRecord) {
         session.clearSleepingRecordProviderDuplicates(state, sleepingRecord)
       }
       session.clearStaleAgentTabTitleOnConfirmedShell()

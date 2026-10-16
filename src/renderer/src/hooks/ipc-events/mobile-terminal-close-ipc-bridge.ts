@@ -2,7 +2,10 @@ import { createRuntimeFilePositionQueue } from './runtime-file-position'
 import { applyClosedTerminalLeafNotice } from '@/components/terminal-pane/closed-terminal-leaf-notice'
 import { closeTerminalTab } from '@/components/terminal/terminal-tab-actions'
 import { detectLanguage } from '@/lib/language-detect'
-import { runSleepWorktree } from '@/components/sidebar/sleep-worktree-flow'
+import {
+  runSleepWorktree,
+  sleepWorktreesReportingFailures
+} from '@/components/sidebar/sleep-worktree-flow'
 import { buildWorkspaceSessionPayload } from '@/lib/workspace-session'
 import { persistWorkspaceSessionByHost } from '@/lib/workspace-session-host-persistence'
 import { revealWorkspaceSurface } from '@/lib/workspace-surface-reveal'
@@ -132,6 +135,30 @@ export function registerMobileAndTerminalCloseIpcBridge(
       void runSleepWorktree(worktreeId)
     })
   )
+
+  // Why optional: an older preload lingering through an in-place reload lacks the channel.
+  if (window.api.ui.onWorktreeSleepRequest) {
+    unsubs.push(
+      window.api.ui.onWorktreeSleepRequest(({ requestId, worktreeIds }) => {
+        void (async () => {
+          const { failedWorktreeIds } = await sleepWorktreesReportingFailures(worktreeIds)
+          // Main waits on the ack, so the slept state must be durable before it.
+          const state = useAppStore.getState()
+          await persistWorkspaceSessionByHost(
+            window.api.session,
+            buildWorkspaceSessionPayload(state),
+            state
+          )
+          window.api.ui.respondWorktreeSleep({ requestId, failedWorktreeIds })
+        })().catch((error: unknown) => {
+          window.api.ui.respondWorktreeSleep({
+            requestId,
+            error: error instanceof Error ? error.message : 'worktree_sleep_failed'
+          })
+        })
+      })
+    )
+  }
 
   unsubs.push(
     window.api.ui.onResumeSleepingAgents(({ worktreeId }) => {

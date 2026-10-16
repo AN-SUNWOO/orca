@@ -23,6 +23,7 @@ import {
   startOrcadManagedTunnel
 } from './orcad-managed-tunnel'
 import { recoverInterruptedOrcadActivation } from './orcad-activation-recovery'
+import { wakeAlreadyActiveOrcad } from './orcad-already-active-wake'
 import { readOrcadActivationRecord } from './orcad-activation-record-store'
 import { resolveOrcadRemoteContext, type OrcadRemoteContext } from './orcad-remote-context'
 import { deployOrcad } from './orcad-remote-deploy'
@@ -123,15 +124,17 @@ export async function createManagedOrcadEnvironment(
       const localOrcadDir = await materializeOrcadArtifact(context.serverTarget, {
         signal: args.signal
       })
-      // Before any upload, so a host another version serves is left exactly as it was.
-      const adopted =
-        args.force || args.migration
-          ? null
-          : await adoptRunningOrcadVersion(
-              slot,
-              context.activationRecord,
-              readLocalFullVersion(localOrcadDir)
-            )
+      // Before any upload, so a host another version serves is left exactly as it was. A migration
+      // adopts too: only the paired server can count its terminals, so its own deploy would defer.
+      const localVersion = readLocalFullVersion(localOrcadDir)
+      const adopted = args.force
+        ? null
+        : await adoptRunningOrcadVersion(slot, context.activationRecord, localVersion)
+      const { active } = context.activationRecord
+      if (!adopted && !args.force && active && active !== localVersion) {
+        // The wake re-read a record another desktop changed; the census policy follows it.
+        context = { ...context, activationRecord: await readOrcadActivationRecord(slot) }
+      }
       const serving: DeployedOrcad | OrcadManagedDeferral =
         adopted ??
         (await deployOwnOrcad(context, { ...slot, conn: connection }, localOrcadDir, args))
@@ -200,6 +203,9 @@ async function deployOwnOrcad(
         isForceableOrcadDeferral(deployResult.code) ||
         deployResult.code === ORCAD_ACTIVATION_POLICY_REFUSED_CODE
     }
+  }
+  if (deployResult.outcome === 'already-active') {
+    await wakeAlreadyActiveOrcad(slot)
   }
   const reprobe = () =>
     probeManagedOrcadReadiness(context, localOrcadDir, deployResult.fullVersion, args.signal)

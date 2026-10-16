@@ -25,8 +25,8 @@ jobs:
   # inputs are unchanged; empty diffs fail closed and run everything.
   code_paths:
     name: detect changes and check repository guards
-    # Reuse one lightweight checkout for detection and the always-required guards.
-    runs-on: ubuntu-slim
+    # Start routing without waiting behind the GitHub-hosted test queue.
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
     permissions:
       contents: read
@@ -79,6 +79,7 @@ jobs:
             /config/.bun-version
             /config/scripts/check-readme-local-links.mjs
             /config/scripts/pr-code-change-scope.mjs
+            /config/scripts/pr-package-test-paths.mjs
             /config/scripts/pr-layout-oracle-route.mjs
             /config/scripts/pr-e2e-source-routing.mjs
             /config/scripts/ci-e2e-job-selection.mjs
@@ -174,13 +175,11 @@ jobs:
     name: static analysis and typecheck
     needs: [code_paths]
     if: needs.code_paths.outputs.static_analysis == 'true' || needs.code_paths.outputs.typecheck == 'true'
-    # Why ARM: measured 128s against 172s on ubuntu-latest, with every compute step faster --
-    # type-aware 24s->15s, anti-slop 28->19s, localization extraction 67->46s, the orcad smoke
-    # 39->14s. Both lint engines ship linux-arm64 and the Bun target follows process.arch, so
-    # the whole toolchain resolves. Free for public repositories.
-    runs-on: ubuntu-24.04-arm
+    # Leave headroom for typechecking and overlapping checks.
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     outputs:
       shards: ${{ steps.unit-plan.outputs.shards }}
+      managed_hook_node18: ${{ steps.managed_hook_node18.outcome }}
 
     steps:
       - name: Checkout
@@ -193,6 +192,22 @@ jobs:
           # blobless against ~11s without it.
           fetch-depth: 50
           persist-credentials: false
+
+      # The dependency action below restores Node 24 before installing or building packages.
+      - name: Prepare Node 18 smoke runtime
+        id: node18_runtime
+        if: needs.code_paths.outputs.managed_hook_node18 == 'true'
+        continue-on-error: true
+        uses: actions/setup-node@v6
+        with:
+          node-version: '18'
+          package-manager-cache: false
+
+      - name: Capture Node 18 executable
+        id: node18_executable
+        if: needs.code_paths.outputs.managed_hook_node18 == 'true' && steps.node18_runtime.outcome == 'success'
+        continue-on-error: true
+        run: node -p '"executable=" + process.execPath' >> "$GITHUB_OUTPUT"
 
       # Why two guarded installs: the mixed root+mobile store entry is 537 MB against
       # 321 MB for root alone, and restoring it costs 8.6s against 4.6s. Most PRs skip the
@@ -219,6 +234,7 @@ jobs:
         with:
           bun-version-file: config/.bun-version
 
+      # Run gate scripts directly to avoid repeated package-manager startup.
       - name: Check process-host imports
         if: '!cancelled()'
         id: process-host-imports
@@ -239,7 +255,7 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          bun --bun run check:main-sync-spawn-ratchet
+          bun config/scripts/check-main-sync-spawn-ratchet.mjs
 
       # Keep each check in its own log while sharing this runner.
       - name: Lint
@@ -251,7 +267,7 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          pnpm exec oxlint --format github
+          node node_modules/oxlint/bin/oxlint --format github
 
       - name: Reject low-evidence patterns
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -270,11 +286,11 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          pnpm run audit:code-quality:native
+          node node_modules/oxlint/bin/oxlint --config config/oxlint-code-quality-native-plugins.json src config tests mobile --deny-warnings
 
       - name: Enforce type-aware code-quality baseline
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run audit:code-quality:type-aware
+        run: node node_modules/oxlint/bin/oxlint --type-aware --config config/oxlint-code-quality-type-aware.json src config tests --deny-warnings
 
       # Mobile installation changes import resolution for the native cycle check.
       - wait: native-code-quality
@@ -294,11 +310,11 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          pnpm run check:code-quality:changed -- "${{ github.event.pull_request.base.sha }}"
+          node config/scripts/check-changed-code-quality.mjs "${{ github.event.pull_request.base.sha }}"
 
       - name: Enforce React Doctor on changed lines
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:react-doctor:changed -- "${{ github.event.pull_request.base.sha }}"
+        run: node config/scripts/check-react-doctor-changed.mjs "${{ github.event.pull_request.base.sha }}"
 
       - wait: changed-code-quality
 
@@ -316,15 +332,15 @@ jobs:
 
       - name: Check Zustand selector fan-out budget
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:zustand-selector-fanout
+        run: node config/scripts/zustand-selector-fanout-benchmark.mjs --check
 
       - name: Check reliability gate manifest
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:reliability-gates
+        run: node config/scripts/check-reliability-gates.mjs
 
       - name: Enforce dead design-system classes
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:dead-classes
+        run: node node_modules/oxlint/bin/oxlint --config config/oxlint-dead-classes.json src/renderer
 
       - name: Check VM runtime rollback compatibility
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -350,19 +366,19 @@ jobs:
 
       - name: Enforce max-lines ratchet
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:max-lines-ratchet
+        run: node config/scripts/check-max-lines-ratchet.mjs
 
       - name: Enforce ts-nocheck ratchet
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:ts-nocheck-ratchet
+        run: node config/scripts/check-ts-nocheck-ratchet.mjs
 
       - name: Enforce runtime Electron-import ratchet
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:runtime-electron-ratchet
+        run: node config/scripts/check-runtime-electron-ratchet.mjs
 
       - name: Enforce focus-read ratchet
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:focus-read-ratchet
+        run: node config/scripts/check-focus-read-ratchet.mjs
 
       - name: Enforce layout-writer ratchets
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -370,7 +386,7 @@ jobs:
 
       - name: Check Node runtime pin
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run check:node-runtime-pin
+        run: node config/scripts/check-node-runtime-pin.mjs
 
       # Why: extraction writes sorted evidence to an isolated temporary path,
       # so feature PRs need one normalized AST pass rather than a three-OS matrix.
@@ -414,19 +430,19 @@ jobs:
 
       - name: Verify the generated RPC params catalog
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run verify:rpc-params-catalog
+        run: node config/scripts/generate-rpc-params-catalog.mjs --check
 
       - name: Verify the generated ACP protocol schema
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run verify:acp-protocol
+        run: node config/scripts/acp/generate-protocol.mjs --check
 
       - name: Verify bundled skill guides
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run verify:bundled-skill-guides
+        run: node config/scripts/generate-bundled-skill-guides.mjs --check
 
       - name: Verify skill freshness manifest
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm run verify:skill-bundle-manifest
+        run: node config/scripts/generate-skill-bundle-manifest.mjs
 
       - name: Verify localization catalogs
         if: '!cancelled()'
@@ -437,7 +453,7 @@ jobs:
           PREFLIGHT_PRIOR_SUCCESS: ${{ job.status == 'success' }}
         run: |
           if [ "$PREFLIGHT_PHASE_SELECTED" != true ] || [ "$PREFLIGHT_PRIOR_SUCCESS" != true ]; then exit 0; fi
-          pnpm run verify:localization-catalogs
+          bun config/scripts/verify-localization-catalogs.mjs
 
       - name: Verify localization coverage
         if: needs.code_paths.outputs.static_analysis == 'true'
@@ -465,11 +481,11 @@ jobs:
 
       - name: Check feature wall asset budget
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm check:feature-wall-assets
+        run: node config/scripts/check-feature-wall-assets.mjs
 
       - name: Verify macOS entitlements
         if: needs.code_paths.outputs.static_analysis == 'true'
-        run: pnpm verify:macos-entitlements
+        run: node config/scripts/verify-macos-entitlements.mjs
 
       # Planning shares setup and stays off the compiler's critical path.
       - name: Plan unit selection
@@ -501,12 +517,6 @@ jobs:
           path: ci-shards/unit-selection.json
           retention-days: 14
 
-      - name: Set up Bun for Mobile CI tool tests
-        if: needs.code_paths.outputs.mobile_ci_tools == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: config/.bun-version
-
       - name: Test Mobile CI tools and runtime routing
         if: needs.code_paths.outputs.mobile_ci_tools == 'true'
         env:
@@ -522,6 +532,18 @@ jobs:
           config/scripts/win32-test-lane-registration.test.mjs
           config/scripts/vitest-node-runtime-boundary.test.ts
           config/scripts/vitest-sqlite-runtime-boundary.test.ts
+
+      # Report failure through the separate required check without blocking unrelated consumers.
+      - name: Smoke process-host package on Node 18
+        id: managed_hook_node18
+        if: success() && needs.code_paths.outputs.managed_hook_node18 == 'true'
+        continue-on-error: true
+        env:
+          NODE18_EXECUTABLE: ${{ steps.node18_executable.outputs.executable }}
+          ORCA_BACKGROUND_LAUNCH: '1'
+        run: |
+          test -n "$NODE18_EXECUTABLE"
+          "$NODE18_EXECUTABLE" config/scripts/smoke-process-host-node18.mjs
 
   git_compatibility:
     name: Git compatibility
@@ -871,7 +893,7 @@ jobs:
     uses: ./.github/workflows/unit-tests.yml
     with:
       node_versions: '["24"]'
-      runner: ubuntu-24.04-arm
+      runner: blacksmith-4vcpu-ubuntu-2404
       shards: ${{ needs.preflight.outputs.shards }}
       run_shards: ${{ needs.code_paths.outputs.mobile_ci_tools != 'true' }}
       browser_contract: ${{ needs.code_paths.outputs.orcad_browser == 'true' }}
@@ -1018,25 +1040,19 @@ jobs:
       needs.code_paths.result == 'success' &&
       needs.code_paths.outputs.managed_hook_node18 == 'true' &&
       needs.preflight.result == 'success'
-    # Why ARM: Node 18 publishes linux-arm64; the per-platform runtime files are read as data.
-    runs-on: ubuntu-24.04-arm
+    # Retain the required check while sharing preflight's checkout and built packages.
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/install-node-dependencies
-
-      - name: Setup Node 18 runtime
-        uses: actions/setup-node@v6
-        with:
-          node-version: '18'
-
-      # The process-host package declares engines >=18; load its staged public output on Node 18.
-      - name: Smoke process-host package
-        run: node config/scripts/smoke-process-host-node18.mjs
+      - name: Require process-host package smoke on Node 18
+        env:
+          MANAGED_HOOK_NODE18: ${{ needs.preflight.outputs.managed_hook_node18 }}
+        run: |
+          if [ "$MANAGED_HOOK_NODE18" != success ]; then
+            echo "::error::Node 18 process-host smoke: expected success, got $MANAGED_HOOK_NODE18"
+            exit 1
+          fi
 
   package:
     name: package
@@ -1099,6 +1115,15 @@ jobs:
           src/main/browser/browser-route-h3-egress.electron.test.ts
           src/main/browser/browser-route-dns-prefetch.electron.test.ts
           src/main/persistence/profile-state/profile-state-writer-stall.electron.test.ts
+          src/main/browser/browser-popup-compatibility.electron.test.ts
+          src/main/browser/browser-popup-native-compatibility.electron.test.ts
+          src/main/browser/browser-popup-background-compatibility.electron.test.ts
+
+      # The isolated glibc-floor build writes only the Wayland helper, so JavaScript can overlap.
+      - name: Build native components
+        id: linux-native
+        background: true
+        uses: ./.github/actions/prepare-wayland-clipboard
 
       # Restore independent fixtures during builds; keep native lifecycle probes serial.
       - uses: ./.github/actions/prepare-linux-package-fixture
@@ -1154,10 +1179,7 @@ jobs:
       - name: Build mobile web bundle
         run: pnpm run build:mobile-web
 
-      - name: Build native components
-        run: pnpm run build:native
-
-      - wait: [linux-package-tools, web-client]
+      - wait: [linux-native, linux-package-tools, web-client]
 
       - name: Package unpacked app
         env:
@@ -1344,6 +1366,7 @@ jobs:
           src/shared/__tests__/process-host/windows-command-line.win32.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.win32.test.ts
+          src/shared/omp-fresh-launch-cmd.win32.test.ts
           src/main/agent-hooks/windows-hook-payload-delivery.test.ts
           src/main/agent-hooks/managed-hook-stdin-lifecycle.test.ts
           src/main/jcode/hook-gate-script.test.ts
@@ -1491,6 +1514,7 @@ jobs:
 
   verify:
     name: PR checks passed
+    # Publish an explicit result after every required dependency settles.
     if: ${{ !cancelled() }}
     needs:
       - code_paths
@@ -1506,8 +1530,8 @@ jobs:
       - package
       - package_windows
       - layout_oracle
-    # Evaluating job results only needs the lightweight container runner.
-    runs-on: ubuntu-slim
+    # Report settled results without competing with the GitHub-hosted test queue.
+    runs-on: blacksmith-2vcpu-ubuntu-2204
     timeout-minutes: 5
 
     steps:
@@ -1524,6 +1548,8 @@ jobs:
           CODE_PATHS: ${{ needs.code_paths.result }}
           SHOULD_RUN: ${{ needs.code_paths.outputs.should_run }}
           PREFLIGHT: ${{ needs.preflight.result }}
+          STATIC_ANALYSIS_SHOULD_RUN: ${{ needs.code_paths.outputs.static_analysis }}
+          TYPECHECK_SHOULD_RUN: ${{ needs.code_paths.outputs.typecheck }}
           PREFLIGHT_SHOULD_RUN: ${{ needs.code_paths.outputs.static_analysis == 'true' || needs.code_paths.outputs.typecheck == 'true' }}
           GIT_COMPATIBILITY: ${{ needs.git_compatibility.result }}
           GIT_COMPATIBILITY_SHOULD_RUN: ${{ needs.code_paths.outputs.git_compatibility }}
@@ -1551,6 +1577,10 @@ jobs:
           if [ "$CODE_PATHS" != "success" ]; then
             exit 1
           fi
+          case "$STATIC_ANALYSIS_SHOULD_RUN:$TYPECHECK_SHOULD_RUN" in
+            true:true|true:false|false:true|false:false) ;;
+            *) echo "preflight: missing or invalid selection"; exit 1 ;;
+          esac
           if [ "$SHOULD_RUN" != "true" ]; then
             echo "Docs-only change; expensive PR checks skipped."
           fi
@@ -1562,11 +1592,14 @@ jobs:
                 echo "$name: expected success, got $result"
                 failed=1
               fi
-            else
+            elif [ "$should" = "false" ]; then
               if [ "$result" != "skipped" ]; then
                 echo "$name: expected skipped, got $result"
                 failed=1
               fi
+            else
+              echo "$name: missing or invalid selection"
+              failed=1
             fi
           }
           # Require success when the PR has code-relevant changes

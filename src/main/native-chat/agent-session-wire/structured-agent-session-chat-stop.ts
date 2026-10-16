@@ -33,6 +33,7 @@ import {
   type StructuredAgentSessionStopWindDown
 } from './structured-agent-session-stop-wind-down'
 import { performCancel } from './structured-agent-session-turns-cancel'
+import { contextStructuredAgentSessionCurrentWork } from './structured-agent-session-current-work'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
 
 type ChatStopOutcome = TurnOutcome<AgentSessionCancelResult>
@@ -126,6 +127,7 @@ export function mutateWithChatStop<TValue>(
           windDown = { owed, ctx }
         },
         withdrewQueued: Promise.resolve(settled),
+        noteFence: () => context.deps.store.getRecord(sessionId)?.lease.runtimeFence ?? ctx.fence,
         // This Stop's own event, or the one in force it repeats: its settle binds.
         opensSettle: true
       }
@@ -151,7 +153,10 @@ export function mutateWithChatStop<TValue>(
       // Saved, then failed: noted on the chat, then thrown so the answer is the Stop's receipt.
       // On the turn its event named, else the one it named, else the one live now.
       const stoppedTurnId =
-        accepted.value.turnId ?? (target.named ? target.turnId : ctx.journal.activeTurnId())
+        accepted.value.turnId ??
+        (target.named
+          ? target.turnId
+          : contextStructuredAgentSessionCurrentWork(ctx).activeTurnId())
       await noteStructuredAgentSessionStopUnconfirmed(
         ctx,
         { turnId: stoppedTurnId, operationId: envelope.clientOperationId },

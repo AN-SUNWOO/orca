@@ -1,4 +1,5 @@
 import { getRuntimeEnvironmentIdForWorktree } from './worktree-runtime-owner'
+import { requestNativeChatComposerFocus } from '@/components/native-chat/use-native-chat-composer-reveal-focus'
 import { useAppStore } from '@/store'
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
@@ -47,6 +48,7 @@ export function activateStructuredAgentSessionTab(args: {
   state.focusGroup(args.worktreeId, tab.groupId)
   state.activateTab(tab.id, { worktreeId: args.worktreeId })
   state.setActiveTabType('agent-session', args.worktreeId)
+  requestNativeChatComposerFocus(tab.id)
   const environmentId = getRuntimeEnvironmentIdForWorktree(state, args.worktreeId)
   void callRuntimeRpc(
     args.target ?? runtimeTargetForOwnerEnvironment(environmentId),

@@ -22,7 +22,8 @@ import {
   TEST_REPO
 } from '@/store/slices/store-test-helpers'
 import type { NotificationDispatchRequest } from '../../../../shared/notification-settings-types'
-import { isStructuredTab, type StructuredTab } from './structured-agent-session-tabs'
+import type { StructuredTab } from './structured-agent-session-tabs'
+import { isStructuredTab } from '../../../../shared/structured-agent-session-tab'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 
 // The user is present unless a test says otherwise.

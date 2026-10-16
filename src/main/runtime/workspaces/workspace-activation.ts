@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithListManagedWorktrees } from '../orca-runtime-list-managed-worktrees'
+import { OrcaRuntimeWithListManagedWorktrees } from './managed-workspace-operations'
 import type { RuntimeNavigationTarget } from '../../../shared/runtime-navigation'
 import {
   navigationTargetsClients,

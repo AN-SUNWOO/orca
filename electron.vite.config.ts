@@ -1,7 +1,8 @@
 import { markdownParserAliases } from './config/build-plugins/markdown-parser-exports'
-import { isBuiltin } from 'node:module'
+import { createRequire, isBuiltin } from 'node:module'
 import { resolve } from 'node:path'
 import { defineConfig, type UserConfig } from 'electron-vite'
+import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { createBootstrapFatalExitBanner } from './config/build-plugins/bootstrap-fatal-exit-banner'
@@ -65,6 +66,28 @@ const ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL =
   typeof orcaDiagnosticsTokenUrl === 'string' && orcaDiagnosticsTokenUrl.length > 0
     ? JSON.stringify(orcaDiagnosticsTokenUrl)
     : 'null'
+
+const layoutOwnerBuild: {
+  LAYOUT_OWNER_MARKER_FILENAME: string
+  LAYOUT_OWNER_MARKER_TEXT: string
+  isLayoutOwnerBuild: () => boolean
+  layoutOwnerDefine: () => string
+} = createRequire(import.meta.url)('./config/layout-owner-build.cjs')
+const ORCA_LAYOUT_OWNER_LITERAL = layoutOwnerBuild.layoutOwnerDefine()
+
+/** Marks a dark layout-owner main build so packaging refuses it. */
+function createLayoutOwnerMarkerPlugin(): Plugin {
+  return {
+    name: 'orca-layout-owner-marker',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: layoutOwnerBuild.LAYOUT_OWNER_MARKER_FILENAME,
+        source: layoutOwnerBuild.LAYOUT_OWNER_MARKER_TEXT
+      })
+    }
+  }
+}
 
 // Why: official skill installs pin to the commit the build came from, so they match the
 // bundled skills on every channel. Main runs the installer; the renderer prints the command.
@@ -243,7 +266,8 @@ export const electronViteConfig: UserConfig = {
         plugins: [
           createMainBootstrapPlugin(),
           createPlainNodeEntryGuardPlugin(),
-          createProcessHostDevRebuildPlugin()
+          createProcessHostDevRebuildPlugin(),
+          ...(layoutOwnerBuild.isLayoutOwnerBuild() ? [createLayoutOwnerMarkerPlugin()] : [])
         ]
       }
     },
@@ -253,7 +277,8 @@ export const electronViteConfig: UserConfig = {
       ORCA_BUILD_IDENTITY: ORCA_BUILD_IDENTITY_LITERAL,
       ORCA_POSTHOG_WRITE_KEY: ORCA_POSTHOG_WRITE_KEY_LITERAL,
       ORCA_DIAGNOSTICS_TOKEN_URL: ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL,
-      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL
+      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL,
+      ORCA_LAYOUT_OWNER: ORCA_LAYOUT_OWNER_LITERAL
     },
     // Why: @xterm/headless declares "exports": null in package.json, which
     // prevents Vite's default resolver from finding the CJS entry. Point
@@ -276,7 +301,8 @@ export const electronViteConfig: UserConfig = {
   },
   renderer: {
     define: {
-      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL
+      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL,
+      ORCA_LAYOUT_OWNER: ORCA_LAYOUT_OWNER_LITERAL
     },
     resolve: {
       alias: {

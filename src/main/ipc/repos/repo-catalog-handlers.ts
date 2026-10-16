@@ -9,6 +9,11 @@ import { invalidateAuthorizedRootsCache } from '../registered-worktree-roots-cac
 import { notifyReposChanged } from './repos-changed-notification'
 import { ProjectUpdateIpcArgs, parseProjectGroupIpcArgs } from './repo-ipc-arg-schemas'
 import { visibleRepos } from '../../ssh/orcad-retained-source'
+import {
+  assertWslMoveProjectWritable,
+  assertWslMoveReposWritable,
+  isWslMoveSourceHost
+} from '../../persistence/moving-wsl-projects/wsl-move-scope-guard'
 
 export function registerRepoCatalogHandlers(mainWindow: BrowserWindow, store: Store): void {
   // Why one shared reference: enrichment dedupes coalesced callers by callback identity, so a fresh
@@ -33,6 +38,8 @@ export function registerRepoCatalogHandlers(mainWindow: BrowserWindow, store: St
       rawArgs,
       'project_update_invalid_args'
     )
+    const project = store.getProjects().find((entry) => entry.id === args.projectId)
+    assertWslMoveReposWritable(store, project?.sourceRepoIds ?? [])
     return store.updateProject(args.projectId, args.updates)
   })
 
@@ -82,6 +89,9 @@ export function registerRepoCatalogHandlers(mainWindow: BrowserWindow, store: St
       const hostId = normalizeExecutionHostId(args.hostId)
       if (!hostId) {
         throw new Error(`Invalid host ID: ${args.hostId}`)
+      }
+      if (isWslMoveSourceHost(hostId)) {
+        assertWslMoveProjectWritable(store, { repoId: args.repoId })
       }
       store.removeProjectForHost(args.repoId, hostId)
       invalidateAuthorizedRootsCache()

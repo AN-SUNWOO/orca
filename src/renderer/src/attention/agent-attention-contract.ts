@@ -70,6 +70,8 @@ export type AgentAttentionSurface = {
   isWorkspaceViewed: (workspaceId: string) => boolean
   /** In-app selection only — true even when the window is in the background. */
   isWorkspaceActive: (workspaceId: string) => boolean
+  /** Has the user silenced this workspace's attention (a sidebar Filters switch hides it)? */
+  isWorkspaceMuted: (workspaceId: string) => boolean
   /** The subject on screen inside a container, if the container shows one. */
   resolveViewedSubjectKey: (groupId: string) => string | null
 }

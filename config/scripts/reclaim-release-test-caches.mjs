@@ -278,7 +278,7 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
     const argument = process.argv[index]
     if (argument === '--help') {
       console.log(
-        'Usage: pnpm run reclaim:worktree-space [--repo DIRECTORY] [--release-cache-min-age-days 30] [--apply --tests-stopped]'
+        'Usage: pnpm reclaim-space [--repo DIRECTORY] [--release-cache-min-age-days 30] [--apply --tests-stopped]'
       )
       process.exit(0)
     }

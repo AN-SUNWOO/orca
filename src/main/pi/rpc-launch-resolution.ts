@@ -17,6 +17,7 @@ import {
 } from '../native-chat/structured-agent-command-resolution'
 import type { StructuredAgentLaunchPartResolver } from '../runtime/structured-agent-launch-composition'
 import { isWindowsProcessStartTimeAvailable } from '../windows/windows-process-table'
+import { sessionIdFromFileName } from '../ai-vault/session-scanner-accumulator'
 import {
   PI_RPC_SESSION_ENV_TO_DELETE,
   withoutPiCallerEnv,
@@ -66,9 +67,15 @@ export function piRpcVersionSupported(
   return probe({ program: launch.command, cwd: launch.cwd, env: launch.env }, supportsPiRpcVersion)
 }
 
-const headerSchema = z.object({ type: z.literal('session'), cwd: z.string().min(1) })
+const headerSchema = z.object({
+  type: z.literal('session'),
+  cwd: z.string().min(1),
+  id: z.string().optional()
+})
 
-async function sessionDirectory(file: string): Promise<string | null> {
+export async function readPiSessionHeader(
+  file: string
+): Promise<{ cwd: string; id?: string } | null> {
   let descriptor
   try {
     descriptor = await open(file, 'r')
@@ -86,13 +93,13 @@ async function sessionDirectory(file: string): Promise<string | null> {
     if (lf === -1) {
       throw new Error('Pi session header is incomplete or oversized')
     }
-    return headerSchema.parse(JSON.parse(data.slice(0, lf))).cwd
+    return headerSchema.parse(JSON.parse(data.slice(0, lf)))
   } finally {
     await descriptor.close()
   }
 }
 
-async function sameDirectory(left: string, right: string): Promise<boolean> {
+export async function samePiDirectory(left: string, right: string): Promise<boolean> {
   const canonical = async (value: string): Promise<string> =>
     realpath(value).catch(() => normalize(value))
   const [a, b] = await Promise.all([canonical(left), canonical(right)])
@@ -159,10 +166,20 @@ export function piRpcLaunchPart(
         throw new Error('Pi resume handle is not a host session file')
       }
       const source = previous.handle.nativeId
-      const directory = await sessionDirectory(source)
-      if (directory === null) {
+      const header = await readPiSessionHeader(source)
+      if (
+        previous.origin === 'adopted' &&
+        (!header ||
+          header.id !== sessionIdFromFileName(source) ||
+          !(await samePiDirectory(header.cwd, cwd)))
+      ) {
+        throw agentSessionRefusalError('agent_session_identity_required', {
+          reason: 'transcriptNotFound'
+        })
+      }
+      if (header === null) {
         replacement = previous.origin === 'created' ? 'unsaved' : 'restore-failed'
-      } else if (await sameDirectory(directory, cwd)) {
+      } else if (await samePiDirectory(header.cwd, cwd)) {
         sessionFile = source
       } else {
         forkFile = source

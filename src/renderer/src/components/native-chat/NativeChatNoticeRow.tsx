@@ -8,14 +8,16 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import {
   AGENT_SESSION_HOST_STATUS_COPY as HOST_STATUS_COPY,
-  isAgentSessionHostStatusPresentation,
   type AgentSessionHostStatusPresentation
 } from '../../../../shared/agent-session-host-status-rows'
 import type { NativeChatTextBlock } from '../../../../shared/native-chat-types'
+import {
+  NATIVE_CHAT_NOTICE_COPY,
+  nativeChatNoticeLook
+} from '../../../../shared/native-chat-notice'
 import { useNativeChatOrcaStopView } from './native-chat-orca-stop-context'
 import { NativeChatInterruptedContinueButton } from './NativeChatInterruptedContinue'
 import { nativeChatOrcaStopRowText } from './native-chat-orca-stop-words'
-import { AGENT_SESSION_ORCA_STOP_PRESENTATION } from '../../../../shared/agent-session-orca-stop'
 import { ProviderFrameRow } from './NativeChatTranscriptChrome'
 import { Button } from '@/components/ui/button'
 import {
@@ -57,11 +59,15 @@ export function NativeChatNoticeRow({
   useTranslation()
   const orcaStopView = useNativeChatOrcaStopView()
   const claudeSignIn = useNativeChatClaudeSignInView()
-  if (block.presentation === 'compaction' || block.presentation === 'context-cleared') {
+  const look = nativeChatNoticeLook(block)
+  if (look.kind === 'divider') {
     const label =
-      block.presentation === 'context-cleared'
-        ? translate('components.native-chat.notices.contextCleared', 'Context cleared')
-        : translate('components.native-chat.notices.compaction', 'Context compacted')
+      look.label === 'contextCleared'
+        ? translate(
+            'components.native-chat.notices.contextCleared',
+            NATIVE_CHAT_NOTICE_COPY.contextCleared
+          )
+        : translate('components.native-chat.notices.compaction', NATIVE_CHAT_NOTICE_COPY.compaction)
     return (
       <div
         role="separator"
@@ -74,7 +80,7 @@ export function NativeChatNoticeRow({
       </div>
     )
   }
-  if (block.presentation === 'command-output') {
+  if (look.kind === 'command-output') {
     // Why: command output is laid out in columns; proportional type breaks its grid.
     return (
       <pre className="whitespace-pre-wrap break-words font-mono text-xs text-chat-foreground">
@@ -82,20 +88,20 @@ export function NativeChatNoticeRow({
       </pre>
     )
   }
-  if (isAgentSessionHostStatusPresentation(block.presentation)) {
+  if (look.kind === 'host-status') {
     // The look of any other host status line; only the words are the reader's.
     return (
       <p className="min-w-0 max-w-full select-text text-sm text-chat-foreground-faint [overflow-wrap:anywhere]">
-        {HOST_STATUS_WORDS[block.presentation]()}
+        {HOST_STATUS_WORDS[look.presentation]()}
       </p>
     )
   }
-  if (block.presentation === 'plan-document') {
+  if (look.kind === 'plan') {
     return (
       <Card className="gap-3 py-3 shadow-xs">
         <CardHeader className="px-4">
           <CardTitle className="text-sm">
-            {translate('components.native-chat.notices.plan', 'Plan')}
+            {translate('components.native-chat.notices.plan', NATIVE_CHAT_NOTICE_COPY.plan)}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 text-sm leading-relaxed text-foreground">
@@ -144,8 +150,7 @@ export function NativeChatNoticeRow({
           sayAgentSessionFailureTranslated
         )
       : block.text
-  const tone =
-    named || block.presentation === AGENT_SESSION_ORCA_STOP_PRESENTATION ? 'notice' : block.tone
+  const tone = named ? 'notice' : look.kind === 'line' ? look.tone : null
   const Icon =
     tone === 'warning'
       ? AlertTriangle

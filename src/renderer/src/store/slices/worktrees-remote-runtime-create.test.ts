@@ -53,9 +53,13 @@ describe('worktree remote runtime mutations', () => {
       _meta: { runtimeId: 'runtime-remote' }
     })
     store.setState({
-      settings: { activeRuntimeEnvironmentId: 'env-1' } as never,
+      settings: {
+        ...store.getState().settings!,
+        activeRuntimeEnvironmentId: 'env-1',
+        nestWorkspaces: false
+      },
       worktreesByRepo: { repo1: [] }
-    } as Partial<AppState>)
+    })
     seedRepoHost(store, 'runtime:env-1')
 
     const result = await store
@@ -83,6 +87,7 @@ describe('worktree remote runtime mutations', () => {
         baseBranch: 'origin/main',
         setupDecision: 'skip',
         sparseCheckout: { directories: ['src'], presetId: 'preset-1' },
+        nestWorkspaces: false,
         telemetrySource: 'sidebar',
         displayName: 'Feature title',
         linkedIssue: 123,

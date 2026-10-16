@@ -1,6 +1,6 @@
-// @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
+import { applyClaudeTerminalImageViewerEnv } from './terminal-image-viewer-env'
 import * as dependencies from './orca-runtime-create-terminal-dependencies'
-import type { OrcaRuntimeWithCreateTerminal } from './orca-runtime-create-terminal'
+import type { OrcaRuntimeWithCreateTerminal } from './terminal/launch/terminal-create'
 import type { RuntimeTerminalPresentation } from '../../shared/runtime-types'
 
 // A create with no workspace lands in whatever the window is showing, so only the window can make it.
@@ -15,6 +15,7 @@ export async function createDesktopTerminal(
       `--shell ${opts.shellOverride} needs a workspace, because the shell is resolved on the workspace's execution host. No terminal was created.`
     )
   }
+  opts = applyClaudeTerminalImageViewerEnv(opts, opts.terminalImageViewerSupported)
   runtime.assertGraphReady()
   const win = runtime.getAuthoritativeWindow()
   const requestId = dependencies.randomUUID()

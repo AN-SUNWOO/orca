@@ -14,6 +14,10 @@ import { waitForSessionReady } from './helpers/store'
 import { createRestartSession } from './helpers/orca-restart'
 import { wslMoveCutoverFixture } from '../../src/main/persistence/__fixtures__/wsl-mover/wsl-move-cutover-fixture'
 import { writeWslMoveCutover } from '../../src/main/persistence/moving-wsl-projects/wsl-move-cutover-journal'
+import {
+  WSL_MOVE_CUTOVER_PHASES,
+  type WslMoveCutoverPhase
+} from '../../src/shared/wsl-move/wsl-move-cutover'
 
 test.use({ seedTestRepo: false })
 
@@ -75,6 +79,31 @@ async function spawnIn(page: Page, worktreeId: string, cwd: string): Promise<str
   )
 }
 
+/** An edit's outcome as the renderer sees it: 'saved', 'ignored' (dropped quietly) or the refusal. */
+async function edit(
+  page: Page,
+  target: { worktreeId: string } | { folderWorkspaceId: string },
+  updates: Record<string, unknown>
+): Promise<string> {
+  return page.evaluate(
+    async ({ target, updates }) => {
+      try {
+        const result =
+          'worktreeId' in target
+            ? await window.api.worktrees.updateMeta({ worktreeId: target.worktreeId, updates })
+            : await window.api.folderWorkspaces.update({
+                folderWorkspaceId: target.folderWorkspaceId,
+                updates
+              })
+        return result ? 'saved' : 'ignored'
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error)
+      }
+    },
+    { target, updates }
+  )
+}
+
 async function listed(page: Page) {
   return page.evaluate(async () => ({
     folders: (await window.api.folderWorkspaces.list()).map((workspace) => workspace.id),
@@ -109,7 +138,7 @@ test('a WSL move journal fences the moving project, then hides it once the host 
     await session.close(launched.app)
     launched = undefined
 
-    const record = (phase: 'source-fenced' | 'destination-committed') =>
+    const record = (phase: WslMoveCutoverPhase) =>
       wslMoveCutoverFixture(
         'move-1',
         phase,
@@ -122,9 +151,32 @@ test('a WSL move journal fences the moving project, then hides it once the host 
       )
       expect(await spawnIn(page, repoWorktreeId, repoPath)).toContain('moving to its WSL host')
       expect(await spawnIn(page, `folder:${stayingId}`, folders[1].folderPath)).toBe('spawned')
+      // A user's edit is refused; background bookkeeping is dropped quietly, never an error.
+      expect(
+        await edit(page, { worktreeId: repoWorktreeId }, { displayName: 'Renamed' })
+      ).toContain('moving to its WSL host')
+      expect(
+        await edit(page, { folderWorkspaceId: movingId }, { name: 'Renamed notes' })
+      ).toContain('moving to its WSL host')
+      expect(
+        await edit(page, { worktreeId: repoWorktreeId }, { isUnread: true, lastActivityAt: 1 })
+      ).toBe('ignored')
+      expect(await edit(page, { folderWorkspaceId: stayingId }, { name: 'Still mine' })).toBe(
+        'saved'
+      )
     }
 
-    writeWslMoveCutover(session.userDataDir, record('source-fenced'))
+    // The journal only moves forward one phase at a time, as a real move writes it.
+    let journaled = -1
+    const advanceTo = (phase: WslMoveCutoverPhase) => {
+      const target = WSL_MOVE_CUTOVER_PHASES.indexOf(phase)
+      for (journaled += 1; journaled <= target; journaled += 1) {
+        writeWslMoveCutover(session.userDataDir, record(WSL_MOVE_CUTOVER_PHASES[journaled]))
+      }
+      journaled = target
+    }
+
+    advanceTo('source-fenced')
     launched = await session.launch()
     await waitForSessionReady(launched.page)
     await expectMovingRefused(launched.page)
@@ -135,7 +187,7 @@ test('a WSL move journal fences the moving project, then hides it once the host 
     await session.close(launched.app)
     launched = undefined
 
-    writeWslMoveCutover(session.userDataDir, record('destination-committed'))
+    advanceTo('destination-committed')
     launched = await session.launch()
     await waitForSessionReady(launched.page)
     await expectMovingRefused(launched.page)

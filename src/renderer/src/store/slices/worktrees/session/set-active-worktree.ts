@@ -9,7 +9,7 @@ import {
   ACTIVE_WORKTREE_TERMINAL_PREP_IDLE_TIMEOUT_MS,
   ACTIVE_WORKTREE_TERMINAL_PREP_INPUT_QUIET_MS
 } from '../listing/worktree-slice-constants'
-import { getTerminalActivationSpawnSuppression } from '../../terminal-activation-spawn-suppression'
+import { markWorktreeTabsForActivationSpawn } from '../../tabs/worktree-layout-lifecycle'
 import {
   isWorkspaceKey,
   parseWorkspaceKey,
@@ -114,22 +114,7 @@ export function createSetActiveWorktree(
             : s.activeRepoId
       const tabsByWorktreeUpdate =
         allDead && worktreeId != null
-          ? {
-              tabsByWorktree: {
-                ...s.tabsByWorktree,
-                [worktreeId]: tabs.map((tab) =>
-                  !isWakeable(tab)
-                    ? tab
-                    : {
-                        ...tab,
-                        generation: (tab.generation ?? 0) + 1,
-                        pendingActivationSpawn: getTerminalActivationSpawnSuppression(
-                          s.terminalLayoutsByTabId[tab.id]
-                        )
-                      }
-                )
-              }
-            }
+          ? markWorktreeTabsForActivationSpawn(s, worktreeId, { isWakeable, bumpGeneration: true })
           : {}
 
       const nextActiveTabTypeByWorktree =
@@ -199,23 +184,10 @@ export function createSetActiveWorktree(
           if (!allDead && !shouldTagTerminalTabs) {
             return s
           }
-          return {
-            tabsByWorktree: {
-              ...s.tabsByWorktree,
-              [worktreeId]: tabs.map((tab) =>
-                !isWakeable(tab)
-                  ? tab
-                  : {
-                      ...tab,
-                      ...(allDead ? { generation: (tab.generation ?? 0) + 1 } : {}),
-                      // Why: slept terminal remount/spawn is click-driven wake work; tag its PTY updates so they don't reshuffle Recent.
-                      pendingActivationSpawn: getTerminalActivationSpawnSuppression(
-                        s.terminalLayoutsByTabId[tab.id]
-                      )
-                    }
-              )
-            }
-          }
+          return markWorktreeTabsForActivationSpawn(s, worktreeId, {
+            isWakeable,
+            bumpGeneration: allDead
+          })
         })
       }
 

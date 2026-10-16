@@ -24,6 +24,7 @@ that tree's focus, not by which debugger the command arrived on. A hidden-window
 | `webContents.sendInputEvent` key / `char` on the guest | guest | kept |
 | CDP key / `insertText` on a cross-site iframe's own (auto-attached) session | that iframe | kept |
 | `webContents.insertText` with focus in a cross-site iframe | **guest renderer crashed** | — |
+| `sendInputEvent` key with focus in a same-site iframe | that iframe | kept |
 | any mouse press (CDP mouse, touch, tap gesture, `sendInputEvent`) | guest | **moved to the webview** |
 | `inert` / `tabindex=-1` on the `<webview>` during the press | guest | **moved** |
 | press + synchronous host restore on the `<webview>` `focus` event | guest | restored, next user key lands in the host |
@@ -58,11 +59,16 @@ popup and copies every frame. It stays an experiment, not the fix.
 2. **Keys and text go straight to the guest.** For an embedded guest, main-session
    `Input.dispatchKeyEvent` / `Input.insertText` (from the proxy) and Orca's own `keypress` become
    `sendInputEvent` key / `char` events with `skipIfUnhandled`, followed by a page round trip so
-   the reply comes after the page handled them. Offscreen and headless pages have no host frame
-   tree and keep CDP.
+   the reply comes after the page handled them. When the page's focus sits in a cross-site
+   frame, keys and text go to that frame's own CDP target session instead: main follows
+   `document.activeElement` through frame elements (`DOM.describeNode` gives the frame id, which
+   is the frame's target id), attaches with `Target.attachToTarget {flatten:true}`, enables focus
+   emulation there and sends the input on that session. A same-site frame shares the guest's
+   renderer, so widget events already reach it. The proxy hides these Orca-owned sessions' events
+   from the agent's client. Offscreen and headless pages have no host frame tree and keep CDP.
 3. **Agent input that needs focus borrows it.** Before a press, or before input only CDP can
-   express (focus in a frame element, text with control characters, unmapped keys, root-session
-   IME composition), main enables focus emulation and asks the hosting pane to note the user's
+   express (a frame that cannot be reached, text with control characters, unmapped keys,
+   root-session IME composition), main enables focus emulation and asks the hosting pane to note the user's
    focused element, waiting for its answer. When the input ends the pane gives focus back, and
    checks again 50 ms later in case Chromium's focus move arrived after the end message. Nothing is
    restored when the user already had focus in that page.
@@ -90,4 +96,4 @@ refuses that input. Only offscreen rendering removes the first gap.
 | Presses and CDP-only input borrow focus and give it back; focus emulation | stack 3/3 | in review |
 | Regression spec: user typing in a terminal while an agent clicks, types and presses keys | stack 2/3, 3/3 | in review |
 | Visible-window spec (`@headful`, isolated display only): native focus stays on Orca's window | stack 3/3 | in review |
-| Route main-session keys to a focused cross-site iframe's own session instead of borrowing focus | follow-up | not started |
+| Main-session keys and text for a focused cross-site iframe go to its own session, no focus borrow | follow-up PR | in review |

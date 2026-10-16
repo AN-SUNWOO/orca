@@ -109,7 +109,7 @@ identity bootstrap apply. The providers require their exact workflows on
 `refs/heads/main` with the `production` environment. Missing values fail
 closed; no dedicated operations identity falls back to the shared deploy identity.
 
-The shared production identity is restricted to seven named direct Relay callers plus the exact
+The shared production identity is restricted to nine named direct Relay callers plus the exact
 regional-rehome and same-cap reusable wrapper/job pairs on `main` in the `production` environment.
 Its Artifact Registry and Cloud Run mutation permissions are scoped to the Orca repository, Relay
 director, and Relay fence broker; it cannot mutate the API or auth services.
@@ -800,6 +800,76 @@ It ends with the single command that finishes from where it stopped. That comman
 `--publish-run` and `--pause-run`, and the driver re-verifies both against the runs' logs and live
 state. Each run writes a timestamped log under `~/.orca/relay-director-deploy/`
 (`--log-directory` overrides it).
+
+## Reserve watch
+
+`Operate Relay Production Reserve Watch` watches one cell already switched to reserve mode and, on
+the first step 5 stop rule it trips, flips it back to db through the flag tool's own write
+(`operate-relay-cell-flags.mjs`: CAS, read-back, re-registration wait, Postgres record). It is
+manual only and inert until dispatched; `dry-run` logs the flag tool's plan instead of writing.
+`write` takes the flag workflow's confirmation, `WRITE_RELAY_CELL_FLAGS <cell-id>`.
+
+It samples once a minute for up to 300 minutes, re-authenticating every 55-minute segment because
+an ID token lasts an hour, and logs one JSON line per sample. The 503 background must predate the
+flip: give `flipped-at` (when the reserve write applied; the background is the median of the 10
+minutes before it) or `background-503-per-minute`, which overrides it. With neither, the watch is
+refused. A watch dispatched before the reserve write applied waits up to 10 minutes for the cell to
+report reserve, judging nothing meanwhile; a cell that never does ends the watch refused, without a
+write. It also refuses to start while any run holds the Cloud SQL rollout lease (same-cap and
+capacity rolls hold it for their whole run, and it names no cell), or when that lease cannot be
+read. It only reads the lease: holding it for hours would block every rollout. Pausing on a roll
+that starts mid-watch was not built, since a pause blinds the stop rules for the roll's length and
+a flip back mid-roll races its drain, so do not start a roll on a watched cell. It trips on, in
+this order:
+
+| Rule | Signal | Exact or proxy |
+|---|---|---|
+| Dead-man tripped | runtime-status `admitModeEffective=db` under a reserve switch file | Exact |
+| Overrun | runtime-status `enforcedConnectionUnits` over `connectionCapacity.hardCap` | Invariant check: the ledger already refuses past its cap, so this trips only if that refusal broke. It counts seats, bookings, in-flight and phone units |
+| 503s | Director `request_count` 503s above max(1.5x background, background + 20) for 3 complete minutes | Proxy that can miss: fleet-wide, since no signal attributes a 503 to a cell, so a problem on one cell can stay under the fleet's line |
+| Duplicate past grace | The ledger reconcile's `orca_relay_reserve_ledger_seat_behind_row` for the cell, reported again more than 90 s (60 s demotion close + 30 s map lag) after it was first seen, keyed by director instance, cell, epoch and row epoch | Proxy that can only over-count: the line names no host, so two hosts sharing that key read as one seat |
+| Host drop | runtime-status `controls` fell more than 5% (and at least 10 hosts) within 5 minutes with no `draining` sample | Exact |
+| Ledger drift | Queued plus dropped rows in each director's newest `orca_relay_reserve_ledger_summary`, over the cell's controls, above 0.5% for 2 minutes | Proxy that can only over-count: the summaries are fleet-wide, so exact only while this is the only reserve cell |
+
+Any rule it cannot read in a sample makes that sample unverifiable; `unverifiable-limit` such
+samples in a row is a trip of its own. The 503 read takes every response code in one query, and the
+newest minute any code has a point for is how far the series is published: a 503 minute at or
+before it with no point had no 503s, so a quiet fleet reads zero. Minutes past it are left out, not
+counted; fewer than 3 published minutes in the read, no request series at all, or an unparseable
+timestamp is unverifiable. This assumes the codes publish together; one code lagging the others
+delays a trip by its lag but cannot hide one, because a later read sees its points. Until the
+minutes before `flipped-at` are published (3 minutes past it) the 503 rule is pending, which does
+not add to the streak. The duplicate read also takes `orca_relay_reserve_ledger_summary`, which
+every placing director logs each minute, in the same query and window: with no summary from the
+last 150 s in it, the read is blind and the sample unverifiable, not zero duplicates. The duplicate
+rule keys a seat by director instance, so a director restart (a new instance id) starts its
+first-seen clock over. A cell whose switch file no longer says reserve ends the watch without a
+write.
+
+In `write` mode a watch that fails, times out or is cancelled before a verdict flips the cell back
+as a trip would; the flip-back job and each of its steps run on `always()`, so a cancel during the
+lease wait does not skip the switch-file write. That cancel can still kill the process before
+Postgres records db, leaving the file at db and Postgres at reserve; a force-cancel can stop it
+outright. The workflow's only group is
+its own per-cell one, which a running run never yields. It stays out of the flag workflow's group
+because GitHub keeps one pending run per group and a newer one cancels it, so a flip back queued
+there could be dropped by any later flag dispatch, and a watch held there would block manual writes
+for hours. The flag tool's generation check (CAS) orders it against other writes instead; on a
+conflict it re-reads and retries, up to 5 times, while the switch file still says reserve, and stops
+if it already says db. A cell that still does not answer runtime-status after 4 tries with backoff
+cannot take the ordinary flip back: the run fails and prints the exact break-glass inputs for
+`Operate Relay Production Cell Flags` (`set=admitMode=default`, `break-glass=BREAK GLASS <cell-id>`).
+
+An operator watches the run. A refused watch and a flip back that did not land (no ID token, a
+failed login, a cell that does not answer) can each leave the cell in reserve with nothing watching
+it, so both raise an `::error::` annotation naming the cell, as the clock-skew monitor does. In
+`write` mode both also log `orca_relay_reserve_watch_alarm` (log `orca-relay-reserve-watch`,
+resource `global`) with the deploy identity, and the `Orca Relay: reserve cell may be unwatched`
+alert pages on any such line. A failed login cannot page: the runner then has no credentials for
+`gcloud logging write`, so only the `::error::` and the operator watching the run report it. Apply
+the root Terraform that adds the workflow to the shared deploy identity's provider condition and
+grants that identity `roles/logging.logWriter` before the first `write` run; until then the
+workflow cannot log in and no alarm line can be written.
 
 ## Mobile push gateway
 

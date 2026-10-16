@@ -207,7 +207,10 @@ export function installPaneAgentIdentity(session: ConnectPanePtySession): void {
       // otherwise the tab resolver can repaint the exited agent from sleeping occupancy.
       const state = useAppStore.getState()
       const sleepingRecord = session.getSleepingRecordForPane(state)
-      if (sleepingRecord) {
+      const ptyId = session.transport.getPtyId()
+      // Why: a shell surfacing while Orca stops this PTY is that stop, not the agent exiting; a
+      // hibernation records the pane's resume before its kill, so this would delete it.
+      if (sleepingRecord && !(ptyId && state.suppressedPtyExitIds[ptyId])) {
         session.clearSleepingRecordProviderDuplicates(state, sleepingRecord)
       }
       session.clearStaleAgentTabTitleOnConfirmedShell()

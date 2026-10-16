@@ -98,14 +98,30 @@ export async function clickBackgroundPopupProbe(
   page: Page,
   probe: BackgroundPopupProbe
 ): Promise<void> {
-  if (probe.context === 'opaque') {
-    // Electron does not forward opaque OOPIF input to the root route gesture gate.
-    await page.locator('#background-gesture').click()
-  }
   const locator =
     probe.context === 'subframe' || probe.context === 'opaque'
       ? page.frameLocator('#background-probe').locator('#background-open')
       : page.locator('#background-open')
+  if (probe.context === 'opaque') {
+    // A hidden OOPIF can finish loading before browser input reaches its new frame.
+    await locator.evaluate((element) => {
+      element.removeAttribute('data-background-input-ready')
+      element.addEventListener('pointermove', (event) => {
+        if (event.isTrusted) {
+          element.setAttribute('data-background-input-ready', 'true')
+        }
+      })
+    })
+    await page.locator('#background-gesture').click()
+    await expect
+      .poll(async () => {
+        await locator.hover()
+        return locator.getAttribute('data-background-input-ready')
+      })
+      .toBe('true')
+    // Opaque frame input does not reach Electron's root route gesture gate.
+    await page.locator('#background-gesture').click()
+  }
   await locator.click(
     probe.input === 'middle' ? { button: 'middle' } : { modifiers: [backgroundModifier] }
   )

@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithCloseHeadlessMobileTerminalTab } from '../orca-runtime-close-headless-mobile-terminal-tab'
+import { OrcaRuntimeWithCloseHeadlessMobileTerminalTab } from './headless-terminal-tab-close'
 import type { WorkspaceSessionState } from '../../../shared/workspace-session-state-types'
 import type { RuntimeMobileSessionTabsSnapshot } from '../../../shared/runtime-session-contracts'
 import type { RuntimeMobileSessionSnapshotTab } from '../../../shared/runtime-mobile-session-tab-contracts'

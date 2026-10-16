@@ -81,7 +81,8 @@ export function listWslMoveCutoverChain(
 }
 
 /**
- * Durable before it returns. A new move into a distro must extend the head of its chain, and only
+ * Durable before it returns. A record starts at `prepared` and then advances one phase at a time
+ * from the one on disk. A new move into a distro must extend the head of its chain, and only
  * once that head finished: one in-flight move per distro (design, section 4.3).
  */
 export function writeWslMoveCutover(userDataPath: string, cutover: WslMoveCutover): void {
@@ -97,6 +98,10 @@ export function writeWslMoveCutover(userDataPath: string, cutover: WslMoveCutove
   const chain = listWslMoveCutoverChain(userDataPath, parsed.journalKey)
   const existing = chain.find((entry) => entry.migrationId === parsed.migrationId)
   const head = chain.at(-1)
+  // Compare-and-swap: a writer whose record was lifted underneath it must not recreate the fence.
+  if (!existing && parsed.phase !== 'prepared') {
+    throw new Error('wsl_move_record_missing')
+  }
   if (existing) {
     assertWslMoveUpdate(existing, parsed, head)
   } else if (!head) {
@@ -130,20 +135,34 @@ function assertWslMoveUpdate(
   if (order(next.phase) < order(existing.phase)) {
     throw new Error('wsl_move_phase_regressed')
   }
+  if (order(next.phase) > order(existing.phase) + 1) {
+    throw new Error('wsl_move_phase_skipped')
+  }
   if (head && head.migrationId !== existing.migrationId && next.phase !== existing.phase) {
     throw new Error('wsl_move_superseded')
   }
 }
 
+// Before quiesce nothing has reached the destination, so lifting the fence loses nothing.
+const REMOVABLE_IN_FLIGHT_PHASES: ReadonlySet<WslMoveCutover['phase']> = new Set([
+  'prepared',
+  'source-fenced'
+])
+
 /**
- * Only a record that fences nothing goes: one never fenced (`prepared`) or one finished. A move in
- * between keeps its fence until it resumes, or until a cancel proves the destination holds nothing.
+ * Only a record whose move has touched nothing beyond the source goes, or one finished. A move
+ * further along keeps its fence until it resumes, or until a cancel proves the destination holds
+ * nothing.
  */
 export function removeWslMoveCutover(userDataPath: string, migrationId: string): void {
   const record = listWslMoveCutovers(userDataPath).find(
     (entry) => entry.migrationId === migrationId
   )
-  if (record && record.phase !== 'prepared' && !isWslMoveCutoverFinished(record)) {
+  if (
+    record &&
+    !REMOVABLE_IN_FLIGHT_PHASES.has(record.phase) &&
+    !isWslMoveCutoverFinished(record)
+  ) {
     throw new Error('wsl_move_in_flight')
   }
   journals.remove(userDataPath, migrationId)

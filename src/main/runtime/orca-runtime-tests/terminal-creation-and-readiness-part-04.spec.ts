@@ -4,13 +4,12 @@ import { join } from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   OrcaRuntimeService,
-  RpcDispatcher,
-  TERMINAL_METHODS,
   electronMocks,
   getDefaultWorkspaceSession,
   ipcMain,
   setPlatform
 } from '../orca-runtime-test-mocks.spec'
+import { RpcDispatcher, TERMINAL_METHODS } from '../orca-runtime-test-mocks/terminal-rpc.spec'
 import {
   TEST_WORKTREE_ID,
   TEST_WORKTREE_PATH,

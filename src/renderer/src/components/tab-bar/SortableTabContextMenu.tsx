@@ -101,6 +101,8 @@ type SortableTabContextMenuProps = {
   hasTabsToLeft: boolean
   isPinned: boolean
   onOpenChange: (open: boolean) => void
+  onSessionSwitchComplete?: () => void
+  sessionSwitchOpening?: number | null
   onActivate: (tabId: string) => void
   onClose: (tabId: string) => void
   onCloseOthers: (tabId: string) => void
@@ -135,6 +137,8 @@ export function SortableTabContextMenu({
   hasTabsToLeft,
   isPinned,
   onOpenChange,
+  onSessionSwitchComplete,
+  sessionSwitchOpening,
   onActivate,
   onClose,
   onCloseOthers,
@@ -193,6 +197,8 @@ export function SortableTabContextMenu({
           </>
         ) : null}
         <TabSessionSurfaceSwitchMenuItems
+          key={sessionSwitchOpening}
+          onComplete={onSessionSwitchComplete}
           tab={tab}
           nativeChat={nativeChat}
           leadingSeparator={!showTerminalViewSwitch}

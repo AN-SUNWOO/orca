@@ -5,7 +5,7 @@ import type {
   RuntimePtyTitleTrackerEntry
 } from '../../runtime-terminal-state-records'
 import type { RuntimeSyncedLeaf } from '../../../../shared/runtime-types'
-import { OrcaRuntimeWithPreparePtyExecutionContext } from '../../orca-runtime-prepare-pty-execution-context'
+import { OrcaRuntimeWithPreparePtyExecutionContext } from '../launch/terminal-execution-context'
 import { advertisedUrlWatcher } from '../../../ports/advertised-url-watcher'
 import { appendNormalizedToTailBuffer } from '../../terminal-tail-buffer'
 import { normalizeTerminalChunk } from '../../terminal-ansi-normalization'

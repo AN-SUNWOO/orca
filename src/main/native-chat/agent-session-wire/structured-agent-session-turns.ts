@@ -24,6 +24,10 @@ import {
 } from '../../../shared/agent-session-wire'
 import { isAgentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
 import { DISPATCH_DOUBT_PERSISTENCE_FAILED } from '../agent-session-journal/journal-dispatch-doubt-reasons'
+import {
+  contextStructuredAgentSessionCurrentWork,
+  type StructuredAgentSessionCurrentWork
+} from './structured-agent-session-current-work'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import type { JournalOperationReceipt } from '../agent-session-journal/journal-row-writer'
 import type {
@@ -55,6 +59,9 @@ export type AgentSessionTurnContext = {
   sessionId: string
   journal: AgentSessionJournal
   fence: number
+  /** The host's projection of what work is current (`structuredAgentSessionCurrentWork`), read
+   *  fresh per call: a child's end can move it mid-operation. */
+  currentWork?: () => StructuredAgentSessionCurrentWork | null
   adapter: StructuredAgentSessionAdapter
   /** What each agent declares; the session's own answer is `agents.capabilities(agent)`. */
   agents: StructuredAgentRegistry
@@ -231,14 +238,16 @@ export async function handOverSubmission(
     await handOverStructuredAgentSessionCommand(ctx, submission, body)
     return
   }
-  // The message joins the turn running at handover, a steer, or opens its own. A new turn carries
-  // the stopped messages owed to the agent, named on this same row before anything is written.
-  const carried = carriedStoppedHistory(ctx, submission, body)
+  // The message joins the turn the child it goes to is running, a steer, or opens its own; never a
+  // turn an ended generation left. A new turn carries the stopped messages owed to the agent, named
+  // on this same row before anything is written.
+  const turnScope = contextStructuredAgentSessionCurrentWork(ctx).turnScope()
+  const carried = carriedStoppedHistory(ctx, turnScope, submission, body)
   await ctx.journal.resolveDispatch({
     clientMessageId,
     state: 'pending',
     fence: ctx.fence,
-    turnScope: ctx.journal.liveTurnScope(),
+    turnScope,
     ...(carried ? { carries: carried.covers } : {})
   })
   // The handover row's instant on the host clock; the turn this dispatch opens records it so the

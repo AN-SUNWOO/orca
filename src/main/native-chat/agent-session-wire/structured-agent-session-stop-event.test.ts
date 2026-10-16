@@ -266,7 +266,7 @@ describe("a Stop's event", () => {
     await rig.settleAccepted(working, 'working')
     await turnRow('turn-1', 'interrupted')
     await eventually(async () => expect((await rig.handoff(next))?.handedOverAt).toBeDefined())
-    expect(journal().activeTurnId()).toBeNull()
+    expect(journal().runningTurn()?.turnId ?? null).toBeNull()
     const fields = { turnId: 'turn-1' }
     const stopped = await rig.host.cancel(QUEUED_RIG_CALLER, {
       envelope: rig.envelope(fields, 'agentSession.cancel', hostTestOperationId()),

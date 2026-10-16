@@ -13,6 +13,7 @@ import type {
   OrcadMigrationSnapshotUploadState,
   OrcadMigrationTerminalScrollbackSnapshot
 } from './orcad-migration-scrollback'
+import type { OrcadMigrationBlobUploadState } from './orcad-migration-blob-transfer'
 
 export {
   MAX_ORCAD_MIGRATION_FOLDER_WORKSPACES,
@@ -152,6 +153,8 @@ export type OrcadMigrationCatalogState =
       manifestSha256: string
       stagedAt: string
       snapshotUploads?: OrcadMigrationSnapshotUploadState[]
+      /** Blobs staged so far; absent from hosts without the blob channel. */
+      blobUploads?: OrcadMigrationBlobUploadState[]
     }
   | {
       state: 'committed'

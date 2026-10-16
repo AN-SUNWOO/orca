@@ -42,6 +42,25 @@ vi.mock('@/store', async () => {
   return (await import('./floating-terminal-panel-test-module-mocks')).createAppStoreModule()
 })
 
+// The probe checks element names and props without mounting these workspace children.
+vi.mock('@/components/tab-group/WorkspaceTabDragLayer', async () => {
+  return (
+    await import('./floating-terminal-panel-component-stubs')
+  ).createWorkspaceTabDragLayerModule()
+})
+
+vi.mock('@/components/tab-group/TabGroupSplitNodeTree', async () => {
+  return (
+    await import('./floating-terminal-panel-component-stubs')
+  ).createTabGroupSplitNodeTreeModule()
+})
+
+vi.mock('@/components/WorkspacePaneOverlayLayers', async () => {
+  return (
+    await import('./floating-terminal-panel-component-stubs')
+  ).createWorkspacePaneOverlayLayersModule()
+})
+
 vi.mock('@/components/tab-bar/TabBar', async () => {
   return (await import('./floating-terminal-panel-component-stubs')).createTabBarModule()
 })
@@ -225,7 +244,8 @@ describe('FloatingTerminalPanel close behavior', () => {
     expect(mocks.createTab).toHaveBeenCalledWith(
       FLOATING_TERMINAL_WORKTREE_ID,
       'floating-group',
-      undefined
+      undefined,
+      { id: expect.any(String) }
     )
     expect(mocks.activateTab).not.toHaveBeenCalled()
   })
@@ -321,7 +341,8 @@ describe('FloatingTerminalPanel close behavior', () => {
     expect(mocks.createTab).toHaveBeenCalledWith(
       FLOATING_TERMINAL_WORKTREE_ID,
       'floating-group',
-      undefined
+      undefined,
+      { id: expect.any(String) }
     )
     expect(mocks.activateTab).not.toHaveBeenCalled()
   })

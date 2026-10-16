@@ -76,7 +76,7 @@ describe('MobileNativeChatMessage on Android', () => {
     expect(byType('MessageActionsSheet')).toHaveLength(0)
     expect(
       byType('Pressable').filter((node) => node.props.accessibilityLabel === 'Copy message')
-    ).toHaveLength(0)
+    ).toHaveLength(1)
 
     const [bubble] = byType('Pressable')
     expect(typeof bubble!.props.onLongPress).toBe('function')
@@ -109,6 +109,31 @@ describe('MobileNativeChatMessage on Android', () => {
     expect(texts).toHaveLength(1)
     expect(texts[0]!.props.selectable).toBe(false)
     act(() => byType('Pressable')[0]!.props.onLongPress())
+    expect(byType('MessageActionsSheet')).toHaveLength(1)
+  })
+
+  it("opens the actions sheet from a long press on a plan's link", () => {
+    act(() => {
+      renderer = create(
+        createElement(MobileNativeChatMessage, {
+          message: {
+            ...message,
+            role: 'system',
+            blocks: [
+              {
+                type: 'text',
+                text: '1. Read [the guide](https://example.com)',
+                presentation: 'plan-document'
+              }
+            ]
+          }
+        })
+      )
+    })
+    const [bubble] = byType('Pressable')
+    const [plan] = byType('MobileMarkdown')
+    expect(plan!.props.onLongPress).toBe(bubble!.props.onLongPress)
+    act(() => plan!.props.onLongPress())
     expect(byType('MessageActionsSheet')).toHaveLength(1)
   })
 
@@ -155,7 +180,7 @@ describe('MobileNativeChatMessage on Android', () => {
     }
     expect(
       byType('Pressable').filter((node) => node.props.accessibilityLabel === 'Copy message')
-    ).toHaveLength(0)
+    ).toHaveLength(1)
     act(() => byType('Pressable')[0]!.props.onLongPress())
     expect(byType('MessageActionsSheet')).toHaveLength(1)
   })

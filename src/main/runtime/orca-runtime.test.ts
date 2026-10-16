@@ -1,6 +1,7 @@
 // Compatibility entrypoint: reliability gates invoke this path directly; fragments stay side-effect ordered.
 export {}
 
+await import('./rpc/unused-default-rpc-methods.test-fixture')
 await import('./orca-runtime-test-mocks.spec')
 await import('./orca-runtime-test-lifecycle.spec')
 await import('./orca-runtime-test-fixtures.spec')
@@ -83,6 +84,7 @@ await import('./orca-runtime-tests/mobile-session-tabs-part-12.spec')
 await import('./orca-runtime-tests/mobile-session-tabs-part-13.spec')
 await import('./orca-runtime-tests/mobile-session-tabs-part-14.spec')
 await import('./orca-runtime-tests/mobile-session-tabs-cold-serve-hydrate.spec')
+await import('./orca-runtime-tests/mobile-session-tabs-empty-headless-snapshot.spec')
 await import('./orca-runtime-tests/exit-retirement-activation.spec')
 await import('./orca-runtime-tests/mobile-creation-and-orchestration.spec')
 await import('./orca-runtime-tests/mobile-creation-and-orchestration-part-02.spec')

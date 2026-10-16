@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store'
+import { consumeRestartReplacement } from './restart-replacement-on-show'
 import { shouldReconcileMissingSession, type HasPty } from '../terminal-dead-session-reconcile'
 import { cancelPendingSafeFitContinuations } from '@/lib/pane-manager/pane-tree-ops'
 import { PANE_PTY_RESIZE_HOLD_FLUSH_EVENT } from '@/lib/pane-manager/pane-pty-resize-hold'
@@ -75,6 +76,7 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
       session.claimPendingVisibleRemoteViewport()
       session.ptySizeReassertion.request({ fit: false })
       session.consumeHibernatedAgentWake()
+      consumeRestartReplacement(session)
       session.resumeDeferredSpawnOnReveal()
       session.requestKnownWindowsShiftEnterReconfirmation()
       session.sampleVisiblePaneForegroundAgent()

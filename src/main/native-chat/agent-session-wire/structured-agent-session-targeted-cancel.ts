@@ -88,7 +88,7 @@ export async function runTargetedCancel(
 
 /** No turn runs, so ending the agent ends only the work no record lists. */
 function atRest(ctx: AgentSessionTurnContext): boolean {
-  return ctx.journal.activeTurnId() === null && !isMainAgentWorking(ctx)
+  return !isMainAgentWorking(ctx)
 }
 
 /** Stops the tasks the Stop captured. Tasks outlive the turn they began in, so its note is the

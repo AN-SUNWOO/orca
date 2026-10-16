@@ -70,6 +70,7 @@ export function acpModelCatalogDiscovery(
     probe: createAcpModelCatalogProbe(spec, {
       resolveEnvironment: environment.resolveBaseEnvironment,
       refreshEnvironmentAfterMiss: environment.refreshAfterMissingProgram,
+      dataDirectory: deps.stateDirectory,
       ...(deps.resolveAgentLaunchEnv ? { resolveLaunchEnv: deps.resolveAgentLaunchEnv } : {}),
       ...(deps.resolveAgentCommandSettings
         ? { resolveCommandSettings: deps.resolveAgentCommandSettings }

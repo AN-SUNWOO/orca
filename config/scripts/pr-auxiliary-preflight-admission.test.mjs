@@ -251,7 +251,15 @@ describe('Mobile CI tool preflight routing', () => {
   it('keeps root shard execution enabled for callers that do not opt out', () => {
     expect(unit.on.workflow_call.inputs.run_shards.default).toBe(true)
     expect(evaluate(unit.jobs.test.if, { inputs: { run_shards: true } })).toBe(true)
-    expect(unit.jobs.relay_integration.if).toBeUndefined()
+    const relayDefault = unit.on.workflow_call.inputs.run_relay_integration.default
+    expect(relayDefault).toBe(true)
+    expect(
+      evaluate(unit.jobs.relay_integration.if, { inputs: { run_relay_integration: relayDefault } })
+    ).toBe(true)
+    expect(
+      evaluate(unit.jobs.relay_integration.if, { inputs: { run_relay_integration: false } })
+    ).toBe(false)
+    expect(workflow.jobs.test.with.run_relay_integration).toBeUndefined()
     expect(unit.jobs.relay_integration.needs).toBeUndefined()
   })
 
@@ -266,6 +274,7 @@ describe('Mobile CI tool preflight routing', () => {
       [tool, 'package.json'],
       [tool, 'config/vitest.config.ts'],
       [tool, 'config/scripts/pr-code-change-scope.mjs'],
+      [tool, 'config/scripts/pr-package-test-paths.mjs'],
       [tool, 'config/scripts/new-mobile-tool.mjs'],
       [tool, 'README.md'],
       [tool, 'mobile/vitest.config.ts']
@@ -301,6 +310,7 @@ function createMobileCiScopeRepository(
   for (const file of [
     'package.json',
     'config/scripts/pr-code-change-scope.mjs',
+    'config/scripts/pr-package-test-paths.mjs',
     'config/scripts/pr-layout-oracle-route.mjs',
     'config/scripts/git-pull-request-diff-base.mjs',
     'config/scripts/pr-e2e-source-routing.mjs',

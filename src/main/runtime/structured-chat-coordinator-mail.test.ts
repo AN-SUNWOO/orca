@@ -259,6 +259,7 @@ describe('a worker result reaches the structured chat that coordinates it', () =
     // provider still dies, so exactly one start proves it is pointed once, not in a loop.
     restartRuntime()
     const before = providerFaults.starts
+    await observationClock.observe(2_000)
     await vi.waitFor(() => expect(providerFaults.turnStarts).toBe(2), WAIT)
     await observationClock.observe(1_500)
     await edgesAnswered()
@@ -524,6 +525,7 @@ describe('a /clear keeps the chat its orchestration address', () => {
   })
 
   it('points mail the earlier context never took at the fresh context, without a user message', async () => {
+    observationClock.start()
     const chat = await openChat(COORDINATOR)
     const { runId, taskId } = await coordinatorRunAndTask()
     await finishWorker(taskId)
@@ -537,6 +539,7 @@ describe('a /clear keeps the chat its orchestration address', () => {
 
     const cleared = await clearChat(COORDINATOR)
     expect(cleared).toBe(COORDINATOR)
+    await observationClock.observe(2_000)
     await vi.waitFor(() => expect(connectionFor(cleared).turns[0]?.text).toMatch(POINTER), WAIT)
     await settleTurn(cleared, 0)
     await vi.waitFor(

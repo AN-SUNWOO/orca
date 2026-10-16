@@ -1,6 +1,6 @@
 import { open, stat } from 'node:fs/promises'
 import { extname } from 'node:path'
-import type { Store } from '../../persistence'
+import type { RuntimeStore } from '../runtime-store-contract'
 import type { RuntimeFileCommandHost } from './file-command-host'
 import type {
   RuntimeFileReadResult,
@@ -172,7 +172,7 @@ export class RuntimeFileReads {
   }
 }
 
-async function readLocalMobileFile(filePath: string, store: Store): Promise<string> {
+async function readLocalMobileFile(filePath: string, store: RuntimeStore): Promise<string> {
   const authorizedPath = await resolveRuntimeAuthorizedPath(filePath, store)
   const fileStat = await stat(authorizedPath)
   // Why: cap the read so opening a large file can't block the WebSocket (previews are read-only convenience views).

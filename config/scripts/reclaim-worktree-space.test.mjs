@@ -19,7 +19,7 @@ async function fixture() {
 }
 
 it('previews historical test caches and both Electron cleanup operations', async () => {
-  const options = await fixture()
+  const options = { ...(await fixture()), testsStopped: true }
   await reclaimWorktreeSpace(options)
   expect(options.execute).toHaveBeenCalledTimes(3)
   expect(options.execute.mock.calls.flatMap(([spec]) => spec.args)).not.toContain('--apply')
@@ -42,22 +42,36 @@ it('forwards apply and repository selection to all cleanup operations', async ()
   }
 })
 
-it('rejects manual apply before any operation unless cross-version tests are stopped', async () => {
+it('applies Electron cleanup while retaining unacknowledged test caches', async () => {
   const options = { ...(await fixture()), apply: true }
-  await expect(reclaimWorktreeSpace(options)).rejects.toThrow('--tests-stopped')
-  expect(options.execute).not.toHaveBeenCalled()
-})
-
-it('leaves historical caches out of automatic invocations', async () => {
-  const options = { ...(await fixture()), automatic: true, apply: true }
   await reclaimWorktreeSpace(options)
+  expect(options.execute).toHaveBeenCalledTimes(2)
   expect(options.execute.mock.calls.flatMap(([spec]) => spec.args).join(' ')).not.toContain(
     'reclaim-release-test-caches'
   )
 })
 
+it('leaves historical caches out of automatic invocations', async () => {
+  const options = {
+    ...(await fixture()),
+    automatic: true,
+    apply: true,
+    testsStopped: true,
+    excludeWorktree: '/dev-worktree'
+  }
+  await reclaimWorktreeSpace(options)
+  expect(options.execute.mock.calls.flatMap(([spec]) => spec.args).join(' ')).not.toContain(
+    'reclaim-release-test-caches'
+  )
+  for (const [spec] of options.execute.mock.calls) {
+    expect(spec.args).toEqual(
+      expect.arrayContaining(['--exclude-worktree', options.excludeWorktree])
+    )
+  }
+})
+
 it('forwards an age override only to historical test cache cleanup', async () => {
-  const options = { ...(await fixture()), releaseCacheMinAgeDays: 7 }
+  const options = { ...(await fixture()), releaseCacheMinAgeDays: 7, testsStopped: true }
   await reclaimWorktreeSpace(options)
   expect(options.execute.mock.calls[0][0].args).toEqual(
     expect.arrayContaining(['--min-age-days', '7'])
@@ -73,7 +87,7 @@ it('rejects an invalid cache age before starting cleanup', async () => {
   expect(options.execute).not.toHaveBeenCalled()
 })
 
-it('runs the combined CLI from outside a disposable repository and requires acknowledgement', async () => {
+it('runs the CLI outside the repository and retains historical caches until acknowledged', async () => {
   const options = await fixture()
   const init = await runProcess({
     program: 'git',
@@ -110,13 +124,13 @@ it('runs the combined CLI from outside a disposable repository and requires ackn
       timeoutMs: 20_000,
       terminationBarrier: true
     })
-  const preview = await run()
+  const preview = await run(['--tests-stopped'])
   expect(preview.code, preview.stderr).toBe(0)
   expect(preview.stdout).toContain('Would remove 1 cache(s)')
   expect(await readFile(marker, 'utf8')).toContain(commit)
-  const blocked = await run(['--apply'])
-  expect(blocked.code).not.toBe(0)
-  expect(blocked.stderr).toContain('--tests-stopped')
+  const safe = await run(['--apply'])
+  expect(safe.code, safe.stderr).toBe(0)
+  expect(safe.stdout).toContain('Historical test caches retained')
   expect(await readFile(marker, 'utf8')).toContain(commit)
   const applied = await run(['--apply', '--tests-stopped'])
   expect(applied.code, applied.stderr).toBe(0)
@@ -168,7 +182,7 @@ it('preserves the cleanup failure and reports a concurrent lock release failure 
 })
 
 it('fails if cleanup succeeds but the repository lock cannot be released', async () => {
-  const options = await fixture()
+  const options = { ...(await fixture()), testsStopped: true }
   const failure = new Error('lock release failure')
   const release = vi.fn().mockRejectedValue(failure)
   await expect(reclaimWorktreeSpace({ ...options, acquireLock: async () => release })).rejects.toBe(

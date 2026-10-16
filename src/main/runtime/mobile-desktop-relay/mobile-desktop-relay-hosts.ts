@@ -22,6 +22,8 @@ export type MobileDesktopRelayHostListing = {
   orcadDeployment?: ManagedOrcadDeploymentSummary | null
   pairingRevision: number
   runtimeId: string | null
+  /** The desktop's own device id on that server, as pairing recorded it. */
+  pairedDeviceId?: string
 }
 
 /** Bounds a call; `expected` refuses it once the server was re-paired or its runtime changed. */

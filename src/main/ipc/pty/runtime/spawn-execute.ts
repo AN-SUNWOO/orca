@@ -24,6 +24,7 @@ export async function executeRuntimePtySpawn(ctx: RuntimePtySpawnState): Promise
         refuseSleptWorktree: args.refuseSleptWorktree
       })
     : undefined
+  let awaitingAnotherStart = false
   try {
     if (args.preAllocatedHandle) {
       ctx.deps.trustedTerminalHandleEnv.add(args.preAllocatedHandle)
@@ -116,8 +117,12 @@ export async function executeRuntimePtySpawn(ctx: RuntimePtySpawnState): Promise
             throw new Error('execution_owner_unavailable')
           }
           return await isProviderAgentSessionOwnerLive(ownerProvider, owner)
+        },
+        onJoin: () => {
+          awaitingAnotherStart = true
         }
       })
+      awaitingAnotherStart = false
       ctx.result = providerResult ?? {
         id: ensured.owner.ptyId,
         isReattach: true,
@@ -200,7 +205,7 @@ export async function executeRuntimePtySpawn(ctx: RuntimePtySpawnState): Promise
       sessionId: ctx.sessionId,
       ownsNewSession: ctx.isNewDaemonSession,
       telemetry: args.telemetry,
-      recordsAgentError: false
+      joinedAnotherStart: awaitingAnotherStart
     })
   } finally {
     if (args.preAllocatedHandle) {

@@ -346,6 +346,8 @@ module.exports = {
   // entries reached solely from the Electron main process stay packed, since
   // asar redirects their app.asar paths.
   // Why: `orca serve` runs the orcad selection entry under ELECTRON_RUN_AS_NODE too (#27307).
+  // Why out/web and out/mobile-web: their assets are opened by path, and opening a packed file
+  // reads a /tmp extract Electron makes once and never remakes, so a /tmp sweep broke them (#27976).
   asarUnpack: [
     'out/package.json',
     'out/cli/**',
@@ -374,6 +376,8 @@ module.exports = {
     'out/main/parcel-watcher-process-entry.js',
     'out/main/orcad/orcad-local-serve-selection-entry.js',
     'out/main/chunks/**',
+    'out/web/**',
+    'out/mobile-web/**',
     'resources/**',
     'node_modules/ws/**',
     'node_modules/tweetnacl/**',

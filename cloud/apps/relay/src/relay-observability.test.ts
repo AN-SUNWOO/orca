@@ -8,6 +8,7 @@ import {
   PRE_AUTH_RESERVOIR_LIMIT,
   percentile,
   RelayObservability,
+  STICKY_CONNECTION_LIMIT,
   type RelayProcessCounts
 } from './relay-observability.js'
 import { RELAY_FIX_LEVEL } from './relay-fix-level.js'
@@ -282,6 +283,75 @@ describe('relay observability', () => {
     })
     expect(entries[1]).not.toHaveProperty('stickyServiceMsP50')
     expect(entries[1]).not.toHaveProperty('drainReturnServiceMsP50')
+  })
+
+  it('summarises sticky slots per window and per pooled connection', () => {
+    const entries: Array<Record<string, unknown>> = []
+    const observability = new RelayObservability(
+      { role: 'director', cellId: 'director', region: 'us-central1' },
+      (entry) => entries.push(entry)
+    )
+    for (let ms = 1; ms <= 100; ms++) {
+      observability.recordStickySlot({
+        queueWaitMs: ms * 20,
+        poolWaitMs: ms,
+        sqlMs: ms * 2,
+        statements: 14,
+        // The slow connection serves every other request.
+        statementMsByConnection: new Map([ms % 2 === 0 ? [1, [300]] : [2, [5, 6]]])
+      })
+    }
+    observability.flush(counts)
+    observability.flush(counts)
+
+    expect(entries[0]).toMatchObject({
+      stickySlotsDelta: 100,
+      stickyQueueWaitMsP50: 1_000,
+      stickyQueueWaitMsP99: 1_980,
+      stickyQueueWaitMsMax: 2_000,
+      stickyPoolWaitMsP50: 50,
+      stickyPoolWaitMsP99: 99,
+      stickySqlMsP50: 100,
+      stickySqlMsP99: 198,
+      stickyStatementsP50: 14,
+      stickyStatementsMax: 14,
+      stickySqlByConnection: {
+        '1': {
+          requests: 50,
+          statements: 50,
+          statementMsP50: 300,
+          statementMsP99: 300,
+          statementMsMax: 300
+        },
+        '2': { requests: 50, statements: 100, statementMsP50: 5, statementMsP99: 6 }
+      },
+      stickySqlConnectionSamplesDroppedDelta: 0
+    })
+    expect(entries[1]).not.toHaveProperty('stickySlotsDelta')
+    expect(entries[1]).not.toHaveProperty('stickySqlByConnection')
+  })
+
+  it('bounds the per-connection sticky summary', () => {
+    const entries: Array<Record<string, unknown>> = []
+    const observability = new RelayObservability(
+      { role: 'director', cellId: 'director', region: 'us-central1' },
+      (entry) => entries.push(entry)
+    )
+    for (let id = 1; id <= STICKY_CONNECTION_LIMIT + 3; id++) {
+      observability.recordStickySlot({
+        queueWaitMs: 0,
+        poolWaitMs: 0,
+        sqlMs: 1,
+        statements: 1,
+        statementMsByConnection: new Map([[id, [1]]])
+      })
+    }
+    observability.flush(counts)
+
+    expect(Object.keys(entries[0]?.stickySqlByConnection as object)).toHaveLength(
+      STICKY_CONNECTION_LIMIT
+    )
+    expect(entries[0]).toMatchObject({ stickySqlConnectionSamplesDroppedDelta: 3 })
   })
 
   it('sums lock waiters per role and table over the samples taken', () => {

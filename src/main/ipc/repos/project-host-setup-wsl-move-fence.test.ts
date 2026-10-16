@@ -7,7 +7,7 @@ import { closeTestStores, createStore, testState } from '../../persistence-test-
 import type { Store } from '../../persistence'
 import type { Repo } from '../../../shared/repo-types'
 import { wslMoveCutoverFixture as cutover } from '../../persistence/__fixtures__/wsl-mover/wsl-move-cutover-fixture'
-import { writeWslMoveCutover } from '../../persistence/moving-wsl-projects/wsl-move-cutover-journal'
+import { seedWslMoveCutover } from '../../persistence/__fixtures__/wsl-mover/wsl-move-journal-seeding'
 import {
   WslMoveProjectFencedError,
   loadWslMoveFence,
@@ -83,7 +83,7 @@ describe('project host setups under a WSL move', () => {
   it('refuses IPC edits to a local setup of a moving repo and leaves others alone', async () => {
     store.addRepo(repo('repo-1'))
     store.addRepo(repo('repo-2'))
-    writeWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
+    seedWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
     registerProjectHostSetupHandlers(new BrowserWindow(), store)
     const moving = setupFor('repo-1')
 
@@ -107,7 +107,7 @@ describe('project host setups under a WSL move', () => {
 
   it("keeps a setup's own repo frozen once the WSL host owns it", async () => {
     store.addRepo(repo('repo-1'))
-    writeWslMoveCutover(testState.dir, cutover('move-1', 'destination-committed'))
+    seedWslMoveCutover(testState.dir, cutover('move-1', 'destination-committed'))
     registerProjectHostSetupHandlers(new BrowserWindow(), store)
     const owned = setupFor('repo-1')
 
@@ -121,7 +121,7 @@ describe('project host setups under a WSL move', () => {
 
   it('refuses a runtime setup delete for a moving repo', () => {
     store.addRepo(repo('repo-1'))
-    writeWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
+    seedWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
     const controller = new RuntimeProjectHostSetupController({
       getStore: () => store,
       listRepos: () => store.getRepos(),
@@ -145,7 +145,7 @@ describe('project host setups under a WSL move', () => {
 describe('projects:update once the WSL host owns a repo', () => {
   it('lets project-wide settings change again', async () => {
     store.addRepo(repo('repo-1'))
-    writeWslMoveCutover(testState.dir, cutover('move-1', 'destination-committed'))
+    seedWslMoveCutover(testState.dir, cutover('move-1', 'destination-committed'))
     registerRepoCatalogHandlers(new BrowserWindow(), store)
     const project = store.getProjects().find((entry) => entry.sourceRepoIds.includes('repo-1'))
     const updates = { localWindowsRuntimePreference: { kind: 'windows-host' } }
@@ -159,7 +159,7 @@ describe('projects:update once the WSL host owns a repo', () => {
 describe('issue command writes under a WSL move', () => {
   it('refuses a runtime write to a moving repo before touching the file', async () => {
     store.addRepo(repo('repo-1'))
-    writeWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
+    seedWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
     const write = vi.spyOn(issueCommandFile, 'writeIssueCommand')
     const commands = new RuntimeRepositoryIssueCommand({
       resolveRepo: async (id) => repo(id),
@@ -174,7 +174,7 @@ describe('issue command writes under a WSL move', () => {
 
 describe('repo settings on another host under a WSL move', () => {
   it('leaves a same-id repo row on another host writable', async () => {
-    writeWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
+    seedWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
     const onHost = repo('repo-1', { executionHostId: 'runtime:wsl:ubuntu' })
     vi.spyOn(store, 'updateRepo').mockReturnValue(onHost)
     const controller = new RuntimeRepositorySettingsController({

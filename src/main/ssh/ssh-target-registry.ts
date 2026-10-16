@@ -24,7 +24,12 @@ import type {
  */
 
 let sshStore: SshConnectionStore | null = null
-let registeredConnectSshTarget: ((targetId: string) => Promise<SshConnectionState>) | null = null
+type ConnectSshTarget = (
+  targetId: string,
+  options?: { automatic?: boolean }
+) => Promise<SshConnectionState>
+
+let registeredConnectSshTarget: ConnectSshTarget | null = null
 let registeredGetSshState: ((targetId: string) => SshConnectionState | undefined) | null = null
 
 export function setSshTargetRegistryStore(store: SshConnectionStore | null): void {
@@ -36,20 +41,24 @@ export function getSshTargetRegistryStore(): SshConnectionStore | null {
 }
 
 export function setSshTargetRegistryHandlers(handlers: {
-  connect: ((targetId: string) => Promise<SshConnectionState>) | null
+  connect: ConnectSshTarget | null
   getState: ((targetId: string) => SshConnectionState | undefined) | null
 }): void {
   registeredConnectSshTarget = handlers.connect
   registeredGetSshState = handlers.getState
 }
 
-export async function connectRegisteredSshTarget(targetId: string): Promise<SshConnectionState> {
+/** `automatic`: no user asked for this connect, so a cancelled sign-in stays cancelled. */
+export async function connectRegisteredSshTarget(
+  targetId: string,
+  options?: { automatic?: boolean }
+): Promise<SshConnectionState> {
   if (!registeredConnectSshTarget) {
     // Why this still throws: a headless host that never registered handlers must fail
     // loudly rather than report a target as unreachable, which would read as `exited`.
     throw new Error('ssh_handlers_not_registered')
   }
-  return registeredConnectSshTarget(targetId)
+  return registeredConnectSshTarget(targetId, options)
 }
 
 export function getRegisteredSshState(targetId: string): SshConnectionState | undefined {

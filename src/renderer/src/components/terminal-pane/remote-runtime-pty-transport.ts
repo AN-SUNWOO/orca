@@ -56,6 +56,7 @@ import {
 } from '../../runtime/runtime-terminal-stream'
 import { getRemoteRuntimeTerminalMultiplexer } from '../../runtime/remote-runtime-terminal-multiplexer'
 import { REMOTE_TERMINAL_SNAPSHOT_TOO_LARGE } from '../../runtime/remote-runtime-terminal-snapshot-state'
+import { restoredSnapshotPaintsPrintableContent } from './restored-snapshot-coverage'
 import type {
   RemoteRuntimeMultiplexedTerminal,
   RemoteRuntimeSnapshotOutcome
@@ -271,6 +272,8 @@ export function createRemoteRuntimePtyTransport(
   let sameHandleEndReuseAttachedAt: number | null = null
   let attachGeneration = 0
   let subscriptionGeneration = 0
+  // A terminal this pane just created has no history, so an empty first image there is not a gap.
+  let spawnedHandle: string | null = null
   let inputReadySubscription: number | null = null
 
   function setAttachmentReady(ready: boolean): void {
@@ -2371,7 +2374,8 @@ export function createRemoteRuntimePtyTransport(
         onSnapshot: (data, meta) => {
           // Why: an empty snapshot can still carry a pending mid-escape tail that must replay so the next live chunk completes it.
           if ((data || meta?.pendingEscapeTailAnsi) && isCurrentSubscription()) {
-            subscriptionSnapshotHadContent = true
+            // Why printable: a host model holding only mode/cursor bytes paints a cursor-only pane.
+            subscriptionSnapshotHadContent ||= restoredSnapshotPaintsPrintableContent({ data })
             if (subscribedPtyId && bufferPtyShutdownReplayData(subscribedPtyId, data)) {
               return
             }
@@ -2410,8 +2414,14 @@ export function createRemoteRuntimePtyTransport(
           if (isCurrentSubscription()) {
             storedCallbacks.onOutputPauseChanged?.(
               desiredOutputPaused,
-              nextStream.setOutputPaused(desiredOutputPaused)
+              nextStream.setOutputPaused(desiredOutputPaused),
+              nextStream.reportsPausedOutputDrops?.() === true
             )
+          }
+        },
+        onPausedOutputDropped: () => {
+          if (isCurrentSubscription()) {
+            storedCallbacks.onPausedOutputDropped?.()
           }
         },
         onSubscribeAcknowledged: () => {
@@ -2426,7 +2436,8 @@ export function createRemoteRuntimePtyTransport(
           }
           storedCallbacks.onOutputPauseChanged?.(
             desiredOutputPaused,
-            nextStream.setOutputPaused(desiredOutputPaused)
+            nextStream.setOutputPaused(desiredOutputPaused),
+            nextStream.reportsPausedOutputDrops?.() === true
           )
           if (!subscriptionAttached && sameHandleEndRecovery) {
             recordSameHandleEndReuse(subscribedHandle)
@@ -2438,10 +2449,13 @@ export function createRemoteRuntimePtyTransport(
           markRecoveryHealthy()
           emitRecoveryState()
           storedCallbacks.onConnect?.()
-          // Why: a recovery subscribe replays nothing when the host's push snapshot is
-          // empty (idle or exited pane), so ask for the retained buffer instead of
-          // waiting for bytes that an exited process will never send.
-          if (expectedRecoveryEpoch !== undefined && !subscriptionSnapshotHadContent) {
+          // Why: a subscribe that replayed no visible image (empty, escape-only, or over the client's
+          // replay limit) leaves an idle or exited pane blank, so pull the retained buffer instead
+          // of waiting for bytes it may never send (#18464, #21208).
+          if (
+            !subscriptionSnapshotHadContent &&
+            (expectedRecoveryEpoch !== undefined || subscribedHandle !== spawnedHandle)
+          ) {
             storedCallbacks.onStreamRecovered?.()
           }
           storedCallbacks.onStatus?.('shell')
@@ -2954,6 +2968,7 @@ export function createRemoteRuntimePtyTransport(
         rows: options.rows ?? 24
       }
       if (createdTerminal.isReattach !== true) {
+        spawnedHandle = handle
         onPtySpawn?.(remotePtyId)
       }
       emitRecoveryState()
@@ -3121,8 +3136,13 @@ export function createRemoteRuntimePtyTransport(
       if (!connected || !handle) {
         return false
       }
-      const supported = getCurrentMultiplexedStream(handle)?.setOutputPaused(paused) === true
-      storedCallbacks.onOutputPauseChanged?.(paused, supported)
+      const stream = getCurrentMultiplexedStream(handle)
+      const supported = stream?.setOutputPaused(paused) === true
+      storedCallbacks.onOutputPauseChanged?.(
+        paused,
+        supported,
+        stream?.reportsPausedOutputDrops?.() === true
+      )
       return supported
     },
 

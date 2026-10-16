@@ -14387,10 +14387,7 @@
             "databaseCount_other": "{{value0}} databases",
             "scanning": "Scanning {{value0}}",
             "reading": "Reading {{value0}} files",
-            "stoppedAfter": "Stopped after {{value0}}",
-            "scanned": "Scanned {{value0}}",
-            "stoppedAt": "stopped at {{value0}}",
-            "refresh": "Refresh"
+            "scanned": "Scanned {{value0}}"
           }
         }
       },

@@ -378,16 +378,33 @@ describe('a worker result reaches the structured chat that coordinates it', () =
     refused.mockImplementation((caller, params) => realSend(caller, params))
     await finishWorker(taskId)
     await vi.waitFor(() => expect(refused).toHaveBeenCalledTimes(1), WAIT)
-    const held = db.getStructuredPointerOperation(`run:${runId}`)?.operation_id
+    const held = db.getStructuredPointerOperation(`run:${runId}`)
+    expect(held).toMatchObject({ session_id: COORDINATOR, operation_id: expect.any(String) })
+    const heldId = held!.operation_id
+    expect(heldId).not.toBe('')
+    expect(refused.mock.calls[0]?.[1].envelope.clientOperationId).toBe(heldId)
+    expect(await pointerSends()).toEqual([])
 
     // No edge for a day: the host would now refuse that id as expired, on every retry.
     vi.useFakeTimers({ toFake: ['Date'] })
     try {
       vi.setSystemTime(Date.now() + AGENT_SESSION_MAX_NEW_OPERATION_AGE_MS + 60_000)
       await edgesAnswered()
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      expect(chat.turns.map(turnText)).toEqual([ptyPointer(`run:${runId}`)])
-      expect(db.getStructuredPointerOperation(`run:${runId}`)?.operation_id).not.toBe(held)
+      await vi.waitFor(
+        () => expect(chat.turns.map(turnText)).toEqual([ptyPointer(`run:${runId}`)]),
+        WAIT
+      )
+      await vi.waitFor(async () => {
+        const sends = await pointerSends()
+        expect(sends).toHaveLength(1)
+        expect(sends[0]).toBeTruthy()
+        expect(sends[0]).not.toBe(heldId)
+        expect(db.getStructuredPointerOperation(`run:${runId}`)).toMatchObject({
+          session_id: COORDINATOR,
+          operation_id: sends[0]
+        })
+      }, WAIT)
+      expect(db.getUndeliveredUnreadMessages(`run:${runId}`, undefined, {})).toHaveLength(1)
     } finally {
       vi.useRealTimers()
     }

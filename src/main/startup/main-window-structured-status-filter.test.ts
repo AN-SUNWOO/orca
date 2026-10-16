@@ -102,3 +102,11 @@ it("forwards the host's turn start, and nothing when the host stamped none", () 
   expect(sent[0].event).toHaveProperty('turnStartedAt', 1)
   expect(sent[1].event).not.toHaveProperty('turnStartedAt')
 })
+
+// Without the flag the renderer sees a reconnect replay as a fresh completion and re-notifies.
+it('marks replayed rows so the renderer can skip their completion notification', () => {
+  hooks.listener!(statusPayload({ payload: { state: 'done', prompt: 'ship it' } }))
+  hooks.listener!(statusPayload({ payload: { state: 'done', prompt: 'ship it' }, isReplay: true }))
+  expect(sent[0].event).not.toHaveProperty('isReplay')
+  expect(sent[1].event).toHaveProperty('isReplay', true)
+})

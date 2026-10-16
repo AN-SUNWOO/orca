@@ -67,7 +67,7 @@ function phoneTranscript(state: StructuredAgentSessionState) {
 /** What the phone's list draws: each row in draw order, its content, its turn and that turn's bar. */
 function drawn(state: StructuredAgentSessionState): Drawn {
   const { items, messages } = phoneTranscript(state)
-  const folded = foldMobileNativeChatMessages(messages)
+  const folded = foldMobileNativeChatMessages(messages, 'claude')
   const { data } = buildMobileNativeChatTransientData({
     messages,
     folded,
@@ -96,7 +96,7 @@ function drawn(state: StructuredAgentSessionState): Drawn {
 /** The ids the phone's list shows: its rows through the list's own turn disclosure. */
 function listed(state: StructuredAgentSessionState): string[] {
   const { items, messages } = phoneTranscript(state)
-  const folded = foldMobileNativeChatMessages(messages)
+  const folded = foldMobileNativeChatMessages(messages, 'claude')
   const { data } = buildMobileNativeChatTransientData({
     messages,
     folded,

@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@source not '../**/*.test.{ts,tsx}';
+@source not '../**/*.spec.{ts,tsx}';
 @import 'tw-animate-css';
 @import '@xterm/xterm/css/xterm.css';
 @import 'katex/dist/katex.min.css';

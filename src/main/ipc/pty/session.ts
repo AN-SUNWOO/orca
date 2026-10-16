@@ -156,7 +156,12 @@ export type PtyIpcSession = {
   transitionHiddenRendererPtyDeliveryState: (
     id: string,
     hidden: boolean
-  ) => { droppable: boolean; droppedWhileHidden: boolean; policyChanged: boolean }
+  ) => {
+    droppable: boolean
+    droppedWhileHidden: boolean
+    hiddenDropEpisode?: number
+    policyChanged: boolean
+  }
   transitionSpawnHiddenRendererPtyDeliveryState: (id: string, hidden: boolean) => void
   rendererPtyIsKnownHidden: (id: string) => boolean
   schedulePendingDataAfterCreditReport: (creditedAny: boolean) => void

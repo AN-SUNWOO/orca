@@ -2,6 +2,7 @@ name: Computer-use e2e
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     paths:
       - '.github/workflows/computer-e2e.yml'
       - 'config/electron-builder.config.cjs'
@@ -65,7 +66,7 @@ concurrency:
 
 jobs:
   native-smoke:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft != true
     permissions:
       contents: read
     strategy:
@@ -141,6 +142,7 @@ jobs:
   # Hosted macOS runners cannot receive persistent Accessibility/Screen Recording
   # grants. Keep the real native build/owner-loss checks on every trigger instead.
   mac-native-owner-smoke:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     runs-on: macos-15
     permissions:
       contents: read

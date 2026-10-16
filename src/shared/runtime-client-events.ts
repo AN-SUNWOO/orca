@@ -8,10 +8,19 @@ import type { SshConnectionState } from './ssh-types'
 import type { TerminalSideEffectBatch } from './terminal-side-effect-facts'
 import type { RuntimeNativeChatLaunchDraftResolution } from './runtime-types'
 import type { RuntimeNavigationTarget } from './runtime-navigation'
+import type { WorktreeSortOrderUpdate } from './worktree/sort-order-update'
 
 export type RuntimeClientEvent =
   | { type: 'reposChanged' }
-  | { type: 'worktreesChanged'; repoId: string; sortOrderOnly?: boolean }
+  /** The Workspace options UI state changed; a mirroring phone re-reads it. */
+  | { type: 'workspaceViewChanged' }
+  | {
+      type: 'worktreesChanged'
+      repoId: string
+      sortOrderOnly?: boolean
+      // Why: lets a client patch an order save in place instead of refetching the repo (#27268).
+      sortOrders?: WorktreeSortOrderUpdate[]
+    }
   | ({ type: 'nativeChatLaunchDraftResolved' } & RuntimeNativeChatLaunchDraftResolution)
   | { type: 'terminalSideEffects'; batch: TerminalSideEffectBatch }
   // Why: SSH connections live on the runtime host; paired clients have no IPC

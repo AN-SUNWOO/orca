@@ -87,12 +87,12 @@
     "esbuild": "0.28.2",
     "expo-module-scripts": "^55.0.2",
     "happy-dom": "^20.14.5",
-    "oxfmt": "^0.71.0",
-    "oxlint": "^1.86.0",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
     "react-test-renderer": "19.2.8",
     "tsx": "^4.23.15",
     "typescript": "6.0.3",
-    "vite": "^8.3.1",
+    "vite": "^8.3.4",
     "vitest": "^4.1.11"
   },
   "packageManager": "pnpm@12.8.1+sha512.f64ba907507f5ceafe06c8d38e6052d0179444580ec1279ddd5bfc11cb48aa8a2644b66598e07e761da84872a9fc57d5f902b87fa49d024198d558612aabbe45"

@@ -184,6 +184,22 @@ beforeEach(() => {
   readSparsePresets.mockReturnValue([WEB_PRESET])
 })
 
+describe('runtime nested-workspaces layout', () => {
+  const addedPath = (): string => String(mocks.add.mock.calls[0]?.[1])
+
+  it('honors the client choice over the host default', async () => {
+    mocks.consume.mockResolvedValue({ status: 'miss', reason: 'disabled', rearm: mocks.rearm })
+    await createWorktree({ nestWorkspaces: true })
+    expect(addedPath()).toBe(resolve('/worktrees', 'repo', 'app'))
+  })
+
+  it('falls back to the host setting when the client sends none', async () => {
+    mocks.consume.mockResolvedValue({ status: 'miss', reason: 'disabled', rearm: mocks.rearm })
+    await createWorktree({})
+    expect(addedPath()).toBe(worktreePath)
+  })
+})
+
 describe('runtime prepared-worktree replenishment', () => {
   it('keeps a failed claim reserved through the normal-add fallback', async () => {
     mocks.consume.mockResolvedValue({

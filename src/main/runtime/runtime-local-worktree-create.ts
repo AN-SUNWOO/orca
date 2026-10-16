@@ -66,7 +66,12 @@ export function createRuntimeLocalManagedWorktree<T>(args: RuntimeLocalWorktreeC
 
 async function performRuntimeLocalWorktreeCreate<T>(args: RuntimeLocalWorktreeCreateArgs<T>) {
   const { request, repo, store } = args
-  const settings = store.getSettings()
+  const hostSettings = store.getSettings()
+  // Why: the layout choice must reach name retirement and metadata too, not just the path.
+  const settings = {
+    ...hostSettings,
+    nestWorkspaces: request.nestWorkspaces ?? hostSettings.nestWorkspaces
+  }
   const pathSettings = getWorktreePathSettings(repo, settings, getWorktreeMirrorDistro(store, repo))
   const gitExecOptions = getLocalProjectGitExecOptions(store, repo)
   const worktreeGitOptions = getLocalProjectWorktreeGitOptions(store, repo)

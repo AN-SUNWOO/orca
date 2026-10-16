@@ -112,6 +112,31 @@ describe('MobileNativeChatMessage on Android', () => {
     expect(byType('MessageActionsSheet')).toHaveLength(1)
   })
 
+  it("opens the actions sheet from a long press on a plan's link", () => {
+    act(() => {
+      renderer = create(
+        createElement(MobileNativeChatMessage, {
+          message: {
+            ...message,
+            role: 'system',
+            blocks: [
+              {
+                type: 'text',
+                text: '1. Read [the guide](https://example.com)',
+                presentation: 'plan-document'
+              }
+            ]
+          }
+        })
+      )
+    })
+    const [bubble] = byType('Pressable')
+    const [plan] = byType('MobileMarkdown')
+    expect(plan!.props.onLongPress).toBe(bubble!.props.onLongPress)
+    act(() => plan!.props.onLongPress())
+    expect(byType('MessageActionsSheet')).toHaveLength(1)
+  })
+
   it('opens the actions sheet from a long press on an expanded reasoning row, not on its headline', () => {
     const reasoning: NativeChatMessage = {
       ...message,

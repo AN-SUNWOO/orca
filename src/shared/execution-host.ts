@@ -126,6 +126,11 @@ export function parseExecutionHostId(value: string | null | undefined): ParsedEx
   return null
 }
 
+/** Whether a host id names another machine; an absent or unparsable id reads as this one. */
+export function isRemoteExecutionHostId(value: string | null | undefined): boolean {
+  return (parseExecutionHostId(value)?.kind ?? 'local') !== 'local'
+}
+
 /**
  * Bookkeeping for a worktree whose owner publications conflict. It is spelled as a runtime host so
  * nothing treats the worktree as local, but no environment has this id and it must never be dialed.

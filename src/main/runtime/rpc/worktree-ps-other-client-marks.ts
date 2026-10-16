@@ -4,23 +4,18 @@ import {
   isWorkspaceOwnedBySomeoneElse
 } from '../../../shared/workspace-creator-visibility'
 import type { RpcContext } from './core'
+import { isHostOwnPhone } from './host-own-phone'
 
 /**
- * Marks the rows this host's own sidebar hides under "Hide other-client workspaces", for a phone
- * paired to it: the setting is the desktop's own and never crosses the pairing. A delegated phone
- * belongs to another desktop, whose view this host cannot speak for.
+ * Marks the rows this host calls another client's, for its own phone, which applies the shared
+ * "Hide other-client workspaces" value itself. A delegated phone belongs to another desktop, whose
+ * view this host cannot speak for.
  */
 export function markWorktreePsOtherClientRows<T extends RuntimeWorktreePsResult>(
   result: T,
-  context: Pick<RpcContext, 'clientKind' | 'pairedDeviceParentId'> & {
-    runtime: Pick<RpcContext['runtime'], 'hidesWorkspacesFromOtherDevices'>
-  }
+  context: Pick<RpcContext, 'clientKind' | 'pairedDeviceParentId'>
 ): T {
-  if (
-    context.clientKind !== 'mobile' ||
-    context.pairedDeviceParentId !== undefined ||
-    !context.runtime.hidesWorkspacesFromOtherDevices()
-  ) {
+  if (!isHostOwnPhone(context)) {
     return result
   }
   let marked = false

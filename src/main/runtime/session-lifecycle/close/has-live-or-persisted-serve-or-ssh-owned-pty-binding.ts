@@ -47,10 +47,6 @@ export abstract class OrcaRuntimeWithHasLiveOrPersistedServeOrSshOwnedPtyBinding
     ...args: Parameters<StructuredSessionClose['isOffscreenMobileSessionBrowserTab']>
   ): ReturnType<StructuredSessionClose['isOffscreenMobileSessionBrowserTab']>
 
-  protected abstract retireRuntimeOwnedBrowserSessionTab(
-    ...args: Parameters<StructuredSessionClose['retireRuntimeOwnedBrowserSessionTab']>
-  ): ReturnType<StructuredSessionClose['retireRuntimeOwnedBrowserSessionTab']>
-
   protected abstract closeStructuredAgentSessionTab(
     ...args: Parameters<StructuredSessionClose['closeStructuredAgentSessionTab']>
   ): ReturnType<StructuredSessionClose['closeStructuredAgentSessionTab']>

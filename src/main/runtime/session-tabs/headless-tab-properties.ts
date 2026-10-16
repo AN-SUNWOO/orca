@@ -7,6 +7,29 @@ import type {
   TerminalPaneLayoutNode
 } from '../../../shared/terminal-tab-types'
 import { cloneTerminalLayoutSnapshot } from '../mobile-session-layout-projection'
+import { sameStringRecord, terminalLayoutNodeEqual } from '../../../shared/terminal-layout-equality'
+
+type HeadlessPaneLayoutEdit = {
+  tabId: string
+  root: TerminalPaneLayoutNode | null
+  expandedLeafId: string | null
+  chatLeafId?: string | null
+  titlesByLeafId?: Record<string, string>
+}
+
+// Why: a remounted client pane re-sends the layout it was given; an unchanged write must not
+// persist or republish the workspace to every paired client.
+function paneLayoutEditIsNoOp(
+  layout: Pick<TerminalLayoutSnapshot, 'root' | 'expandedLeafId' | 'chatLeafId' | 'titlesByLeafId'>,
+  edit: HeadlessPaneLayoutEdit
+): boolean {
+  return (
+    terminalLayoutNodeEqual(edit.root ?? layout.root, layout.root) &&
+    (layout.expandedLeafId ?? null) === edit.expandedLeafId &&
+    (edit.chatLeafId === undefined || (layout.chatLeafId ?? null) === (edit.chatLeafId ?? null)) &&
+    (!edit.titlesByLeafId || sameStringRecord(layout.titlesByLeafId, edit.titlesByLeafId))
+  )
+}
 
 export abstract class RuntimeHeadlessTabProperties extends OrcaRuntimeWithCloseHeadlessMobileTerminalTab {
   protected persistHeadlessSessionTabProps(
@@ -113,13 +136,7 @@ export abstract class RuntimeHeadlessTabProperties extends OrcaRuntimeWithCloseH
   // terminalLayoutsByTabId is keyed by tab id (worktree-independent).
   protected persistHeadlessTerminalPaneLayout(
     worktreeId: string,
-    args: {
-      tabId: string
-      root: TerminalPaneLayoutNode | null
-      expandedLeafId: string | null
-      chatLeafId?: string | null
-      titlesByLeafId?: Record<string, string>
-    }
+    args: HeadlessPaneLayoutEdit
   ): TerminalLayoutSnapshot | undefined {
     const session = this.getWorkspaceSessionForWorktree(worktreeId)
     if (!session || !this.store?.setWorkspaceSession) {
@@ -128,6 +145,9 @@ export abstract class RuntimeHeadlessTabProperties extends OrcaRuntimeWithCloseH
     const existing = session.terminalLayoutsByTabId?.[args.tabId]
     if (!existing) {
       return undefined
+    }
+    if (paneLayoutEditIsNoOp(existing, args)) {
+      return existing
     }
     const candidate = {
       ...session,
@@ -152,13 +172,7 @@ export abstract class RuntimeHeadlessTabProperties extends OrcaRuntimeWithCloseH
 
   protected applyHeadlessTerminalPaneLayoutToSnapshot(
     worktreeId: string,
-    args: {
-      tabId: string
-      root: TerminalPaneLayoutNode | null
-      expandedLeafId: string | null
-      chatLeafId?: string | null
-      titlesByLeafId?: Record<string, string>
-    }
+    args: HeadlessPaneLayoutEdit
   ): void {
     const snapshot = this.mobileSessionTabsByWorktree.get(worktreeId)
     if (!snapshot) {
@@ -166,7 +180,12 @@ export abstract class RuntimeHeadlessTabProperties extends OrcaRuntimeWithCloseH
     }
     let changed = false
     const tabs = snapshot.tabs.map((tab) => {
-      if (tab.type !== 'terminal' || tab.parentTabId !== args.tabId || !tab.parentLayout) {
+      if (
+        tab.type !== 'terminal' ||
+        tab.parentTabId !== args.tabId ||
+        !tab.parentLayout ||
+        paneLayoutEditIsNoOp(tab.parentLayout, args)
+      ) {
         return tab
       }
       changed = true

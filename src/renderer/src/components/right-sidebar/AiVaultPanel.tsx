@@ -41,11 +41,16 @@ import { useAiVaultSearchFocusRequest } from './use-ai-vault-search-focus-reques
 import { usePersistedAiVaultViewOptions } from './use-persisted-ai-vault-view-options'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
 import { AiVaultScanIssueBanners } from './AiVaultScanIssueBanners'
+import { currentAiVaultScanIssueResult } from './ai-vault-scan-issue-state'
 import { useAiVaultSessionDeleteAction } from './ai-vault-session-delete-action'
 import { useAiVaultPanelSearch } from './use-ai-vault-search'
 import { aiVaultSearchScopeIdentity } from './ai-vault-search-scope-identity'
 import { AiVaultPanelSearch } from './AiVaultPanelSearch'
 import { useAiVaultPanelSessionResume } from './use-ai-vault-panel-session-resume'
+import { AiVaultScanProgressStrip } from './AiVaultScanProgressStrip'
+import { useAiVaultScanProgress } from './ai-vault-scan-progress-store'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
+import { aiVaultLocalScanKey } from '../../../../shared/ai-vault-local-scan-key'
 export default function AiVaultPanel(): React.JSX.Element {
   const activeWorktreeId = useActiveWorktreeId()
   const activeWorktree = useActiveWorktree()
@@ -132,12 +137,28 @@ export default function AiVaultPanel(): React.JSX.Element {
   // enumerate, and a repo with hundreds of them has no path list a request can carry.
   const searchWithin = useMemo(
     () =>
-      aiVaultSearchScopeIdentity({ scope, activeWorktreeId: activeWorktree?.id, activeProjectKey }),
+      aiVaultSearchScopeIdentity({
+        scope,
+        activeWorktreeId: activeWorktree?.id,
+        activeProjectKey
+      }),
     [activeProjectKey, activeWorktree?.id, scope]
   )
   const search = useAiVaultPanelSearch(query, agents, searchWithin, executionHostScope, searchSort)
   const { searching, searchHits } = search
   const sessions = searching ? search.sessions : history
+  const requestedScanKey = aiVaultLocalScanKey({
+    scopePaths,
+    includeAntigravityIdeSessions: true,
+    limit: sessionLimit === 'unlimited' ? undefined : sessionLimit,
+    unlimited: sessionLimit === 'unlimited'
+  })
+  const scanProgress = useAiVaultScanProgress(
+    executionHostScope,
+    requestedScanKey,
+    scanResult?.scanId
+  )
+  const stripProgress = searching ? null : scanProgress
   // Deliberately blind to the active repo/worktree: rebuilding these session
   // maps on every worktree switch is what made switching visibly slow (#10841 era).
   const sessionProjectById = useMemo(
@@ -215,7 +236,10 @@ export default function AiVaultPanel(): React.JSX.Element {
     })
   }, [])
 
-  const requestDelete = useAiVaultSessionDeleteAction({ refresh, onDeleted: search.onDeleted })
+  const requestDelete = useAiVaultSessionDeleteAction({
+    refresh,
+    onDeleted: search.onDeleted
+  })
 
   return (
     <div className="@container/ai-vault flex h-full min-h-0 flex-col bg-sidebar">
@@ -247,13 +271,22 @@ export default function AiVaultPanel(): React.JSX.Element {
         onRefresh={() => (searching ? search.retry() : void refresh({ force: true }))}
       />
 
+      {stripProgress ? <AiVaultScanProgressStrip progress={stripProgress} /> : null}
+
       {!searching && error ? (
         <div className="border-b border-sidebar-border px-3 py-2 text-xs text-destructive">
           {error}
         </div>
       ) : null}
 
-      {!searching && <AiVaultScanIssueBanners scanResult={scanResult} />}
+      {!searching && (
+        <AiVaultScanIssueBanners
+          scanResult={currentAiVaultScanIssueResult(
+            scanResult,
+            loading && executionHostScope === LOCAL_EXECUTION_HOST_ID
+          )}
+        />
+      )}
       <AiVaultPanelSearch search={search} noAgents={agents.length === 0}>
         {searching
           ? filteredSessions.length > 0 && (
@@ -279,6 +312,7 @@ export default function AiVaultPanel(): React.JSX.Element {
             groups={groups}
             collapsedGroups={collapsedGroups}
             loading={searching ? search.loading : loading}
+            scanProgressShown={stripProgress !== null}
             sessionsCount={sessions.length}
             filteredSessionsCount={filteredSessions.length}
             noAgentsSelected={agents.length === 0}

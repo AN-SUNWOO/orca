@@ -11,7 +11,7 @@ import type { Store } from '../../../persistence/loading-store/store'
 import type { Repo } from '../../../../shared/repo-types'
 import type { DetectedWorktreeListResult } from '../../../../shared/worktree/types'
 import { isFolderRepo } from '../../../../shared/repo-kind'
-import { projectResolvedWorktreeLineage } from '../../../../shared/resolved-worktree-lineage'
+import { projectWorktreeLineageWithHostPeers } from '../../../worktree-lineage-host-peers'
 import type { DirectSshDetectedWorktreeRequest } from '../../../../shared/detected-worktree-provider-contract'
 import { isAdmissibleDirectSshAuthority } from '../../../../shared/ssh-retained-payload-admission'
 import {
@@ -80,9 +80,10 @@ export async function listDetectedWorktreesForCapturedRepo(
         authoritative: true,
         source: 'git',
         catalogVersion: getLocalWorktreeCatalogVersion(repo.id),
-        worktrees: projectResolvedWorktreeLineage(
-          buildFolderDetectedWorktrees(store, repo),
-          store.getAllWorktreeLineage?.() ?? {}
+        worktrees: projectWorktreeLineageWithHostPeers(
+          store,
+          repo,
+          buildFolderDetectedWorktrees(store, repo)
         )
       }
     }

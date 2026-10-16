@@ -14,7 +14,9 @@ type StructuredController = ReturnType<typeof useStructuredAgentSession>
 export function useStructuredNativeChatSubmitReveal(
   controller: Pick<StructuredController, 'respond' | 'queuedMessages'>,
   /** Relaunches a start that failed. */
-  retryLaunch: () => void
+  retryLaunch: () => void,
+  /** The host may take no turn: no card is sent now or resumed, and no failed start retried. */
+  startsHeld = false
 ): {
   messageListRef: React.RefObject<NativeChatMessageListHandle | null>
   /** For the composer, which reveals as it sends. */
@@ -26,9 +28,12 @@ export function useStructuredNativeChatSubmitReveal(
   const { messageListRef, revealLatest } = useNativeChatRevealLatest()
   const { respond, queuedMessages } = controller
   const revealingRetryLaunch = useCallback(() => {
+    if (startsHeld) {
+      return
+    }
     revealLatest()
     retryLaunch()
-  }, [retryLaunch, revealLatest])
+  }, [retryLaunch, revealLatest, startsHeld])
   const revealingRespond = useCallback<StructuredController['respond']>(
     (...args) => {
       revealLatest()
@@ -45,6 +50,14 @@ export function useStructuredNativeChatSubmitReveal(
       }
       return resumed
     }
+    if (startsHeld) {
+      return {
+        ...queuedMessages,
+        steer: async () => undefined,
+        resume: async () => false,
+        steerNewest: () => false
+      }
+    }
     return {
       ...queuedMessages,
       steer: (messageId) => {
@@ -60,7 +73,7 @@ export function useStructuredNativeChatSubmitReveal(
         return steered
       }
     }
-  }, [queuedMessages, revealLatest])
+  }, [queuedMessages, revealLatest, startsHeld])
   return {
     messageListRef,
     revealLatest,

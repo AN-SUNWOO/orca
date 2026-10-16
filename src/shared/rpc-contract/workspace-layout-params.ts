@@ -81,6 +81,14 @@ const SetGroupRatiosCommand = z.object({
   groupLayout: TerminalOrphanGroupLayout
 })
 
+/** The window's close of one tab it already closed; main records it, the window's reason kept. */
+const CloseTabsCommand = z.object({
+  type: z.literal('closeTabs'),
+  workspace: OnPane.workspace,
+  tabIds: z.tuple([z.string().min(1)]),
+  recordClose: z.enum(['user', 'cleanup'])
+})
+
 /**
  * A window's layout command (`layout.apply`, registered only in a layout-owner build). The window
  * names what it acts on; main mints every new id, so no new id is accepted here.
@@ -95,6 +103,7 @@ export const LayoutApplyParams = z.object({
     SetPaneRatiosCommand,
     MoveTabCommand,
     SplitGroupCommand,
-    SetGroupRatiosCommand
+    SetGroupRatiosCommand,
+    CloseTabsCommand
   ])
 })

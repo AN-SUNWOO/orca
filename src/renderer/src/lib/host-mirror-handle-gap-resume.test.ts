@@ -1,4 +1,9 @@
 import path from 'node:path'
+import { applyWebSessionTabsSnapshot } from '@/runtime/web-session-tabs-sync/snapshot-api'
+import {
+  makeSnapshot,
+  resetWebSessionTabsSyncTestState
+} from '@/runtime/web-session-tabs-sync-test-harness'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAppStore, type AppState } from '@/store'
 import { resumeSleepingAgentSessionsForWorktree } from './resume-sleeping-agent-session'
@@ -272,6 +277,47 @@ describe('resume across the mirror handle gap', () => {
     expect(after.sleepingAgentSessionsByPaneKey[paneKey]).toBeDefined()
     // And something is armed to decide it — a hold with nothing armed is the defect, not the fix.
     expect(countParkedHostMirrorHandleGapPanesForTests()).toBe(1)
+  })
+
+  it('holds a slept binding retained through a pending snapshot without replacing it', () => {
+    resetWebSessionTabsSyncTestState()
+    const worktree = makeRuntimeOwnedWorktree()
+    seedMirroredWorkspace(worktree)
+    const paneKey = seedActiveSleepingRecord(worktree.id)
+    markHostSessionMirrorHydrated(RUNTIME_ENV_ID)
+    const snapshot = makeSnapshot(
+      [
+        {
+          type: 'terminal',
+          id: `host-tab-1::${LEAF_ID}`,
+          title: 'Claude',
+          parentTabId: 'host-tab-1',
+          leafId: LEAF_ID,
+          isActive: true,
+          status: 'pending-handle',
+          terminal: null
+        }
+      ],
+      { worktree: worktree.id }
+    )
+    useAppStore.setState(
+      applyWebSessionTabsSnapshot(useAppStore.getState(), snapshot, RUNTIME_ENV_ID, Date.now())
+    )
+
+    expect(
+      useAppStore.getState().terminalLayoutsByTabId[WEB_TAB_ID]?.ptyIdsByLeafId?.[LEAF_ID]
+    ).toBe('remote:env-handle-gap@@term_1')
+    expect(useAppStore.getState().ptyIdsByTabId[WEB_TAB_ID] ?? []).toEqual([])
+    expect(resumeSleepingAgentSessionsForWorktree(worktree.id)).toBe(0)
+    expect(countParkedHostMirrorHandleGapPanesForTests()).toBe(1)
+    vi.advanceTimersByTime(HOST_MIRROR_HANDLE_GAP_DEADLINE_MS - 1)
+    expect(useAppStore.getState().sleepingAgentSessionsByPaneKey[paneKey]).toBeDefined()
+    expect(Object.keys(useAppStore.getState().automaticAgentResumeClaimsByTabId)).toHaveLength(0)
+    vi.advanceTimersByTime(1)
+    // The deadline ends the wait, but an unverifiable binding never authorizes a replacement.
+    expect(useAppStore.getState().sleepingAgentSessionsByPaneKey[paneKey]).toBeDefined()
+    expect(Object.keys(useAppStore.getState().automaticAgentResumeClaimsByTabId)).toHaveLength(0)
+    resetWebSessionTabsSyncTestState()
   })
 
   it('does not resume a published host row without a PTY binding', () => {

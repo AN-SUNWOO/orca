@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AgentHookServer } from './server'
-import { buildBody, PANE, postHookEvent } from './server.test-fixtures'
+import { makePaneKey } from '../../shared/stable-pane-id'
+import { buildBody, LEAF_1, PANE, postHookEvent } from './server.test-fixtures'
 
 vi.mock('../telemetry/client', () => ({ track: vi.fn() }))
 vi.mock('../telemetry/cohort-classifier', () => ({ getCohortAtEmit: () => ({}) }))
@@ -342,5 +343,139 @@ describe('host-owned hook presence', () => {
     await vi.waitFor(() => expect(visible(server)).toBe(false))
     await hook(server, 'UserPromptSubmit', 'relaunch', undefined, 4002)
     expect(state(server)).toBe('working')
+  })
+})
+
+// #24353: a remote worker's liveness reads the exit after the hook store has reconciled the row.
+describe('retained agent exit', () => {
+  it('keeps a SessionEnd exit readable after the row is reconciled', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    expect(await server.checkAgentPresence(PANE)).toBeNull()
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
+  it('keeps a probed exit readable on every later read', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    probe.mockResolvedValue('exited')
+    expect(await server.checkAgentPresence(PANE)).toBe('exited')
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
+  it('ignores an exit from before the reader attached', async () => {
+    const server = await createServer()
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    expect(await server.checkAgentPresenceSince(PANE, Date.now() + 60_000)).toBeNull()
+  })
+
+  it('keeps the exit through a late terminal status with no process identity', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'UserPromptSubmit')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    server.ingestTerminalStatus({
+      paneKey: PANE,
+      tabId: 'tab-1',
+      worktreeId: 'wt-1',
+      connectionId: null,
+      payload: { state: 'done', prompt: 'session-a task', agentType: 'claude' }
+    })
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
+  it('carries the exit with the pane when its authority moves', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    const moved = makePaneKey('tab-moved', LEAF_1)
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    server.transferPaneAuthority(PANE, moved)
+    expect(await server.checkAgentPresenceSince(moved, attachedAt)).toBe('exited')
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
+  it('keeps the exit readable through both keys when the pane moved before it ended', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    const moved = makePaneKey('tab-moved', LEAF_1)
+    await hook(server, 'SessionStart')
+    server.transferPaneAuthority(PANE, moved)
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    expect(await server.checkAgentPresenceSince(moved, attachedAt)).toBe('exited')
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
+  it('drops the exit once an agent without a process identity reports from the pane', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    await hook(server, 'UserPromptSubmit', 'replacement', undefined, null)
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBeNull()
+  })
+
+  it('drops the exit once a hookless agent run starts its process-lifetime turn', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    server.ingestTerminalStatus({
+      paneKey: PANE,
+      tabId: 'tab-1',
+      worktreeId: 'wt-1',
+      connectionId: null,
+      origin: 'process',
+      yieldsToHookSince: Date.now(),
+      payload: { state: 'working', prompt: '', agentType: 'opencode' }
+    })
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBeNull()
+  })
+
+  it('does not retain an old owner death proved by a live replacement hook', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    probe.mockResolvedValue('exited')
+    await hook(server, 'SessionStart', 'replacement', undefined, 4002)
+    await vi.waitFor(() => expect(probe).toHaveBeenCalled())
+    probe.mockResolvedValue('live')
+    await vi.waitFor(async () =>
+      expect(await server.checkAgentPresenceSince(PANE, attachedAt)).not.toBe('exited')
+    )
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).not.toBe('exited')
+  })
+
+  it('does not answer exited to a read overlapping the replacement-triggered probe', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    let finish: (verdict: 'exited') => void = () => {}
+    probe.mockImplementationOnce(
+      () =>
+        new Promise<'live' | 'unverifiable' | 'exited'>((resolve) => {
+          finish = resolve
+        })
+    )
+    await hook(server, 'SessionStart', 'replacement', undefined, 4002)
+    const overlapping = server.checkAgentPresenceSince(PANE, attachedAt)
+    finish('exited')
+    expect(await overlapping).not.toBe('exited')
+  })
+
+  it('drops the exit once a new agent reports from the pane', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    await hook(server, 'SessionStart', 'relaunch', undefined, 4002)
+    probe.mockResolvedValue('live')
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('live')
   })
 })

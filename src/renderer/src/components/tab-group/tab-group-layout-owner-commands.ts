@@ -5,7 +5,8 @@
 
 import { useAppStore } from '@/store'
 import type { TabSplitDirection } from '@/store/slices/tabs'
-import { sendLayoutCommandToOwner, type WindowLayoutCommand } from '@/runtime/layout-owner-command'
+import { sendLayoutCommandToOwner } from '@/runtime/layout-owner-command'
+import type { WindowLayoutCommand } from '@/runtime/layout-apply-send'
 import { moveGroupLeafBeside } from '../../../../shared/workspace-layout/tab-group-layout-tree'
 import { stableJson } from '../../../../shared/workspace-layout/workspace-layout-load-report'
 import { isPaneColumnSplitDropNoOp } from '@/store/slices/pane-column-split-drop-no-op'

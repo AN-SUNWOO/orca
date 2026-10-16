@@ -9,6 +9,7 @@ import {
   AGENT_SESSION_REPEATED_STOP_RUNTIME_CAPABILITY
 } from '../../../src/shared/protocol-version'
 import { AGENT_SESSION_SEND_OPTIONS_RUNTIME_CAPABILITY } from '../../../src/shared/agent-session-create-capabilities'
+import { AGENT_SESSION_PERMISSION_MODES_RUNTIME_CAPABILITY } from '../../../src/shared/agent-session-permission-modes-capability'
 import { structuredAgentSessionHostSupport } from './mobile-structured-agent-session-host-support'
 
 describe('structuredAgentSessionHostSupport', () => {
@@ -21,7 +22,8 @@ describe('structuredAgentSessionHostSupport', () => {
       quietRepeatedStop: false,
       statusFeed: false,
       sendOptions: false,
-      conversationStop: false
+      conversationStop: false,
+      permissionModes: false
     }
     expect(structuredAgentSessionHostSupport([])).toEqual(none)
     expect(
@@ -48,5 +50,8 @@ describe('structuredAgentSessionHostSupport', () => {
     expect(
       structuredAgentSessionHostSupport([AGENT_SESSION_CONVERSATION_STOP_RUNTIME_CAPABILITY])
     ).toEqual({ ...none, conversationStop: true })
+    expect(
+      structuredAgentSessionHostSupport([AGENT_SESSION_PERMISSION_MODES_RUNTIME_CAPABILITY])
+    ).toEqual({ ...none, permissionModes: true })
   })
 })

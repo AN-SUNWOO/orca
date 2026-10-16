@@ -14,6 +14,8 @@ import {
 import type { TerminalSlice, TerminalStoreGet, TerminalStoreSet } from './terminal-state'
 import { startTerminalTabProviderRetirement } from './terminal-tab-close-providers'
 import { commitTerminalSurfaceClose } from './terminal-surface-close-intent'
+import { recordTerminalTabCloseThroughLayoutOwner } from './terminal-tab-close-layout-owner'
+import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/layout-owner-switch'
 import { omitUnverifiedPtyLossTabIds } from './terminal-unverified-pty-loss'
 import { removePaneKeysByTabPrefix } from '../slices/agent-status-pane-keyed-records'
 import { removeTabsAttention } from '../slices/workspace-attention/subject-attention-transitions'
@@ -245,7 +247,13 @@ export function createTerminalTabCloseActions(
         })
       )
       if (intentReason && closingWorktreeId && opts?.remoteCloseOwnedByHost !== true) {
-        commitTerminalSurfaceClose(closingWorktreeId, { kind: 'tab', tabId }, intentReason)
+        // Switch point: main records the close through layout.apply.
+        if (
+          !ORCA_LAYOUT_OWNER_IS_MAIN ||
+          !recordTerminalTabCloseThroughLayoutOwner(get(), closingWorktreeId, tabId, intentReason)
+        ) {
+          commitTerminalSurfaceClose(closingWorktreeId, { kind: 'tab', tabId }, intentReason)
+        }
       }
       // Why only a user close: it is the explicit abandon. Other closes keep the drafts until their
       // workspace is removed in Orca; drafts have no budget that retires them.

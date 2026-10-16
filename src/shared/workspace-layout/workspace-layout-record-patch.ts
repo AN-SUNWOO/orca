@@ -97,6 +97,12 @@ function patchList(stored: Json[], before: Json[], after: Json[], idOf: (record:
   const find = (list: Json[], id: unknown) => list.find((record) => idOf(record) === id)
   const result = [...stored]
   const ids = new Set([...before.map(idOf), ...after.map(idOf)])
+  const kept = (list: Json[], other: Json[]) => {
+    const otherIds = new Set(other.map(idOf))
+    return list.map(idOf).filter((id) => otherIds.has(id))
+  }
+  // Records kept their relative order: sort orders changed only to close a removal's gap.
+  const renumberedOnly = sameJson(kept(before, after), kept(after, before))
   for (const id of ids) {
     const old = find(before, id)
     const next = find(after, id)
@@ -104,6 +110,17 @@ function patchList(stored: Json[], before: Json[], after: Json[], idOf: (record:
       continue
     }
     const index = result.findIndex((record) => idOf(record) === id)
+    // A record the load supplied that the command only renumbered stays unwritten (a close's
+    // siblings); writing it whole would add it where the stored partition has none.
+    if (
+      index === -1 &&
+      renumberedOnly &&
+      old &&
+      next &&
+      sameJson({ ...old, sortOrder: 0 }, { ...next, sortOrder: 0 })
+    ) {
+      continue
+    }
     if (!next) {
       if (index !== -1) {
         result.splice(index, 1)

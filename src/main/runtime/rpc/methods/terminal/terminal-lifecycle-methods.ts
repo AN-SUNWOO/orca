@@ -12,6 +12,7 @@ import {
   TerminalCreateParams,
   TerminalFocus,
   TerminalHandle,
+  TerminalReveal,
   TerminalSleep,
   TerminalSplit,
   TerminalStop,
@@ -164,6 +165,31 @@ export const TERMINAL_LIFECYCLE_METHODS = [
         )
       })
     })
+  }),
+  defineMethod({
+    // Why a method of its own: terminal.focus resolves a handle on the host that runs the PTY, and a
+    // paired server has no window, so only the desktop showing its pane can reveal it (#24688).
+    name: 'terminal.reveal',
+    permission: 'workspace',
+    params: TerminalReveal,
+    handler: async (params, { runtime, clientKind }) => {
+      // Why local callers only: it moves this host's window, which terminal.focus lets a paired
+      // client do only by asking for host navigation, and a CLI or companion app here needs no more.
+      if (clientKind !== undefined) {
+        throw Object.assign(
+          new Error('terminal.reveal is available only to callers on this machine.'),
+          { code: 'forbidden' }
+        )
+      }
+      return {
+        reveal: await runtime.revealTerminalPane({
+          worktreeId: params.worktreeId,
+          tabId: params.tabId,
+          leafId: params.leafId ?? null,
+          executionHostId: params.executionHostId ?? null
+        })
+      }
+    }
   }),
   defineMethod({
     name: 'terminal.close',

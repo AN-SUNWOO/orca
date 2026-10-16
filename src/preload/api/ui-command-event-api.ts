@@ -10,6 +10,10 @@ import type {
   AgentLaunchTabPublishRequest
 } from '../../shared/agent-launch-tab-publication'
 import type { AgentLaunchPaneVerdictEvent } from '../../shared/agent-launch-pane-verdict'
+import type {
+  TerminalPaneRevealReply,
+  TerminalPaneRevealRequest
+} from '../../shared/terminal-pane-reveal'
 import type { RuntimeNavigationTarget } from '../../shared/runtime-navigation'
 import type { TerminalSurfaceCloseTarget } from '../../shared/terminal-surface-close-target'
 import type {
@@ -202,6 +206,8 @@ export type UiCommandEventApi = {
   onPublishAgentLaunchTab: (callback: (data: AgentLaunchTabPublishRequest) => void) => () => void
   replyAgentLaunchTabPublish: (reply: AgentLaunchTabPublishReply) => void
   onAgentLaunchPaneVerdict: (callback: (data: AgentLaunchPaneVerdictEvent) => void) => () => void
+  onRevealTerminalPane: (callback: (data: TerminalPaneRevealRequest) => void) => () => void
+  replyTerminalPaneReveal: (reply: TerminalPaneRevealReply) => void
   onSplitTerminal: (
     callback: (data: {
       tabId: string

@@ -74,6 +74,21 @@ export abstract class AgentHookServerState {
     return this.canonicalStatusStoreInstance
   }
   protected readonly canonicalListingOrder = new Map<string, number>()
+  /** When this host proved a pane's agent process ended; outlives the row the exit reconciles. */
+  protected readonly agentExitedAtByPaneKey = new Map<
+    string,
+    { at: number; paneKeys: Set<string> }
+  >()
+
+  /** A new agent claimed the pane, so the previous agent's exit no longer describes it. */
+  protected forgetAgentExit(paneKey: string): void {
+    const exit =
+      this.agentExitedAtByPaneKey.get(paneKey) ??
+      this.agentExitedAtByPaneKey.get(this.resolvePaneKeyAlias(paneKey))
+    for (const key of exit?.paneKeys ?? []) {
+      this.agentExitedAtByPaneKey.delete(key)
+    }
+  }
   protected readonly canonicalSubjectsByPane = new Map<string, Map<string, AgentStatusSubject>>()
   private statusListingOrder = 0
   protected nextStatusListingOrder = (): number => ++this.statusListingOrder

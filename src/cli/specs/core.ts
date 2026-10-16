@@ -239,6 +239,9 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     summary: 'Switch to a terminal tab in the UI',
     usage: 'orca terminal switch [--terminal <handle>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal'],
+    notes: [
+      "With --environment, the desktop app on this machine switches to that server's terminal; a server has no window of its own."
+    ],
     examples: ['orca terminal switch --terminal term_abc123']
   },
   TERMINAL_CLOSE_COMMAND_SPEC,

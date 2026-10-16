@@ -4268,6 +4268,8 @@
             "f8f0f9d8cc": "Network issue",
             "bf2e739f18": "Sign-in unavailable",
             "f8b8dbed85": "Usage unavailable",
+            "remoteOwnerUnreachable": "Usage unavailable — cannot reach {{server}}",
+            "remoteOwnerNoUsage": "Usage unavailable — {{server}} does not report usage. Update Orca on that host.",
             "3d3c9c0c1f": "Claude usage will refresh after the live Claude terminal rotates its credentials.",
             "42fdd4da1d": "Claude sign-in is being refreshed. Agent sessions may still be signed in.",
             "c06c1d215d": "Claude usage could not be refreshed because the network request failed.",
@@ -12607,6 +12609,10 @@
         "UnsealedCredentialNotice": {
           "body": "{{credential}} is stored unencrypted — this system has no OS keyring Orca can use. Anyone who can read your disk or a backup of it can read the credential. Install and unlock gnome-keyring or kwallet, then save it again to seal it."
         },
+        "sshManagedHostRemove": {
+          "description": "{{label}} runs a managed Orca server. Under Managed servers, use Stop… to remove the server from the host, or Forget… if the host is gone. Then you can remove this SSH host.",
+          "open": "Open Managed servers"
+        },
         "managedServers": {
           "row": {
             "notRunning": "Not running",
@@ -12648,7 +12654,11 @@
             "target": "Reach through SSH host",
             "port": "Server port",
             "link": "Use SSH",
-            "linking": "Connecting…"
+            "linking": "Connecting…",
+            "pendingLink": "Connecting through SSH didn’t finish.",
+            "pendingUnlink": "Stopping SSH access didn’t finish.",
+            "retry": "Retry",
+            "cancelLink": "Cancel"
           },
           "search": {
             "title": "Managed servers",
@@ -18156,6 +18166,13 @@
           "deleteTable": "Delete table"
         }
       }
+    },
+    "startup": {
+      "webHostUnreachable": {
+        "title": "Couldn't reach your Orca host",
+        "description": "Nothing was lost. Orca will reload when the host answers, and won't save changes until then.",
+        "retry": "Retry now"
+      }
     }
   },
   "components": {
@@ -18921,6 +18938,12 @@
       },
       "claudeSignIn": {
         "signingIn": "Signing in…"
+      },
+      "hostPermission": {
+        "checking": "Checking this host's chat permissions…",
+        "launchRefused": "Orca did not start a {{value0}} chat",
+        "outdatedHost": "This host runs an older Orca that ignores chat permissions, so {{value0}} would run here without asking. Update Orca on this host to use {{value1}}.",
+        "unverified": "Orca couldn't confirm this host applies chat permissions. Reconnect to it to send."
       }
     },
     "tab": {

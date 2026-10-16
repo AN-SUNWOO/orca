@@ -5,14 +5,14 @@ import { worktreeHostMatchOptions, worktreeMatchesHost } from './worktree-host-o
 
 /**
  * Applies a host's published order save to one repo's rows in place.
- * Why no sortEpoch bump: an order save must not schedule the next Smart re-sort (#27268).
+ * Why sortOrderEpoch, not sortEpoch: an order save must not schedule the next live Smart re-sort (#27268).
  */
 export function patchWorktreeSortOrders(
   state: AppState,
   repoId: string,
   hostId: ExecutionHostId,
   sortOrders: readonly WorktreeSortOrderUpdate[]
-): Pick<AppState, 'worktreesByRepo'> | AppState {
+): Pick<AppState, 'worktreesByRepo' | 'sortOrderEpoch'> | AppState {
   const current = state.worktreesByRepo[repoId]
   if (!current || sortOrders.length === 0) {
     return state
@@ -33,7 +33,12 @@ export function patchWorktreeSortOrders(
     changed = true
     return { ...worktree, sortOrder }
   })
-  return changed ? { worktreesByRepo: { ...state.worktreesByRepo, [repoId]: next } } : state
+  return changed
+    ? {
+        worktreesByRepo: { ...state.worktreesByRepo, [repoId]: next },
+        sortOrderEpoch: state.sortOrderEpoch + 1
+      }
+    : state
 }
 
 /** False when a published row is missing here, so the listing needs a refetch rather than a patch. */

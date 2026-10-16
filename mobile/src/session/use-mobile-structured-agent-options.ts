@@ -6,10 +6,7 @@ import type {
   AgentSessionOptionResult,
   AgentSessionOptionsResult
 } from '../../../src/shared/agent-session-wire'
-import type {
-  SessionOptionsSurface,
-  SessionOptionValue
-} from '../../../src/shared/native-chat-session-options'
+import type { SessionOptionValue } from '../../../src/shared/native-chat-session-options'
 import {
   applyStructuredAgentSessionOptions,
   canSetStructuredAgentSessionOption,
@@ -23,8 +20,13 @@ import {
   structuredAgentSessionOptionView,
   structuredAgentSessionShownSnapshot
 } from '../../../src/shared/structured-agent-session-option-view'
-import { AGENT_CHAT_PERMISSION_MODE_OPTION_ID } from '../../../src/shared/agent-chat-permission-mode'
+import {
+  AGENT_CHAT_PERMISSION_MODE_OPTION_ID,
+  agentChatPermissionModes
+} from '../../../src/shared/agent-chat-permission-mode'
+import { legacyHostPermissionDescriptor } from '../../../src/shared/structured-agent-session-permission-option'
 import type { RpcClient } from '../transport/rpc-client'
+import type { StructuredAgentSessionHostSupport } from './mobile-structured-agent-session-host-support'
 import {
   callAgentSession,
   type StructuredAgentSessionMutate
@@ -36,6 +38,7 @@ import {
   mobileCreatedStructuredSession
 } from './mobile-created-structured-sessions'
 import { encodeStructuredAgentSessionOptionValue } from '../../../src/shared/structured-agent-session-option-codec'
+import { useMobileStructuredOptionSurface } from './use-mobile-structured-option-surface'
 
 export function useMobileStructuredAgentOptions(args: {
   agent: string | null
@@ -46,9 +49,11 @@ export function useMobileStructuredAgentOptions(args: {
   mutate: StructuredAgentSessionMutate
   /** Moves when the host's status says a session option changed; each move re-reads them. */
   optionStamp?: string
-  takesSendOptions: boolean
+  /** What the host advertised; null until its status probe answers. */
+  hostSupport: Pick<StructuredAgentSessionHostSupport, 'sendOptions' | 'permissionModes'> | null
 }) {
-  const { agent, client, enabled, fence, mutate, optionStamp, sessionId, takesSendOptions } = args
+  const { agent, client, enabled, fence, mutate, optionStamp, sessionId, hostSupport } = args
+  const takesSendOptions = hostSupport?.sendOptions === true
   // Every agent's seed, as on the desktop: a built-in list or the provider-default pill.
   const optionCatalog = useMemo(
     () => (agent ? structuredAgentSessionSeedCatalog(agent) : null),
@@ -69,10 +74,6 @@ export function useMobileStructuredAgentOptions(args: {
     },
     []
   )
-  const [optionPickerRequest, setOptionPickerRequest] = useState<{
-    id: string
-    sequence: number
-  } | null>(null)
   const [conversationSupport, setConversationSupport] = useState<{
     sessionId: string
     commands: readonly AgentSessionConversationCommand[]
@@ -80,6 +81,8 @@ export function useMobileStructuredAgentOptions(args: {
   const [imageSupport, setImageSupport] = useState<{
     sessionId: string
     acceptsImages: boolean | undefined
+    /** The answer named the chat's permission mode, as only a host applying modes does. */
+    statesPermissionMode: boolean
   } | null>(null)
 
   const optionIdentityRef = useRef(`${agent}:${sessionId}`)
@@ -137,7 +140,11 @@ export function useMobileStructuredAgentOptions(args: {
         forgetMobileCreatedStructuredSession(sessionId)
         // Not an option value: a pick made during the read leaves it standing.
         if (!stale) {
-          setImageSupport({ sessionId, acceptsImages: result.acceptsImages })
+          setImageSupport({
+            sessionId,
+            acceptsImages: result.acceptsImages,
+            statesPermissionMode: result.current?.permissionMode !== undefined
+          })
         }
         if (!stale && optionMutationGeneration.current === readGeneration) {
           setConversationSupport({ sessionId, commands: result.conversationCommands ?? [] })
@@ -163,10 +170,18 @@ export function useMobileStructuredAgentOptions(args: {
     updateOptionState
   ])
 
-  const optionSnapshot = useMemo(
-    () => structuredAgentSessionShownSnapshot(optionState, takesSendOptions),
-    [optionState, takesSendOptions]
-  )
+  // A host predating per-chat modes (1.4.224 and older) states none: say what its chats run instead.
+  const legacyHostPermissions =
+    agent !== null &&
+    agentChatPermissionModes(agent) !== null &&
+    hostSupport?.permissionModes === false &&
+    imageSupport?.sessionId === sessionId &&
+    !imageSupport.statesPermissionMode &&
+    optionState.permissionMode === null
+  const optionSnapshot = useMemo(() => {
+    const shown = structuredAgentSessionShownSnapshot(optionState, takesSendOptions)
+    return legacyHostPermissions ? [...shown, legacyHostPermissionDescriptor()] : shown
+  }, [legacyHostPermissions, optionState, takesSendOptions])
 
   const setStructuredOption = useCallback(
     async (id: string, value: SessionOptionValue): Promise<boolean> => {
@@ -273,36 +288,13 @@ export function useMobileStructuredAgentOptions(args: {
     [agent, client, mutate, optionCatalog, sessionId, takesSendOptions, updateOptionState]
   )
 
-  const invokeStructuredOption = useCallback(
-    async (id: string) => {
-      if (!optionSnapshot.some((entry) => entry.id === id)) {
-        return false
-      }
-      setOptionPickerRequest((current) => ({ id, sequence: (current?.sequence ?? 0) + 1 }))
-      return true
-    },
-    [optionSnapshot]
-  )
-
-  const setOption = useCallback(
-    async (id: string, value: SessionOptionValue) => {
-      await setStructuredOption(id, value)
-      return {
-        snapshot: structuredAgentSessionShownSnapshot(optionStateRef.current, takesSendOptions)
-      }
-    },
-    [setStructuredOption, takesSendOptions]
-  )
-
-  const optionSurface = useMemo<SessionOptionsSurface>(
-    () => ({
-      getSnapshot: () => optionSnapshot,
-      setOption,
-      invokeAction: async () => ({ snapshot: optionSnapshot }),
-      subscribe: () => () => {}
-    }),
-    [optionSnapshot, setOption]
-  )
+  const { optionPickerRequest, invokeStructuredOption, optionSurface } =
+    useMobileStructuredOptionSurface({
+      optionSnapshot,
+      setStructuredOption,
+      optionStateRef,
+      takesSendOptions
+    })
 
   return {
     optionPickerRequest,

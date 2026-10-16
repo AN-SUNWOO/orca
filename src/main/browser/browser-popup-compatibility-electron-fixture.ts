@@ -143,6 +143,8 @@ async function createHost(name: string, partition: string, nativeControl = false
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Hidden popup probes still need compositor frames for real CDP input.
+      backgroundThrottling: false,
       webviewTag: true
     }
   })

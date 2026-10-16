@@ -29,6 +29,8 @@ import {
   consumeInactiveForegroundImmediateBudget
 } from './foreground-output-scan'
 
+import { terminalInputEchoAllowanceMs } from './terminal-input-echo-delay'
+
 import type { ConnectPanePtySession } from './connect-pane-pty-session'
 
 export function bindForegroundOutputRefresh(session: ConnectPanePtySession): void {
@@ -261,7 +263,7 @@ export function bindForegroundOutputRefresh(session: ConnectPanePtySession): voi
     }
     const recentInput =
       performance.now() - session.lastInteractiveRedrawInputAt <=
-      FOREGROUND_INTERACTIVE_REDRAW_WINDOW_MS
+      FOREGROUND_INTERACTIVE_REDRAW_WINDOW_MS + terminalInputEchoAllowanceMs(session.inputEchoDelay)
     if (
       recentInput &&
       data.length <= FOREGROUND_INTERACTIVE_REDRAW_CHARS &&
@@ -303,7 +305,7 @@ export function bindForegroundOutputRefresh(session: ConnectPanePtySession): voi
       session.foregroundRewriteOutputPrefersRenderRefresh(data)
     const recentInput =
       performance.now() - session.lastInteractiveRedrawInputAt <=
-      FOREGROUND_INTERACTIVE_REDRAW_WINDOW_MS
+      FOREGROUND_INTERACTIVE_REDRAW_WINDOW_MS + terminalInputEchoAllowanceMs(session.inputEchoDelay)
     if (session.foregroundRendererRiskOutputPrefersRenderRefresh(data)) {
       return {
         refresh: true,

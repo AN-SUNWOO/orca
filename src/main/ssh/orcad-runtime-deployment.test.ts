@@ -36,7 +36,8 @@ const mocks = vi.hoisted(() => {
     closeTunnel: vi.fn(),
     readTransaction: vi.fn(),
     wake: vi.fn(),
-    localVersion: vi.fn()
+    localVersion: vi.fn(),
+    fenceRefusal: vi.fn()
   }
 })
 
@@ -55,6 +56,9 @@ vi.mock('../orcad/orcad-artifact-materializer', () => ({
   materializeOrcadArtifact: async () => '/local/orcad'
 }))
 vi.mock('./orcad-managed-wake', () => ({ wakeStoppedManagedOrcad: mocks.wake }))
+vi.mock('./orcad-activation-fence-hold', () => ({
+  orcadActivationFenceRefusal: mocks.fenceRefusal
+}))
 vi.mock('./orcad-remote-build-hash', () => ({
   readRemoteOrcadBuildHash: async () => 'running-hash'
 }))
@@ -359,6 +363,23 @@ describe('createManagedOrcadEnvironment', () => {
       expect(target.orcadProvisioning).toBeUndefined()
     })
 
+    it('a relay migration onto a rebooted host starts the stopped build and pairs (#28833)', async () => {
+      target = { ...target, orcadFence: { environmentId: 'env-m' }, generation: 9 }
+      writeOrcadMigrationSourceCutover(
+        userDataPath,
+        orcadMigrationCutoverFixture('m-1', 'ssh-1', { generation: 9, environmentId: 'env-m' })
+      )
+      mocks.wake.mockResolvedValueOnce({ outcome: 'started', readiness: readiness() })
+      await expect(
+        createManagedOrcadEnvironment(userDataPath, {
+          name: 'Managed',
+          sshTargetId: 'ssh-1',
+          migration: true
+        })
+      ).resolves.toMatchObject({ outcome: 'already-current', activeVersion: OTHER })
+      expect(mocks.deploy).not.toHaveBeenCalled()
+    })
+
     it('starts nothing for a migration whose running build is unverifiable', async () => {
       target = { ...target, orcadFence: { environmentId: 'env-m' }, generation: 9 }
       writeOrcadMigrationSourceCutover(
@@ -446,6 +467,47 @@ describe('createManagedOrcadEnvironment', () => {
       const result = await deploy()
       expect(mocks.deploy).not.toHaveBeenCalled()
       expect(result).toMatchObject({ outcome: 'already-current', activeVersion: OTHER })
+    })
+
+    it('after a reboot, waits on the desktop starting the server, then pairs on reconnect (#28833)', async () => {
+      // Every desktop reconnects at once; the one that loses the race to start the stopped server
+      // used to deploy its own build, which over an uncounted host could only defer on the census.
+      mocks.deploy.mockResolvedValue({
+        outcome: 'installed-not-activated',
+        fullVersion: VERSION,
+        code: 'orcad_update_terminal_census_unavailable',
+        reason: 'The terminal daemon did not answer a session count'
+      })
+      mocks.wake.mockResolvedValueOnce({ outcome: 'fenced' })
+      mocks.fenceRefusal.mockResolvedValueOnce({
+        code: 'orcad_activation_fence_busy',
+        reason: 'Another run is changing this host’s managed server.'
+      })
+      await expect(deploy()).resolves.toMatchObject({
+        outcome: 'deferred',
+        code: 'orcad_activation_fence_busy',
+        forceable: false
+      })
+      expect(mocks.deploy).not.toHaveBeenCalled()
+      expect(listEnvironments(userDataPath)).toEqual([])
+
+      mocks.wake.mockResolvedValueOnce({ outcome: 'serving' })
+      await expect(deploy()).resolves.toMatchObject({
+        outcome: 'already-current',
+        activeVersion: OTHER
+      })
+      expect(mocks.deploy).not.toHaveBeenCalled()
+      expect(listEnvironments(userDataPath)).toHaveLength(1)
+    })
+
+    it('counts terminals against the record a stop by another desktop left, not the stale one', async () => {
+      mocks.wake.mockResolvedValueOnce({ outcome: 'not-activated' })
+      const stopped = withDeactivatedVersion(activeRecord(OTHER))
+      mocks.readRecord.mockResolvedValue(stopped)
+      await deploy()
+      const options: OrcadDeployOptions | undefined = mocks.deploy.mock.calls[0]?.[0]
+      expect(options?.censusRecord).toEqual(stopped)
+      expect(options?.census.liveSessions).toBe(0)
     })
 
     it('registers nothing and stops nothing when the running build is unverifiable', async () => {

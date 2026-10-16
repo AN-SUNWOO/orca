@@ -14,19 +14,18 @@ async function run(): Promise<void> {
   })
   const before = '<iframe src="data:text/html,host before"></iframe>'
   const after = '<iframe src="data:text/html,host after"></iframe>'
+  const guestURL = `data:text/html,${encodeURIComponent('<p>needle one</p><p>needle two</p>')}`
+  const guestReadyScript = `(() => {
+    const range = document.createRange();
+    range.selectNodeContents(document.body);
+    const bounds = range.getBoundingClientRect();
+    return document.readyState === 'complete'
+      && location.href === ${JSON.stringify(guestURL)}
+      && document.body.textContent === 'needle oneneedle two'
+      && bounds.width > 0 && bounds.height > 0;
+  })()`
   const results: unknown[] = []
   for (const position of ['before', 'after', 'both']) {
-    const ready = new Promise<void>((resolve) => {
-      const listener = (
-        details: Electron.Event<Electron.WebContentsConsoleMessageEventParams>
-      ): void => {
-        if (details.message === 'find-fixture-ready') {
-          window.webContents.removeListener('console-message', listener)
-          resolve()
-        }
-      }
-      window.webContents.on('console-message', listener)
-    })
     await window.loadURL(
       `data:text/html,${encodeURIComponent(`<!doctype html><body>
         ${position !== 'after' ? before : ''}
@@ -35,11 +34,22 @@ async function run(): Promise<void> {
         ${position !== 'before' ? after : ''}
         <script>
           const guest = document.querySelector('webview');
-          guest.addEventListener('dom-ready', () => console.log('find-fixture-ready'), { once: true });
-          guest.src = 'data:text/html,<p>needle one</p><p>needle two</p>';
+          const guestURL = ${JSON.stringify(guestURL)};
+          window.findFixtureReady = new Promise(resolve => {
+            const listener = () => {
+              if (guest.getURL() !== guestURL) return;
+              guest.removeEventListener('did-finish-load', listener);
+              resolve(guest.executeJavaScript(${JSON.stringify(guestReadyScript)}));
+            };
+            guest.addEventListener('did-finish-load', listener);
+            guest.src = guestURL;
+          });
         </script>`)}`
     )
-    await ready
+    const ready: unknown = await window.webContents.executeJavaScript('window.findFixtureReady')
+    if (ready !== true) {
+      throw new Error(`Find traversal guest is not ready: ${position}`)
+    }
     // Keep the search field focused, as BrowserFind does while typing and pressing Enter.
     const result: unknown = await window.webContents.executeJavaScript(`(async () => {
       const guest = document.querySelector('webview');
@@ -49,14 +59,15 @@ async function run(): Promise<void> {
         for (let step = 0; step < 4; step++) {
           document.querySelector('input').focus();
           const result = await new Promise(resolve => {
+            let requestId = -1;
             const listener = event => {
-              if (event.result.finalUpdate) {
+              if (event.result.requestId === requestId && event.result.finalUpdate) {
                 guest.removeEventListener('found-in-page', listener);
                 resolve(event.result);
               }
             };
             guest.addEventListener('found-in-page', listener);
-            guest.findInPage('needle', { findNext: step === 0, forward });
+            requestId = guest.findInPage('needle', { findNext: step === 0, forward });
           });
           results.push({ forward, matches: result.matches, ordinal: result.activeMatchOrdinal });
         }

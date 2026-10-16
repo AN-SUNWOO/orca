@@ -1,6 +1,6 @@
 import { lstat } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
-import type { Store } from '../../persistence'
+import type { RuntimeStore } from '../runtime-store-contract'
 import { resolveAuthorizedPath, type ResolveAuthorizedPathOptions } from '../../ipc/filesystem-auth'
 import { isENOENT } from '../../ipc/filesystem-path-containment'
 import { nativeChatScratchRootFor } from '../../native-chat/native-chat-scratch-folder'
@@ -16,7 +16,7 @@ function chatScratchRoot(): string {
 /** Runtime file commands' root check: the store's roots plus this host's chat scratch root. */
 export function resolveRuntimeAuthorizedPath(
   targetPath: string,
-  store: Store,
+  store: RuntimeStore,
   options: ResolveAuthorizedPathOptions = {}
 ): Promise<string> {
   return resolveAuthorizedPath(targetPath, store, { ...options, extraRoots: [chatScratchRoot()] })

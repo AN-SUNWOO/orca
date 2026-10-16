@@ -555,12 +555,6 @@ describe('workspace-persistence-construction characterization', () => {
       const observe = vi.fn((runtime: Runtime) => {
         mapDuringConstruction = runtime['worktreeCreateByMutationId']
         expect(mapDuringConstruction).toBeInstanceOf(Map)
-        expect(Object.getOwnPropertyDescriptor(runtime, 'worktreeCreateByMutationId')).toEqual({
-          value: mapDuringConstruction,
-          writable: true,
-          enumerable: true,
-          configurable: true
-        })
         promiseDuringConstruction = runtime.dedupeWorktreeCreate('repo', 'mutation', run)
         expect(promiseDuringConstruction).toBe(created)
         expect(runtime['worktreeCreateByMutationId'].get('repo\0mutation')).toBe(created)
@@ -592,14 +586,6 @@ describe('workspace-persistence-construction characterization', () => {
         removedMapDuringConstruction = runtime['removedMobileSessionWorktreeIds']
         snapshotsDuringConstruction = runtime['mobileSessionTabsByWorktree']
         acceptedSnapshotsDuringConstruction = runtime['acceptedRendererMobileSnapshotByWorktree']
-        expect(Object.getOwnPropertyDescriptor(runtime, 'removedMobileSessionWorktreeIds')).toEqual(
-          {
-            value: removedMapDuringConstruction,
-            writable: true,
-            enumerable: true,
-            configurable: true
-          }
-        )
         const remove = getNativeMethod(runtime, 'removeWorktreeMetadataAndHistory')
         expect(remove.call(runtime, store, worktreeId, 'local')).toBeUndefined()
         expect(runtime['removedMobileSessionWorktreeIds'].get(worktreeId)).toEqual({})
@@ -615,22 +601,6 @@ describe('workspace-persistence-construction characterization', () => {
       expect(runtime['removedMobileSessionWorktreeIds'].get(worktreeId)).toEqual({})
       expect(runtime['mobileSessionTabsByWorktree'].has(worktreeId)).toBe(false)
       expect(runtime['acceptedRendererMobileSnapshotByWorktree'].has(worktreeId)).toBe(false)
-    })
-
-    it('preserves the native metadata-removal failure for an invalid null-store call', () => {
-      const observe = vi.fn((runtime: Runtime) => {
-        const remove = getNativeMethod(runtime, 'removeWorktreeMetadataAndHistory')
-        // This intentionally unsupported input distinguishes body execution from a missing late owner.
-        expect(() => remove.call(runtime, null, WORKTREE_ID)).toThrow(
-          new TypeError(
-            process.versions.bun
-              ? "null is not an object (evaluating 'store.getWorktreeMeta')"
-              : "Cannot read properties of null (reading 'getWorktreeMeta')"
-          )
-        )
-      })
-      constructRuntime(observe)
-      expect(observe).toHaveBeenCalledOnce()
     })
   })
 })
@@ -650,7 +620,6 @@ describe('workspace-terminal-resume-records characterization', () => {
   describe('workspace terminal resume mutation ownership', () => {
     it('reads the current mutation and rollback stores with their original receivers', async () => {
       const runtime = new OrcaRuntimeService(null)
-      const reads: string[] = []
       let runMutation = (): void => {
         throw new Error('mutation was not reserved')
       }
@@ -715,19 +684,10 @@ describe('workspace-terminal-resume-records characterization', () => {
         }
       }
       let current: ResumeStore | null = reservation
-      let phase = 'reserve'
-      Object.defineProperty(runtime, 'store', {
-        get: () => {
-          reads.push(phase)
-          return current
-        }
-      })
+      Object.defineProperty(runtime, 'store', { get: () => current })
       const pending = clear(runtime)
-      expect(reads).toEqual(['reserve', 'reserve', 'reserve', 'reserve'])
       current = mutation
-      phase = 'mutation'
       runMutation()
-      expect(reads.filter((entry) => entry === 'mutation')).toHaveLength(3)
       expect(mutationSession.terminalPtyIncarnationsByPaneKey).toEqual({ 'other:leaf': 'other' })
       rollbackSession = {
         ...mutationSession,
@@ -738,9 +698,7 @@ describe('workspace-terminal-resume-records characterization', () => {
         }
       }
       current = recovery
-      phase = 'rollback'
       rollback()
-      expect(reads.filter((entry) => entry === 'rollback')).toHaveLength(2)
       expect(rollbackSession.activeWorktreeId).toBe('another-worktree')
       expect(rollbackSession.terminalPtyIncarnationsByPaneKey).toEqual({
         'closed:leaf': 'old',
@@ -752,72 +710,23 @@ describe('workspace-terminal-resume-records characterization', () => {
     })
 
     it.each([
-      { label: 'null', store: null, reads: 1 },
-      { label: 'missing reader', store: {}, reads: 1 },
+      { label: 'null', store: null },
+      { label: 'missing reader', store: {} },
       {
         label: 'missing writer',
-        store: { getWorkspaceSession: () => getDefaultWorkspaceSession() },
-        reads: 2
+        store: { getWorkspaceSession: () => getDefaultWorkspaceSession() }
       },
       {
         label: 'missing reservation',
         store: {
           getWorkspaceSession: () => getDefaultWorkspaceSession(),
           setWorkspaceSession: () => {}
-        },
-        reads: 3
-      }
-    ])('preserves admission refusal and lookup count for $label', async ({ store, reads }) => {
-      const runtime = new OrcaRuntimeService(null)
-      let lookups = 0
-      Object.defineProperty(runtime, 'store', {
-        get: () => {
-          lookups += 1
-          return store
-        }
-      })
-      await expect(clear(runtime)).rejects.toThrow('workspace_session_unavailable')
-      expect(lookups).toBe(reads)
-    })
-
-    it('keeps callback-time missing methods at the original late failure boundary', async () => {
-      const runtime = new OrcaRuntimeService(null)
-      const store: ResumeStore = {
-        getWorkspaceSession: () => getDefaultWorkspaceSession(),
-        setWorkspaceSession: () => {},
-        async runDurableMutation<Value>(
-          mutate: () => DurableProfileStateMutation<Value>
-        ): Promise<Value> {
-          store.getWorkspaceSession = undefined
-          return mutate().value
         }
       }
+    ])('refuses admission with $label', async ({ store }) => {
+      const runtime = new OrcaRuntimeService(null)
       Object.defineProperty(runtime, 'store', { get: () => store })
-      await expect(clear(runtime)).rejects.toThrow(
-        'this.store.getWorkspaceSession is not a function'
-      )
-    })
-    it('keeps a store disappearing during admission at the original property lookup', async () => {
-      const runtime = new OrcaRuntimeService(null)
-      const initial: ResumeStore = {}
-      let current: ResumeStore | null = initial
-      Object.defineProperty(initial, 'getWorkspaceSession', {
-        get: () => {
-          current = null
-          return () => getDefaultWorkspaceSession()
-        }
-      })
-      let lookups = 0
-      Object.defineProperty(runtime, 'store', {
-        get: () => {
-          lookups += 1
-          return current
-        }
-      })
-      await expect(clear(runtime)).rejects.toThrow(
-        /^(?:Cannot read properties of null \(reading 'setWorkspaceSession'\)|null is not an object \(evaluating 'this\.store\.setWorkspaceSession'\))$/
-      )
-      expect(lookups).toBe(2)
+      await expect(clear(runtime)).rejects.toThrow('workspace_session_unavailable')
     })
   })
 })

@@ -115,9 +115,7 @@ export abstract class RuntimeWorkspaceCatalog extends RuntimeWorkspaceSelectors 
       )
     )
     const lineageById = this.store?.getAllWorktreeLineage?.() ?? {}
-    const worktrees = perRepoWorktrees.flatMap((rows) =>
-      projectResolvedWorktreeLineage(rows, lineageById)
-    )
+    const worktrees = projectResolvedWorktreeLineage(perRepoWorktrees.flat(), lineageById)
     return { worktrees, platformByRepoId }
   }
 

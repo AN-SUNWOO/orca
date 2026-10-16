@@ -12,7 +12,12 @@ import { recordSessionScanIssue } from './session-scan-issues'
 import type { FileWithMtime, SessionFileDiscovery } from './session-scanner-types'
 import { errorMessage } from './session-scanner-values'
 import { throwIfAiVaultScanCancelled } from './ai-vault-scan-cancellation'
-import { noteAiVaultScanProgress } from './ai-vault-scan-progress'
+import {
+  noteAiVaultScanFileFound,
+  noteAiVaultScanProgress,
+  noteAiVaultScanWorkChanged,
+  openAiVaultScanSource
+} from './ai-vault-scan-progress'
 
 const NATIVE_DISCOVERY_CONCURRENCY = 4
 const NATIVE_DISCOVERY_BATCH_SIZE = 16
@@ -47,16 +52,20 @@ export async function discoverFiles(args: {
   let paths: string[] = []
   let pending: Promise<SessionFileObservation[]> | null = null
   const native = !isWslUncPath(args.rootDir)
+  const source = { close: (): void => undefined }
 
   function consume(observations: readonly SessionFileObservation[]): void {
     // A stat the cancel cut short is not an unreadable file; never record it.
     throwIfAiVaultScanCancelled(args.signal)
-    noteAiVaultScanProgress(args.signal)
     for (const observation of observations) {
       if ('issue' in observation) {
-        recordSessionScanIssue(args.issues, { agent: args.agent, ...observation.issue })
+        recordSessionScanIssue(args.issues, {
+          agent: args.agent,
+          ...observation.issue
+        })
         continue
       }
+      noteAiVaultScanFileFound(args.signal, args.agent, observation.file)
       if (observation.file.sidecar === 'unknown' && !refusedSidecar) {
         refusedSidecar = true
         recordSessionScanIssue(args.issues, {
@@ -68,7 +77,10 @@ export async function discoverFiles(args: {
       try {
         const modifiedAt = new Date(observation.file.mtimeMs)
         if (Number.isNaN(modifiedAt.getTime()) || files.wouldRetain(observation.file.mtimeMs)) {
-          files.add({ ...observation.file, modifiedAt: modifiedAt.toISOString() })
+          files.add({
+            ...observation.file,
+            modifiedAt: modifiedAt.toISOString()
+          })
         }
       } catch (err) {
         recordSessionScanIssue(args.issues, {
@@ -78,6 +90,8 @@ export async function discoverFiles(args: {
         })
       }
     }
+    noteAiVaultScanProgress(args.signal)
+    noteAiVaultScanWorkChanged(args.signal)
   }
 
   async function finishPending(): Promise<void> {
@@ -121,6 +135,17 @@ export async function discoverFiles(args: {
     return observations.flat()
   }
 
+  async function readDirectory(path: string): Promise<Dirent[]> {
+    const entries = native
+      ? await withNativeDiscoverySlot(() => wslGatedReaddir(path, 'scan', args.signal))
+      : await wslGatedReaddir(path, 'scan', args.signal)
+    // A listed root is a history folder being walked; a missing one never shows.
+    if (path === args.rootDir) {
+      source.close = openAiVaultScanSource(args.signal, args.agent)
+    }
+    return entries
+  }
+
   try {
     try {
       await forEachSessionFile(
@@ -132,12 +157,7 @@ export async function discoverFiles(args: {
           filePredicate: args.filePredicate,
           directoryPredicate: args.directoryPredicate,
           signal: args.signal,
-          ...(native
-            ? {
-                readDirectory: (path: string) =>
-                  withNativeDiscoverySlot(() => wslGatedReaddir(path, 'scan', args.signal))
-              }
-            : {})
+          readDirectory
         },
         native
           ? queueNativeFile
@@ -165,6 +185,8 @@ export async function discoverFiles(args: {
       message: err.message
     })
     return { agent: args.agent, rootDir: args.rootDir, files: [] }
+  } finally {
+    source.close()
   }
   return { agent: args.agent, rootDir: args.rootDir, files: files.newest() }
 }
@@ -211,7 +233,11 @@ async function observeSessionSidecar(
   }
   try {
     const fileStat = await wslGatedStat(filePath, 'scan', signal)
-    return { path: filePath, mtimeMs: fileStat.mtimeMs, sizeBytes: fileStat.size }
+    return {
+      path: filePath,
+      mtimeMs: fileStat.mtimeMs,
+      sizeBytes: fileStat.size
+    }
   } catch (error) {
     return isMissingSidecarError(error) ? 'none' : 'unknown'
   }

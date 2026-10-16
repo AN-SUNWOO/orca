@@ -11,6 +11,8 @@ import type { RuntimeNavigationTarget } from './runtime-navigation'
 
 export type RuntimeClientEvent =
   | { type: 'reposChanged' }
+  /** The Workspace options UI state changed; a mirroring phone re-reads it. */
+  | { type: 'workspaceViewChanged' }
   | { type: 'worktreesChanged'; repoId: string; sortOrderOnly?: boolean }
   | ({ type: 'nativeChatLaunchDraftResolved' } & RuntimeNativeChatLaunchDraftResolution)
   | { type: 'terminalSideEffects'; batch: TerminalSideEffectBatch }

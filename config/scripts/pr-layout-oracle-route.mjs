@@ -72,7 +72,11 @@ const RUNTIME_LAYOUT_WRITERS = [
   'src/main/runtime/terminal/launch/terminal-split-surface.ts',
   'src/main/runtime/terminal/stop/worktree-terminal-stop.ts',
   'src/main/runtime/workspaces/workspace-file-session-targets.ts',
-  'src/main/runtime/workspaces/persisted-surfaces/has-exact-persisted-terminal-surface-identity.ts'
+  'src/main/runtime/workspaces/persisted-surfaces/has-exact-persisted-terminal-surface-identity.ts',
+  'src/main/runtime/runtime-terminal-orphan-adoption.ts',
+  'src/main/runtime/terminal/adoption/adopt-terminal-orphans-from-inventory.ts',
+  'src/main/runtime/session-tabs/mobile-session-membership.ts',
+  'src/main/runtime/session-tabs/pty-backed-session-publication.ts'
 ]
 
 // Runtime matches only the modules that create, move, close, persist or publish layout.

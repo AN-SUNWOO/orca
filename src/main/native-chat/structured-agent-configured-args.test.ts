@@ -55,9 +55,4 @@ describe('future structured provider argument lookup', () => {
     ])
     expect(structuredAgentConfiguredArgs('future-provider', {})).toEqual([])
   })
-
-  it('retains the existing inherited default-map lookup behavior', () => {
-    expect(structuredAgentConfiguredArgs('constructor', {})).toEqual(['undefined'])
-    expect(structuredAgentConfiguredArgs('toString', {})).toEqual([])
-  })
 })

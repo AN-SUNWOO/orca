@@ -1,3 +1,4 @@
+import type { WorktreeOccurrencePlan } from '../../../../../../shared/worktree-occurrence-plan'
 import type React from 'react'
 import type { Virtualizer } from '@tanstack/react-virtual'
 import type { AppState } from '@/store/types'
@@ -17,6 +18,7 @@ import { getWorktreeRevealCollapsedGroupKeys } from './worktree-reveal-group-key
 export const MAX_REVEAL_RETRIES = 8
 
 export type PendingSidebarRevealArgs = {
+  occurrencePlan?: WorktreeOccurrencePlan<Worktree>
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null
   pendingRevealSidebarRow: PendingSidebarRowReveal | null
   clearPendingRevealWorktreeId: () => void

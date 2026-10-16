@@ -17,10 +17,8 @@ import {
   type StructuredAgentResumeInvocation,
   type StructuredAgentSessionHistory
 } from '../native-chat/structured-agent-cli-conversations'
-import {
-  STRUCTURED_AGENT_RUNTIME_REGISTRATIONS,
-  type StructuredAgentRuntimeRegistration
-} from '../runtime/structured-agent-runtime-registrations'
+import { STRUCTURED_AGENT_RUNTIME_METADATA } from '../runtime/structured-agent-runtime-metadata'
+import type { StructuredAgentRuntimeMetadata } from '../runtime/structured-agent-runtime-registration-types'
 import { commandName, commandProgramIndex, shellCommands } from './shell-command-words'
 
 /** Whether the client a projection answers opens a chat of this agent from its history row. A row
@@ -140,7 +138,7 @@ function ownershipLookup():
 /** The agent whose chats own history rows listed under `rowAgent`; null when none does. */
 function historyRowOwner(rowAgent: string): StructuredAgentId | null {
   return (
-    STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.find(({ sessionHistory }) =>
+    STRUCTURED_AGENT_RUNTIME_METADATA.find(({ sessionHistory }) =>
       sessionHistory.rowAgents.some((agent) => agent === rowAgent)
     )?.definition.agent ?? null
   )
@@ -243,8 +241,8 @@ type ResumeInvocation = StructuredAgentResumeInvocation & {
 }
 
 function parseResumeInvocations(command: string): ResumeInvocation[] {
-  const binaries = new Map<string, StructuredAgentRuntimeRegistration>()
-  for (const registration of STRUCTURED_AGENT_RUNTIME_REGISTRATIONS) {
+  const binaries = new Map<string, StructuredAgentRuntimeMetadata>()
+  for (const registration of STRUCTURED_AGENT_RUNTIME_METADATA) {
     for (const name of sessionHistoryBinaryNames(registration.sessionHistory)) {
       binaries.set(name, registration)
     }

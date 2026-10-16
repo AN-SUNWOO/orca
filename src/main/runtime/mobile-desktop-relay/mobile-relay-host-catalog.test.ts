@@ -111,7 +111,6 @@ function catalog(
   hosts: MobileDesktopRelayHosts,
   labels = new Map(),
   desktop: {
-    hidesWorkspacesFromOtherDevices?: boolean
     sessions?: Record<string, Partial<WorkspaceSessionState>>
   } = {}
 ) {
@@ -119,7 +118,6 @@ function catalog(
     catalog: new MobileRelayHostCatalog({
       hosts,
       hostLabelOverrides: () => labels,
-      hidesWorkspacesFromOtherDevices: () => desktop.hidesWorkspacesFromOtherDevices ?? false,
       getWorkspaceSession: (hostId) => {
         const session = desktop.sessions?.[hostId]
         return session ? { ...getDefaultWorkspaceSession(), ...session } : null
@@ -444,15 +442,11 @@ describe("mobile relay host catalog: the desktop sidebar's own view of server ro
     return (rows.worktrees ?? []).filter((row) => row[field] === true).map((row) => row.worktreeId)
   }
 
-  it('marks rows someone else created while the desktop hides them', async () => {
-    const rows = await serverRows({ hidesWorkspacesFromOtherDevices: true })
+  it('marks rows someone else created, whatever the desktop filter says', async () => {
+    const rows = await serverRows({})
     expect(marked(rows, 'desktopOtherClient')).toEqual(['other', 'server'])
     // Marked, never dropped: deep links and lineage still resolve every row.
     expect(rows.worktrees).toHaveLength(creators.length)
-  })
-
-  it('marks nothing while the desktop shows other-client workspaces', async () => {
-    expect(marked(await serverRows({}), 'desktopOtherClient')).toEqual([])
   })
 
   it('marks nothing on a server whose pairing the desktop cannot name', async () => {
@@ -460,9 +454,7 @@ describe("mobile relay host catalog: the desktop sidebar's own view of server ro
       { id: 'env', name: 'Box', snapshot: snapshot('env', 'live') }
     ])
     call.mockResolvedValue(psReply(creators))
-    const rows = await catalog(hosts, new Map(), {
-      hidesWorkspacesFromOtherDevices: true
-    }).catalog.worktrees('runtime:env')
+    const rows = await catalog(hosts, new Map()).catalog.worktrees('runtime:env')
     expect(marked(rows, 'desktopOtherClient')).toEqual([])
   })
 

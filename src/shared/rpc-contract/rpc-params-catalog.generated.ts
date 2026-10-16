@@ -582,7 +582,11 @@ import {
   TerminalUpdateViewport
 } from './terminal-viewport-schemas-params'
 import { UpdaterCheckParams } from './updater-params'
-import { LayoutSubscribeParams, LayoutUnsubscribeParams } from './workspace-layout-params'
+import {
+  LayoutApplyParams,
+  LayoutSubscribeParams,
+  LayoutUnsubscribeParams
+} from './workspace-layout-params'
 import {
   WorkspacePortKillHostParams,
   WorkspacePortKillParams,
@@ -1024,6 +1028,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'jira.status': null,
   'jira.testConnection': SiteSelection,
   'jira.updateIssue': IssueUpdate,
+  'layout.apply': LayoutApplyParams,
   'layout.getRemoteSnapshots': null,
   'layout.subscribe': LayoutSubscribeParams,
   'layout.unsubscribe': LayoutUnsubscribeParams,

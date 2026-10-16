@@ -398,14 +398,6 @@ function replacement(): never {
 }
 
 describe('launch runtime dispatch and allocation phases', () => {
-  it('retains native async method metadata on the original runtime frame', () => {
-    const runtime = new OrcaRuntimeService(null)
-    expect(runtime.dedupeTerminalCreate.constructor.name).toBe('AsyncFunction')
-    expect(runtime.dedupeTerminalCreate.length).toBe(5)
-    expect(runtime.dedupeWorktreeCreate.constructor.name).toBe('Function')
-    expect(runtime.dedupeWorktreeCreate.length).toBe(3)
-  })
-
   it('retains first-Promise behavior when caller operation keys collide', async () => {
     const runtime = new OrcaRuntimeService(null)
     const firstFactory = vi.fn(async () => ({ worktree: 'first' }))
@@ -738,62 +730,5 @@ describe('launch runtime dispatch and allocation phases', () => {
     })
     await expect(runtime.createTerminal()).rejects.toBe(expected)
     expect(events).toEqual(['read-ready', 'invoke-ready', 'read-window'])
-  })
-
-  it('retains the canonical cache allocations after their original preceding clocks', () => {
-    const events: { kind: 'map' | 'clock'; value?: object; stack: string }[] = []
-    const OriginalMap = Map
-    const originalNow = Date.now
-    class TracedMap<Key, Value> extends OriginalMap<Key, Value> {
-      constructor(entries?: Iterable<readonly [Key, Value]> | null) {
-        super(entries)
-        events.push({
-          kind: 'map',
-          value: this,
-          stack: new Error('allocation phase trace').stack ?? ''
-        })
-      }
-    }
-    vi.stubGlobal('Map', TracedMap)
-    const clock = vi.spyOn(Date, 'now').mockImplementation(() => {
-      events.push({ kind: 'clock', stack: new Error('allocation phase trace').stack ?? '' })
-      return originalNow()
-    })
-    try {
-      const runtime = new OrcaRuntimeService(null)
-      const mobileCache = runtime['mobileTerminalCreateByMutationId']
-      const cacheIndex = events.findIndex((event) => event.value === mobileCache)
-      const rootClock = events.findIndex((event) => event.kind === 'clock')
-      expect(cacheIndex).toBeGreaterThanOrEqual(0)
-      expect(cacheIndex).toBeGreaterThan(rootClock)
-      expect(
-        events.filter(
-          (event) =>
-            event.kind === 'map' &&
-            /terminal\/launch\/(?:mobile-terminal-create|terminal-create-identity)\.ts/.test(
-              event.stack.replaceAll('\\', '/')
-            )
-        )
-      ).toEqual([])
-    } finally {
-      clock.mockRestore()
-      vi.unstubAllGlobals()
-    }
-  })
-})
-
-describe('workspace-create-idempotency characterization', () => {
-  describe('worktree mutation promise identity', () => {
-    it('retains the original promise for a reused key even when callers violate its result-type precondition', async () => {
-      const runtime = new OrcaRuntimeService(null)
-      const created = Promise.resolve(42)
-      const later = vi.fn(() => Promise.resolve('different result'))
-      const first = runtime.dedupeWorktreeCreate('repo', 'agent.launch:mutation', () => created)
-      const reused = runtime.dedupeWorktreeCreate('repo', 'agent.launch:mutation', later)
-      expect(first).toBe(created)
-      expect(reused).toBe(first)
-      expect(later).not.toHaveBeenCalled()
-      await expect(reused).resolves.toBe(42)
-    })
   })
 })

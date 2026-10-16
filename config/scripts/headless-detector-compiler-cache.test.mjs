@@ -74,6 +74,7 @@ it('activates the compiler and workspace-policy parser and preserves import grap
     'node-server-change-scope',
     'node-server-test-paths',
     'node-server-qualification',
+    'node-server-native-compat-scope',
     'orcad-entry-build',
     'workspace-source-exports'
   ]) {

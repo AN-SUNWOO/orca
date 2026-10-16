@@ -79,6 +79,7 @@ export function useStructuredAgentSessionOptionState(args: {
     sessionId: string
     commands: readonly AgentSessionConversationCommand[]
     threadGoal: AgentSessionOptionsResult['threadGoal']
+    reportedThreadGoal: AgentSessionOptionsResult['reportedThreadGoal']
     contextUsage: AgentSessionOptionsResult['contextUsage']
     acceptsImages: boolean | undefined
     rewind: AgentSessionRewindSupport
@@ -159,6 +160,7 @@ export function useStructuredAgentSessionOptionState(args: {
           sessionId,
           commands: result.conversationCommands ?? [],
           threadGoal: result.threadGoal,
+          reportedThreadGoal: result.reportedThreadGoal,
           contextUsage: result.contextUsage,
           acceptsImages: result.acceptsImages,
           // A host that predates rewind does not name it.

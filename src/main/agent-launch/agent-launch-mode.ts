@@ -24,7 +24,7 @@ import type {
   AgentLaunchModeReceipt
 } from '../../shared/agent-launch-intent'
 import { RUNTIME_CAPABILITIES } from '../../shared/protocol-version'
-import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-agent-runtime-registrations'
+import { STRUCTURED_AGENT_RUNTIME_METADATA } from '../runtime/structured-agent-runtime-metadata'
 import {
   isNativeChatEnabled,
   resolveStructuredNativeChatSupport,
@@ -83,7 +83,7 @@ export type AgentLaunchModePlacement = {
   callerRendersStructured?: boolean
 }
 
-const REGISTERED_STRUCTURED_AGENTS: readonly string[] = STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map(
+const REGISTERED_STRUCTURED_AGENTS: readonly string[] = STRUCTURED_AGENT_RUNTIME_METADATA.map(
   ({ definition }) => definition.agent
 )
 

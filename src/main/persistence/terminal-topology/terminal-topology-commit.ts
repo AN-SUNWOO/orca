@@ -7,10 +7,13 @@ import type {
 import type { WorkspaceSessionState } from '../../../shared/workspace-session-state-types'
 import type {
   CommandOf,
+  LayoutApplyOutcome,
+  LayoutCommand,
   LayoutRefusalCode
 } from '../../../shared/workspace-layout/workspace-layout-command-types'
 import {
   admitPaneToSession,
+  applyCommandToSession,
   withdrawPaneFromSession,
   type PaneLayoutChange,
   type TerminalPaneAdmission,
@@ -21,7 +24,11 @@ import {
   terminalSurfaceCloseMutation,
   type TerminalSurfaceCloseCommit
 } from '../../runtime/terminal-surface-close'
-import type { DurableProfileStateMutation } from '../loading-store/store-runtime-state'
+import type {
+  DurableProfileStateMutation,
+  StoreRuntimeState
+} from '../loading-store/store-runtime-state'
+import type { SessionHostPartitionOperations } from '../loading-store/session-host-partitions'
 import { planTerminalLeafMove, rekeyMovedLeafProfileRecords } from './terminal-leaf-move'
 import { assignWorkspaceSessionPartition } from './terminal-topology-membership'
 import { keepWslMoveFrozenSessionsForStore } from '../moving-wsl-projects/wsl-move-session-freeze'
@@ -36,6 +43,7 @@ type TerminalTopologyCommitKind =
   | 'move_leaf'
   | 'admit_pane'
   | 'withdraw_pane'
+  | 'apply_layout'
 
 export function closeLeafOrTab(
   commit: TerminalSurfaceCloseCommit
@@ -100,6 +108,22 @@ export function withdrawPane(
 }
 
 /**
+ * A client's layout command (`layout.apply`), applied to each partition holding its tab, routed
+ * partition first: that partition's outcome is the reply, and its refusal writes nothing.
+ */
+export function applyLayout(
+  hostIds: readonly ExecutionHostId[],
+  command: LayoutCommand,
+  context: TerminalTopologyCommitContext
+): () => DurableProfileStateMutation<LayoutApplyOutcome> {
+  return traced(
+    'apply_layout',
+    () => commitLayoutCommand(hostIds, command, context),
+    (outcome) => (outcome.ok ? undefined : outcome.code)
+  )
+}
+
+/**
  * One `persistence.terminal-topology` span per commit, from admission to the in-memory write.
  * Attributes stay low-cardinality: no pane key, PTY id or path; `refusalOf` returns a fixed code.
  */
@@ -145,6 +169,25 @@ export type TerminalTopologyCommitContext = {
   markDirty: (
     domain: 'workspaceSession' | 'workspaceSessionsByHostId' | 'ui' | 'sshRemotePtyLeases'
   ) => void
+}
+
+/** The commit context over a Store's state and its session partitions. */
+export function topologyCommitContext({
+  runtime,
+  sessions
+}: {
+  runtime: Pick<StoreRuntimeState, 'state' | 'dirtyProfileStateDomains'>
+  sessions: Pick<
+    SessionHostPartitionOperations,
+    'getWorkspaceSessionHostIds' | 'getWorkspaceSession'
+  >
+}): TerminalTopologyCommitContext {
+  return {
+    state: runtime.state,
+    hostIds: () => sessions.getWorkspaceSessionHostIds(),
+    getSession: (hostId) => sessions.getWorkspaceSession(hostId),
+    markDirty: (domain) => runtime.dirtyProfileStateDomains?.add(domain)
+  }
 }
 
 /** Writes `next`, returning a restore that puts the prior value back unless a later write replaced it. */
@@ -213,6 +256,35 @@ function commitLeafMove(
     value: planned.result,
     rollback: () => restores.forEach((restore) => restore())
   }
+}
+
+function commitLayoutCommand(
+  hostIds: readonly ExecutionHostId[],
+  command: LayoutCommand,
+  context: TerminalTopologyCommitContext
+): DurableProfileStateMutation<LayoutApplyOutcome> {
+  const changes = hostIds.map((hostId) => ({
+    hostId,
+    change: applyCommandToSession(hostId, context.getSession(hostId), command)
+  }))
+  const routed = changes[0]?.change.value
+  if (!routed) {
+    return { value: { ok: false, code: 'workspace_not_found' }, persist: false }
+  }
+  const writes = routed.ok
+    ? changes.filter(({ change }) => change.value.ok && change.session !== null)
+    : []
+  if (writes.length === 0) {
+    return { value: routed, persist: false }
+  }
+  const restores = writes.map(({ hostId, change }) =>
+    writeRestorable(
+      () => context.getSession(hostId),
+      (value) => context.markDirty(assignWorkspaceSessionPartition(context.state, hostId, value)),
+      keepFrozen(hostId, change.session!, context)
+    )
+  )
+  return { value: routed, rollback: () => restores.forEach((restore) => restore()) }
 }
 
 function commitPaneChange<T>(

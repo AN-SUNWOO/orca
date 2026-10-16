@@ -18,7 +18,8 @@ import {
   spellProviderTimelineKey
 } from '../native-chat/agent-session-timeline/provider-timeline-identity'
 import { createProviderSpawnSpec } from '../provider-process/provider-process-supervisor'
-import { acpLaunchSpecFor } from './acp-launch-specs'
+import { ACP_LAUNCH_SPECS, acpLaunchSpecFor } from './acp-launch-specs'
+import { agentChatPermissionModes } from '../../shared/agent-chat-permission-mode'
 import { STRUCTURED_CHILD_ENV_TO_DELETE } from '../runtime/structured-session-child-env'
 import { acpSessionNotRestoredItem } from './acp-session-reopen-failure'
 
@@ -113,6 +114,11 @@ describe('ACP launch resolution', () => {
       resolver(grokRecord()).resolve({ identity, spawnToken: 'token', permissionMode })
     expect((await start('full-access')).args).toContain('--always-approve')
     expect((await start('ask')).args).not.toContain('--always-approve')
+  })
+
+  // A chat's mode is its only full-access path, so an ACP agent with no modes would always ask.
+  it.each(ACP_LAUNCH_SPECS.map((spec) => spec.agent))('gives %s chats a Full access mode', (agent) => {
+    expect(agentChatPermissionModes(agent)?.modes).toContain('full-access')
   })
 
   it('resumes the chain head by its key, possibly unsaved only when this chat created it', async () => {

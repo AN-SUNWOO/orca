@@ -129,9 +129,10 @@ export function loadedChatPermissionSetting(
   return bypasses('claude') && bypasses('codex') ? 'full-access' : 'ask'
 }
 
-/** What a chat saved before its agent had modes ran with: its agent's own Arguments. An agent with no
- *  bypass argument never had that choice, so its chats take the new-chat setting. */
-export function chatRanWithFullAccessBeforeModes(
+/** Whether a chat saved before its agent had modes is filled as Full access: what its agent's own
+ *  Arguments ran it with. An agent with no bypass argument never had that choice, so its chats take
+ *  the new-chat setting. */
+export function preModeChatGetsFullAccess(
   agent: TuiAgent,
   settings: Partial<
     Pick<GlobalSettings, 'agentDefaultArgs' | 'terminalWindowsShell' | 'nativeChatPermissionMode'>

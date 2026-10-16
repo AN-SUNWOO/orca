@@ -10,6 +10,7 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { OnboardingState } from '../../../../shared/onboarding-state-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { applyAgentPermissionMode } from '../../../../shared/tui-agent-permissions'
+import type { AgentChatPermissionMode } from '../../../../shared/agent-chat-permission-mode'
 import type { StepId, StepNumber } from './use-onboarding-flow-types'
 
 export async function persistStep(
@@ -25,6 +26,16 @@ export async function persistStep(
 
 function selectedAgentOrBlank(agent: TuiAgent | null): TuiAgent | 'blank' {
   return agent ?? 'blank'
+}
+
+/** Yolo mode covers chats too; like the Arguments it writes, a custom new-chat mode is kept. */
+function onboardingChatPermissionMode(
+  current: AgentChatPermissionMode | undefined,
+  yolo: boolean
+): Pick<GlobalSettings, 'nativeChatPermissionMode'> {
+  return current === 'accept-edits' || current === 'auto'
+    ? {}
+    : { nativeChatPermissionMode: yolo ? 'full-access' : 'ask' }
 }
 
 export function buildCompletedOnboardingNotificationSettings(
@@ -172,7 +183,8 @@ export function usePersistCurrentStep({
             mode: yoloPermissions ? 'yolo' : 'manual',
             agentDefaultArgs: settings.agentDefaultArgs,
             agentDefaultEnv: settings.agentDefaultEnv
-          })
+          }),
+          ...onboardingChatPermissionMode(settings.nativeChatPermissionMode, yoloPermissions)
         })
         const choseAgent = defaultTuiAgent !== 'blank'
         const wasAlreadyChosen = onboardingChecklist.choseAgent

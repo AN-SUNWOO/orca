@@ -9,11 +9,7 @@ import { makeRepo, makeWorktree } from '../../../worktree-jump-palette-test-fixt
 import { useVisibleSidebarWorktrees } from './use-visible-worktrees'
 import type * as visibleWorktreesModule from '../../visible-worktrees'
 import { computeVisibleWorktreeIds, computeVisibleWorktrees } from '../../compute-visible-worktrees'
-import { computeClearFilterActions, sidebarHasActiveFilters } from '../../sidebar-filter-actions'
-import {
-  isSleepingSweepExemptWorkspace,
-  isSleepingSweepExemptionNarrowingList
-} from '../../visible-worktree-kinds'
+import { sidebarHasActiveFilters } from '../../sidebar-filter-actions'
 
 const computeVisibleWorktreesCalls = { count: 0 }
 vi.mock('../../visible-worktrees', async (importOriginal) => {
@@ -45,10 +41,7 @@ describe('useVisibleSidebarWorktrees', () => {
     const facade = await vi.importActual<typeof visibleWorktreesModule>('../../visible-worktrees')
     expect(facade.computeVisibleWorktreeIds).toBe(computeVisibleWorktreeIds)
     expect(facade.computeVisibleWorktrees).toBe(computeVisibleWorktrees)
-    expect(facade.computeClearFilterActions).toBe(computeClearFilterActions)
     expect(facade.sidebarHasActiveFilters).toBe(sidebarHasActiveFilters)
-    expect(facade.isSleepingSweepExemptWorkspace).toBe(isSleepingSweepExemptWorkspace)
-    expect(facade.isSleepingSweepExemptionNarrowingList).toBe(isSleepingSweepExemptionNarrowingList)
   })
 
   it('projects both host rows through the primary sidebar pipeline', () => {

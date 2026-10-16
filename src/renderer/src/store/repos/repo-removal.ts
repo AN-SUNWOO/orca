@@ -74,6 +74,16 @@ export function countOpenRepoTerminalTabs(
   return count
 }
 
+/** A listing that fails reads as registered, so the host is still asked as before. */
+async function isRuntimeEnvironmentRegistered(environmentId: string): Promise<boolean> {
+  try {
+    const environments = await window.api.runtimeEnvironments.list()
+    return environments.some((environment) => environment.id === environmentId)
+  } catch {
+    return true
+  }
+}
+
 export function createRepoRemovalActions(
   set: Parameters<StateCreator<AppState>>[0],
   get: Parameters<StateCreator<AppState>>[1]
@@ -110,7 +120,12 @@ export function createRepoRemovalActions(
             executionHostId: ownerHostId
           }))
         )
-        if (target.kind === 'environment' && !vmServerDestroyed) {
+        // Why: a stopped or forgotten server leaves rows nothing can reach; only this desktop's copy goes.
+        const hostGone =
+          target.kind === 'environment' &&
+          !vmServerDestroyed &&
+          !(await isRuntimeEnvironmentRegistered(target.environmentId))
+        if (target.kind === 'environment' && !vmServerDestroyed && !hostGone) {
           await stopRuntimeProjectTerminalsBeforeRemoval(
             target.environmentId,
             projectId,
@@ -119,7 +134,7 @@ export function createRepoRemovalActions(
         }
         try {
           // Why: destroying the VM took its server, and the catalog holding this row, with it.
-          if (!vmServerDestroyed) {
+          if (!vmServerDestroyed && !hostGone) {
             // Why: always host-scoped; this catalog may be stale and miss a same-id row on another host (#13071).
             await (target.kind === 'local'
               ? window.api.repos.removeForHost({ repoId: projectId, hostId: ownerHostId })
@@ -129,6 +144,16 @@ export function createRepoRemovalActions(
           // Why: the owner already dropped this project, so purge the local ghost row instead of aborting (#11994).
           if (!hasRuntimeRpcErrorCode(err, 'repo_not_found')) {
             throw err
+          }
+        }
+        if (target.kind === 'environment') {
+          // Why: the host confirmed the removal (or is gone), and this desktop's own persisted rows
+          // for that host are swept only by an explicit removal, never by the startup sweep (#17776).
+          // A paired web client keeps no such rows, and its bridge throws synchronously.
+          try {
+            await window.api.repos.removeForHost({ repoId: projectId, hostId: ownerHostId })
+          } catch (error) {
+            console.warn('[repos] failed to drop paired-host project residue', error)
           }
         }
 

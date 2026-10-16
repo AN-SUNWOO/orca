@@ -50,6 +50,17 @@ describe('SSH host server status line', () => {
     })
   })
 
+  it('warns when the SSH session that started a macOS host’s server ended', () => {
+    expect(
+      sshHostServerStatusLine(plain, {
+        managedServer: { kind: 'managed', environmentId: 'e', launchSessionEnded: true }
+      })
+    ).toEqual({
+      tone: 'warning',
+      text: 'Terminals on this Mac may have lost local network access because the SSH session that started the managed server ended. Restart the managed server to restore it.'
+    })
+  })
+
   it('shows a managed server being updated, and why it kept its version', () => {
     expect(
       sshHostServerStatusLine(plain, { managedServer: { kind: 'setting-up', phase: 'updating' } })
@@ -171,6 +182,24 @@ describe('SSH host server status line', () => {
       text: expect.stringContaining('Try connecting again'),
       detail
     })
+  })
+
+  it('says a move that stopped short is paused and kept, not a plain try-again', () => {
+    const detail = 'Could not connect to the remote Orca runtime.'
+    const state = {
+      managedServer: {
+        kind: 'relay' as const,
+        reason: 'failed' as const,
+        detail,
+        held: true as const
+      }
+    }
+    expect(sshHostServerStatusLine(plain, state)).toMatchObject({
+      tone: 'warning',
+      text: expect.stringContaining('Nothing is lost'),
+      detail
+    })
+    expect(sshConnectFailureText(state, 'raw')).toContain('Settings > Managed servers')
   })
 
   it('puts an unserved host’s translated reason in the connect toast', () => {

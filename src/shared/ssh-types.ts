@@ -101,6 +101,11 @@ export type SshTarget = {
   managedServerUnavailable?: { reason: string; appVersion: string }
   /** Main-owned: the one-time "move now" offer was shown under this app version. */
   managedServerMoveOffered?: { appVersion: string }
+  /**
+   * Main-owned: the user confirmed "Move anyway", so saved state the move can't carry stays in this
+   * desktop's retained profile instead of refusing the move. Cleared once the host moves.
+   */
+  managedServerLeaveBehind?: { confirmedAt: string }
   /** Main-owned: updating the managed server to this app version failed; retried once it changes. */
   managedServerUpdateFailure?: { reason: string; appVersion: string }
   orcadFence?: {
@@ -119,6 +124,7 @@ export type SshTargetCreateInput = Omit<
   | 'orcadFence'
   | 'managedServerUnavailable'
   | 'managedServerMoveOffered'
+  | 'managedServerLeaveBehind'
   | 'managedServerUpdateFailure'
 >
 export type SshTargetUpdateInput = Partial<SshTargetCreateInput>
@@ -311,6 +317,11 @@ export type SshManagedServerStatus =
       serving?: SshManagedServerServingNote
       /** Set on the connect that moved this host's projects, when some were linked instead. */
       linked?: SshManagedServerLinkedProject[]
+      /**
+       * macOS 15+: the SSH session that started this server proved exited, so its terminals may
+       * have lost Local Network access (#25934). Absent when unknown, e.g. an older launch.
+       */
+      launchSessionEnded?: true
     }
   | { kind: 'setting-up'; phase: (typeof SSH_MANAGED_SERVER_PHASES)[number] }
   /** `detail` names the blocker for a refusal, or why orcad can't run on the host. */
@@ -322,6 +333,10 @@ export type SshManagedServerStatus =
       terminals?: number
       /** Those terminals belong to another Orca desktop or session, so this one offers no move. */
       terminalsElsewhere?: boolean
+      /** The refusal is only saved state the user may leave on this desktop ("Move anyway"). */
+      canLeaveBehind?: true
+      /** A move to the managed server stopped short and keeps the host locked until it resumes. */
+      held?: true
     }
 
 /** Plain SSH terminals and SFTP browsing only; `reason` is the ladder's classified cause. */

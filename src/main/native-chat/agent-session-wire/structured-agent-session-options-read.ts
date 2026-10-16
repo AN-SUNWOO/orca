@@ -12,6 +12,10 @@ import {
   type AgentSessionOptionsResult
 } from '../../../shared/agent-session-wire'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import type {
+  AgentJournalCursor,
+  AgentJournalThreadGoal
+} from '../../../shared/agent-session-journal-types'
 import { decodeStructuredAgentSessionOptionValue } from '../../../shared/structured-agent-session-option-codec'
 import {
   AGENT_CHAT_PERMISSION_MODE_OPTION_ID,
@@ -255,11 +259,25 @@ export async function readStructuredAgentSessionOptions(
     conversationCommands: capabilities?.compact ? ['clear', 'compact'] : ['clear'],
     // A live child may narrow what its agent declares, never widen it.
     acceptsImages: capabilities?.imagePrompts === true && options.acceptsImages !== false,
-    ...(capabilities?.threadGoal
-      ? { threadGoal: { current: session.journal.threadGoal(), ...contextFloor } }
-      : {}),
+    ...structuredAgentSessionThreadGoalReport(
+      capabilities?.threadGoal === true,
+      session.journal.threadGoal(),
+      contextFloor
+    ),
     ...(capabilities?.contextUsage
       ? { contextUsage: { current: session.journal.contextUsage(), ...contextFloor } }
       : {})
   }
+}
+
+/** A goal the host can change, or one only the agent's own `/goal` changes, reported apart. */
+function structuredAgentSessionThreadGoalReport(
+  hostChangesGoal: boolean,
+  current: AgentJournalThreadGoal | null,
+  contextFloor: { contextFloor?: AgentJournalCursor }
+): Pick<AgentSessionOptionsResult, 'threadGoal' | 'reportedThreadGoal'> {
+  if (hostChangesGoal) {
+    return { threadGoal: { current, ...contextFloor } }
+  }
+  return current ? { reportedThreadGoal: { current, ...contextFloor } } : {}
 }

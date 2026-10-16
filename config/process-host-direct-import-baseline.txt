@@ -110,7 +110,6 @@ src/main/ssh/system-ssh-forward-process.ts
 src/main/ssh/system-ssh-operation-lifecycle.ts
 src/main/startup/ensure-virtual-display.ts
 src/main/startup/hydrate-shell-path.ts
-src/main/window/clipboard-ipc-handlers.ts
 src/main/windows-process-tree-kill.ts
 src/main/workspace-space-analysis.ts
 src/main/zsh-startup-hook-pty-harness.ts

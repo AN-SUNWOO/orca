@@ -272,7 +272,7 @@ export function useNativeChatComposerPaste({
         return
       }
       // Ownership starts before saving; a thumbnail only supplies its preview.
-      const pendingId = beginPendingImageAttachment()
+      const pendingId = beginPendingImageAttachment(undefined, undefined, owner.kind === 'remote')
       if (pendingId) {
         track(pendingId, '', owner)
       }

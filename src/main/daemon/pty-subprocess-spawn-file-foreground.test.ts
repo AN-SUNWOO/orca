@@ -235,20 +235,19 @@ it('uses Windows job membership and the native process table for ordinary childr
     { pid: 100, ppid: 1, name: 'pwsh.exe' },
     { pid: 102, ppid: 100, name: 'vim.exe' }
   ])
-  readStrict.mockRejectedValue(new Error('POSIX evidence unavailable'))
   const handle = createHandle()
   expect(await handle.confirmForegroundProcess?.()).toBe('vim.exe')
   expect(await inspect(handle)).toMatchObject({
     foregroundProcess: 'vim.exe',
     hasChildProcesses: true
   })
+  expect(readStrict).not.toHaveBeenCalled()
 })
 
 it('keeps missing Windows job membership unverifiable', async () => {
   vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
   resolveWindows.mockResolvedValue({ available: true, processName: null })
   members.mockReturnValue(null)
-  readStrict.mockRejectedValue(new Error('POSIX evidence unavailable'))
   expect(await inspect(createHandle())).toMatchObject({
     foregroundProcess: null,
     hasChildProcesses: true,
@@ -260,7 +259,6 @@ it('reports an idle Windows shell only when the owned job contains the shell alo
   vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
   resolveWindows.mockResolvedValue({ available: true, processName: null })
   members.mockReturnValue(new Set([100]))
-  readStrict.mockRejectedValue(new Error('POSIX evidence unavailable'))
   expect(await inspect(createHandle())).toMatchObject({ hasChildProcesses: false })
   expect(readWindows).not.toHaveBeenCalled()
 })
@@ -275,7 +273,6 @@ it('keeps the Windows close guard live when a shell descendant is selected above
     { pid: 103, ppid: 100, name: 'cmd.exe' },
     { pid: 104, ppid: 103, name: 'pwsh.exe' }
   ])
-  readStrict.mockRejectedValue(new Error('POSIX evidence unavailable'))
   const inspection = await inspect(createHandle())
   expect(inspection).toMatchObject({ hasChildProcesses: true, childProcessEvidence: 'children' })
 })

@@ -1,3 +1,4 @@
+import type { StructuredAgentSessionChildWorkProducer } from '../native-chat/agent-session-wire/structured-agent-session-subagent-rows'
 import type { StructuredAgentSessionLifecycleEvent } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
 import type {
@@ -29,12 +30,19 @@ export type AcpStructuredSessionAdapterDeps = {
   resolveLaunchArgs?: () => Promise<string[]> | string[]
   /** The chat's journal as it stands, read without opening it; null when it has none. */
   readJournal?: (sessionId: string) => JournalLoad | null
+  /** Orca's data folder on this host, under its instance lock. */
+  dataDirectory: string
   /** Starts the agent's process and owns its protocol: `createAcpAgentConnection` in production. */
   connect: ConnectAcpAgent
   readProcessStartTime?: (pid: number) => Promise<number | null>
   /** Every exit, expected or not: the host ends that child's record. */
   onEvent?: (event: StructuredAgentSessionLifecycleEvent) => void
-  onChildWorkEvidence?: (sessionId: string, evidence: AgentChildWorkEvidence[]) => void
+  /** `producer`: the reporting child's own sink, which writes what the report changes. */
+  onChildWorkEvidence?: (
+    sessionId: string,
+    evidence: AgentChildWorkEvidence[],
+    producer?: StructuredAgentSessionChildWorkProducer
+  ) => void
   /** A send this adapter admitted, settled once the agent answered for it. */
   onDispatchSettledLate?: (
     settlement: { sessionId: string; clientMessageId: string } & (

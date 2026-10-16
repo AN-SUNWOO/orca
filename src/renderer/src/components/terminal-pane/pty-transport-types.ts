@@ -20,7 +20,10 @@ import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { TerminalPanePlacement } from '../../../../shared/terminal-pane-placement'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { PtyDataMeta } from './pty-dispatcher'
-import type { RemoteRuntimeSnapshotOutcome } from '../../runtime/remote-runtime-terminal-multiplexer-types'
+import type {
+  RemoteRuntimeSnapshotOutcome,
+  RemoteRuntimeSnapshotRequestOptions
+} from '../../runtime/remote-runtime-terminal-multiplexer-types'
 import type { AcceptedInputOptions, PtyPreconnectInputEntry } from './pty-preconnect-input-buffer'
 import type { AgentPaneLaunchRequest } from '../../../../shared/agent-pane-launch-request'
 
@@ -142,7 +145,9 @@ type PtyCallbacks = {
   onExit?: (code: number) => void
   onWriteUnavailable?: () => void
   onRecoveryStateChange?: (state: PtyTransportRecoveryState) => void
-  onOutputPauseChanged?: (paused: boolean, supported: boolean) => void
+  /** `dropsReported`: the host sends onPausedOutputDropped, so a pause without one lost nothing. */
+  onOutputPauseChanged?: (paused: boolean, supported: boolean, dropsReported?: boolean) => void
+  onPausedOutputDropped?: () => void
   /** The host kept this restore asleep; no process started and the resume handle is intact. */
   onSpawnDeferred?: (reason: SpawnDeferralReason) => void
 }
@@ -252,10 +257,12 @@ export type PtyTransport = {
    *  model-restore marker reports dropped bytes — a carry spanning the gap
    *  would corrupt the next live chunk. IPC transports only. */
   resetCrossChunkParserState?: () => void
-  serializeBuffer?: (opts?: { scrollbackRows?: number }) => Promise<PtyBufferSnapshot | null>
-  serializeBufferOutcome?: (opts?: {
-    scrollbackRows?: number
-  }) => Promise<RemoteRuntimeSnapshotOutcome>
+  serializeBuffer?: (
+    opts?: RemoteRuntimeSnapshotRequestOptions
+  ) => Promise<PtyBufferSnapshot | null>
+  serializeBufferOutcome?: (
+    opts?: RemoteRuntimeSnapshotRequestOptions
+  ) => Promise<RemoteRuntimeSnapshotOutcome>
   preserve?: () => void
   /** Hand the live PTY to a successor without process teardown. Terminal for this instance:
    *  it also drops the transport's output processor from the pty side-effect memory census,

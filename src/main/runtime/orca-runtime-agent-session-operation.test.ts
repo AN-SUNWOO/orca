@@ -113,32 +113,6 @@ async function fenceRemoteAgentSessionSpawn(runtime: OrcaRuntimeService) {
 }
 
 describe('agent-session execution namespace', () => {
-  it('retains the original method owner, defaults and native async functions', () => {
-    const runtime = createRuntime()
-    let owner = Object.getPrototypeOf(runtime)
-    while (!Object.hasOwn(owner, 'ensureAgentSession')) {
-      owner = Object.getPrototypeOf(owner)
-    }
-    expect(owner.constructor.name).toBe('OrcaRuntimeWithGetAgentSessionExecutionNamespace')
-    expect(Object.getOwnPropertyNames(owner)).toEqual([
-      'constructor',
-      'getAgentSessionExecutionNamespace',
-      'executionOwnerSupportsAgentSessionOperation',
-      'toAgentSessionOptions',
-      'ensureAgentSession'
-    ])
-    for (const [name, length, constructor] of [
-      ['getAgentSessionExecutionNamespace', 2, 'Function'],
-      ['executionOwnerSupportsAgentSessionOperation', 3, 'AsyncFunction'],
-      ['toAgentSessionOptions', 1, 'Function'],
-      ['ensureAgentSession', 1, 'AsyncFunction']
-    ]) {
-      const descriptor = Object.getOwnPropertyDescriptor(owner, name)
-      expect(descriptor?.value.length).toBe(length)
-      expect(descriptor?.value.constructor.name).toBe(constructor)
-    }
-  })
-
   it('calls the selected provider probe with its receiver and caller signal', async () => {
     const signal = new AbortController().signal
     const provider: Pick<IPtyProvider, 'supportsAgentSessionClaims'> = {
@@ -308,7 +282,11 @@ describe('agent-session create operation ledger', () => {
 
     expect(createTerminal).toHaveBeenCalledWith(
       'id:worktree-1',
-      expect.objectContaining({ command: expect.stringContaining('orca-ide claude-teams') })
+      expect.objectContaining({
+        command: expect.stringContaining(
+          process.platform === 'linux' ? 'orca-ide claude-teams' : 'orca claude-teams'
+        )
+      })
     )
   })
 

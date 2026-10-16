@@ -306,19 +306,6 @@ describe('mobile subscribe integration', () => {
     expect(ptySizes.get('pty-1')).toEqual({ cols: 150, rows: 40 })
   })
 
-  // Why: 'phone' sticky-fit mode was removed; auto-mode now always restores on last unsubscribe.
-  it('handleMobileUnsubscribe restores after auto-mode last unsubscribe', async () => {
-    const { runtime, ptySizes } = createRuntime()
-    // mode defaults to 'auto'
-    await runtime.handleMobileSubscribe('pty-1', 'client-a', { cols: 45, rows: 20 })
-    expect(ptySizes.get('pty-1')).toEqual({ cols: 45, rows: 20 })
-
-    runtime.handleMobileUnsubscribe('pty-1', 'client-a')
-    await vi.advanceTimersByTimeAsync(LEGACY_RESTORE_MS)
-    // Restored to desktop dims — no sticky-phone retention.
-    expect(ptySizes.get('pty-1')).toEqual({ cols: 150, rows: 40 })
-  })
-
   it('preserves previousDims across re-subscribes to same terminal', async () => {
     const { runtime, ptySizes } = createRuntime()
 

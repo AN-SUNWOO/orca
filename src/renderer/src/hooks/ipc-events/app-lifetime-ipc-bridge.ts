@@ -46,18 +46,7 @@ function remountTerminalTabsAwaitingHostHydration(): void {
   }
 }
 
-export type IpcEventsCleanupPhase =
-  | 'agent.disposeAsyncState'
-  | 'mobile.disposeHydration'
-  | 'runtimeStore.unsubscribe'
-  | 'agentStore.unsubscribe'
-  | 'ipc.dispose'
-  | 'directSsh.stop'
-  | 'notifications.reset'
-
-export function installAppLifetimeIpcEvents(
-  onCleanupPhase?: (phase: IpcEventsCleanupPhase) => void
-): () => void {
+export function installAppLifetimeIpcEvents(): () => void {
   const unsubs: (() => void)[] = []
   const backgroundWakeDispatcher = createBackgroundSleepingAgentWakeDispatcher()
   unsubs.push(backgroundWakeDispatcher.dispose)
@@ -145,18 +134,11 @@ export function installAppLifetimeIpcEvents(
 
   return () => {
     agentStatusBridge.disposeAsyncState()
-    onCleanupPhase?.('agent.disposeAsyncState')
     disposeMobileDriverHydration()
-    onCleanupPhase?.('mobile.disposeHydration')
     unsubscribeRuntimeEnvironmentStore()
-    onCleanupPhase?.('runtimeStore.unsubscribe')
     agentStatusBridge.unsubscribeStore()
-    onCleanupPhase?.('agentStore.unsubscribe')
     unsubs.forEach((unsubscribe) => unsubscribe())
-    onCleanupPhase?.('ipc.dispose')
     stopDirectSshStateBridge()
-    onCleanupPhase?.('directSsh.stop')
     resetAgentHookCompletionNotificationCoordinators()
-    onCleanupPhase?.('notifications.reset')
   }
 }

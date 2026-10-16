@@ -1,7 +1,8 @@
 import { markdownParserAliases } from './config/build-plugins/markdown-parser-exports'
-import { isBuiltin } from 'node:module'
+import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { defineConfig, type UserConfig } from 'electron-vite'
+import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { createBootstrapFatalExitBanner } from './config/build-plugins/bootstrap-fatal-exit-banner'
@@ -9,7 +10,6 @@ import { createPdfjsViewerAssetsPlugin } from './config/build-plugins/pdfjs-view
 import { createProcessHostDevRebuildPlugin } from './config/build-plugins/process-host-dev-rebuild'
 import { MAIN_BUILD_ENTRY_POINTS } from './config/build-plugins/main-build-entry-points'
 import { createPlainNodeEntryGuardPlugin } from './config/build-plugins/plain-node-entry-guard'
-import packageJson from './package.json' with { type: 'json' }
 import { resolveBuildSourceCommit } from './config/scripts/build-source-commit.mjs'
 
 const BUNDLED_MAIN_DEPENDENCIES = new Set([
@@ -23,19 +23,6 @@ const BUNDLED_MAIN_DEPENDENCIES = new Set([
   // not race the later resources/node_modules copy.
   'zod'
 ])
-const EXTERNAL_MAIN_DEPENDENCIES = Object.keys(packageJson.dependencies).filter(
-  (dependency) => !BUNDLED_MAIN_DEPENDENCIES.has(dependency)
-)
-
-function isExternalMainModule(source: string): boolean {
-  if (isBuiltin(source) || source === 'electron' || source.startsWith('electron/')) {
-    return true
-  }
-  return EXTERNAL_MAIN_DEPENDENCIES.some(
-    (dependency) => source === dependency || source.startsWith(`${dependency}/`)
-  )
-}
-
 // Why: the telemetry transport is gated by two compile-time constants that
 // only the official CI release workflow sets. Contributor / `pnpm dev` /
 // third-party rebuilds must substitute literal `null` at these sites so
@@ -65,6 +52,28 @@ const ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL =
   typeof orcaDiagnosticsTokenUrl === 'string' && orcaDiagnosticsTokenUrl.length > 0
     ? JSON.stringify(orcaDiagnosticsTokenUrl)
     : 'null'
+
+const layoutOwnerBuild: {
+  LAYOUT_OWNER_MARKER_FILENAME: string
+  LAYOUT_OWNER_MARKER_TEXT: string
+  isLayoutOwnerBuild: () => boolean
+  layoutOwnerDefine: () => string
+} = createRequire(import.meta.url)('./config/layout-owner-build.cjs')
+const ORCA_LAYOUT_OWNER_LITERAL = layoutOwnerBuild.layoutOwnerDefine()
+
+/** Marks a dark layout-owner main build so packaging refuses it. */
+function createLayoutOwnerMarkerPlugin(): Plugin {
+  return {
+    name: 'orca-layout-owner-marker',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: layoutOwnerBuild.LAYOUT_OWNER_MARKER_FILENAME,
+        source: layoutOwnerBuild.LAYOUT_OWNER_MARKER_TEXT
+      })
+    }
+  }
+}
 
 // Why: official skill installs pin to the commit the build came from, so they match the
 // bundled skills on every channel. Main runs the installer; the renderer prints the command.
@@ -192,6 +201,9 @@ function createMainBootstrapPlugin() {
       if (!mainChunk || mainChunk.type !== 'chunk') {
         return
       }
+      if (!mainChunk.moduleIds.some((id) => resolve(id) === MAIN_BUILD_ENTRY_POINTS.index)) {
+        throw new Error('Main startup must stay in index.js so __dirname resolves app assets')
+      }
 
       // Why: source guards and diagnostics run after Rollup's generated require
       // prelude, too late to handle a missing bootstrap dependency.
@@ -229,10 +241,9 @@ export const electronViteConfig: UserConfig = {
         exclude: [...BUNDLED_MAIN_DEPENDENCIES]
       },
       rollupOptions: {
-        // Why: native dependencies must resolve from packaged node_modules,
-        // while the unpacked daemon needs its pure-JS xterm graph bundled.
-        external: isExternalMainModule,
         input: MAIN_BUILD_ENTRY_POINTS,
+        // CLI builds replace exported entries; keep their internals separate without moving startup paths.
+        preserveEntrySignatures: 'exports-only',
         // Why: Rolldown's SSR default is ESM, but Electron and sidecar launchers
         // consume these stable CommonJS paths.
         output: {
@@ -243,7 +254,8 @@ export const electronViteConfig: UserConfig = {
         plugins: [
           createMainBootstrapPlugin(),
           createPlainNodeEntryGuardPlugin(),
-          createProcessHostDevRebuildPlugin()
+          createProcessHostDevRebuildPlugin(),
+          ...(layoutOwnerBuild.isLayoutOwnerBuild() ? [createLayoutOwnerMarkerPlugin()] : [])
         ]
       }
     },
@@ -253,7 +265,8 @@ export const electronViteConfig: UserConfig = {
       ORCA_BUILD_IDENTITY: ORCA_BUILD_IDENTITY_LITERAL,
       ORCA_POSTHOG_WRITE_KEY: ORCA_POSTHOG_WRITE_KEY_LITERAL,
       ORCA_DIAGNOSTICS_TOKEN_URL: ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL,
-      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL
+      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL,
+      ORCA_LAYOUT_OWNER: ORCA_LAYOUT_OWNER_LITERAL
     },
     // Why: @xterm/headless declares "exports": null in package.json, which
     // prevents Vite's default resolver from finding the CJS entry. Point
@@ -276,7 +289,8 @@ export const electronViteConfig: UserConfig = {
   },
   renderer: {
     define: {
-      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL
+      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL,
+      ORCA_LAYOUT_OWNER: ORCA_LAYOUT_OWNER_LITERAL
     },
     resolve: {
       alias: {

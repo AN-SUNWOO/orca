@@ -1,3 +1,4 @@
+import { applyClaudeTerminalImageViewerEnv } from '../terminal-image-viewer-env'
 import type { ResolvedWorktree } from '../runtime-worktree-path-identity'
 import { OrcaRuntimeWithRemoveManagedWorktree } from './workspace-removal'
 import type {
@@ -255,11 +256,15 @@ export abstract class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRu
     workspace: TerminalWorkspaceLaunchScope,
     opts: TerminalCreateOptions
   ): Promise<TerminalCreateOptions> {
-    const launch = await resolveAgentTerminalCreateOptions(workspace, opts, {
+    const resolvedLaunch = await resolveAgentTerminalCreateOptions(workspace, opts, {
       store: this.store,
       hostIdentity: this.runtimeId,
       toSessionOptions: (preferences) => this.toAgentSessionOptions(preferences)
     })
+    const launch = applyClaudeTerminalImageViewerEnv(
+      resolvedLaunch,
+      opts.terminalImageViewerSupported
+    )
     // An SSH workspace's shell runs on that machine, where this distro's account paths mean nothing.
     return workspace.connectionId
       ? launch

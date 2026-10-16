@@ -1,3 +1,4 @@
+import { applyClaudeTerminalImageViewerEnv } from '../../terminal-image-viewer-env'
 import type { MobileTerminalCommandOptions, MobileTerminalCommand } from './mobile-terminal-startup'
 import type { OwnedMobileTerminalCreateOptions } from './mobile-terminal-owned-create'
 import type { RuntimePtyWorktreeRecord } from '../../runtime-terminal-state-records'
@@ -19,6 +20,7 @@ import { rendererPublicationThrottle } from '../../../window/renderer-publicatio
 import { deterministicAgentSessionUuid } from '../../runtime-agent-launch-resolution'
 
 export type MobileTerminalCreateOptions = {
+  terminalImageViewerSupported?: boolean
   afterTabId?: string
   targetGroupId?: string
   command?: string
@@ -116,7 +118,10 @@ export abstract class OrcaRuntimeWithRunCreateMobileSessionTerminal extends Orca
         afterDesktopTabId = anchor.type === 'terminal' ? anchor.parentTabId : anchor.id
       }
     }
-    const startupCommand = await this.resolveMobileSessionTerminalCommand(workspace, opts)
+    const startupCommand = applyClaudeTerminalImageViewerEnv(
+      await this.resolveMobileSessionTerminalCommand(workspace, opts),
+      opts.terminalImageViewerSupported
+    )
     this.assertStableReadyGraph(graphEpoch)
     if (opts.signal?.aborted) {
       throw new Error('client_disconnected')

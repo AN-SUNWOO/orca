@@ -1,4 +1,6 @@
 import { createElement, useState } from 'react'
+import { filterWorktrees } from '../worktree/workspace-list-sections'
+import { normalizeVisibleExecutionHostIds } from '../../../src/shared/execution-host'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -26,7 +28,6 @@ import {
 import { FakeSession } from '../transport/mobile-endpoint-supervisor-test-fakes'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
-import { readVisibleHostIds } from '../worktree/visible-host-rows'
 import type { Worktree } from '../worktree/workspace-list-types'
 import { useHostDisplayWorktrees } from './use-host-display-worktrees'
 import { useHostScreenState } from './use-host-screen-state'
@@ -97,6 +98,7 @@ function desktop({ hostWorktrees, carriesRpcEnvelope }: Desktop = {}): FakeSessi
 
 type Screen = {
   rows: () => Worktree[]
+  state: () => ReturnType<typeof useHostScreenState>
   poll: () => Promise<void>
   hideHosts: (ids: string[]) => void
   open: (worktreeId: string) => void
@@ -167,8 +169,15 @@ async function mountScreen(first: RpcClient, hostCapabilities: string[]): Promis
   await poll()
   return {
     rows: () => held.rows,
+    state: () => held.state!,
     poll,
-    hideHosts: (ids) => act(() => held.state?.setVisibleHostIds(readVisibleHostIds(ids))),
+    hideHosts: (ids) =>
+      act(() =>
+        held.state?.setView((view) => ({
+          ...view,
+          filters: { ...view.filters, visibleHostIds: normalizeVisibleExecutionHostIds(ids) }
+        }))
+      ),
     open: (worktreeId) =>
       act(() => {
         const item = held.rows.find((entry) => entry.worktreeId === worktreeId)
@@ -317,11 +326,18 @@ describe("a desktop's server workspaces on the phone", () => {
 
   it('follows the desktop’s hidden hosts, across its own and its servers’ rows', async () => {
     const screen = await mountScreen(desktop(), RELAYS)
+    // The list's own filters narrow it, as they narrow the desktop's sidebar.
+    const shown = () =>
+      filterWorktrees(
+        screen.rows(),
+        screen.state().view.filters,
+        '',
+        screen.state().repoHostIdByRepoId
+      ).map((entry) => entry.worktreeId)
     screen.hideHosts(['local', 'runtime:old'])
-    expect(screen.rows().map((entry) => entry.worktreeId)).toEqual(['mac-wt', 'runtime:old-wt'])
-    // A one-host list narrows the phone too, exactly as it narrows the desktop's sidebar.
+    expect(shown()).toEqual(['mac-wt', 'runtime:old-wt'])
     screen.hideHosts(['runtime:old'])
-    expect(screen.rows().map((entry) => entry.worktreeId)).toEqual(['runtime:old-wt'])
+    expect(shown()).toEqual(['runtime:old-wt'])
   })
 
   it('opens a ready server workspace there, and explains one that needs an update', async () => {

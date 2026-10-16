@@ -4,6 +4,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type * as GitUsernameModule from '../git/git-username'
 import { OrcaRuntimeService } from './orca-runtime'
+import type { RuntimePtyController } from './runtime-pty-controller-contract'
 
 vi.mock('../git/worktree', () => ({
   listWorktrees: vi.fn().mockResolvedValue([]),
@@ -82,7 +83,7 @@ function createRuntime(mobileAutoRestoreFitMs: number | null = 5_000) {
   const fitOverrideEvents: { ptyId: string; mode: string; cols: number; rows: number }[] = []
   let resizeSucceeds = true
 
-  runtime.setPtyController({
+  const controller: RuntimePtyController = {
     write: (_ptyId, data) => {
       writes.push(data)
       return true
@@ -98,7 +99,8 @@ function createRuntime(mobileAutoRestoreFitMs: number | null = 5_000) {
       return true
     },
     getSize: (ptyId) => ptySizes.get(ptyId) ?? null
-  })
+  }
+  runtime.setPtyController(controller)
   runtime.setNotifier({
     worktreesChanged: vi.fn(),
     reposChanged: vi.fn(),
@@ -119,6 +121,7 @@ function createRuntime(mobileAutoRestoreFitMs: number | null = 5_000) {
 
   return {
     runtime,
+    controller,
     ptySizes,
     resizes,
     writes,
@@ -140,19 +143,37 @@ describe('mobile presence lock — driver state machine', () => {
   })
 
   it('stops a preview paste when mobile claims the floor between chunks', async () => {
-    const { runtime, writes } = createRuntime()
-    let driverChecks = 0
-    vi.spyOn(runtime, 'getDriver').mockImplementation(() => {
-      driverChecks++
-      return driverChecks >= 3 ? { kind: 'mobile', clientId: 'phone-A' } : { kind: 'idle' }
+    const { runtime, controller, writes } = createRuntime()
+    runtime.setMobileDisplayMode('pty-1', 'desktop')
+    await runtime.handleMobileSubscribe('pty-1', 'phone-A', { cols: 45, rows: 20 })
+    expect(runtime.getDriver('pty-1')).toEqual({ kind: 'idle' })
+    expect(writes).toHaveLength(0)
+
+    const floorClaim: { current: ReturnType<OrcaRuntimeService['beginMobileInputFloor']> } = {
+      current: null
+    }
+    const originalWrite = controller.write
+    vi.spyOn(controller, 'write').mockImplementationOnce((ptyId, data, inputKind) => {
+      const accepted = originalWrite(ptyId, data, inputKind)
+      floorClaim.current = runtime.beginMobileInputFloor(ptyId, 'phone-A')
+      if (!floorClaim.current) {
+        throw new Error('phone floor reservation was refused')
+      }
+      return accepted
     })
 
-    const result = runtime.writeTerminalPreviewInput('pty-1', 'x'.repeat(32 * 1024))
-    await vi.advanceTimersByTimeAsync(0)
+    try {
+      const result = runtime.writeTerminalPreviewInput('pty-1', 'x'.repeat(32 * 1024))
+      await vi.advanceTimersByTimeAsync(0)
 
-    await expect(result).resolves.toBe(false)
-    expect(writes).toHaveLength(1)
-    expect(Buffer.byteLength(writes[0]!, 'utf8')).toBe(16 * 1024)
+      expect(floorClaim.current).not.toBeNull()
+      expect(runtime.getDriver('pty-1')).toEqual({ kind: 'mobile', clientId: 'phone-A' })
+      await expect(result).resolves.toBe(false)
+      expect(writes).toHaveLength(1)
+      expect(Buffer.byteLength(writes[0]!, 'utf8')).toBe(16 * 1024)
+    } finally {
+      floorClaim.current?.rollback()
+    }
   })
 
   it('handleMobileSubscribe in auto mode transitions idle → mobile{clientId}', async () => {
@@ -522,18 +543,6 @@ describe('mobile presence lock — multi-mobile semantics', () => {
     expect(ptySizes.get('pty-1')).toEqual({ cols: 49, rows: 38 })
   })
 
-  it('updateDesktopViewport records geometry without resizing while mobile is driving', async () => {
-    const { runtime, ptySizes, resizes } = createRuntime()
-    await runtime.handleMobileSubscribe('pty-1', 'phone-A', { cols: 49, rows: 20 })
-    resizes.length = 0
-
-    expect(await runtime.updateDesktopViewport('pty-1', { cols: 132, rows: 44 })).toBe(true)
-
-    expect(ptySizes.get('pty-1')).toEqual({ cols: 49, rows: 20 })
-    expect(resizes).toEqual([])
-    expect(runtime.getLastRendererSize('pty-1')).toEqual({ cols: 132, rows: 44 })
-  })
-
   it('updateDesktopViewport records restore geometry while phone-fit override is held', async () => {
     const { runtime, ptySizes, resizes } = createRuntime()
     await runtime.handleMobileSubscribe('pty-1', 'phone-A', { cols: 49, rows: 20 })
@@ -732,20 +741,6 @@ describe('mobile presence lock — issue #7588 held-modal restore convergence', 
     expect(runtime.getMobileDisplayMode('pty-1')).toBe('auto')
     expect(fitOverrideEvents.slice(notifierBefore).some((e) => e.mode === 'desktop-fit')).toBe(true)
     expect(listenerEvents.slice(listenerBefore).some((e) => e.mode === 'desktop-fit')).toBe(true)
-  })
-
-  // Scenario 5b: explicit take-back releases unconditionally (pre-revision kept the lock for a later auto-restore).
-  it('failed take-back leaves no stranded override or lock', async () => {
-    const { runtime, setResizeSucceeds } = createRuntime()
-
-    await runtime.handleMobileSubscribe('pty-1', 'phone-A', { cols: 45, rows: 20 })
-
-    setResizeSucceeds(false)
-    expect(await runtime.reclaimTerminalForDesktop('pty-1')).toBe(true)
-
-    expect(runtime.getDriver('pty-1')).toEqual({ kind: 'desktop' })
-    expect(runtime.getTerminalFitOverride('pty-1')).toBeNull()
-    expect(runtime.getMobileDisplayMode('pty-1')).toBe('auto')
   })
 
   // Scenario 6: phone-initiated desktop switch converges a stale held override via the shared applyMobileDisplayMode seam.

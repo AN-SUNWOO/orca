@@ -583,6 +583,69 @@ describe('registerRuntimeEnvironmentHandlers', () => {
     expect(sendRemoteRuntimeSharedControlRequestMock).not.toHaveBeenCalled()
   })
 
+  it('reads session snapshots over a ready shared-control socket instead of opening one per call', async () => {
+    registerRuntimeEnvironmentHandlers(store as never)
+    sendRemoteRuntimeRequestMock.mockResolvedValue({
+      id: 'status',
+      ok: true,
+      result: {
+        runtimeId: 'runtime-remote',
+        capabilities: [REMOTE_RUNTIME_SHARED_CONTROL_CAPABILITY]
+      },
+      _meta: { runtimeId: 'runtime-remote' }
+    })
+    sendRemoteRuntimeSharedControlRequestMock.mockImplementation(async (_id, _pairing, method) => ({
+      id: method,
+      ok: true,
+      result: { tabs: [] },
+      _meta: { runtimeId: 'runtime-remote' }
+    }))
+    getRemoteRuntimeSharedControlDiagnosticsMock.mockReturnValue({ state: 'ready' })
+
+    const add = handler<
+      { name: string; pairingCode: string },
+      { environment: { id: string; name: string } }
+    >('runtimeEnvironments:addFromPairingCode')
+    await add(null, { name: 'desk', pairingCode: pairingCode() })
+    const call = handler<
+      { selector: string; method: string; params?: unknown },
+      { ok: true; result: unknown }
+    >('runtimeEnvironments:call')
+
+    // A worktree switch lists its tabs; before, each list opened and authenticated a new socket.
+    for (let i = 0; i < 10; i += 1) {
+      await expect(
+        call(null, { selector: 'desk', method: 'session.tabs.list', params: { worktree: 'id:w' } })
+      ).resolves.toMatchObject({ ok: true })
+    }
+    await expect(
+      call(null, { selector: 'desk', method: 'session.tabs.listAll' })
+    ).resolves.toMatchObject({ ok: true })
+
+    expect(sendRemoteRuntimeRequestMock.mock.calls.map((entry) => entry[1])).toEqual(['status.get'])
+    expect(sendRemoteRuntimeSharedControlRequestMock.mock.calls.map((entry) => entry[2])).toEqual([
+      ...Array.from({ length: 10 }, () => 'session.tabs.list'),
+      'session.tabs.listAll'
+    ])
+
+    // The shared socket dropped (a host restart): snapshot recovery goes back to one-shot.
+    getRemoteRuntimeSharedControlDiagnosticsMock.mockReturnValue({ state: 'reconnecting' })
+    sendRemoteRuntimeRequestMock.mockResolvedValue({
+      id: 'session.tabs.list',
+      ok: true,
+      result: { tabs: [] },
+      _meta: { runtimeId: 'runtime-remote' }
+    })
+    await expect(
+      call(null, { selector: 'desk', method: 'session.tabs.list', params: { worktree: 'id:w' } })
+    ).resolves.toMatchObject({ ok: true })
+    expect(sendRemoteRuntimeRequestMock.mock.calls.map((entry) => entry[1])).toEqual([
+      'status.get',
+      'session.tabs.list'
+    ])
+    expect(sendRemoteRuntimeSharedControlRequestMock).toHaveBeenCalledTimes(11)
+  })
+
   it('limits background one-shot RPCs without blocking foreground runtime calls', async () => {
     registerRuntimeEnvironmentHandlers(store as never)
     const pendingBackground: ((value: unknown) => void)[] = []

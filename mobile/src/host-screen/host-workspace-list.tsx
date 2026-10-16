@@ -13,6 +13,7 @@ import { getWorktreeRowIdentity } from '../worktree/worktree-host-row-identity'
 import { HostWorkspaceListStates } from '../worktree/host-workspace-list-states'
 import { getWorktreeStatus } from '../worktree/workspace-list-sections'
 import { repoColor } from '../worktree/repo-color'
+import { getWorktreeCardDetails } from '../../../src/shared/worktree/card-properties'
 import { hostScreenStyles as styles } from './host-screen-styles'
 import { buildRepoLookById } from './host-repo-looks'
 import type { HostScreenController } from './use-host-screen-controller'
@@ -44,6 +45,11 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
   } = controller
   const { rawSections, sections, repoById } = sectionsResult
   const repoLookById = useMemo(() => buildRepoLookById(repoById), [repoById])
+  const { worktreeCardProperties, compactWorktreeCards, newCardStyle } = state.view
+  const cardDetails = useMemo(
+    () => getWorktreeCardDetails(worktreeCardProperties, { compactWorktreeCards, newCardStyle }),
+    [worktreeCardProperties, compactWorktreeCards, newCardStyle]
+  )
 
   return (
     <>
@@ -114,7 +120,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
         sectionCount={sections.length}
         catalogError={state.catalogError}
         search={state.search}
-        activeFilterCount={settings.activeFilterCount}
+        activeFilterCount={controller.activeFilterCount}
       />
 
       {sections.length > 0 && (
@@ -140,12 +146,14 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
             if (!section.title) {
               return null
             }
-            const isCollapsed = state.collapsedGroups.has(section.key)
+            const isCollapsed = controller.collapsedGroups.has(section.key)
             const rawSection = rawSections.find((s) => s.key === section.key)
             const count = rawSection?.data.length ?? 0
             // Why: the desktop's header draws its anchor repo's colour and icon.
             const repoSectionLook =
-              state.groupMode === 'repo' && section.repo ? repoLookById.get(section.repo.id) : null
+              state.view.groupBy === 'repo' && section.repo
+                ? repoLookById.get(section.repo.id)
+                : null
             const repoSectionColor = repoSectionLook?.color ?? null
             const repoSectionIcon = repoSectionLook?.icon ?? null
             return (
@@ -161,7 +169,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                 {section.icon === 'pin' && (
                   <Pin size={12} color={colors.textMuted} style={styles.sectionIcon} />
                 )}
-                {state.groupMode === 'repo' ? (
+                {state.view.groupBy === 'repo' ? (
                   <View style={styles.sectionRepoIcon}>
                     <MobileRepoIcon
                       repoIcon={repoSectionIcon}
@@ -193,8 +201,12 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
               status={getWorktreeStatus(item)}
               repoColor={repoLookById.get(item.repoId)?.color ?? repoColor(item.repo)}
               repoIcon={repoLookById.get(item.repoId)?.icon ?? null}
-              hideRepo={state.groupMode === 'repo'}
+              hideRepo={state.view.groupBy === 'repo' && !item.showProjectName}
+              cardDetails={cardDetails}
+              agentActivityDisplayMode={state.view.agentActivityDisplayMode}
               onPress={actions.openWorktreeSession}
+              onAgentPress={actions.openWorktreeSession}
+              statusLive={connState === 'connected' && !item.hostContextHealthLabel}
               onLongPress={
                 item.workspaceKind === 'folder-workspace' ? undefined : state.setActionTarget
               }

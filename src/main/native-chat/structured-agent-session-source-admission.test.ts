@@ -98,6 +98,18 @@ it('creates from the host hook path when Claude filename differs, then checks ac
   expect(find).not.toHaveBeenCalled()
 })
 
+it.skipIf(process.platform === 'win32')('reports a not-yet-saved conversation under a linked account folder as unsaved', async () => {
+  const linked = join(root, 'linked-account')
+  await mkdir(join(root, 'projects'), { recursive: true })
+  await symlink(root, linked)
+  await expect(resolveStructuredAgentSessionAdoptionForCreate({
+    settings: {}, agent: 'claude', transcriptImport: CLAUDE_CLI_CONVERSATIONS.transcriptImport!,
+    providerSessionId: id, selectedAccountHome: { variable: 'CLAUDE_CONFIG_DIR', path: linked },
+    launchEnv: {}, workspaceCwd: root,
+    resolveTranscriptPath: () => join(linked, 'projects', 'folder', `${id}.jsonl`)
+  })).rejects.toMatchObject({ refusal: { details: { reason: 'transcriptNotFound' } } })
+})
+
 it.each(['claude', 'codex', 'grok', 'omp', 'pi'] as const)('retains empty versus unreadable source facts for %s', async (agent) => {
   const transcript = join(root, `${id}.jsonl`)
   await writeFile(transcript, '')

@@ -81,8 +81,10 @@ describe('createRemoteRuntimePtyTransport', () => {
     })
 
     const connect = transport.connect({ url: '', callbacks: {} })
+    // The stream open overlaps terminal.create; destroy once the pane is waiting on it alone.
     await vi.waitFor(() => {
       expect(runtimeSubscribe).toHaveBeenCalled()
+      expect(transport.getPtyId()).not.toBeNull()
     })
     transport.destroy?.()
     resolveSubscribe({ unsubscribe, sendBinary: subscriptionSendBinary })
@@ -247,7 +249,7 @@ describe('createRemoteRuntimePtyTransport', () => {
       'RECONNECT_SNAPSHOT'
     ])
     expect(onData.mock.calls.map((call) => call[0])).toEqual(['LIVE_AFTER_RECONNECT'])
-    expect(onOutputPauseChanged).toHaveBeenLastCalledWith(false, true)
+    expect(onOutputPauseChanged).toHaveBeenLastCalledWith(false, true, false)
     transport.destroy?.()
   })
 

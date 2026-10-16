@@ -260,6 +260,7 @@ describe('structured agent-session read transport generations', () => {
         version: 'version-a'
       }
       const transport = start(vi.fn())
+      await flushPromises()
       attempts[0].closed.resolve({ unsubscribe: attempts[0].unsubscribe })
       await flushPromises()
       attempts[0].onEvent(snapshot(1, currentRequests))

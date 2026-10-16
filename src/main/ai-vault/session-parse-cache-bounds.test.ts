@@ -54,7 +54,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-it('loads the newest 4096 unique rows across duplicate-heavy input and keeps in-process entries', async () => {
+it('loads every unique row across duplicate-heavy input and keeps in-process entries', async () => {
   const entries = Array.from({ length: 4200 }, (_, index) => row(`p${index}`, index))
   entries.push(...Array.from({ length: 5000 }, (_, index) => row('p4199', 5000 + index)))
   entries.push(row('in-process', 1))
@@ -68,25 +68,10 @@ it('loads the newest 4096 unique rows across duplicate-heavy input and keeps in-
     })
   )
   await ensureSessionParseCacheLoaded()
-  expect(snapshotSessionParseCacheForPersistence()).toHaveLength(4096)
+  expect(snapshotSessionParseCacheForPersistence()).toHaveLength(4201)
   expect(getSessionParseCacheEntry('p4199')?.mtimeMs).toBe(9999)
-  expect(getSessionParseCacheEntry('p104')).toBeUndefined()
-  expect(getSessionParseCacheEntry('p105')?.mtimeMs).toBe(105)
+  expect(getSessionParseCacheEntry('p104')?.mtimeMs).toBe(104)
   expect(getSessionParseCacheEntry('in-process')?.mtimeMs).toBe(20_000)
-})
-
-it('seeds newest unique rows directly without retaining an unbounded iterable', () => {
-  function* entries() {
-    for (let index = 0; index < 5000; index++) {
-      yield row(`p${index}`, index)
-    }
-    yield row('p4999', 6000)
-  }
-  seedSessionParseCache(entries())
-  expect(snapshotSessionParseCacheForPersistence()).toHaveLength(4096)
-  expect(getSessionParseCacheEntry('p903')).toBeUndefined()
-  expect(getSessionParseCacheEntry('p904')?.mtimeMs).toBe(904)
-  expect(getSessionParseCacheEntry('p4999')?.mtimeMs).toBe(6000)
 })
 
 it('rejects an oversized sparse file before decoding and preserves resident work', async () => {

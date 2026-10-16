@@ -21,7 +21,7 @@ import {
   type SessionParseStats
 } from './session-scanner-parse-cache'
 import { recordSessionScanIssue } from './session-scan-issues'
-import { getSessionParseCacheEntry } from './session-parse-cache-store'
+import { getSessionParseCacheEntry, sweepSessionParseCache } from './session-parse-cache-store'
 import { describeSkippedTranscriptRecords } from './session-transcript-record-budget'
 import { canStopParsingSessions } from './session-scan-cutoff'
 import { discoverInScopeCwdBucketFiles } from './session-scanner-scope-discovery'
@@ -125,6 +125,7 @@ async function scanAiVaultSessionStores(options: AiVaultScanOptions): Promise<Ai
         // Scope discovery can return without parsing anything, so an abort landing
         // here would otherwise persist and return a cancelled scan as complete.
         throwIfAiVaultScanCancelled(options.signal)
+        sweepSessionParseCache()
         for (const refusal of cursorChatMetaRefusals()) {
           // One issue per refused chats root, not one per Cursor transcript.
           recordSessionScanIssue(issues, {
@@ -313,7 +314,8 @@ function skippedRecordIssue(
   candidate: SessionFileCandidate,
   executionHostId: ExecutionHostId
 ): AiVaultScanIssue | null {
-  const skipped = getSessionParseCacheEntry(candidate.file.path)?.resume?.skippedRecords
+  const entry = getSessionParseCacheEntry(candidate.file.path)
+  const skipped = entry?.resume?.skippedRecords ?? entry?.skippedRecords
   const message = skipped ? describeSkippedTranscriptRecords(skipped) : null
   if (message === null) {
     return null

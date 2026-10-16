@@ -4,9 +4,15 @@ import type { SessionSidecarObservation } from './session-sidecar-stat'
 import type { TranscriptMessageChannel } from './session-transcript-channel'
 import type { SkippedTranscriptRecord } from './session-transcript-record-budget'
 
-// Sized past the default recency cap (1000) plus the in-scope cap (2000) so a
-// full steady-state result set stays resident between forced rescans.
-export const MAX_CACHE_ENTRIES = 4096
+// Rows are bounded by use, not by count: a count bound smaller than one
+// Unlimited scan evicts that scan's own upcoming hits, so every scan re-parsed
+// everything (STA-10405). A row no reader has used for this long is dropped by
+// the next sweep.
+export const SESSION_PARSE_CACHE_IDLE_MS = 24 * 60 * 60 * 1000
+// Live parser state is the heavy part of a row and the only part with a count
+// bound. Dropping it costs one whole re-read of a file that changed, never a
+// re-parse of one that did not.
+export const MAX_RESUME_ENTRIES = 4096
 
 export type SessionParseResumePoint = {
   state: ResumableSessionParseState
@@ -35,24 +41,18 @@ export type SessionParseCacheEntry = {
   // onto it. In-memory only: without it a sibling change costs one re-parse.
   foldSession?: AiVaultSession | null
   resume: SessionParseResumePoint | null
+  // The dropped resume point's skipped records, so its notice outlives it.
+  skippedRecords?: SkippedTranscriptRecord[]
 }
 
 const cache = new Map<string, SessionParseCacheEntry>()
+// When each row was last stored, oldest first. Every reuse stores, so this is
+// when a reader last used it.
+const usedAt = new Map<string, number>()
+// Paths whose row holds a resume point, least recently stored first.
+const resumeOrder = new Set<string>()
 let revision = 0
 let onChange: (() => void) | null = null
-let diskLookup: ((path: string) => PersistedSessionParseCacheEntry | undefined) | null = null
-let diskStore: ((path: string, entry: PersistedSessionParseCacheEntry) => void) | null = null
-let diskDelete: ((path: string) => void) | null = null
-
-export function configureSessionParseCacheDisk(
-  lookup: typeof diskLookup,
-  store: typeof diskStore,
-  remove: typeof diskDelete
-): void {
-  diskLookup = lookup
-  diskStore = store
-  diskDelete = remove
-}
 
 export function sessionParseCacheRevision(): number {
   return revision
@@ -73,16 +73,35 @@ function notifyChange(): void {
 
 export function resetSessionParseCacheForTests(): void {
   cache.clear()
+  usedAt.clear()
+  resumeOrder.clear()
   revision = 0
   onChange = null
-  configureSessionParseCacheDisk(null, null, null)
 }
 
 // Drops one entry after its file is deleted. Cleanliness, not correctness:
 // discovery walks disk first, so a trashed file is never rediscovered anyway.
 export function invalidateSessionParseCacheEntry(path: string): void {
-  diskDelete?.(path)
+  usedAt.delete(path)
+  resumeOrder.delete(path)
   if (cache.delete(path)) {
+    notifyChange()
+  }
+}
+
+// Called after a pass over the rows rather than per store, so a long scan
+// re-stores what it reaches before the rows it has not reached yet can age out.
+export function sweepSessionParseCache(nowMs = Date.now()): void {
+  let dropped = false
+  for (const [path, at] of usedAt) {
+    if (nowMs - at <= SESSION_PARSE_CACHE_IDLE_MS) {
+      break
+    }
+    usedAt.delete(path)
+    resumeOrder.delete(path)
+    dropped = cache.delete(path) || dropped
+  }
+  if (dropped) {
     notifyChange()
   }
 }
@@ -111,9 +130,11 @@ export function snapshotSessionParseCacheForPersistence(): [
 
 // Seeded entries carry `resume: null`: after a restart an unchanged file is a
 // cache hit; a file that changed while the app was closed pays one full
-// (not incremental) re-parse.
+// (not incremental) re-parse. They count as used at load, so a restart never
+// drops a row before a scan has had the idle window to reach it.
 export function seedSessionParseCache(
-  entries: Iterable<[string, PersistedSessionParseCacheEntry]>
+  entries: Iterable<[string, PersistedSessionParseCacheEntry]>,
+  nowMs = Date.now()
 ): void {
   const newest = new Map<string, PersistedSessionParseCacheEntry>()
   for (const [path, entry] of entries) {
@@ -122,19 +143,10 @@ export function seedSessionParseCache(
     }
     newest.delete(path)
     newest.set(path, entry)
-    if (newest.size > MAX_CACHE_ENTRIES) {
-      const oldest = newest.keys().next()
-      if (!oldest.done) {
-        newest.delete(oldest.value)
-      }
-    }
-  }
-  const available = MAX_CACHE_ENTRIES - cache.size
-  if (available <= 0) {
-    return
   }
   // In-process entries win; among persisted duplicates the newest row wins.
-  for (const [path, entry] of [...newest].slice(-available)) {
+  for (const [path, entry] of newest) {
+    usedAt.set(path, nowMs)
     cache.set(path, {
       mtimeMs: entry.mtimeMs,
       sizeBytes: entry.sizeBytes,
@@ -149,30 +161,11 @@ export function seedSessionParseCache(
 }
 
 export function getSessionParseCacheEntry(path: string): SessionParseCacheEntry | undefined {
-  const resident = cache.get(path)
-  if (resident) {
-    return resident
-  }
-  const persisted = diskLookup?.(path)
-  return persisted ? { ...persisted, resume: null } : undefined
+  return cache.get(path)
 }
 
 export function storeSessionParseCacheEntry(path: string, entry: SessionParseCacheEntry): void {
   const previous = cache.get(path)
-  // A disk hit does not displace a resident row during an ordered full pass.
-  if (previous === undefined && diskLookup) {
-    const persisted = diskLookup(path)
-    if (
-      persisted &&
-      persisted.mtimeMs === entry.mtimeMs &&
-      persisted.sizeBytes === entry.sizeBytes &&
-      persisted.platform === entry.platform &&
-      JSON.stringify(persisted.session) === JSON.stringify(entry.session) &&
-      sameSidecar(persisted.sidecar, entry.sidecar)
-    ) {
-      return
-    }
-  }
   const changed =
     previous === undefined ||
     previous.mtimeMs !== entry.mtimeMs ||
@@ -182,14 +175,13 @@ export function storeSessionParseCacheEntry(path: string, entry: SessionParseCac
     !sameSidecar(previous.sidecar, entry.sidecar)
   cache.delete(path)
   cache.set(path, entry)
-  if (cache.size > MAX_CACHE_ENTRIES) {
-    const oldest = cache.keys().next()
-    if (!oldest.done) {
-      const evicted = cache.get(oldest.value)
-      if (evicted) {
-        diskStore?.(oldest.value, persistedEntry(evicted))
-      }
-      cache.delete(oldest.value)
+  usedAt.delete(path)
+  usedAt.set(path, Date.now())
+  resumeOrder.delete(path)
+  if (entry.resume !== null) {
+    resumeOrder.add(path)
+    if (resumeOrder.size > MAX_RESUME_ENTRIES) {
+      dropOldestResumePoint()
     }
   }
   if (changed) {
@@ -197,13 +189,20 @@ export function storeSessionParseCacheEntry(path: string, entry: SessionParseCac
   }
 }
 
-function persistedEntry(entry: SessionParseCacheEntry): PersistedSessionParseCacheEntry {
-  return {
-    mtimeMs: entry.mtimeMs,
-    sizeBytes: entry.sizeBytes,
-    platform: entry.platform,
-    session: entry.session,
-    ...(entry.sidecar === undefined ? {} : { sidecar: entry.sidecar })
+function dropOldestResumePoint(): void {
+  const oldest = resumeOrder.values().next()
+  if (oldest.done) {
+    return
+  }
+  resumeOrder.delete(oldest.value)
+  const entry = cache.get(oldest.value)
+  if (entry?.resume) {
+    // Same key, so the row keeps its place in the snapshot order.
+    cache.set(oldest.value, {
+      ...entry,
+      resume: null,
+      skippedRecords: entry.resume.skippedRecords
+    })
   }
 }
 

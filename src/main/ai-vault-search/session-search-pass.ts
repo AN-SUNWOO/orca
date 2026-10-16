@@ -1,5 +1,6 @@
 import type { AiVaultScanIssue } from '../../shared/ai-vault-types'
 import { ensureSessionParseCacheLoaded } from '../ai-vault/session-parse-cache-persistence'
+import { sweepSessionParseCache } from '../ai-vault/session-parse-cache-store'
 import {
   cursorChatMetaRefusals,
   withCursorChatMetaScan
@@ -137,6 +138,9 @@ export async function runSessionSearchPass(
       }
       completed = false
     }
+    // With History closed this is the only sweep, and an index build stores a
+    // row per transcript it read.
+    sweepSessionParseCache()
 
     const listings = sessionSearchRootListings(args.roots, swept.discoveries)
     const roots = listings.map((listing) => listing.root)

@@ -166,7 +166,10 @@ export function useMobileStructuredAgentSession(args: {
     [transcriptItems, sends.optimistic, state.submissions]
   )
   const turnId = runningStructuredAgentSessionTurnId(state)
-  const turnTiming = useMobileStructuredAgentTurnTiming({ ...state, items: transcriptItems }, turnId)
+  const turnTiming = useMobileStructuredAgentTurnTiming(
+    { ...state, items: transcriptItems },
+    turnId
+  )
   const activityText =
     selectStructuredAgentTurnActivity(state.items, turnId, state.activity)?.text ?? null
   const thinking = isStructuredAgentSessionThinking(state)
@@ -227,8 +230,7 @@ export function useMobileStructuredAgentSession(args: {
     }),
     [thinking, activityText, stopping, stopRequestInFlight, queueCapable, state]
   )
-  const status = state.status === 'idle' ? 'idle' : state.status
-  const { items, currentRequests, actionablePromptIds } = state
+  const { items, currentRequests, actionablePromptIds, status } = state
   // The host's answer where it gives one: a prompt an agent that ended raised takes no answer.
   const [approvalPrompt, questionPrompt] = useMemo(() => {
     const prompts = { items, currentRequests, actionablePromptIds }

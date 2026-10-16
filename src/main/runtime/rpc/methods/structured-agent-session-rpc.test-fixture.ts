@@ -248,6 +248,8 @@ export function dispatcher(
   const runtime = {
     getRuntimeId: () => 'runtime-1',
     getClientSettings: () => ({ experimentalNativeChat: true }),
+    // The host reads saved settings privately; follow the client settings each test chose.
+    requireStore: () => ({ getSettings: () => runtime.getClientSettings() }),
     registerSubscriptionCleanup: vi.fn(),
     cleanupSubscription: vi.fn(),
     cleanupSubscriptionsByPrefix: vi.fn(),

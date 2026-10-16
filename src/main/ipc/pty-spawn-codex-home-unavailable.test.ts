@@ -82,6 +82,7 @@ describe('registerPtyHandlers Codex launch refusal on an unreadable managed home
   function makeRuntime() {
     return {
       setPtyController: vi.fn(),
+      createPreAllocatedTerminalHandle: vi.fn(() => null),
       registerPty: vi.fn(),
       noteTerminalSpawnCommand: vi.fn(),
       onPtySpawned: vi.fn(),
@@ -355,6 +356,53 @@ describe('registerPtyHandlers Codex launch refusal on an unreadable managed home
 
       expect(daemonSpawn).not.toHaveBeenCalled()
     })
+  })
+
+  // Both lanes: only a launch whose caller named no session waits on a managed login. A host
+  // create operation's derived id is not caller-named, so it waits too.
+  it.each([
+    {
+      lane: 'host',
+      name: 'a create operation',
+      request: { worktreeId: 'wt-alpha', agentSessionCreateOperationId: 'a'.repeat(43) },
+      waits: true
+    },
+    {
+      lane: 'host',
+      name: 'a caller-named session',
+      request: { sessionId: 'caller-1' },
+      waits: false
+    },
+    {
+      lane: 'window',
+      name: 'a caller-named session',
+      request: { sessionId: 'caller-1' },
+      waits: false
+    }
+  ] as const)('$lane lane, $name: waits on the managed login: $waits', async (c) => {
+    vi.useFakeTimers()
+    makeAuthUnreadable()
+    const daemonSpawn = setupDaemonAdapter()
+    const runtime = makeRuntime()
+    register((_target, _env, context) => {
+      if (context?.unavailableManagedHomePath) {
+        throw new ManagedCodexHomeTemporarilyUnavailableError()
+      }
+      return TEST_CODEX_HOME
+    }, runtime)
+    const controller = runtime.setPtyController.mock.calls[0]?.[0] as RuntimeSpawnController
+    const request = { cols: 80, rows: 24, launchAgent: 'codex', ...c.request } as never
+
+    const spawn = Promise.resolve(
+      c.lane === 'host' ? controller.spawn(request) : handlers.get('pty:spawn')!(null, request)
+    ).then(
+      () => 'spawned',
+      (error: Error) => error.message
+    )
+    await vi.advanceTimersByTimeAsync(2_000)
+
+    await expect(spawn).resolves.toBe(c.waits ? UNAVAILABLE_MESSAGE : 'spawned')
+    expect(daemonSpawn).toHaveBeenCalledTimes(c.waits ? 0 : 1)
   })
 
   // Why: only an Orca-launched Codex may wait for Codex's hook hashes; a plain terminal never does.

@@ -232,7 +232,7 @@ describe('repos:add + repos:clone', () => {
       destination
     })
 
-    expect(result.id).not.toBe(existing.id)
+    expect(result).not.toHaveProperty('id', existing.id)
     expect(result).toMatchObject({ path: clonePath, kind: 'git' })
     expect(mockStore.addRepo).toHaveBeenCalledWith(result)
     expect(mockStore.updateRepo).not.toHaveBeenCalled()

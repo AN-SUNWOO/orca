@@ -64,8 +64,12 @@ const MANAGED_ACCOUNT_SETTINGS = (() =>
     ]
   }) as never) as () => never
 
+type RuntimeSpawnRequest = { cols: number; rows: number; launchAgent?: 'codex' } & Record<
+  string,
+  unknown
+>
 type RuntimeSpawnController = {
-  spawn(args: { cols: number; rows: number; launchAgent?: 'codex' }): Promise<{ id: string }>
+  spawn(args: RuntimeSpawnRequest): Promise<{ id: string }>
 }
 
 /**
@@ -391,8 +395,8 @@ describe('registerPtyHandlers Codex launch refusal on an unreadable managed home
       }
       return TEST_CODEX_HOME
     }, runtime)
-    const controller = runtime.setPtyController.mock.calls[0]?.[0] as RuntimeSpawnController
-    const request = { cols: 80, rows: 24, launchAgent: 'codex', ...c.request } as never
+    const controller: RuntimeSpawnController = runtime.setPtyController.mock.calls[0]?.[0]
+    const request: RuntimeSpawnRequest = { cols: 80, rows: 24, launchAgent: 'codex', ...c.request }
 
     const spawn = Promise.resolve(
       c.lane === 'host' ? controller.spawn(request) : handlers.get('pty:spawn')!(null, request)
@@ -415,14 +419,14 @@ describe('registerPtyHandlers Codex launch refusal on an unreadable managed home
       const runtime = makeRuntime()
       const prepareResume = vi.fn<PrepareCodexSessionResume>(async () => null)
       register(() => TEST_CODEX_HOME, runtime, prepareResume)
-      const controller = runtime.setPtyController.mock.calls[0]?.[0] as RuntimeSpawnController
-      const request = {
+      const controller: RuntimeSpawnController = runtime.setPtyController.mock.calls[0]?.[0]
+      const request: RuntimeSpawnRequest = {
         cols: 80,
         rows: 24,
         launchAgent: 'codex',
         resumeProviderSession: RESUME_SESSION,
         env: { CODEX_HOME: '/client/codex-home' }
-      } as never
+      }
 
       await (lane === 'host'
         ? controller.spawn(request)

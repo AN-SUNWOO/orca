@@ -26,6 +26,7 @@ import { emitRepoAdded } from './repo-added-telemetry'
 import { notifyReposChanged } from './repos-changed-notification'
 import { runWithClonePathLock } from './clone-path-lock'
 import { resolveClonedFolderConversion } from '../../folder-repo-git-conversion'
+import { findExtraFolderWorkspaceIds } from '../../folder-workspace-meta-presence'
 
 type ActiveCloneMetadata = {
   path: string
@@ -258,7 +259,7 @@ export function registerRepoCloneHandlers(mainWindow: BrowserWindow, store: Stor
             if (
               current &&
               conversion &&
-              current.id === existing.id &&
+              findExtraFolderWorkspaceIds(current, store.getAllWorktreeMeta()).length === 0 &&
               current.path === existing.path &&
               isFolderRepo(current) &&
               getRepoExecutionHostId(current) === getRepoExecutionHostId(existing)

@@ -25,6 +25,7 @@ import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
 import type { RuntimeStore } from './runtime-store-contract'
 import { runtimeRepoMatchesExecutionHost } from './runtime-worktree-selection'
 import { resolveClonedFolderConversion } from '../folder-repo-git-conversion'
+import { findExtraFolderWorkspaceIds } from '../folder-workspace-meta-presence'
 
 type RuntimeRepositoryCloneDependencies = {
   getStore: () => RuntimeStore | null
@@ -160,7 +161,7 @@ export class RuntimeRepositoryCloneController {
       if (
         current &&
         conversion &&
-        current.id === existing.id &&
+        findExtraFolderWorkspaceIds(current, store.getAllWorktreeMeta()).length === 0 &&
         current.path === existing.path &&
         isFolderRepo(current) &&
         runtimeRepoMatchesExecutionHost(current, executionHostId)

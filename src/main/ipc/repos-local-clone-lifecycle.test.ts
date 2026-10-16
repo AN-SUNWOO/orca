@@ -156,7 +156,11 @@ describe('repos:add + repos:clone', () => {
     expect(configReads).toHaveLength(2)
   })
 
-  it('preserves existing badgeColor when repos:clone upgrades folder->git after dedupe', async () => {
+  it.each([
+    { replacement: false, extraWorkspace: false },
+    { replacement: true, extraWorkspace: false },
+    { replacement: true, extraWorkspace: true }
+  ])('uses the current folder after clone proof: %j', async ({ replacement, extraWorkspace }) => {
     const destination = await createTempRoot()
     const clonePath = join(destination, 'orca')
     const existing = {
@@ -167,8 +171,21 @@ describe('repos:add + repos:clone', () => {
       addedAt: 1,
       kind: 'folder'
     }
-    const upgraded = { ...existing, kind: 'git' as const }
+    const current = replacement
+      ? { ...existing, id: 'replacement-folder', badgeColor: '#2563eb' }
+      : existing
+    const upgraded = { ...current, kind: 'git' as const }
     mockStore.getRepos.mockReturnValue([existing])
+    mockStore.getAllWorktreeMeta.mockReturnValue({})
+    vi.mocked(isGitRepoAsync).mockImplementationOnce(async () => {
+      mockStore.getRepos.mockReturnValue([current])
+      if (extraWorkspace) {
+        mockStore.getAllWorktreeMeta.mockReturnValue({
+          [`${current.id}::${clonePath}::workspace:extra`]: {}
+        })
+      }
+      return true
+    })
     mockStore.updateRepo.mockReturnValue(upgraded)
 
     const result = await handlers.get('repos:clone')!(null, {
@@ -176,14 +193,19 @@ describe('repos:add + repos:clone', () => {
       destination
     })
 
-    expect(mockStore.updateRepo).toHaveBeenCalledWith(existing.id, {
-      kind: 'git',
-      folderUpgradeGitRootPath: clonePath,
-      projectHostSetupMethod: 'cloned'
-    })
-    expect(result).toEqual(upgraded)
-    expect(result).toHaveProperty('badgeColor', '#8b5cf6')
-    expect(prepareLocalWorktreeRootForRepoMock).toHaveBeenCalledWith(mockStore, upgraded)
+    if (extraWorkspace) {
+      expect(mockStore.updateRepo).not.toHaveBeenCalled()
+      expect(result).toEqual(current)
+    } else {
+      expect(mockStore.updateRepo).toHaveBeenCalledWith(current.id, {
+        kind: 'git',
+        folderUpgradeGitRootPath: clonePath,
+        projectHostSetupMethod: 'cloned'
+      })
+      expect(result).toEqual(upgraded)
+    }
+    expect(result).toHaveProperty('badgeColor', current.badgeColor)
+    expect(prepareLocalWorktreeRootForRepoMock).toHaveBeenCalledWith(mockStore, result)
     expect(invalidateAuthorizedRootsCacheMock).toHaveBeenCalled()
     expect(mockStore.addRepo).not.toHaveBeenCalled()
   })

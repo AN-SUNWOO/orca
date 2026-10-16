@@ -106,6 +106,8 @@ export async function resolvePtySpawnHostEnv(args: PtySpawnHostEnvArgs): Promise
         launchAgent: args.launchAgent,
         providerSession: args.resumeProviderSession,
         target,
+        // Why: a host runtime skips resume prep for a launch whose env names a client-sent CODEX_HOME.
+        launchEnv: args.env,
         ...(args.resumeOnSelectedAccount ? { useSelectedAccount: true } : {})
       })
   const codexResumeLaunch = codexResumePreparation

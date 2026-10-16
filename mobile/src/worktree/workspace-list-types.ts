@@ -6,6 +6,8 @@ import type { WorkspaceRowFilters } from '../../../src/shared/workspace-view/wor
 
 export type Worktree = {
   sectionListKey?: string
+  /** Show the existing project-name surface for a child from another repo. */
+  showProjectName?: boolean
   workspaceKind?: 'git' | 'folder-workspace'
   worktreeId: string
   repoId: string

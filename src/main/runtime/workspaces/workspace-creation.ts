@@ -8,6 +8,7 @@ import type { RuntimeManagedWorktreeCreateArgs } from '../runtime-managed-worktr
 import type { CreateWorktreeResult } from '../../../shared/worktree/create-types'
 import { isTuiAgentEnabled } from '../../../shared/tui-agent-selection'
 import { isFolderRepo } from '../../../shared/repo-kind'
+import { notifyLineageRepos } from '../../worktree-lineage-change-notification'
 import { resolveWorktreeCreateRoute } from '../../worktree-create-execution-host-route'
 import { ExecutionHostNotDispatchableError } from '../../providers/execution-host-provider-dispatch'
 import { SshHostNotServedError } from '../../providers/ssh-host-not-served-error'
@@ -203,7 +204,7 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
     // rediscover roots only this repo changed.
     invalidateAuthorizedRootsCacheForRepo(this.store, repo)
 
-    this.notifyWorktreesChanged(repo.id)
+    notifyLineageRepos(this.notifyWorktreesChanged.bind(this), repo.id, lineage?.parentWorktreeId)
     const {
       warning: terminalWarning,
       returnedSetup,

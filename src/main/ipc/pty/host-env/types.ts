@@ -56,6 +56,7 @@ export type GetSelectedCodexHomePath = (
 export type PrepareCodexSessionResume = (args: {
   providerSession: AgentProviderSessionMetadata
   target: CodexAccountSelectionTarget
+  launchEnv?: NodeJS.ProcessEnv
   useSelectedAccount?: boolean
 }) => Promise<CodexSessionResumePreparation | null>
 

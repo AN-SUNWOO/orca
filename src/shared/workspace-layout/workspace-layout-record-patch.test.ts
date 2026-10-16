@@ -55,8 +55,24 @@ function commandsFor(model: WorkspaceLayoutModel): LayoutCommand[] {
           direction: 'vertical'
         })
       }
+      if (first) {
+        commands.push({
+          type: 'renamePane',
+          workspace,
+          tabId: tab.id,
+          leafId: first,
+          title: 'Pane'
+        })
+      }
       if (second) {
         commands.push({ type: 'closePane', workspace, tabId: tab.id, leafId: second })
+        commands.push({
+          type: 'closePane',
+          workspace,
+          tabId: tab.id,
+          leafId: second,
+          userPaneClose: true
+        })
         commands.push({ type: 'equalizePanes', workspace, tabId: tab.id })
       }
     }

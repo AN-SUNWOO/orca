@@ -708,6 +708,12 @@
             "thisScope": "This",
             "worktreeScope": "Worktree"
           },
+          "AiVaultScanProgressStrip": {
+            "databaseCount_one": "{{value0}} database",
+            "databaseCount_other": "{{value0}} databases",
+            "fileCount_one": "{{value0}} file",
+            "fileCount_other": "{{value0}} files"
+          },
           "AiVaultSessionDetails": {
             "assistant": "Assistant",
             "branch": "Branch",

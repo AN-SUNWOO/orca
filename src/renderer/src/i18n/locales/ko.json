@@ -14130,6 +14130,18 @@
             "sourceMissing": "스크립트를 더 이상 사용할 수 없습니다.",
             "metadataMatch": "세션 메타데이터 일치",
             "sourceActionsUnavailable": "스크립트 소스를 사용할 수 없습니다."
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "파일 {{value0}}개",
+            "fileCount_other": "파일 {{value0}}개",
+            "databaseCount_one": "데이터베이스 {{value0}}개",
+            "databaseCount_other": "데이터베이스 {{value0}}개",
+            "scanning": "{{value0}} 스캔 중",
+            "reading": "파일 {{value0}}개 읽는 중",
+            "stoppedAfter": "{{value0}}에서 중지됨",
+            "scanned": "{{value0}} 스캔함",
+            "stoppedAt": "{{value0}}에서 중지됨",
+            "refresh": "새로 고침"
           }
         }
       },

@@ -23,7 +23,7 @@ const MAP_RECORD_DEPTH = 2
 /**
  * `stored` with the records the command touched (those differing between `before` and `after`)
  * written as `after` has them. A touched record the load supplied is written whole; every
- * untouched record stays as stored.
+ * untouched record stays as stored. `stored` itself when the command changed nothing.
  */
 export function patchStoredSession(
   stored: WorkspaceSessionState,
@@ -33,8 +33,12 @@ export function patchStoredSession(
   const storedFields = toJson(stored)
   const beforeFields = toJson(before)
   const afterFields = toJson(after)
+  const changed = changedKeys(beforeFields, afterFields)
+  if (changed.length === 0) {
+    return stored
+  }
   const patched: Json = { ...storedFields }
-  for (const field of changedKeys(beforeFields, afterFields)) {
+  for (const field of changed) {
     const idOf = LIST_FIELDS[field]
     // The command dropped the field: stored records the load never read go with it.
     if (afterFields[field] === undefined) {

@@ -29,6 +29,7 @@ export type PrepareCodexResumeHomeArgs = {
   launchAgent?: TuiAgent
   providerSession?: AgentProviderSessionMetadata
   target: CodexAccountSelectionTarget
+  launchEnv?: NodeJS.ProcessEnv
   useSelectedAccount?: boolean
 }
 
@@ -48,6 +49,7 @@ export function prepareCodexResumeHome(
     preparation: prepareCodexSessionResume({
       providerSession,
       target: args.target,
+      launchEnv: args.launchEnv,
       ...(args.useSelectedAccount ? { useSelectedAccount: true } : {})
     })
   }

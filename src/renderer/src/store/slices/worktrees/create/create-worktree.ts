@@ -169,19 +169,6 @@ export function createCreateWorktree(
       options
     }
     try {
-      // Why outside the retry loop: a branch-name conflict retry must not re-warn about the same dropped pick.
-      const parent = resolveWorktreeCreateParent(get(), repoId, options?.parentWorktreeId)
-      let warnedParentDropped = false
-      const warnParentDroppedOnce = (): void => {
-        if (warnedParentDropped) {
-          return
-        }
-        warnedParentDropped = true
-        notifyWorktreeParentDropped(get(), parent)
-      }
-      if (parent.staleBeforeCreate) {
-        warnParentDroppedOnce()
-      }
       // Why: manual sort is user-authored order; stamp new workspaces at the top rather than relying on sortOrder fallback.
       const manualOrder = get().sortBy === 'manual' ? Date.now() : undefined
       if (isUnresolvedOwnerHostId(options?.executionHostId)) {
@@ -200,6 +187,19 @@ export function createCreateWorktree(
         requestedHostId: options?.executionHostId,
         resolveOwnHostId: () => repoHostId(get(), repoId)
       })
+      // Why outside the retry loop: a branch-name conflict retry must not re-warn about the same dropped pick.
+      const parent = resolveWorktreeCreateParent(get(), options?.parentWorktreeId, creationHostId)
+      let warnedParentDropped = false
+      const warnParentDroppedOnce = (): void => {
+        if (warnedParentDropped) {
+          return
+        }
+        warnedParentDropped = true
+        notifyWorktreeParentDropped(get(), parent)
+      }
+      if (parent.staleBeforeCreate) {
+        warnParentDroppedOnce()
+      }
       if (
         target.kind === 'environment' &&
         (options?.linkedWorkItem?.provider === 'jira' ||

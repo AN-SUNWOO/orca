@@ -51,6 +51,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-cache-warmup-platforms-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   warm-platforms:
     uses: ./.github/workflows/ci-cache-warmup-platform-jobs.yml

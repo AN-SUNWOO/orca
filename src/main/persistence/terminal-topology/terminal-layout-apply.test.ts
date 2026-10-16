@@ -126,7 +126,7 @@ describe('Store.applyLayoutCommand (layout.apply)', () => {
     const { store } = await storeWithOneTab('ssh:target-1')
     const local = store.getWorkspaceSession()
 
-    const reply = await store.applyLayoutCommand(split, 'ssh:target-1')
+    const reply = await store.applyLayoutCommand(split, ['ssh:target-1'])
 
     expect(reply.ok).toBe(true)
     const root = store.getWorkspaceSession('ssh:target-1').terminalLayoutsByTabId[TAB]?.root

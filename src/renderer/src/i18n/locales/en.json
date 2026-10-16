@@ -14360,6 +14360,18 @@
             "sourceMissing": "Transcript is no longer available",
             "metadataMatch": "Match in session metadata",
             "sourceActionsUnavailable": "The transcript source is unavailable."
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "{{value0}} file",
+            "fileCount_other": "{{value0}} files",
+            "databaseCount_one": "{{value0}} database",
+            "databaseCount_other": "{{value0}} databases",
+            "scanning": "Scanning {{value0}}",
+            "reading": "Reading {{value0}} files",
+            "stoppedAfter": "Stopped after {{value0}}",
+            "scanned": "Scanned {{value0}}",
+            "stoppedAt": "stopped at {{value0}}",
+            "refresh": "Refresh"
           }
         }
       },

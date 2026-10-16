@@ -14130,6 +14130,18 @@
             "sourceMissing": "トランスクリプトは利用できなくなりました",
             "metadataMatch": "セッションメタデータ内の一致",
             "sourceActionsUnavailable": "トランスクリプトのソースが利用できません。"
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "{{value0}} 個のファイル",
+            "fileCount_other": "{{value0}} 個のファイル",
+            "databaseCount_one": "{{value0}} 個のデータベース",
+            "databaseCount_other": "{{value0}} 個のデータベース",
+            "scanning": "{{value0}}をスキャン中",
+            "reading": "{{value0}} ファイルを読み込み中",
+            "stoppedAfter": "{{value0}}で停止",
+            "scanned": "{{value0}}をスキャン済み",
+            "stoppedAt": "{{value0}} で停止",
+            "refresh": "更新"
           }
         }
       },

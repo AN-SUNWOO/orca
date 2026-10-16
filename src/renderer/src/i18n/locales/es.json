@@ -14130,6 +14130,18 @@
             "sourceMissing": "La transcripción ya no está disponible",
             "metadataMatch": "Coincidencia en los metadatos de la sesión",
             "sourceActionsUnavailable": "La fuente de la transcripción no está disponible."
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "{{value0}} archivo",
+            "fileCount_other": "{{value0}} archivos",
+            "databaseCount_one": "{{value0}} base de datos",
+            "databaseCount_other": "{{value0}} bases de datos",
+            "scanning": "Analizando {{value0}}",
+            "reading": "Leyendo {{value0}} archivos",
+            "stoppedAfter": "Detenido tras {{value0}}",
+            "scanned": "Analizados {{value0}}",
+            "stoppedAt": "detenido en {{value0}}",
+            "refresh": "Actualizar"
           }
         }
       },

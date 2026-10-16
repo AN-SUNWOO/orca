@@ -171,6 +171,15 @@ export const PR_E2E_SOURCE_ROUTES = [
       )
   },
   {
+    id: 'ssh.orcad-terminal-browser-link',
+    specs: ['tests/e2e/ssh-orcad-terminal-browser-link.spec.ts'],
+    matches: (file) =>
+      isProductSource(file) &&
+      /^src\/renderer\/src\/(?:lib\/(?:workspace-browser-tab-open|http-link-(?:destinations|routing)|ssh-workspace-browser-route-eligibility)|components\/terminal-pane\/terminal-http-link-source-owner)\.ts$/.test(
+        file
+      )
+  },
+  {
     id: 'ssh.orcad-browser-drop-owner',
     specs: ['tests/e2e/ssh-orcad-browser-drop-owner.spec.ts'],
     matches: (file) =>

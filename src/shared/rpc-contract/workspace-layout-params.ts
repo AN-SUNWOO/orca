@@ -11,12 +11,32 @@ export const LayoutUnsubscribeParams = z.object({
   subscriptionId: z.string().min(1, 'Missing subscriptionId')
 })
 
-const SplitPaneCommand = z.object({
-  type: z.literal('splitPane'),
+const OnPane = {
   workspace: z.string().min(1),
   tabId: z.string().min(1),
-  leafId: z.string().min(1),
+  leafId: z.string().min(1)
+}
+
+const SplitPaneCommand = z.object({
+  type: z.literal('splitPane'),
+  ...OnPane,
   direction: z.enum(['horizontal', 'vertical'])
+})
+
+/** Main marks a close as the user's; the window cannot send that mark. */
+const ClosePaneCommand = z.object({ type: z.literal('closePane'), ...OnPane })
+
+/** A title is trimmed and non-empty; null clears it. */
+const RenamePaneCommand = z.object({
+  type: z.literal('renamePane'),
+  ...OnPane,
+  title: z.union([z.string().trim().min(1), z.null()])
+})
+
+const EqualizePanesCommand = z.object({
+  type: z.literal('equalizePanes'),
+  workspace: OnPane.workspace,
+  tabId: OnPane.tabId
 })
 
 /**
@@ -24,5 +44,10 @@ const SplitPaneCommand = z.object({
  * names what it acts on; main mints every new id, so no new id is accepted here.
  */
 export const LayoutApplyParams = z.object({
-  command: z.discriminatedUnion('type', [SplitPaneCommand])
+  command: z.discriminatedUnion('type', [
+    SplitPaneCommand,
+    ClosePaneCommand,
+    RenamePaneCommand,
+    EqualizePanesCommand
+  ])
 })

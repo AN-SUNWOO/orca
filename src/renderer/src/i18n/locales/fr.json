@@ -14238,6 +14238,18 @@
             "sourceMissing": "La transcription n'est plus disponible",
             "metadataMatch": "Faire correspondre les métadonnées de la session",
             "sourceActionsUnavailable": "La source de la transcription n'est pas disponible."
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "{{value0}} fichier",
+            "fileCount_other": "{{value0}} fichiers",
+            "databaseCount_one": "{{value0}} base de données",
+            "databaseCount_other": "{{value0}} bases de données",
+            "scanning": "Analyse de {{value0}}",
+            "reading": "Lecture de {{value0}} fichiers",
+            "stoppedAfter": "Arrêté après {{value0}}",
+            "scanned": "{{value0}} analysés",
+            "stoppedAt": "arrêté à {{value0}}",
+            "refresh": "Actualiser"
           }
         }
       },

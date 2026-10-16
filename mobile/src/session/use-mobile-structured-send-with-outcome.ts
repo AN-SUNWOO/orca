@@ -31,9 +31,9 @@ import {
  *  one this build cannot answer would hold the send forever, so it starts a turn instead. */
 export function mobileStructuredSendQueues(
   queueCapable: boolean,
-  items: StructuredAgentSessionState['items']
+  state: Pick<StructuredAgentSessionState, 'items' | 'currentRequests'>
 ): boolean {
-  return queueCapable && !pendingPromptsAllUnanswerableHere(items)
+  return queueCapable && !pendingPromptsAllUnanswerableHere(selectAgentSessionCurrentRequests(state))
 }
 
 export type StructuredMobileSendAttachment = StructuredAgentSessionAttachment & {
@@ -153,10 +153,7 @@ export function useMobileStructuredSendWithOutcome(args: {
         expectedRuntimeFence: currentFence,
         text,
         attachments: sendAttachments,
-        ...(mobileStructuredSendQueues(
-          queueCapable,
-          selectAgentSessionCurrentRequests(stateRef.current)
-        )
+        ...(mobileStructuredSendQueues(queueCapable, stateRef.current)
           ? { delivery: 'queue-if-active' as const }
           : {}),
         ...(options ? { options } : {}),

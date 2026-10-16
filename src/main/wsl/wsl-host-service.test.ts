@@ -10,10 +10,10 @@ import {
 import { findWslHostDeployment } from '../../shared/runtime-environment-wsl-host-store'
 import { getPreferredPairingOffer } from '../../shared/runtime-environments'
 import type { WslHostServerStop, WslHostStatus } from '../../shared/wsl-host-types'
+import { OrcadHostUnsupportedError } from '../orcad/orcad-host-unavailable'
 import type { WslHostDistroCandidate } from './wsl-host-distro-list'
 import { WslHostService, type WslHostConnector } from './wsl-host-service'
 import { WslOrcadLaunchDeferredError, type WslOrcadConnection } from './wsl-orcad-connection'
-import { OrcadHostUnsupportedError } from '../orcad/orcad-host-unavailable'
 
 const KEY = Buffer.alloc(32, 3).toString('base64')
 const UBUNTU_ID = '0e3a7f2c-1b4d-4c5e-9f60-7a8b9c0d1e2f'
@@ -484,6 +484,7 @@ describe('WslHostService', () => {
     })
     connector.releaseHolder.mockImplementationOnce(async () => {
       order.push('release')
+      throw new Error('holder gone too')
     })
     const service = makeService(connector)
     await expect(service.add({ distro: 'Ubuntu' })).resolves.toEqual({
@@ -522,16 +523,47 @@ describe('WslHostService', () => {
       order.push(`key:${distro}`)
       return null
     })
+    // A deferral on the new connection proves the published status was built from it.
+    const deferredUpdate = {
+      candidateVersion: '2.0.0+ff',
+      code: 'orcad_update_terminals_running',
+      reason: '1 terminal is running on this host.',
+      forceable: true
+    }
     connector.connect.mockImplementation(async (distro: string) => {
       order.push(`connect:${distro}`)
-      return connection(distro)
+      return { ...connection(distro), deferredUpdate }
     })
     ready.mockImplementation((id: string) => order.push(`ready:${id}:${published.length}`))
     const service = makeService(connector)
     await service.add({ distro: 'UBUNTU' })
     expect(order).toEqual(['list', 'key:Ubuntu', 'connect:Ubuntu', 'ready:wsl:ubuntu:1'])
     expect(published).toEqual([
-      expect.objectContaining({ environmentId: 'wsl:ubuntu', distro: 'Ubuntu', state: 'ready' })
+      {
+        environmentId: 'wsl:ubuntu',
+        distro: 'Ubuntu',
+        state: 'ready',
+        detail: null,
+        deferredUpdate
+      }
     ])
+  })
+
+  it('refuses an add with no WSL connector before touching one, while turned off', async () => {
+    enabled = false
+    const service = new WslHostService({
+      userDataPath: () => userDataPath,
+      isEnabled: () => enabled,
+      hasServerFiles: () => serverFiles,
+      publish: (status) => published.push(status),
+      pairingChanged,
+      ready,
+      removed
+    })
+    await expect(service.add({ distro: 'Ubuntu' })).resolves.toMatchObject({ ok: false })
+    enabled = true
+    await expect(service.add({ distro: 'Ubuntu' })).rejects.toThrow(
+      'WSL hosts are not available on this computer.'
+    )
   })
 })

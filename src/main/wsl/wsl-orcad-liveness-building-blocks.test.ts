@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   confirmsRunning,
   failedExit,
@@ -31,6 +31,10 @@ function fakeWatch(signal: WslOrcadWatch['signal']) {
 }
 
 describe('WSL orcad liveness building blocks', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('treats only a non-zero bridge or holder exit as a failed exit', () => {
     expect(failedExit('heartbeat')).toBe(false)
     expect(failedExit({ source: 'verify' })).toBe(false)
@@ -103,16 +107,21 @@ describe('WSL orcad liveness building blocks', () => {
   it('reports a resume only after subscribing, and a suspend always', () => {
     const changes: boolean[] = []
     const unsubscribe = vi.fn()
-    subscribeWake(
+    let resume = (): void => {}
+    const stop = subscribeWake(
       (listener) => {
-        listener.onResume?.()
-        listener.onSuspend?.()
-        queueMicrotask(() => listener.onResume?.())
+        listener.onResume()
+        listener.onSuspend()
+        resume = listener.onResume
         return unsubscribe
       },
       (suspended) => changes.push(suspended)
     )
     expect(changes).toEqual([true])
+    resume()
+    expect(changes).toEqual([true, false])
+    stop()
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
     expect(subscribeWake(undefined, () => {})).toBeTypeOf('function')
   })
 
@@ -130,15 +139,19 @@ describe('WSL orcad liveness building blocks', () => {
     expect(entry).toMatchObject({ timer: null, wakeWait: null, watch: null })
   })
 
-  it('swallows a holder re-ensure failure', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('swallows a holder re-ensure failure, logging it', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await expect(
       ensureHolderQuietly(async () => {
         throw new Error('nope')
       }, 'Ubuntu')
     ).resolves.toBeUndefined()
+    expect(warn).toHaveBeenCalledWith(
+      '[wsl] holder re-ensure for Ubuntu failed:',
+      expect.any(Error)
+    )
     await expect(ensureHolderQuietly(undefined, 'Ubuntu')).resolves.toBeUndefined()
-    vi.restoreAllMocks()
+    expect(warn).toHaveBeenCalledTimes(1)
   })
 
   it('holds a ready watch, drops one a later connect superseded, and reports its exit once', async () => {

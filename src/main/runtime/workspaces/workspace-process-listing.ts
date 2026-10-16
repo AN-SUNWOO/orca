@@ -41,10 +41,8 @@ import {
   structuredWorkerOpenTaskTitle,
   structuredWorkerOwesWork
 } from '../structured-worker-custody'
-import {
-  resolvedTuiAgentArgsBypassPermissions,
-  resolveTuiAgentLaunchEnv
-} from '../../../shared/tui-agent-launch-defaults'
+import { resolveTuiAgentLaunchEnv } from '../../../shared/tui-agent-launch-defaults'
+import { chatRanWithFullAccessBeforeModes } from '../../../shared/agent-chat-permission-mode'
 import { isTuiAgent } from '../../../shared/tui-agent-config'
 import { nativeChatShellEnvironmentPolicy } from '../../../shared/native-chat-shell-environment'
 import { claudeStructuredAuthPolicyForSettings } from '../../claude-accounts/claude-structured-auth-policy'
@@ -250,11 +248,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithWorktr
         claudeStructuredAuthPolicyForSettings(this.requireStore().getSettings()),
       resolveAgentFullAccess: (agent) =>
         isTuiAgent(agent) &&
-        resolvedTuiAgentArgsBypassPermissions(
-          agent,
-          this.requireStore().getSettings(),
-          process.platform
-        ),
+        chatRanWithFullAccessBeforeModes(agent, this.requireStore().getSettings(), process.platform),
       resolveAgentLaunchEnv: (agent) =>
         isTuiAgent(agent)
           ? this.structuredAgentLaunchEnv(agent, this.requireStore().getSettings())

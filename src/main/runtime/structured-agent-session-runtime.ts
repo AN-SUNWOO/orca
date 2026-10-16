@@ -116,7 +116,7 @@ export type StructuredAgentSessionRuntimeDeps = {
   resolveLaunchArgs: (provider: AgentSessionRecord['provider']) => Promise<string[]> | string[]
   /** Required, and asserted at install time — an absent policy must not degrade to a guess. */
   resolveClaudeAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
-  /** Agent Permissions for an ACP agent; also fills Claude and Codex chats saved before modes. */
+  /** What a chat saved before its agent had modes ran with; fills that chat's mode once. */
   resolveAgentFullAccess?: (agent: string) => boolean
   /** The user's per-agent environment overlay from settings, laid over every agent's base env. */
   resolveAgentLaunchEnv?: (agent: string) => Record<string, string>

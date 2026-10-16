@@ -116,7 +116,6 @@ function createAcpAdapter(
     const sources = structuredAgentLaunchSources(context)
     const part = acpStructuredLaunchPart(spec, {
       readJournal,
-      ...(deps.resolveAgentFullAccess ? { resolveFullAccess: deps.resolveAgentFullAccess } : {}),
       dataDirectory: deps.stateDirectory,
       logger: deps.logger
     })

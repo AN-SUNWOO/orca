@@ -65,7 +65,7 @@ export type AcpLaunchSpec = {
   /** The Orca agent id, which names the agent's records, its catalog label and its settings. */
   agent: TuiAgent
   command: string
-  /** Built per launch: `fullAccess` is the Agent Permissions setting's bypass posture;
+  /** Built per launch: `fullAccess` is the chat's own Full access permission mode;
    *  `pluginDir` is a plugin folder `visualsSkill` asked the agent to load. */
   args(input: { fullAccess: boolean; pluginDir: string | null }): string[]
   /** Laid over the child's environment last, after the account and the user's own variables. */
@@ -110,7 +110,7 @@ export type AcpLaunchSpec = {
 const GROK_LAUNCH_SPEC: AcpLaunchSpec = {
   agent: 'grok',
   command: 'grok',
-  // `--always-approve` only for full access, as the user's setting chooses.
+  // `--always-approve` only for full access, as the chat's permission mode chooses.
   args: ({ fullAccess, pluginDir }) => [
     'agent',
     ...(fullAccess ? ['--always-approve'] : []),

@@ -130,4 +130,10 @@ describe('resolveTuiAgentLaunchArgs', () => {
     expect(resolveTuiAgentLaunchArgs('claude', {})).toBe('--dangerously-skip-permissions')
     expect(resolveTuiAgentLaunchArgs('claude', { claude: '' })).toBe('')
   })
+
+  // Their chats run their own permission mode, so terminals get no permission argument for them.
+  it('adds no permission argument to OMP or OpenCode terminals', () => {
+    expect(resolveTuiAgentLaunchArgs('omp', {})).toBe('')
+    expect(resolveTuiAgentLaunchArgs('opencode', {})).toBe('')
+  })
 })

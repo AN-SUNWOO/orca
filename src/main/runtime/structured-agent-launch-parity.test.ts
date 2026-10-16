@@ -642,7 +642,7 @@ describe.skipIf(process.platform === 'win32')('native-chat launch parity', () =>
         },
         fence: 1,
         spawnToken: SPAWN_TOKEN,
-        // Claude and Codex chats run their own mode, which the host hands the start.
+        // Chats run their own mode, which the host hands the start.
         ...(launch.configured && agentChatPermissionModes(launch.agent)
           ? { permissionMode: 'full-access' as const }
           : {}),

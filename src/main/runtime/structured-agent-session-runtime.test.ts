@@ -224,7 +224,13 @@ describe('structured agent-session runtime install', () => {
     vi.restoreAllMocks()
   })
 
-  function oldChat(provider: 'claude' | 'codex'): AgentSessionRecord {
+  const ACCOUNT_HOME_VARIABLE = {
+    claude: 'CLAUDE_CONFIG_DIR',
+    codex: 'CODEX_HOME',
+    omp: 'PI_CODING_AGENT_DIR'
+  } as const
+
+  function oldChat(provider: keyof typeof ACCOUNT_HOME_VARIABLE): AgentSessionRecord {
     return foundAgentSessionRecord(
       {
         sessionId: `old-${provider}`,
@@ -235,10 +241,7 @@ describe('structured agent-session runtime install', () => {
           workspaceKind: 'folder',
           wslDistro: null
         },
-        accountHome: {
-          variable: provider === 'claude' ? 'CLAUDE_CONFIG_DIR' : 'CODEX_HOME',
-          path: '/account'
-        }
+        accountHome: { variable: ACCOUNT_HOME_VARIABLE[provider], path: '/account' }
       },
       { claimKeyId: 'key-1', now: 1 }
     )
@@ -288,18 +291,19 @@ describe('structured agent-session runtime install', () => {
   )
 
   it.each([
-    [['claude'], 'full-access', 'ask'],
-    [['codex'], 'ask', 'full-access']
+    [['claude'], 'full-access', 'ask', 'ask'],
+    [['codex', 'omp'], 'ask', 'full-access', 'full-access']
   ] as const)(
-    "fills each old chat from its own agent's arguments when %j skip prompts",
-    async (fullAccessAgents, claude, codex) => {
+    'fills each old chat from what its own agent ran with when %j skip prompts',
+    async (fullAccessAgents, claude, codex, omp) => {
       stateDirectory = await mkdtemp(join(tmpdir(), 'orca-structured-runtime-backfill-'))
       await seedTestAgentSessionRecordStore(stateDirectory, {
-        records: [oldChat('claude'), oldChat('codex')]
+        records: [oldChat('claude'), oldChat('codex'), oldChat('omp')]
       })
       const host = await installOver(fullAccessAgents)
       expect(host.deps.store.getRecord('old-claude')?.permissionMode).toBe(claude)
       expect(host.deps.store.getRecord('old-codex')?.permissionMode).toBe(codex)
+      expect(host.deps.store.getRecord('old-omp')?.permissionMode).toBe(omp)
     }
   )
 

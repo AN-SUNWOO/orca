@@ -71,8 +71,6 @@ export type AcpStructuredLaunch = {
 export type AcpStructuredLaunchPartDeps = {
   /** The chat's journal as it stands, read without opening it; null when it has none. */
   readJournal: (sessionId: string) => JournalLoad | null
-  /** The Agent Permissions setting's bypass posture for this agent, re-read per acquisition. */
-  resolveFullAccess?: (agent: string) => boolean
   resolveCommand?: typeof resolveCliCommand
   homePath?: string
   /** The environment the child process inherits at spawn; this process's own by default. */
@@ -257,7 +255,8 @@ export function acpStructuredLaunchPart(
           inherited: deps.inheritedEnv ?? process.env
         })
       : null
-    const fullAccess = deps.resolveFullAccess?.(spec.agent) ?? false
+    // The chat's own mode, as the host decided it for this start; a start naming none asks.
+    const fullAccess = basis.permissionMode === 'full-access'
     const head = agentSessionProviderHandleChainHead(record.providerHandleChain)
     return {
       launch: {

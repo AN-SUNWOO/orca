@@ -1,5 +1,7 @@
 import type { GlobalSettings } from './global-settings-types'
 import { resolvedTuiAgentArgsBypassPermissions } from './tui-agent-launch-defaults'
+import { YOLO_TUI_AGENT_ARGS } from './tui-agent-permissions'
+import type { TuiAgent } from './tui-agent'
 
 /** A chat's own permission choice. Saved in chat records and settings: never rename a value. */
 export type AgentChatPermissionMode = 'ask' | 'accept-edits' | 'auto' | 'full-access'
@@ -35,13 +37,20 @@ const CODEX_CHAT_PERMISSION_MODES: AgentChatPermissionModeSupport = {
   modes: ['ask', 'auto', 'full-access']
 }
 
+// ACP chats: Orca answers the agent's permission requests yes under Full access, else the person does.
+const ACP_CHAT_PERMISSION_MODES: AgentChatPermissionModeSupport = {
+  modes: ['ask', 'full-access']
+}
+
 /** The one table of which agents' chats offer which modes; null keeps following Agent Permissions. */
 export function agentChatPermissionModes(agent: string): AgentChatPermissionModeSupport | null {
   return agent === 'claude'
     ? CLAUDE_CHAT_PERMISSION_MODES
     : agent === 'codex'
       ? CODEX_CHAT_PERMISSION_MODES
-      : null
+      : agent === 'grok' || agent === 'opencode' || agent === 'omp'
+        ? ACP_CHAT_PERMISSION_MODES
+        : null
 }
 
 /** The saved choice if this agent offers it; anything else asks, never grants more access. */
@@ -118,4 +127,18 @@ export function loadedChatPermissionSetting(
   const bypasses = (agent: 'claude' | 'codex'): boolean =>
     resolvedTuiAgentArgsBypassPermissions(agent, terminal, platform)
   return bypasses('claude') && bypasses('codex') ? 'full-access' : 'ask'
+}
+
+/** What a chat saved before its agent had modes ran with: its agent's own Arguments. An agent with no
+ *  bypass argument never had that choice, so its chats take the new-chat setting. */
+export function chatRanWithFullAccessBeforeModes(
+  agent: TuiAgent,
+  settings: Partial<
+    Pick<GlobalSettings, 'agentDefaultArgs' | 'terminalWindowsShell' | 'nativeChatPermissionMode'>
+  >,
+  platform: NodeJS.Platform
+): boolean {
+  return agent in YOLO_TUI_AGENT_ARGS
+    ? resolvedTuiAgentArgsBypassPermissions(agent, settings, platform)
+    : settings.nativeChatPermissionMode === 'full-access'
 }

@@ -1106,7 +1106,6 @@ exports[`native-chat launch parity > grok floating fresh 1`] = `
   "child": {
     "args": [
       "agent",
-      "--always-approve",
       "--plugin-dir",
       "<repo>/resources/native-chat-visuals",
       "stdio",
@@ -1166,7 +1165,7 @@ exports[`native-chat launch parity > grok floating fresh 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": true,
+    "fullAccess": false,
   },
   "pinnedLaunchDirectories": [
     "<root>/floating",
@@ -1179,7 +1178,6 @@ exports[`native-chat launch parity > grok floating resumed 1`] = `
   "child": {
     "args": [
       "agent",
-      "--always-approve",
       "--plugin-dir",
       "<repo>/resources/native-chat-visuals",
       "stdio",
@@ -1239,7 +1237,7 @@ exports[`native-chat launch parity > grok floating resumed 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": true,
+    "fullAccess": false,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -1250,7 +1248,6 @@ exports[`native-chat launch parity > grok worktree fresh 1`] = `
   "child": {
     "args": [
       "agent",
-      "--always-approve",
       "--plugin-dir",
       "<repo>/resources/native-chat-visuals",
       "stdio",
@@ -1310,7 +1307,7 @@ exports[`native-chat launch parity > grok worktree fresh 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": true,
+    "fullAccess": false,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -1321,6 +1318,7 @@ exports[`native-chat launch parity > grok worktree fresh configured 1`] = `
   "child": {
     "args": [
       "agent",
+      "--always-approve",
       "--plugin-dir",
       "<repo>/resources/native-chat-visuals",
       "stdio",
@@ -1379,7 +1377,7 @@ exports[`native-chat launch parity > grok worktree fresh configured 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": false,
+    "fullAccess": true,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -1390,7 +1388,6 @@ exports[`native-chat launch parity > grok worktree fresh worker 1`] = `
   "child": {
     "args": [
       "agent",
-      "--always-approve",
       "stdio",
     ],
     "command": "<root>/bin/grok",
@@ -1448,7 +1445,7 @@ exports[`native-chat launch parity > grok worktree fresh worker 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": true,
+    "fullAccess": false,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -1459,7 +1456,6 @@ exports[`native-chat launch parity > grok worktree resumed 1`] = `
   "child": {
     "args": [
       "agent",
-      "--always-approve",
       "--plugin-dir",
       "<repo>/resources/native-chat-visuals",
       "stdio",
@@ -1519,7 +1515,7 @@ exports[`native-chat launch parity > grok worktree resumed 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": true,
+    "fullAccess": false,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -1530,6 +1526,7 @@ exports[`native-chat launch parity > grok worktree resumed configured 1`] = `
   "child": {
     "args": [
       "agent",
+      "--always-approve",
       "--plugin-dir",
       "<repo>/resources/native-chat-visuals",
       "stdio",
@@ -1588,7 +1585,7 @@ exports[`native-chat launch parity > grok worktree resumed configured 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": false,
+    "fullAccess": true,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -1865,7 +1862,7 @@ exports[`native-chat launch parity > omp worktree fresh configured 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": false,
+    "fullAccess": true,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -2069,7 +2066,7 @@ exports[`native-chat launch parity > omp worktree resumed configured 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": false,
+    "fullAccess": true,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -2366,7 +2363,7 @@ exports[`native-chat launch parity > opencode worktree fresh configured 1`] = `
     },
   },
   "launchPosture": {
-    "fullAccess": false,
+    "fullAccess": true,
   },
   "pinnedLaunchDirectories": [],
 }
@@ -2586,7 +2583,7 @@ exports[`native-chat launch parity > opencode worktree resumed configured 1`] = 
     },
   },
   "launchPosture": {
-    "fullAccess": false,
+    "fullAccess": true,
   },
   "pinnedLaunchDirectories": [],
 }

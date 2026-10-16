@@ -2791,6 +2791,12 @@
   },
   "components": {
     "native-chat": {
+      "switch": {
+        "action": "Switch to Chat (closes terminal)"
+      },
+      "stopAndSwitch": {
+        "action": "Stop and Switch to Chat (closes terminal)"
+      },
       "ask": {
         "asked": "Asked:",
         "awaiting": "Awaiting user input:",

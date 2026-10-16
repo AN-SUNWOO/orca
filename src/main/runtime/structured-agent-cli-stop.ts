@@ -15,7 +15,7 @@ import { findStructuredAgentCliSourceRow } from '../native-chat/structured-agent
 
 export type CliSourceStopHost = {
   rows: () => AgentStatusIpcPayload[]
-  resolvePane: (paneKey: string, workspaceId: string) => { ptyId: string | null; connected: boolean }
+  resolvePane: (paneKey: string, workspaceId: string) => { ptyId: string | null; connected?: boolean }
   sleeping: (workspaceId: string) => boolean
   presence: (paneKey: string) => Promise<AgentProcessVerdict | null>
   shellForeground: (ptyId: string) => Promise<boolean>

@@ -3,9 +3,14 @@ import type { StructuredAgentId } from '../../../shared/agent-session-provider-h
 import { OrcaRuntimeWithGetWorktreePs } from '../workspaces/workspace-process-listing'
 import { structuredAgentRuntimeRegistration } from '../structured-agent-runtime-registrations'
 import type { CliSourceStopHost } from '../structured-agent-cli-stop'
+import type { OrcaRuntimeWithStopExactTerminalsForWorktree } from '../terminal/stop/worktree-terminal-stop-targets'
 
 /** Host-side terminal facts and agent account selection for chat adoption. */
 export abstract class OrcaRuntimeWithStructuredSessionCliSourceHost extends OrcaRuntimeWithGetWorktreePs {
+  abstract stopExactTerminalsForWorktree(
+    ...args: Parameters<OrcaRuntimeWithStopExactTerminalsForWorktree['stopExactTerminalsForWorktree']>
+  ): ReturnType<OrcaRuntimeWithStopExactTerminalsForWorktree['stopExactTerminalsForWorktree']>
+
   cliSourceStopHost(): CliSourceStopHost {
     return {
       rows: () => this.getAgentProviderSessionRows(),

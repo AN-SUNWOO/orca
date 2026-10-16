@@ -11,7 +11,7 @@ import {
   resolveStructuredAgentSessionAdoptionForCreate,
   type StructuredAgentSessionCreateIntentInput
 } from '../structured-agent-session-create-adoption'
-import { isNativeLocalLocation } from '../../../shared/execution-host'
+import { isNativeLocalLocation, LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 import { agentSessionExecutionLocationsEqual } from '../../../shared/agent-session-record'
 import { getLocalProjectWorktreeGitOptions } from '../../project-runtime-git-options'
 import type { AgentSessionAttachParams } from '../../native-chat/agent-session-wire/structured-agent-session-attach'

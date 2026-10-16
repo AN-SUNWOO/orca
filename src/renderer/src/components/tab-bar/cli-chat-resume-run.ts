@@ -148,7 +148,8 @@ export async function runCliChatResume(
     if (
       result.kind === 'failed' &&
       result.error instanceof StructuredAgentSessionCreateRefusalError &&
-      result.error.refusal.details?.reason === 'terminalStopUnconfirmed'
+      result.error.refusal?.details?.reason === 'terminalStopUnconfirmed' &&
+      launch.sessionId !== null
     ) {
       openStructuredAgentSessionProvisionalTab({
         worktreeId: source.workspaceId,

@@ -1,4 +1,3 @@
-import { selectAgentSessionCurrentRequests } from '../../../src/shared/agent-session-current-requests'
 import { useCallback, useMemo, useRef } from 'react'
 import { encodeNativeChatTranscriptIdentity } from '../../../src/shared/native-chat-transcript-retention'
 import { projectStructuredAgentSessionMessages } from '../../../src/shared/structured-agent-session-message-projection'
@@ -167,10 +166,7 @@ export function useMobileStructuredAgentSession(args: {
     [transcriptItems, sends.optimistic, state.submissions]
   )
   const turnId = runningStructuredAgentSessionTurnId(state)
-  const turnTiming = useMobileStructuredAgentTurnTiming(
-    { ...state, items: transcriptItems },
-    turnId
-  )
+  const turnTiming = useMobileStructuredAgentTurnTiming({ ...state, items: transcriptItems }, turnId)
   const activityText =
     selectStructuredAgentTurnActivity(state.items, turnId, state.activity)?.text ?? null
   const thinking = isStructuredAgentSessionThinking(state)
@@ -223,10 +219,7 @@ export function useMobileStructuredAgentSession(args: {
       stopRequestInFlight,
       ...(stopping
         ? {
-            afterStop: mobileStructuredSendQueues(
-              queueCapable,
-              selectAgentSessionCurrentRequests(state)
-            )
+            afterStop: mobileStructuredSendQueues(queueCapable, state)
               ? ('queue' as const)
               : ('send' as const)
           }
@@ -235,15 +228,12 @@ export function useMobileStructuredAgentSession(args: {
     [thinking, activityText, stopping, stopRequestInFlight, queueCapable, state]
   )
   const status = state.status === 'idle' ? 'idle' : state.status
+  const { items, currentRequests, actionablePromptIds } = state
   // The host's answer where it gives one: a prompt an agent that ended raised takes no answer.
   const [approvalPrompt, questionPrompt] = useMemo(() => {
-    const prompts = {
-      items: state.items,
-      currentRequests: state.currentRequests,
-      actionablePromptIds: state.actionablePromptIds
-    }
+    const prompts = { items, currentRequests, actionablePromptIds }
     return [actionableStructuredApproval(prompts), actionableStructuredQuestion(prompts)] as const
-  }, [state.items, state.currentRequests, state.actionablePromptIds])
+  }, [items, currentRequests, actionablePromptIds])
   // What a refused command's line on the phone stands on.
   const commandRefusalCauses = useMemo(
     () => ({

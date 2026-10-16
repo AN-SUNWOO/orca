@@ -20,6 +20,7 @@ vi.mock('@/components/github/github-markdown-composer-preview-pane', () => ({
 
 afterEach(cleanup)
 
+/** Simulates submission so tests can verify draft clearing on success and retention on failure. */
 function SubmissionHarness({ success }: { success: boolean }): React.JSX.Element {
   const [body, setBody] = useState('Submitted comment')
   const [submitting, setSubmitting] = useState(false)

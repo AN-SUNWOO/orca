@@ -48,6 +48,7 @@ type GitHubMarkdownComposerProps = {
   previewGithubRepo?: GitHubOwnerRepo | null
 }
 
+/** Keeps a rich Markdown editor and preview synchronized with the parent-owned draft. */
 export function GitHubMarkdownComposer({
   value,
   onChange,

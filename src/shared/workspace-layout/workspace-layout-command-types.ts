@@ -40,7 +40,16 @@ export type LayoutCommand =
       /** The new pane's id, when the runtime minted it before applying. */
       newLeafId?: string
     })
-  | (On & { type: 'closePane'; tabId: string; leafId: string })
+  | (On & {
+      type: 'closePane'
+      tabId: string
+      leafId: string
+      /**
+       * A user's close of one pane of a split, as the desktop's pane close: the tab's last pane is
+       * refused (closing it is a tab close).
+       */
+      userPaneClose?: true
+    })
   | (On & {
       type: 'closeTabs'
       tabIds: string[]
@@ -155,6 +164,14 @@ export type LayoutCommandResult = {
   /** Old tab-bar id → new, for tabs a file rename re-ided; views move their selection with it. */
   renamedTabIds?: Record<string, string>
 }
+
+/** A command applied to a stored layout: its result, or why it changed nothing. */
+export type LayoutApplyOutcome =
+  | { ok: true; result: LayoutCommandResult }
+  | { ok: false; code: LayoutRefusalCode }
+
+/** `layout.apply`'s reply. `host_not_owned`: a paired server owns that workspace's layout. */
+export type LayoutApplyReply = LayoutApplyOutcome | { ok: false; code: 'host_not_owned' }
 
 export type LayoutContext = {
   mintId: () => string

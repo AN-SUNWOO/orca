@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithResolveTerminalSplitSourceAuthority } from '../../orca-runtime-resolve-terminal-split-source-authority'
+import { OrcaRuntimeWithResolveTerminalSplitSourceAuthority } from '../launch/terminal-split-source-authority'
 import {
   type ResolvedWorktree,
   runtimeWorktreeIdentityKey,

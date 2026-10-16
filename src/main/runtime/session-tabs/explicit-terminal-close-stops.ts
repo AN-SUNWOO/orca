@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithFocusTerminal } from '../orca-runtime-focus-terminal'
+import { OrcaRuntimeWithFocusTerminal } from '../terminal/focus/focus-terminal'
 import { EXPLICIT_TERMINAL_CLOSE_STOP_TIMEOUT_MS } from '../orca-runtime-core'
 import { SSH_PROVIDER_UNREGISTERED_REASON } from '../../../shared/pty-liveness-verdict'
 import type { RuntimeTerminalClose } from '../../../shared/runtime-types'

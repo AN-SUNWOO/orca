@@ -10,7 +10,7 @@ import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/Comme
 import { translate } from '@/i18n/i18n'
 import type { NativeChatLiveSession } from './use-native-chat-live-session'
 import { useNativeChatTranscriptProjection } from './use-native-chat-transcript-projection'
-import { structuredQuestionTranscript } from './structured-agent-question-projection'
+import { structuredQuestionTranscript } from '../../../../shared/structured-agent-question-projection'
 import { nativeChatTaskListPredecessors } from './native-chat-task-list-history'
 import { NativeChatDockedTaskList } from './NativeChatDockedTaskList'
 import { useNativeChatTurnStatus } from './use-native-chat-turn-status'
@@ -27,6 +27,7 @@ import {
   NativeChatWaitingTranscriptItems
 } from './NativeChatTranscriptItems'
 import type { NativeChatTranscriptRowContext } from './NativeChatTranscriptRow'
+import type { StructuredAgentSessionHostWork } from './use-structured-agent-session-transport-state'
 import type { NativeChatDeliveryNotice } from './NativeChatMessageRow'
 import {
   splitNativeChatSlotsWaitingBehindLiveTurn,
@@ -68,7 +69,7 @@ import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-labe
  *  `unshown`: it cannot (the prompt is only in the agent's terminal). */
 export type NativeChatAwaitingInput = 'shown' | 'unshown'
 
-type NativeChatNavigationRequest =
+type NavigationRequest =
   | { kind: 'diff'; target: NativeChatDiffReveal }
   | { kind: 'rail'; messageId: string; requestId: number }
 
@@ -78,6 +79,7 @@ export function NativeChatMessageList({
   journalItems,
   journalSubmissions,
   journalLatestTurn: latestTurn,
+  journalHostWork: hostWork,
   subagentRoster,
   railOutline = null,
   isVisible = true,
@@ -100,6 +102,8 @@ export function NativeChatMessageList({
   journalSubmissions?: readonly AgentJournalSubmission[]
   /** The host's newest turn record, which places a live turn whose record is not loaded. */
   journalLatestTurn?: AgentSessionLatestTurn | null
+  /** The host's prompts still waiting on the person and its working answer (an older host: none). */
+  journalHostWork?: StructuredAgentSessionHostWork
   /** Every subagent the session's rosters named, whether or not its roster row is loaded. */
   subagentRoster?: Parameters<typeof useNativeChatSubagentSections>[2]
   /** User messages older than the loaded window, from the host's outline. */
@@ -122,9 +126,7 @@ export function NativeChatMessageList({
   stopping?: boolean
   runtimeContext?: RuntimeFileOperationArgs | null
 }): React.JSX.Element {
-  const [navigationRequest, setNavigationRequest] = useState<NativeChatNavigationRequest | null>(
-    null
-  )
+  const [navigationRequest, setNavigationRequest] = useState<NavigationRequest | null>(null)
   const navigationSequence = useRef(0)
   const revealedDiff = navigationRequest?.kind === 'diff' ? navigationRequest.target : null
   const railJump = navigationRequest?.kind === 'rail' ? navigationRequest : null
@@ -223,9 +225,10 @@ export function NativeChatMessageList({
         allSlots,
         journalItems,
         stopping,
-        journalSubmissions
+        journalSubmissions,
+        { latestTurn, ...hostWork }
       ),
-    [allSlots, journalItems, stopping, journalSubmissions]
+    [allSlots, journalItems, stopping, journalSubmissions, latestTurn, hostWork]
   )
   const { marker: newRowsMarker, dismiss } = useNativeChatNewRowsMarker(
     slots,
@@ -274,11 +277,8 @@ export function NativeChatMessageList({
   })
   const requestRailJump = useCallback((item: NativeChatRailItem) => {
     navigationSequence.current += 1
-    setNavigationRequest({
-      kind: 'rail',
-      messageId: item.id,
-      requestId: navigationSequence.current
-    })
+    const requestId = navigationSequence.current
+    setNavigationRequest({ kind: 'rail', messageId: item.id, requestId })
   }, [])
   const railHistoryJump = useNativeChatRailHistoryJump({
     items: rail.items,
@@ -311,10 +311,8 @@ export function NativeChatMessageList({
         openSubagentSections(target.subagentSections)
       }
       navigationSequence.current += 1
-      setNavigationRequest({
-        kind: 'diff',
-        target: { ...target, requestId: navigationSequence.current }
-      })
+      const requestId = navigationSequence.current
+      setNavigationRequest({ kind: 'diff', target: { ...target, requestId } })
     },
     [beginNavigation, readerLeavesEnd, openSubagentSections]
   )
@@ -340,6 +338,7 @@ export function NativeChatMessageList({
   const rowContext = useMemo<NativeChatTranscriptRowContext>(
     () => ({
       agentName: structuredAgentLabel(session.agent),
+      actionablePromptIds: hostWork?.actionablePromptIds,
       expandSignal,
       revealedDiff,
       taskListPredecessors,
@@ -355,6 +354,7 @@ export function NativeChatMessageList({
     }),
     [
       session.agent,
+      hostWork,
       allowFileUriLinks,
       expandSignal,
       expandedTurnIds,

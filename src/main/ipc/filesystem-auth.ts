@@ -1,6 +1,6 @@
 import { resolve, dirname, basename } from 'node:path'
+import type { RuntimeStore } from '../runtime/runtime-store-contract'
 import { lstat, realpath } from 'node:fs/promises'
-import type { Store } from '../persistence'
 import { PATH_OUTSIDE_ALLOWED_DIRECTORIES } from '../../shared/local-file-access'
 import { getAllowedRoots } from './filesystem-allowed-roots'
 import { isDescendantOrEqual, isENOENT, normalizeExistingPath } from './filesystem-path-containment'
@@ -21,7 +21,7 @@ export const PATH_ACCESS_DENIED_MESSAGE = `${PATH_OUTSIDE_ALLOWED_DIRECTORIES}. 
 type AllowedRootsSnapshot = { get: () => readonly string[] }
 
 function createAllowedRootsSnapshot(
-  store: Store,
+  store: RuntimeStore,
   extraRoots: readonly string[] = []
 ): AllowedRootsSnapshot {
   let roots: readonly string[] | undefined
@@ -30,7 +30,7 @@ function createAllowedRootsSnapshot(
 
 export function isPathAllowed(
   targetPath: string,
-  store: Store,
+  store: RuntimeStore,
   allowedRoots?: AllowedRootsSnapshot
 ): boolean {
   const resolvedTarget = resolve(targetPath)
@@ -50,7 +50,7 @@ export type ResolveAuthorizedPathOptions = {
 
 export async function resolveAuthorizedPath(
   targetPath: string,
-  store: Store,
+  store: RuntimeStore,
   options: ResolveAuthorizedPathOptions = {}
 ): Promise<string> {
   const resolvedTarget = resolve(targetPath)
@@ -106,7 +106,7 @@ export async function resolveAuthorizedPath(
 
 async function resolveAuthorizedMissingPath(
   resolvedTarget: string,
-  store: Store,
+  store: RuntimeStore,
   allowedRoots: AllowedRootsSnapshot
 ): Promise<string> {
   let existingAncestor = resolvedTarget
@@ -157,7 +157,7 @@ async function isSymlink(path: string): Promise<boolean> {
 
 async function isPathAllowedIncludingRegisteredWorktrees(
   targetPath: string,
-  store: Store,
+  store: RuntimeStore,
   options: { canonicalSourcePath?: string; allowedRoots?: AllowedRootsSnapshot } = {}
 ): Promise<boolean> {
   if (isPathAllowed(targetPath, store, options.allowedRoots)) {
@@ -197,7 +197,7 @@ async function isPathAllowedIncludingRegisteredWorktrees(
 async function isPathAllowedByCanonicalAllowedRoot(
   targetPath: string,
   sourcePath: string | undefined,
-  store: Store,
+  store: RuntimeStore,
   allowedRoots?: AllowedRootsSnapshot
 ): Promise<boolean> {
   if (!sourcePath) {

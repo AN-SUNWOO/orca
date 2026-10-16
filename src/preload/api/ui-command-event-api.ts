@@ -163,6 +163,7 @@ export type UiCommandEventApi = {
       setup?: WorktreeSetupLaunch
       startup?: WorktreeStartupLaunch
       defaultTabs?: WorktreeDefaultTabsLaunch
+      providesInitialSurface?: boolean
     }) => void
   ) => () => void
   onCreateTerminal: (

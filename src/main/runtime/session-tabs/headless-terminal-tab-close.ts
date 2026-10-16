@@ -1,7 +1,6 @@
 import type { RuntimeHeadlessTabProperties as HeadlessTabPropertiesMethods } from './headless-tab-properties'
 import type { RuntimeHeadlessTabGroups as HeadlessTabGroupsMethods } from './headless-tab-group-moves'
-import type { OrcaRuntimeWithPersistHeadlessTerminalTitle as PersistHeadlessTerminalTitleMethods } from '../orca-runtime-persist-headless-terminal-title'
-import type { OrcaRuntimeWithRestoreLivePairedRendererSessionOwnedMobileTerminals as RestoreLivePairedRendererSessionOwnedMobileTerminalsMethods } from './renderer-session-terminal-rescue'
+import type { OrcaRuntimeWithPersistHeadlessTerminalTitle as PersistHeadlessTerminalTitleMethods } from '../workspaces/workspace-file-session-targets'
 import { OrcaRuntimeWithCloseStructuredAgentSessionTab } from './structured-session-tab-close'
 import type {
   RuntimeMobileSessionTabMove,
@@ -44,14 +43,6 @@ export abstract class OrcaRuntimeWithCloseHeadlessMobileTerminalTab extends Orca
   protected abstract resolveMobileSessionHostTabId(
     ...args: Parameters<PersistHeadlessTerminalTitleMethods['resolveMobileSessionHostTabId']>
   ): ReturnType<PersistHeadlessTerminalTitleMethods['resolveMobileSessionHostTabId']>
-
-  protected abstract setPairedRendererSessionOwnership(
-    ...args: Parameters<
-      RestoreLivePairedRendererSessionOwnedMobileTerminalsMethods['setPairedRendererSessionOwnership']
-    >
-  ): ReturnType<
-    RestoreLivePairedRendererSessionOwnedMobileTerminalsMethods['setPairedRendererSessionOwnership']
-  >
 
   protected async closeHeadlessMobileTerminalTab(
     worktreeId: string,

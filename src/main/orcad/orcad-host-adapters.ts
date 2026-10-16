@@ -1,5 +1,8 @@
 /** The Node host's stand-ins for Electron's app environment and secret store. */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import process from 'node:process'
+import { ORCAD_CLI_PACKAGE_FILENAME } from '../../shared/orcad-artifacts'
 import { setAppEnvironment, type AppEnvironment } from '../../shared/app-environment'
 import { setSecretStore, type SecretStore } from '../../shared/secret-store'
 import { resolveOrcadInstallRoot, resolveOrcadPath } from './orcad-app-paths'
@@ -66,7 +69,27 @@ function createNodeSecretStore(): SecretStore {
   }
 }
 
+/**
+ * The Orca release this server was built from, stamped into the bundle's own `out/package.json`.
+ * Why: `status.get` and the updater report ORCA_APP_VERSION, which only the desktop's preflight
+ * sets, so a server read `0.0.0-dev`. The bundle wins over an inherited value from another build.
+ */
+export function stampOrcadAppVersion(installRoot: () => string = resolveOrcadInstallRoot): void {
+  let version: unknown
+  try {
+    const path = join(installRoot(), ...ORCAD_CLI_PACKAGE_FILENAME.split('/'))
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    version = parsed && typeof parsed === 'object' && 'version' in parsed ? parsed.version : null
+  } catch {
+    return
+  }
+  if (typeof version === 'string' && version.length > 0) {
+    process.env.ORCA_APP_VERSION = version
+  }
+}
+
 export function installOrcadHostAdapters(): void {
+  stampOrcadAppVersion()
   setAppEnvironment(createNodeAppEnvironment())
   setSecretStore(createNodeSecretStore())
 }

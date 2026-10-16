@@ -408,7 +408,7 @@ describe('Store', () => {
         repo,
         write
       )
-    ).rejects.toThrow("isn't the top folder of a Git repository")
+    ).rejects.toThrow('The project changed while Orca was checking it')
     expect(write).not.toHaveBeenCalled()
   })
 

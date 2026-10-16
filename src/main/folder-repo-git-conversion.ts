@@ -98,7 +98,7 @@ export async function commitProvenRepoKindChange<T>(
     )
   if (!current || current.path !== repo.path || !isFolderRepo(current)) {
     throw new Error(
-      `${repo.path} isn't the top folder of a Git repository, so this project's type was not changed.`
+      'The project changed while Orca was checking it, so its type was not changed. Try again.'
     )
   }
   return commit(proven)

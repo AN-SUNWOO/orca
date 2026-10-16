@@ -8862,7 +8862,8 @@
           "addDescription": "Ajoutez une machine permanente sur laquelle vous pouvez vous connecter en SSH.",
           "editingPrefix": "Modification",
           "allowRemoteCliControl": "Autoriser l'orca CLI de cet hôte à contrôler Orca",
-          "allowRemoteCliControlHelp": "Lorsque cette option est désactivée, les commandes orca exécutées sur cet hôte n'atteignent que ses propres terminaux. Activez-la pour qu'elles atteignent d'autres hôtes, l'orchestration, les fichiers et les intégrations de cet ordinateur."
+          "allowRemoteCliControlHelp": "Lorsque cette option est activée, les commandes orca exécutées sur cet hôte peuvent ouvrir et piloter des onglets du navigateur Orca sur ce bureau, uniquement dans les espaces de travail de cet hôte et uniquement tant qu'il est connecté. Elles ne peuvent pas lire vos fichiers, votre presse-papiers ni vos cookies. Lorsqu'elle est désactivée, elles n'atteignent que le serveur Orca de cet hôte.",
+          "allowRemoteCliControlReset": "Orca l'a désactivé après une mise à jour, car il permet désormais à cet hôte de piloter le navigateur de votre bureau. Réactivez-le seulement si vous le souhaitez."
         },
         "TasksPane": {
           "f71d8a9dd3": "Fournisseurs de tâches",

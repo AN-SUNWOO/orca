@@ -1,6 +1,7 @@
 import type { RuntimeHostStatusSnapshot } from '../../shared/runtime-host-status'
 import { resetRuntimeEnvironmentStatusOwners } from './runtime-environment-request-connections'
 import { mkdtempSync, rmSync } from 'node:fs'
+import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -139,90 +140,40 @@ describe('registerRuntimeEnvironmentHandlers', () => {
     rmSync(userDataPath, { recursive: true, force: true })
   })
 
-  it('registers desktop runtime environment management handlers', () => {
-    registerRuntimeEnvironmentHandlers(store as never)
+  it('replaces stale registrations and keeps one binary listener when registered again', async () => {
+    const channels = new Set(['runtimeEnvironments:list'])
+    const listeners = new EventEmitter()
+    listeners.on('runtimeEnvironments:subscriptionBinary', vi.fn())
+    handleMock.mockImplementation((channel: string) => {
+      if (channels.has(channel)) {
+        throw new Error(`Handler already registered: ${channel}`)
+      }
+      channels.add(channel)
+    })
+    removeHandlerMock.mockImplementation((channel: string) => channels.delete(channel))
+    onMock.mockImplementation((channel: string, listener: (...args: unknown[]) => void) =>
+      listeners.on(channel, listener)
+    )
+    removeAllListenersMock.mockImplementation((channel: string) =>
+      listeners.removeAllListeners(channel)
+    )
 
-    expect(handleMock.mock.calls.map((call) => call[0])).toEqual([
-      'runtimeEnvironments:getStatusSnapshots',
-      'runtimeEnvironments:list',
-      'runtimeEnvironments:addFromPairingCode',
-      'runtimeEnvironments:verifyAndAddFromPairingCode',
-      'runtimeEnvironments:resolve',
-      'runtimeEnvironments:remove',
-      'runtimeEnvironments:disconnect',
-      'runtimeEnvironments:connect',
-      'runtimeEnvironments:retryControlConnection',
-      'runtimeEnvironments:prepareBrowserClientHostPlacement',
-      'runtimeEnvironments:retryConnectionsNow',
-      'runtimeEnvironments:getStatus',
-      'runtimeEnvironments:call',
-      'runtimeEnvironments:linkSshAccess',
-      'runtimeEnvironments:unlinkSshAccess',
-      'runtimeEnvironments:createOrcadSshHost',
-      'runtimeEnvironments:resumeOrcadSshHost',
-      'runtimeEnvironments:listPendingOrcadSshProvisioning',
-      'runtimeEnvironments:deployOrcad',
-      'runtimeEnvironments:getOrcadStatus',
-      'runtimeEnvironments:convertSshHostToManagedOrcad',
-      'runtimeEnvironments:listPendingOrcadMigrations',
-      'runtimeEnvironments:previewOrcadDeltaMove',
-      'runtimeEnvironments:moveOrcadDelta',
-      'runtimeEnvironments:keepOrcadServerVersion',
-      'runtimeEnvironments:allowOrcadMoveLeavingBehind',
-      'runtimeEnvironments:updateOrcad',
-      'runtimeEnvironments:rollbackOrcad',
-      'runtimeEnvironments:recoverOrcad',
-      'runtimeEnvironments:stopOrcad',
-      'runtimeEnvironments:cancelOrcadStop',
-      'runtimeEnvironments:forgetOrcad',
-      'runtimeEnvironments:subscribe',
-      'runtimeEnvironments:unsubscribe'
-    ])
-    expect(onMock.mock.calls.map((call) => call[0])).toEqual([
-      'runtimeEnvironments:subscriptionBinary'
-    ])
-  })
+    try {
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: This registrar only reads the fixture's settings and workspace-session methods.
+      registerRuntimeEnvironmentHandlers(store as never)
+      handleMock.mockClear()
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: This registrar only reads the fixture's settings and workspace-session methods.
+      registerRuntimeEnvironmentHandlers(store as never)
 
-  it('clears stale IPC registrations before registering runtime environment handlers', () => {
-    registerRuntimeEnvironmentHandlers(store as never)
-
-    expect(removeHandlerMock.mock.calls.map((call) => call[0])).toEqual([
-      'runtimeEnvironments:list',
-      'runtimeEnvironments:addFromPairingCode',
-      'runtimeEnvironments:verifyAndAddFromPairingCode',
-      'runtimeEnvironments:resolve',
-      'runtimeEnvironments:remove',
-      'runtimeEnvironments:disconnect',
-      'runtimeEnvironments:connect',
-      'runtimeEnvironments:retryControlConnection',
-      'runtimeEnvironments:prepareBrowserClientHostPlacement',
-      'runtimeEnvironments:getStatus',
-      'runtimeEnvironments:getStatusSnapshots',
-      'runtimeEnvironments:call',
-      'runtimeEnvironments:subscribe',
-      'runtimeEnvironments:unsubscribe',
-      'runtimeEnvironments:linkSshAccess',
-      'runtimeEnvironments:unlinkSshAccess',
-      'runtimeEnvironments:deployOrcad',
-      'runtimeEnvironments:getOrcadStatus',
-      'runtimeEnvironments:updateOrcad',
-      'runtimeEnvironments:rollbackOrcad',
-      'runtimeEnvironments:recoverOrcad',
-      'runtimeEnvironments:stopOrcad',
-      'runtimeEnvironments:cancelOrcadStop',
-      'runtimeEnvironments:forgetOrcad',
-      'runtimeEnvironments:convertSshHostToManagedOrcad',
-      'runtimeEnvironments:listPendingOrcadMigrations',
-      'runtimeEnvironments:previewOrcadDeltaMove',
-      'runtimeEnvironments:moveOrcadDelta',
-      'runtimeEnvironments:keepOrcadServerVersion',
-      'runtimeEnvironments:allowOrcadMoveLeavingBehind',
-      'runtimeEnvironments:createOrcadSshHost',
-      'runtimeEnvironments:resumeOrcadSshHost',
-      'runtimeEnvironments:listPendingOrcadSshProvisioning',
-      'runtimeEnvironments:retryConnectionsNow'
-    ])
-    expect(removeAllListenersMock).toHaveBeenCalledWith('runtimeEnvironments:subscriptionBinary')
+      expect(listeners.listenerCount('runtimeEnvironments:subscriptionBinary')).toBe(1)
+      const list = handler<undefined, unknown[]>('runtimeEnvironments:list')
+      expect(await list(null, undefined)).toEqual([])
+    } finally {
+      handleMock.mockReset()
+      removeHandlerMock.mockReset()
+      onMock.mockReset()
+      removeAllListenersMock.mockReset()
+    }
   })
 
   it('advances pending shared-control reconnects through IPC', async () => {

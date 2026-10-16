@@ -25,6 +25,7 @@ import { runTargetLifecycle } from './ssh-target-lifecycle-queue'
 import { fingerprintRuntimeSshTarget } from '../ssh/runtime-ssh-access'
 import { removeRegisteredSshTarget } from './ssh-session-teardown'
 import { notifyReposChanged } from './repos/repos-changed-notification'
+import { requestDesktopBrowserBridgeReconcile } from './desktop-browser-bridge-reconcile'
 
 // Why: add/import can re-adopt workspaces orphaned on a removed target id (see ssh-target-readoption); the renderer must refresh its repo list to surface them.
 function takeRepoReadoptions(): SshRepoReadoption[] {
@@ -116,6 +117,8 @@ function updateSshTarget(id: string, updates: SshTargetUpdateInput): SshTarget |
     id,
     omitRendererSshTargetGeneration(updates)
   )
+  // Why first: turning "Allow this host's orca CLI to control Orca" off must revoke the bridge at once.
+  requestDesktopBrowserBridgeReconcile()
   const environmentId = getManagedOrcadFenceEnvironmentId(updated ?? undefined)
   if (environmentId && updated) {
     // Why: the tunnel and the SSH transport under it were built from the old fields, so both go
@@ -138,6 +141,7 @@ async function removeSshTarget(id: string): Promise<void> {
   assertNotRuntimeOwned(id, 'removed')
   assertNotManagedServerHost(id)
   await removeRegisteredSshTarget(id)
+  requestDesktopBrowserBridgeReconcile()
 }
 
 export function registerSshTargetCrudHandlers(): void {

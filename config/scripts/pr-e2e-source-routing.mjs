@@ -180,6 +180,15 @@ export const PR_E2E_SOURCE_ROUTES = [
       )
   },
   {
+    id: 'ssh.orcad-desktop-browser-bridge',
+    specs: ['tests/e2e/ssh-orcad-desktop-browser-bridge.spec.ts'],
+    matches: (file) =>
+      isProductSource(file) &&
+      /^src\/(?:shared\/desktop-browser-bridge-protocol\.ts$|main\/(?:runtime\/desktop-browser-bridge\/|browser\/desktop-browser-bridge\/|ipc\/desktop-browser-bridge-|runtime\/rpc\/methods\/desktop-browser-bridge\.ts$))/.test(
+        file
+      )
+  },
+  {
     id: 'ssh.orcad-browser-drop-owner',
     specs: ['tests/e2e/ssh-orcad-browser-drop-owner.spec.ts'],
     matches: (file) =>

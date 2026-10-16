@@ -168,6 +168,7 @@ describe('useIpcEvents updater integration', () => {
           onNewBrowserTab: () => () => {},
           onNewMarkdownTab: () => () => {},
           onRequestTabCreate: () => () => {},
+          onRequestRemoteCliBrowserScope: () => () => {},
           replyTabCreate: () => {},
           onRequestTabClose: () => () => {},
           replyTabClose: () => {},

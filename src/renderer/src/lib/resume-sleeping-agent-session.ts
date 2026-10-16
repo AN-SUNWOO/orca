@@ -23,7 +23,10 @@ import {
   type UnhydratedHostMirror
 } from './host-mirrored-pane-liveness'
 import { parkUntilHostMirrorHandleLands } from './host-mirror-handle-gap-wait'
-import { sleepingRecordNamesAnotherExecutionHost } from './sleeping-record-execution-host-scope'
+import {
+  sleepingRecordHostAllowsSessionClaim,
+  sleepingRecordNamesAnotherExecutionHost
+} from './sleeping-record-execution-host-scope'
 import { resolveWorkspaceTerminalHostAuthority } from './workspace-terminal-host-authority'
 import { parkUntilHostSessionMirrorHydrates } from '@/runtime/host-session-mirror-hydration'
 
@@ -175,6 +178,24 @@ function activeOrQueuedResumeClaimsProviderSession(
   return false
 }
 
+function providerSessionOwnedElsewhere(
+  record: SleepingAgentSessionRecord,
+  state: ReturnType<typeof useAppStore.getState>
+): boolean {
+  // Same-worktree duplicates are handled by claim keys; finished notes never claim a session, and
+  // neither does a record whose host moved or that names a different machine than this record.
+  return Object.values(state.sleepingAgentSessionsByPaneKey).some(
+    (other) =>
+      other.worktreeId !== record.worktreeId &&
+      other.agent === record.agent &&
+      !isInvalidWorktreeActivationRecord(other) &&
+      !activationTreatsNoteAsFinished(other) &&
+      sleepingRecordHostAllowsSessionClaim(other, record, state) &&
+      agentProviderSessionsEqual(record.agent, other.providerSession, record.providerSession) &&
+      recordPaneIsOwnedByPreservedPane(other, state)
+  )
+}
+
 // Why: an interrupted turn is still resumable — `claude --resume` reopens the transcript at the
 // prompt — so discarding those records only stranded the session across wake and restart.
 function isInvalidWorktreeActivationRecord(record: SleepingAgentSessionRecord): boolean {
@@ -321,6 +342,13 @@ export function resumeSleepingAgentSessionsForWorktree(
     }
     // Mirrored rows cannot authorize a writer: closes, re-keys and pending handles look alike here.
     if (isHostMirroredSleepingRecord(record)) {
+      continue
+    }
+    // Why: claim keys are worktree-scoped, but a provider session is global —
+    // a record whose stored worktreeId went stale must not relaunch a session
+    // that a pane tracked by another record still owns.
+    if (providerSessionOwnedElsewhere(record, currentState)) {
+      state.clearSleepingAgentSession(record.paneKey)
       continue
     }
     if (launchSleepingAgentSession(record, options)) {

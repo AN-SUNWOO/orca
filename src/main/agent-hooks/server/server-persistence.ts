@@ -10,6 +10,7 @@ import type {
 } from './server-types'
 import { authorityCommitmentsMatch } from './server-persistence-validation'
 import { AgentHookServerHydration } from './server-hydration'
+import { serializeAgentExits } from './agent-exit-evidence'
 import { AtomicSnapshotWriter } from '../../persistence/atomic-snapshot-writer'
 
 export abstract class AgentHookServerPersistence extends AgentHookServerHydration {
@@ -73,10 +74,12 @@ export abstract class AgentHookServerPersistence extends AgentHookServerHydratio
         }
       }
     }
+    const agentExits = serializeAgentExits(this.agentExitedAtByPaneKey)
     const file: LastStatusFile = {
       version: LAST_STATUS_FILE_VERSION,
       entries,
-      authorityCommitments
+      authorityCommitments,
+      ...(agentExits.length > 0 ? { agentExits } : {})
     }
     return JSON.stringify(file)
   }

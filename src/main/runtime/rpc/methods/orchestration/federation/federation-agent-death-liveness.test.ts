@@ -5,6 +5,7 @@ import { OrchestrationDb } from '../../../../orchestration/db'
 import { ORCHESTRATION_METHODS } from '../../orchestration'
 import { eraseRpcMethods } from '../../../core'
 import { orchestrationTimestampToMs } from '../worker/worker-output'
+import { prepareFederatedAttachmentAuthority } from './federation-attachment-authority'
 
 // #24353: the execution host must report `exited` once it can prove the worker's agent is gone —
 // killed inside a PTY that survives it, or taken down with the PTY by a reboot.
@@ -104,8 +105,8 @@ describe('federation host agent-death liveness', () => {
     })
     // Fenced to exits proven since the attachment, so an earlier agent's exit cannot count.
     const attachedAt = db.getRemoteDispatchAttachment(DISPATCH_ID)!.created_at
-    // Rounded up past created_at's whole second, which an earlier exit could share.
-    expect(presence).toHaveBeenCalledWith(HANDLE, orchestrationTimestampToMs(attachedAt) + 1000)
+    // Not rounded up: attach forgets earlier exits, so an exit in the creation second is the worker's.
+    expect(presence).toHaveBeenCalledWith(HANDLE, orchestrationTimestampToMs(attachedAt))
   })
 
   it('keeps the PTY verdict when no hook identified the agent or it cannot be checked', async () => {
@@ -141,6 +142,46 @@ describe('federation host agent-death liveness', () => {
       exactWorker: false
     })
     expect(inspect).not.toHaveBeenCalled()
+  })
+
+  it('forgets the pane agent exit the hook store held before this worker attached', () => {
+    const forget = vi.spyOn(runtime, 'forgetTerminalAgentExit').mockImplementation(() => {})
+    vi.spyOn(runtime, 'getOrchestrationDispatchAuthority').mockReturnValue(null)
+    vi.mocked(runtime.getTerminalPaneKey).mockReturnValue(
+      'tab_reused:cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    )
+    db.createRemoteDispatchAttachment({
+      runId: 'run-home',
+      dispatchId: 'ctx_reused_pane',
+      taskId: 'task_reused',
+      homePeerFingerprint: HOME_FINGERPRINT,
+      protocolVersion: ORCHESTRATION_CONTRACT_VERSION,
+      runtimeEpoch: runtime.getRuntimeId(),
+      mutationReceipt: {
+        callerFingerprint: HOME_FINGERPRINT,
+        requestId: 'rpc_attach_reused',
+        method: 'orchestration.federationStart',
+        payloadHash: 'hash-reused'
+      }
+    })
+    prepareFederatedAttachmentAuthority({
+      runtime,
+      db,
+      dispatchId: 'ctx_reused_pane',
+      terminalHandle: 'term_reused',
+      worktreeId: 'repo::remote-worktree',
+      setup: {
+        requested: 'not_applicable',
+        effective: 'not_applicable',
+        source: 'test',
+        hookFound: false,
+        startupPolicy: 'start-immediately',
+        state: 'not_applicable'
+      },
+      effects: [],
+      reusesTerminal: true
+    })
+    expect(forget).toHaveBeenCalledWith('term_reused')
   })
 
   it('stays unverifiable after a reboot when the process table cannot be read', async () => {

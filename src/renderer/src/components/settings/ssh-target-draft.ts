@@ -12,6 +12,8 @@ export type EditingTarget = {
   jumpHost: string
   systemSshConnectionReuse: boolean
   allowRemoteCliControl: boolean
+  /** Display only: Orca turned the switch off after an update and the notice says why. */
+  allowRemoteCliControlReset?: boolean
 }
 
 export const EMPTY_FORM: EditingTarget = {
@@ -43,7 +45,8 @@ export function getEditingTargetForSshTarget(target: SshTarget): EditingTarget {
     proxyCommand: target.proxyCommand ?? '',
     jumpHost: target.jumpHost ?? '',
     systemSshConnectionReuse: target.systemSshConnectionReuse !== false,
-    allowRemoteCliControl: target.allowRemoteCliControl === true
+    allowRemoteCliControl: target.allowRemoteCliControl === true,
+    allowRemoteCliControlReset: target.allowRemoteCliControlReset === true
   }
 }
 

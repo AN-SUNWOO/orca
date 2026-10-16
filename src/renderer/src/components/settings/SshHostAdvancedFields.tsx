@@ -119,9 +119,17 @@ export function SshHostAdvancedFields({
               <p className="text-muted-foreground">
                 {translate(
                   'auto.components.settings.SshTargetForm.allowRemoteCliControlHelp',
-                  'When off, orca commands run on this host reach only its own terminals. Turn on to let them reach other hosts, orchestration, files, and integrations on this computer.'
+                  "When on, orca commands run on this host can open and drive Orca browser tabs on this desktop, only in this host's workspaces and only while it is connected. They cannot read your files, clipboard or cookies. When off, they reach only this host's own Orca server."
                 )}
               </p>
+              {form.allowRemoteCliControlReset && !form.allowRemoteCliControl ? (
+                <p className="text-muted-foreground">
+                  {translate(
+                    'auto.components.settings.SshTargetForm.allowRemoteCliControlReset',
+                    'Orca turned this off after an update, because it now lets this host drive your desktop browser. Turn it on again only if you want that.'
+                  )}
+                </p>
+              ) : null}
             </div>
             <SettingsSwitch
               checked={form.allowRemoteCliControl}

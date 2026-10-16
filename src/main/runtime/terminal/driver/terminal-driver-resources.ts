@@ -1,4 +1,5 @@
 import type { RuntimeServiceCommandSurface } from '../../runtime-service-command-surface'
+import { resolveRemoteCliBrowserScopeSelector } from '../../desktop-browser-bridge/remote-cli-browser-scope'
 import type { ResolvedWorktree } from '../../runtime-worktree-path-identity'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { WorkspaceSessionState } from '../../../../shared/workspace-session-state-types'
@@ -162,8 +163,10 @@ export abstract class OrcaRuntimeWithTerminalDrivers extends OrcaRuntimeWithFitO
     },
     browserHost: {
       getAgentBrowserBridge: () => this.agentBrowserBridge,
-      resolveWorktreeSelector: (selector) => this.resolveWorktreeSelector(selector),
-      resolveBrowserWorkspace: (selector) => this.resolveBrowserWorkspace(selector),
+      resolveWorktreeSelector: (selector) =>
+        resolveRemoteCliBrowserScopeSelector(selector) ?? this.resolveWorktreeSelector(selector),
+      resolveBrowserWorkspace: (selector) =>
+        resolveRemoteCliBrowserScopeSelector(selector) ?? this.resolveBrowserWorkspace(selector),
       getBrowserHostLeaseRegistry: () => getBrowserHostLeaseRegistry(this),
       getRuntimeBrowserPageRegistry: () => getRuntimeBrowserPageRegistry(this),
       resolveBrowserNetworkExecutionHost: (worktree) =>

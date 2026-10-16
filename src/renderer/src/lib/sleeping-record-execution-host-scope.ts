@@ -1,9 +1,17 @@
 import type { SleepingAgentSessionRecord } from '../../../shared/agent-session-resume'
 import {
+  getRepoExecutionHostId,
   parseExecutionHostId,
   toSshExecutionHostId,
   type ExecutionHostId
 } from '../../../shared/execution-host'
+import { getRepoIdFromWorktreeId } from '@/store/slices/worktree-helpers'
+import { parseWorkspaceKey } from '../../../shared/workspace-scope'
+import {
+  findFolderWorkspaceOwner,
+  type FolderWorkspaceRuntimeOwnerState
+} from './folder-workspace-runtime-owner'
+import { findIndexedRepoOwner, findIndexedWorktreeOwner } from './worktree-runtime-owner-index'
 import { getKnownExecutionHostIdForWorktree } from './worktree-runtime-owner'
 import type { WorktreeRuntimeOwnerState } from './worktree-runtime-owner-state'
 
@@ -73,4 +81,74 @@ export function sleepingRecordNamesAnotherExecutionHost(
     record.connectionId,
     getKnownExecutionHostIdForWorktree(state, record.worktreeId)
   )
+}
+
+type SleepingRecordOwnerState = WorktreeRuntimeOwnerState & FolderWorkspaceRuntimeOwnerState
+
+// Why owner rows only: two records' machines are a property of their own workspaces, never of the
+// focused server, so this reads no routing default and an unknown owner stays unknown.
+function ownerExecutionHostIdForRecord(
+  record: SleepingAgentSessionRecord,
+  state: SleepingRecordOwnerState
+): ExecutionHostId | null {
+  const workspaceScope = parseWorkspaceKey(record.worktreeId)
+  if (workspaceScope?.type === 'folder') {
+    const folder = findFolderWorkspaceOwner(state, workspaceScope.folderWorkspaceId)
+    const group = folder?.projectGroupId
+      ? state.projectGroups?.find((candidate) => candidate.id === folder.projectGroupId)
+      : undefined
+    const explicit = parseExecutionHostId(folder?.executionHostId ?? group?.executionHostId)?.id
+    const connectionId = folder?.connectionId?.trim() || group?.connectionId?.trim()
+    return explicit ?? (connectionId ? toSshExecutionHostId(connectionId) : null)
+  }
+  const worktree = findIndexedWorktreeOwner(state.worktreesByRepo, record.worktreeId)
+  const worktreeHost = parseExecutionHostId(worktree?.hostId)?.id
+  if (worktreeHost) {
+    return worktreeHost
+  }
+  const repo = findIndexedRepoOwner(
+    state.repos,
+    worktree?.repoId ?? getRepoIdFromWorktreeId(record.worktreeId)
+  )
+  return repo && (repo.executionHostId?.trim() || repo.connectionId?.trim())
+    ? getRepoExecutionHostId(repo)
+    : null
+}
+
+// Why each side alone: either the owner row or the capture stamp can be the only evidence for a record.
+function resolveSleepingRecordMachine(
+  record: SleepingAgentSessionRecord,
+  state: SleepingRecordOwnerState
+): ExecutionHostId | null {
+  const host = ownerExecutionHostIdForRecord(record, state)
+  if (host && parseExecutionHostId(host)?.kind !== 'runtime') {
+    return host
+  }
+  // A null stamp is "local or paired runtime", so only an SSH stamp names a machine.
+  const stamp = record.connectionId?.trim()
+  return stamp ? toSshExecutionHostId(stamp) : null
+}
+
+/**
+ * May `claimant`'s pane stand in for `record`'s session? Locators are machine-scoped, so not when the
+ * claimant's host moved since capture (it could not resume the session either), nor when the two
+ * records positively name different machines, even with matching ids (a copied state dir). Fails
+ * open on the same unknowns as above: only known disagreement blocks the claim.
+ */
+export function sleepingRecordHostAllowsSessionClaim(
+  claimant: SleepingAgentSessionRecord,
+  record: SleepingAgentSessionRecord,
+  state: SleepingRecordOwnerState
+): boolean {
+  if (
+    agentResumeOriginNamesAnotherExecutionHost(
+      claimant.connectionId,
+      ownerExecutionHostIdForRecord(claimant, state)
+    )
+  ) {
+    return false
+  }
+  const claimantMachine = resolveSleepingRecordMachine(claimant, state)
+  const recordMachine = resolveSleepingRecordMachine(record, state)
+  return claimantMachine === null || recordMachine === null || claimantMachine === recordMachine
 }

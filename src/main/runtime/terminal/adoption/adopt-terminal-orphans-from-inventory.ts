@@ -252,4 +252,12 @@ export abstract class OrcaRuntimeWithAdoptTerminalOrphansFromInventory extends O
     const ptyId = (this.getLivePtyForHandle(handle)?.record ?? this.handles.get(handle))?.ptyId
     return ptyId ? this.recheckHookAgentPresenceForPty(ptyId, exitedSince) : Promise.resolve(null)
   }
+
+  /** A worker now owns this terminal; drop any agent exit the hook store proved before it. */
+  forgetTerminalAgentExit(handle: string): void {
+    const ptyId = (this.getLivePtyForHandle(handle)?.record ?? this.handles.get(handle))?.ptyId
+    if (ptyId) {
+      this.forgetHookAgentExitFn?.(this.collectAgentStatusPaneKeysForPty(ptyId))
+    }
+  }
 }

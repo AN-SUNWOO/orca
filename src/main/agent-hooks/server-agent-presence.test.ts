@@ -390,6 +390,21 @@ describe('retained agent exit', () => {
     expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
   })
 
+  it('keeps the exit through a late terminal status from another provider', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    server.ingestTerminalStatus({
+      paneKey: PANE,
+      tabId: 'tab-1',
+      worktreeId: 'wt-1',
+      connectionId: null,
+      payload: { state: 'done', prompt: '', agentType: 'codex' }
+    })
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
   it('carries the exit with the pane when its authority moves', async () => {
     const server = await createServer()
     const attachedAt = Date.now() - 1
@@ -467,6 +482,140 @@ describe('retained agent exit', () => {
     const overlapping = server.checkAgentPresenceSince(PANE, attachedAt)
     finish('exited')
     expect(await overlapping).not.toBe('exited')
+  })
+
+  it('keeps the exit through a delayed hook from the ended session without a process identity', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    await hook(server, 'Stop', 'session-a', undefined, null)
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
+  it('drops the exit when a provider-specific new turn starts in the pane', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    const response = await postHookEvent(
+      server,
+      buildBody({ hook_event_name: 'before_agent_start', prompt: 'next' }),
+      '/hook/pi'
+    )
+    expect(response.status).toBe(204)
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBeNull()
+  })
+
+  it('drops the exit when another provider reports from the pane without a new-turn event', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    const response = await postHookEvent(
+      server,
+      buildBody({ hook_event_name: 'agent_start', prompt: 'next' }),
+      '/hook/pi'
+    )
+    expect(response.status).toBe(204)
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).toBeNull()
+  })
+
+  it('keeps a persisted exit through a spooled start written before it', async () => {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'orca-presence-exit-spool-'))
+    const first = new AgentHookServer()
+    servers.push(first)
+    await first.start({ env: 'production', userDataPath })
+    const attachedAt = Date.now() - 1
+    // Spool stamps are whole seconds, so only one a full second before the exit predates it.
+    const spooledAt = Date.now() - 5_000
+    await hook(first, 'SessionStart')
+    await hook(first, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    first.flushStatusPersistSync()
+    first.stop()
+    const spoolDir = join(userDataPath, 'agent-hooks', 'spool')
+    mkdirSync(spoolDir, { recursive: true })
+    writeFileSync(
+      join(spoolDir, 'pane-spooled.jsonl'),
+      `\n${JSON.stringify({
+        paneKey: PANE,
+        source: 'claude',
+        receivedAt: spooledAt,
+        // An obsolete owner identity must not be installed over the proven exit.
+        agentProcess: JSON.stringify({
+          pid: 4009,
+          platform: process.platform,
+          startTime: 'birth-4009'
+        }),
+        payload: { hook_event_name: 'SessionStart', session_id: 'session-old', source: 'startup' }
+      })}\n`
+    )
+    const restarted = new AgentHookServer()
+    servers.push(restarted)
+    await restarted.start({ env: 'production', userDataPath })
+    expect(await restarted.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
+  it('lets a successor start spooled in the exit second clear the exit', async () => {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'orca-presence-exit-same-second-'))
+    const first = new AgentHookServer()
+    servers.push(first)
+    await first.start({ env: 'production', userDataPath })
+    const attachedAt = Date.now() - 1
+    await hook(first, 'SessionStart')
+    await hook(first, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    first.flushStatusPersistSync()
+    first.stop()
+    const spoolDir = join(userDataPath, 'agent-hooks', 'spool')
+    mkdirSync(spoolDir, { recursive: true })
+    writeFileSync(
+      join(spoolDir, 'pane-spooled.jsonl'),
+      `\n${JSON.stringify({
+        paneKey: PANE,
+        source: 'pi',
+        receivedAt: Math.floor(Date.now() / 1000) * 1000,
+        payload: { hook_event_name: 'before_agent_start', prompt: 'next' }
+      })}\n`
+    )
+    const restarted = new AgentHookServer()
+    servers.push(restarted)
+    await restarted.start({ env: 'production', userDataPath })
+    expect(await restarted.checkAgentPresenceSince(PANE, attachedAt)).not.toBe('exited')
+  })
+
+  it('lets a replacement process clear the exit after a late unidentified hook', async () => {
+    const server = await createServer()
+    const attachedAt = Date.now() - 1
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    await hook(server, 'Stop', 'session-a', undefined, null)
+    probe.mockResolvedValue('live')
+    await hook(server, 'PreToolUse', 'replacement', undefined, 4002)
+    expect(await server.checkAgentPresenceSince(PANE, attachedAt)).not.toBe('exited')
+  })
+
+  it('keeps the exit readable after the hook store restarts', async () => {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'orca-presence-exit-'))
+    const first = new AgentHookServer()
+    servers.push(first)
+    await first.start({ env: 'production', userDataPath })
+    const attachedAt = Date.now() - 1
+    await hook(first, 'SessionStart')
+    await hook(first, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    first.flushStatusPersistSync()
+    first.stop()
+    const restarted = new AgentHookServer()
+    servers.push(restarted)
+    await restarted.start({ env: 'production', userDataPath })
+    expect(await restarted.checkAgentPresenceSince(PANE, attachedAt)).toBe('exited')
+  })
+
+  it('forgets an earlier exit when a worker attaches to the pane', async () => {
+    const server = await createServer()
+    await hook(server, 'SessionStart')
+    await hook(server, 'SessionEnd', 'session-a', 'prompt_input_exit')
+    server.forgetAgentExit(PANE)
+    expect(await server.checkAgentPresenceSince(PANE, 0)).toBeNull()
   })
 
   it('drops the exit once a new agent reports from the pane', async () => {

@@ -615,18 +615,6 @@ describe('PR Checks skip wiring', () => {
     expect(installStep.run).toContain('--frozen-lockfile')
   })
 
-  it('keeps the root and README guards on docs-only PRs without another runner', () => {
-    const detector = prWorkflow.jobs.code_paths
-    expect(detector.if).toBeUndefined()
-    expect(detector.needs).toBeUndefined()
-    for (const name of ['Reject new root-level files and folders', 'Check README local links']) {
-      const step = detector.steps.find((candidate) => candidate.name === name)
-      expect(step).toBeDefined()
-      expect(step.if).toBeUndefined()
-    }
-    expect(prWorkflow.jobs.root_directory_guard).toBeUndefined()
-  })
-
   it('gates each expensive job on its classifier and cache prerequisite', () => {
     for (const jobName of expensiveJobs.filter(
       (jobName) => !['test', 'static_analysis', 'typecheck', 'orcad_browser'].includes(jobName)

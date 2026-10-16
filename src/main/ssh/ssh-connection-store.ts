@@ -37,7 +37,7 @@ export class SshConnectionStore {
 
   addTarget(target: Omit<SshTarget, 'id'>): SshTarget {
     const full: SshTarget = {
-      ...target,
+      ...withRemoteCliControlConsent(target),
       configHost: target.configHost ?? target.host,
       // Why: default to 'manual' so user-created targets are never overwritten
       // by a later ~/.ssh/config import (only 'ssh-config' targets are synced).
@@ -102,9 +102,10 @@ export class SshConnectionStore {
       key in updates && existing?.[key] !== updates[key]
     const resetsRuntime =
       changed('remoteRuntime') || changed('host') || changed('port') || changed('configHost')
+    const consented = withRemoteCliControlConsent(updates)
     const updated = this.store.updateSshTarget(
       id,
-      resetsRuntime ? { ...updates, remoteRuntimeResolution: undefined } : updates
+      resetsRuntime ? { ...consented, remoteRuntimeResolution: undefined } : consented
     )
     if (updated) {
       // Why: actively editing a target reclaims its alias from the deleted set,
@@ -294,4 +295,17 @@ function isLegacyConfigImportTarget(target: SshTarget): boolean {
   return Boolean(
     alias && target.label === alias && target.configHost === alias && target.host !== alias
   )
+}
+
+/** Saving the switch records consent to its current meaning and retires the reset notice. */
+function withRemoteCliControlConsent<T extends Partial<SshTarget>>(updates: T): T {
+  if (!('allowRemoteCliControl' in updates)) {
+    return updates
+  }
+  return {
+    ...updates,
+    allowRemoteCliControlConsent:
+      updates.allowRemoteCliControl === true ? 'desktop-browser-bridge' : undefined,
+    allowRemoteCliControlReset: undefined
+  }
 }

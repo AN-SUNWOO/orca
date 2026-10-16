@@ -14,7 +14,7 @@ vi.mock('../ssh/ssh-target-registry', async (importOriginal) => ({
   getSshTargetRegistryStore: () => null
 }))
 
-const { clearManagedServerNotes, publishHostServerStatus } =
+const { clearLaunchSessionNote, clearManagedServerNotes, publishHostServerStatus } =
   await import('./runtime-environment-managed-tunnel')
 const { clearSshHostServerStatus, getSshHostServerStatus, setSshHostServerStatus } =
   await import('../ssh/ssh-host-server-status')
@@ -107,5 +107,14 @@ describe('publishing a verified managed host status', () => {
     clearManagedServerNotes('ssh-2', 'env-1')
     expect(getSshHostServerStatus('ssh-2')).toBeUndefined()
     expect(mocks.notify).not.toHaveBeenCalled()
+  })
+
+  it('keeps the launch-session warning through an update; only a verified restart clears it', () => {
+    mocks.getState.mockReturnValue(connection('connected'))
+    setSshHostServerStatus('ssh-1', { ...deferred, launchSessionEnded: true })
+    clearManagedServerNotes('ssh-1', 'env-1')
+    expect(getSshHostServerStatus('ssh-1')).toEqual({ ...ready, launchSessionEnded: true })
+    clearLaunchSessionNote('ssh-1', 'env-1')
+    expect(getSshHostServerStatus('ssh-1')).toEqual(ready)
   })
 })

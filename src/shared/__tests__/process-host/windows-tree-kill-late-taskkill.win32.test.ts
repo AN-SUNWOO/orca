@@ -101,7 +101,7 @@ describeOnWindows('Windows barrier with a taskkill slower than its caller', () =
   it.skipIf(!underLoad)(
     'kills the grandchild with the real taskkill on a loaded host',
     async () => {
-      let taskkillMs: number | null = null
+      let taskkillOutcome = 'still running'
       _setWindowsTaskkillLauncherForTests((rootPid) => {
         const startedAt = Date.now()
         const taskkill = spawnProcess({
@@ -109,14 +109,14 @@ describeOnWindows('Windows barrier with a taskkill slower than its caller', () =
           args: ['/pid', String(rootPid), '/t', '/f'],
           stdio: 'ignore'
         })
-        taskkill.once('close', () => {
-          taskkillMs = Date.now() - startedAt
+        taskkill.once('close', (code, signal) => {
+          taskkillOutcome = `${Date.now() - startedAt} ms, code ${code}, signal ${signal}`
         })
         return taskkill
       })
       await expectBarrierKillsGrandchild()
       // Evidence only: how slow this load made taskkill (about 50 ms idle).
-      console.log(`[late-taskkill] taskkill under load took ${taskkillMs} ms`)
+      console.log(`[late-taskkill] taskkill under load: ${taskkillOutcome}`)
     },
     90_000
   )
@@ -140,10 +140,12 @@ describeOnWindows('Windows barrier with a taskkill slower than its caller', () =
     const abortedAt = Date.now()
     controller.abort()
     await pending
-    // Termination is reported only once the tree is proven gone, so the grandchild is dead here.
+    const settledAfterMs = Date.now() - abortedAt
     await terminationReported
     const reportedAfterMs = Date.now() - abortedAt
-    console.log(`[late-taskkill] termination reported ${reportedAfterMs} ms after abort`)
+    console.log(
+      `[late-taskkill] caller settled ${settledAfterMs} ms, termination reported ${reportedAfterMs} ms after abort`
+    )
     // TerminateProcess returns before the pid is fully released, so allow a short drain.
     const goneBy = Date.now() + 5_000
     while (isAlive(grandchild) && Date.now() < goneBy) {

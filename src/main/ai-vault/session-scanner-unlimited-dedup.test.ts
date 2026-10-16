@@ -25,7 +25,7 @@ vi.mock('./session-scanner-parse-cache', () => ({
     earlyStopped: 0,
     bytesRead: 0
   }),
-  parseAgentSessionFileCached: async (candidate: { session: AiVaultSession }) => candidate.session
+  parseListedSessionFile: async (candidate: { session: AiVaultSession }) => candidate.session
 }))
 vi.mock('./session-root-dedup', async (original) => {
   const actual = await original<typeof SessionDedup>()

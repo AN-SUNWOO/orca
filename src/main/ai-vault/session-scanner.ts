@@ -17,7 +17,7 @@ import { sessionCandidatesFromDiscoveries } from './session-scanner-candidates'
 import { ensureSessionParseCacheLoaded } from './session-parse-cache-persistence'
 import {
   createSessionParseStats,
-  parseAgentSessionFileCached,
+  parseListedSessionFile,
   type SessionParseStats
 } from './session-scanner-parse-cache'
 import { recordSessionScanIssue } from './session-scan-issues'
@@ -281,13 +281,7 @@ async function parseSessionCandidate(
   signal?: AbortSignal
 ): Promise<SessionParseResult> {
   try {
-    let session = await parseAgentSessionFileCached(
-      candidate,
-      platform,
-      parseStats,
-      undefined,
-      signal
-    )
+    let session = await parseListedSessionFile(candidate, platform, parseStats, signal)
     if (session && candidate.antigravityHistoryPath && antigravityWorkspaceResolver) {
       session = await antigravityWorkspaceResolver.enrich(session, candidate.antigravityHistoryPath)
     }

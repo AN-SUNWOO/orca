@@ -40,12 +40,10 @@ vi.mock('./session-scanner-parse-cache', async (importOriginal) => {
   const actual = await importOriginal<typeof ParseCacheModule>()
   return {
     ...actual,
-    parseAgentSessionFileCached: async (
-      ...args: Parameters<typeof actual.parseAgentSessionFileCached>
-    ) => {
+    parseListedSessionFile: async (...args: Parameters<typeof actual.parseListedSessionFile>) => {
       hooks.stats = args[2] ?? null
       await hooks.beforeParse?.()
-      return actual.parseAgentSessionFileCached(...args)
+      return actual.parseListedSessionFile(...args)
     }
   }
 })

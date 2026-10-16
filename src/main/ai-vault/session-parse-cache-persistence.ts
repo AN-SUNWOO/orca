@@ -213,6 +213,9 @@ async function persistSnapshot(
   const directory = dirname(current.filePath)
   const tempPath = join(directory, `session-parse-cache-${process.pid}-${Date.now()}.tmp`)
   try {
+    // The serializer keeps the newest suffix that fits; order by transcript age
+    // so that is the newest transcripts, not the last ones a scan happened to store.
+    entries.sort((left, right) => left[1].mtimeMs - right[1].mtimeMs)
     const payload = await serializeSessionParseCacheSnapshotPiecesCooperatively(
       entries,
       current.appVersion

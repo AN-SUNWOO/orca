@@ -17,6 +17,7 @@ import type { ResumableSessionParseState, SessionFileCandidate } from './session
 import { refreshCachedCodexTitle } from './session-scanner-codex-cached-title'
 import {
   getSessionParseCacheEntry,
+  noteSessionParseCacheListed,
   storeSessionParseCacheEntry,
   type SessionParseCacheEntry
 } from './session-parse-cache-store'
@@ -135,6 +136,20 @@ export async function parseAgentSessionFileCached(
   )
   noteAiVaultScanProgress(signal)
   return session
+}
+
+/**
+ * A Session History scan's parse. Listing the path first is what puts its row
+ * under the idle sweep rather than the count bound kept for other readers.
+ */
+export function parseListedSessionFile(
+  candidate: SessionFileCandidate,
+  platform: NodeJS.Platform,
+  stats: SessionParseStats,
+  signal?: AbortSignal
+): Promise<AiVaultSession | null> {
+  noteSessionParseCacheListed(candidate.file.path)
+  return parseAgentSessionFileCached(candidate, platform, stats, undefined, signal)
 }
 
 /**

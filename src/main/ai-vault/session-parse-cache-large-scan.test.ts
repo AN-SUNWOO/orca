@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
 import {
   ensureSessionParseCacheLoaded,
   flushSessionParseCachePersist,
@@ -11,19 +11,20 @@ import {
 import {
   getSessionParseCacheEntry,
   MAX_RESUME_ENTRIES,
+  MAX_UNLISTED_ENTRIES,
+  noteSessionParseCacheListed,
   resetSessionParseCacheForTests,
   SESSION_PARSE_CACHE_IDLE_MS,
   storeSessionParseCacheEntry,
   sweepSessionParseCache
 } from './session-parse-cache-store'
-import { createSessionParseStats, parseAgentSessionFileCached } from './session-scanner-parse-cache'
+import { createSessionParseStats, parseListedSessionFile } from './session-scanner-parse-cache'
 import type { SessionFileCandidate } from './session-scanner-types'
 
-const CANDIDATES = MAX_RESUME_ENTRIES + 178
+const CANDIDATES = Math.max(MAX_RESUME_ENTRIES, MAX_UNLISTED_ENTRIES) + 178
 let root: string | undefined
 
 afterEach(async () => {
-  vi.useRealTimers()
   resetSessionParseCachePersistenceForTests()
   resetSessionParseCacheForTests()
   if (root) {
@@ -32,16 +33,20 @@ afterEach(async () => {
   root = undefined
 })
 
-it('drops only rows no reader has used within the idle window', () => {
-  vi.useFakeTimers({ toFake: ['Date'], now: 0 })
+it('expires rows History stopped listing and count-bounds rows only other readers made', () => {
   const row = { mtimeMs: 1, sizeBytes: 1, platform: 'linux', session: null, resume: null } as const
+  noteSessionParseCacheListed('idle', 0)
   storeSessionParseCacheEntry('idle', row)
-  storeSessionParseCacheEntry('reused', row)
-  vi.setSystemTime(SESSION_PARSE_CACHE_IDLE_MS)
-  storeSessionParseCacheEntry('reused', row)
+  noteSessionParseCacheListed('listed', SESSION_PARSE_CACHE_IDLE_MS)
+  storeSessionParseCacheEntry('listed', row)
+  for (let index = 0; index <= MAX_UNLISTED_ENTRIES; index++) {
+    storeSessionParseCacheEntry(`search-${index}`, row)
+  }
   sweepSessionParseCache(SESSION_PARSE_CACHE_IDLE_MS + 1)
   expect(getSessionParseCacheEntry('idle')).toBeUndefined()
-  expect(getSessionParseCacheEntry('reused')).toBeDefined()
+  expect(getSessionParseCacheEntry('listed')).toBeDefined()
+  expect(getSessionParseCacheEntry('search-0')).toBeUndefined()
+  expect(getSessionParseCacheEntry(`search-${MAX_UNLISTED_ENTRIES}`)).toBeDefined()
 })
 
 it('does not reparse an unchanged corpus past the resume bound, across scans or restart', async () => {
@@ -69,12 +74,13 @@ it('does not reparse an unchanged corpus past the resume bound, across scans or 
   const first = createSessionParseStats()
   const second = createSessionParseStats()
   const restarted = createSessionParseStats()
-  for (const candidate of candidates) {
-    await parseAgentSessionFileCached(candidate, process.platform, first)
+  const list = async (stats: ReturnType<typeof createSessionParseStats>) => {
+    for (const candidate of candidates) {
+      await parseListedSessionFile(candidate, process.platform, stats)
+    }
   }
-  for (const candidate of candidates) {
-    await parseAgentSessionFileCached(candidate, process.platform, second)
-  }
+  await list(first)
+  await list(second)
   await flushSessionParseCachePersist()
   const snapshot = JSON.parse(await readFile(cacheFile, 'utf8'))
   expect(snapshot.entries).toHaveLength(CANDIDATES)
@@ -83,9 +89,7 @@ it('does not reparse an unchanged corpus past the resume bound, across scans or 
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: 'test' })
   await ensureSessionParseCacheLoaded()
   expect(getSessionParseCacheEntry(candidates[0]!.file.path)).toBeDefined()
-  for (const candidate of candidates) {
-    await parseAgentSessionFileCached(candidate, process.platform, restarted)
-  }
+  await list(restarted)
   expect(first.fullParses).toBe(CANDIDATES)
   expect(second.fullParses).toBe(0)
   expect(restarted.fullParses).toBe(0)

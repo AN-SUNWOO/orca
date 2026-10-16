@@ -305,8 +305,8 @@ it('waits for hydration before capturing a replacement and preserves live update
   }
   await flushSessionParseCachePersist()
   expect(await diskEntries()).toEqual([
-    ['entry', expect.objectContaining({ mtimeMs: 3 })],
-    ['older', expect.objectContaining({ mtimeMs: 0 })]
+    ['older', expect.objectContaining({ mtimeMs: 0 })],
+    ['entry', expect.objectContaining({ mtimeMs: 3 })]
   ])
   await vi.advanceTimersByTimeAsync(60_000)
   await flushSessionParseCachePersist()

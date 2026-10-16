@@ -55,6 +55,14 @@ function archiveExtractor(
   return { ...command, program: resolveExecutableCommand(file) }
 }
 
+/** What the person can do about a failed download: retrying fixes only a transient failure, while a
+ *  wrong size, checksum or missing file means the pinned release no longer matches what is served. */
+export function downloadFailureMessage(label: string, error: unknown): string {
+  return isRetryableDownloadError(error)
+    ? `Couldn't download ${label}. Check your network connection or proxy, then try again.`
+    : `The ${label} download didn't match the release Orca expects, so nothing was installed. Updating Orca may fix this.`
+}
+
 /** Retries transient network failures; a checksum mismatch or a cancel is final. */
 export async function downloadVerifiedArchive(
   archive: PinnedRuntimeArchive,

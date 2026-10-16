@@ -21,6 +21,7 @@ import {
 } from './managed-runtime-release'
 import { verifyFileSha256 } from './pinned-runtime-materializer'
 import {
+  downloadFailureMessage,
   downloadVerifiedArchive,
   extractRuntimeArchive,
   missingArchiveExtractor,
@@ -215,14 +216,11 @@ export class ManagedRuntimeInstallation {
           }
         }
       ).catch((error: unknown) => {
-        if (signal.aborted || isChecksumMismatch(error)) {
+        if (signal.aborted) {
           throw error
         }
         console.warn(`[managed-runtime] ${this.agent} download failed:`, error)
-        throw new Error(
-          `Couldn't download ${label}. Check your network connection or proxy, then try again.`,
-          { cause: error }
-        )
+        throw new Error(downloadFailureMessage(label, error), { cause: error })
       })
       this.publish(run, { phase: 'extracting', downloadedBytes: pin.archiveBytes })
       const members = pin.members.map((member) => member.path)

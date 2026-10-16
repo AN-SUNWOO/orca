@@ -2,6 +2,7 @@ import type { Repo } from '../../../../../../shared/repo-types'
 import type { ProjectOrderBy } from '../../../../../../shared/ui-chrome-types'
 import type { WorkspaceStatusDefinition, Worktree } from '../../../../../../shared/worktree/types'
 import type { AppState } from '../../../../store/types'
+import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 import {
   getWorkspaceStatus,
   getWorkspaceStatusFromGroupKey,
@@ -52,6 +53,7 @@ export function buildOrderedGroups(args: {
   settings: AppState['settings'] | undefined
   workspaceStatuses: readonly WorkspaceStatusDefinition[]
   projectIndex: ProjectGroupingIndex | null
+  displayRootByIdentity?: ReadonlyMap<string, Worktree>
   placeholderRepoIds: ReadonlySet<string>
   importedWorktreesByRepo: ReadonlyMap<string, ImportedWorktreesCardCandidate>
   newExternalWorktreesInboxByRepo: ReadonlyMap<string, NewExternalWorktreesInboxCandidate>
@@ -68,6 +70,7 @@ export function buildOrderedGroups(args: {
     settings,
     workspaceStatuses,
     projectIndex,
+    displayRootByIdentity,
     placeholderRepoIds,
     importedWorktreesByRepo,
     newExternalWorktreesInboxByRepo,
@@ -82,6 +85,8 @@ export function buildOrderedGroups(args: {
     return buildProjectSections({
       items: naturalWorktrees,
       repoIdOf: (worktree) => worktree.repoId,
+      displayRepoIdOf: (worktree) =>
+        (displayRootByIdentity?.get(getWorktreeHostIdentity(worktree)) ?? worktree).repoId,
       repoMap,
       projectIndex,
       placeholderRepoIds,

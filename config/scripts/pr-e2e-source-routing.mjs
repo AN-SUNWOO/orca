@@ -111,6 +111,15 @@ export const PR_E2E_SOURCE_ROUTES = [
         /^src\/main\/startup\/(?:windows-app-data-path|main-process-preflight)\.ts$/.test(file))
   },
   {
+    id: 'clipboard.windows-copy-file',
+    specs: ['tests/e2e/file-explorer-copy-file-windows.spec.ts'],
+    matches: (file) =>
+      isProductSource(file) &&
+      /^src\/(?:main\/window\/clipboard-(?:file-copy|ipc-handlers)|renderer\/src\/components\/right-sidebar\/file-explorer-row-file-transfer)\.ts$/.test(
+        file
+      )
+  },
+  {
     id: 'ssh.orcad-auto-convert',
     specs: ['tests/e2e/ssh-orcad-auto-convert.spec.ts'],
     matches: (file) =>
@@ -199,7 +208,7 @@ export const PR_E2E_SOURCE_ROUTES = [
     matches: (file) =>
       MANAGED_SSH_HARNESS.test(file) ||
       (isProductSource(file) &&
-        /^src\/(?:main\/(?:orcad\/orcad-(?:idle-|managed-idle-)|ssh\/orcad-(?:managed-serving|managed-wake|managed-tunnel|recovery-slot|remote-launch|remote-runtime-control))|shared\/orcad-idle-exit)/.test(
+        /^src\/(?:main\/(?:orcad\/orcad-(?:idle-|managed-idle-)|ssh\/orcad-(?:already-active-wake|runtime-deployment|managed-serving|managed-wake|managed-tunnel|recovery-slot|remote-launch|remote-runtime-control))|shared\/orcad-idle-exit)/.test(
           file
         ))
   },

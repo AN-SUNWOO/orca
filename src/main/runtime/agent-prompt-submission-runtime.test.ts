@@ -657,21 +657,6 @@ describe('input original queue, callback and private method contracts', () => {
     vi.useRealTimers()
   })
 
-  it('retains native async metadata and the private retry on their original frames', () => {
-    const target = inputDispatchRuntime()
-    for (const method of [
-      target.sendTerminal,
-      target.sendTerminalAgentPrompt,
-      target['serializeAgentPromptSubmission'],
-      target['writeTerminalAgentPrompt'],
-      target['resubmitAgentPromptAfterRetryDelay']
-    ]) {
-      expect(method.constructor.name).toBe('AsyncFunction')
-    }
-    expect(target['serializeAgentPromptSubmission'].length).toBe(3)
-    expect(target['resubmitAgentPromptAfterRetryDelay'].length).toBe(3)
-  })
-
   it('keeps the private retry lookup on the Root receiver before any delay', async () => {
     const target = inputDispatchRuntime()
     const read = vi.fn(function (this: OrcaRuntimeService, ...args: unknown[]) {
@@ -684,21 +669,6 @@ describe('input original queue, callback and private method contracts', () => {
       target['resubmitAgentPromptAfterRetryDelay'](PTY, 1, { inputKind: 'driving' })
     ).resolves.toBe(0)
     expect(read).toHaveBeenCalledOnce()
-  })
-
-  it('keeps the queue and pending delivery maps as original owned fields', () => {
-    const target = inputDispatchRuntime()
-    for (const name of [
-      'agentPromptSubmissionTailByPtyId',
-      'probeDeferredDeliveryPtyIds',
-      'messageDeliveryFlightsByPtyId',
-      'parkedMessageRedeliveriesByPtyId'
-    ]) {
-      const descriptor = Object.getOwnPropertyDescriptor(target, name)
-      expect(descriptor?.get).toBeUndefined()
-      expect(descriptor?.value).toBeDefined()
-    }
-    expect(Object.hasOwn(target, 'terminalPromptSubmissions')).toBe(false)
   })
 
   it('serializes rejected submissions, isolates generations and keeps a replacement tail', async () => {

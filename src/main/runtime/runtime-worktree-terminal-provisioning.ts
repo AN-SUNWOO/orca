@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
+import { shouldSeedWorktreePrimaryTerminal } from '../../shared/worktree-first-surface'
 import { buildObservedSetupCommand } from './orchestration/setup-completion-signal'
 import { buildSetupRunnerCommand } from '../../shared/setup-runner-command'
 import type { RuntimeStore } from './runtime-store-contract'
@@ -42,6 +43,8 @@ export type WorktreeTerminalProvisioningArgs = {
   primaryTerminalHandle?: string | null
   hasStartupTerminal: boolean
   setupOnly?: boolean
+  callerProvidesSurface?: boolean
+  startupNeedsTerminal?: boolean
   setupCommandPlatform: 'windows' | 'posix'
   observeSetupCompletion?: boolean
   // Why: setup and startup must use the same wrapper when startup waits for setup.
@@ -135,12 +138,19 @@ export async function provisionWorktreeTerminals(
       args.hasStartupTerminal ? (args.primaryTerminalHandle ?? undefined) : undefined
     )
     let primaryHandle = args.primaryTerminalHandle ?? defaultHandles[0] ?? null
-    if (!args.hasStartupTerminal && !primaryHandle) {
-      if (setupOnly) {
-        shellSkippedForSetup = true
-      } else {
-        primaryHandle = (await host.createTerminal(args.worktreeSelector, surfacing)).handle
-      }
+    if (!args.hasStartupTerminal && !primaryHandle && setupOnly) {
+      shellSkippedForSetup = true
+    }
+    if (
+      !setupOnly &&
+      shouldSeedWorktreePrimaryTerminal({
+        hasPrimarySurface: args.hasStartupTerminal || primaryHandle !== null,
+        callerProvidesSurface: args.callerProvidesSurface === true,
+        startupNeedsTerminal: args.startupNeedsTerminal,
+        ...(args.setup ? { setupLaunchMode } : {})
+      })
+    ) {
+      primaryHandle = (await host.createTerminal(args.worktreeSelector, surfacing)).handle
     }
     if (args.setup) {
       const completionToken =
@@ -191,8 +201,16 @@ export async function provisionWorktreeTerminals(
     console.warn(
       `[worktree-create] Failed to create setup/default terminals for ${args.worktreePath}: ${message}`
     )
-    // A cleared choice still needs a shell if Setup fails to spawn.
-    if (shellSkippedForSetup && !setupSpawned) {
+    // A cleared choice needs a shell after failed Setup only when this create owes the surface.
+    if (
+      shellSkippedForSetup &&
+      !setupSpawned &&
+      shouldSeedWorktreePrimaryTerminal({
+        hasPrimarySurface: false,
+        callerProvidesSurface: args.callerProvidesSurface === true,
+        startupNeedsTerminal: args.startupNeedsTerminal
+      })
+    ) {
       await host
         .createTerminal(args.worktreeSelector, surfacing)
         .catch((fallbackError: unknown) => {

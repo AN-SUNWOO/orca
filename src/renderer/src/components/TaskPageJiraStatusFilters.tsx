@@ -60,7 +60,7 @@ export function TaskPageJiraStatusFilters({
     jiraQuickFiltersLoading ||
     jiraQuickFiltersPending ||
     jiraSavedFiltersPending
-  if (jiraSearchInput.trim()) {
+  if (jiraSearchInput.trim() || model.jiraFavouriteFilter) {
     return selectedJiraStatuses.length ? (
       <p className="mt-2 text-xs text-muted-foreground">
         {translate(

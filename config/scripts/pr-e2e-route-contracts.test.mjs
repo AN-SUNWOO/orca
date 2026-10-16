@@ -7,6 +7,7 @@ import {
   DEDICATED_E2E_SPECS,
   MANAGED_SSH_E2E_SPEC_PREFIX,
   ORCAD_SERVE_MODE_SWITCH_E2E_SPEC,
+  WINDOWS_COPY_FILE_E2E_SPEC,
   WINDOWS_MISSING_APPDATA_E2E_SPEC,
   selectGeneralE2eSpecs
 } from './ci-e2e-job-selection.mjs'
@@ -125,6 +126,8 @@ describe('pr-e2e-layout-oracle-routing', () => {
     'src/main/persistence/loading-store/pty-binding-persistence.ts',
     'src/main/remote-layout-snapshot/index.ts',
     'src/main/runtime/terminal/launch/terminal-split-surface.ts',
+    'src/main/runtime/terminal/adoption/adopt-terminal-orphans-from-inventory.ts',
+    'src/main/runtime/runtime-terminal-orphan-adoption.ts',
     'src/main/runtime/session-tabs/headless-tab-group-moves.ts',
     'src/main/runtime/terminal/launch/terminal-create.ts',
     'src/main/runtime/terminal/stop/worktree-terminal-stop.ts',
@@ -164,9 +167,12 @@ describe('pr-e2e-layout-oracle-routing', () => {
     'src/main/ipc/pty/ipc/leaf-move.ts',
     'src/main/persistence/closed-terminal-tab-write-fence.ts',
     'src/main/runtime/runtime-workspace-session-controller.ts',
+    'src/main/runtime/workspaces/persisted-surfaces/has-exact-persisted-terminal-surface-identity.ts',
     'src/main/runtime/terminal-surface-close.ts',
     'src/main/runtime/terminal/output/terminal-derived-agent-facts.ts',
     'src/main/runtime/terminal/output/terminal-output-generation.ts',
+    'src/main/runtime/session-tabs/mobile-session-membership.ts',
+    'src/main/runtime/session-tabs/pty-backed-session-publication.ts',
     'src/renderer/src/components/terminal/terminal-tab-actions.ts',
     'src/renderer/src/components/tab-bar/web-runtime-tab-move-mirror.ts',
     'src/shared/rpc-contract/workspace-layout-params.ts',
@@ -229,6 +235,8 @@ describe('pr-e2e-layout-oracle-routing', () => {
         'src/main/runtime/rpc/methods/terminal/terminal-create.ts',
         'src/main/runtime/runtime-rpc-database.ts',
         'src/main/runtime/orca-runtime-files.ts',
+        'src/main/runtime/workspaces/persisted-surfaces/automation-operations.ts',
+        'src/main/runtime/workspaces/persisted-surfaces/has-exact-persisted-terminal-surface-identity.test.ts',
         'src/renderer/src/runtime/remote-runtime-terminal-multiplexer.ts',
         'src/renderer/src/runtime/web-session-tabs-sync-test-harness.ts',
         'src/renderer/src/runtime/sync-runtime-graph-test-harness.ts',
@@ -352,6 +360,17 @@ describe('orcad-e2e-routing', () => {
     )
   })
 
+  it('routes the Windows file-copy spec from its clipboard sources', () => {
+    expectRouted(
+      [
+        'src/main/window/clipboard-file-copy.ts',
+        'src/main/window/clipboard-ipc-handlers.ts',
+        'src/renderer/src/components/right-sidebar/file-explorer-row-file-transfer.ts'
+      ],
+      WINDOWS_COPY_FILE_E2E_SPEC
+    )
+  })
+
   it('routes the auto-convert spec from its conversion sources and harness', () => {
     expectRouted(
       [
@@ -417,10 +436,14 @@ describe('orcad-e2e-routing', () => {
     }
   })
 
-  it('runs both Windows serve specs on one runner, each only when requested', () => {
+  it('runs the Windows-only specs on one runner, each only when requested', () => {
     expect(jobs['windows-missing-appdata-startup']).toBeUndefined()
     const job = jobs['orcad-serve-mode-switch-windows']
-    for (const spec of [ORCAD_SERVE_MODE_SWITCH_E2E_SPEC, WINDOWS_MISSING_APPDATA_E2E_SPEC]) {
+    for (const spec of [
+      ORCAD_SERVE_MODE_SWITCH_E2E_SPEC,
+      WINDOWS_MISSING_APPDATA_E2E_SPEC,
+      WINDOWS_COPY_FILE_E2E_SPEC
+    ]) {
       expect(job.if, spec).toContain(`contains(inputs.test_files, '${spec}')`)
       const step = job.steps.find((candidate) => candidate.run?.includes(spec))
       expect(step.if, spec).toContain(`contains(inputs.test_files, '${spec}')`)

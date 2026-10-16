@@ -220,7 +220,7 @@ it('uses one launchd label per profile and protocol', () => {
   expect(macDaemonJobLabel('/Users/a/Library/Application Support/orca')).not.toBe(
     macDaemonJobLabel('/Users/a/Library/Application Support/orca-dev')
   )
-  expect(macDaemonJobLabel('/p')).toMatch(/^com\.stablyai\.orca\.terminal\.[0-9a-f]{16}\.v45$/)
+  expect(macDaemonJobLabel('/p')).toMatch(/^com\.stablyai\.orca\.terminal\.[0-9a-f]{16}\.v46$/)
 })
 
 it.each(['13.4.1', '12.7.6'])(
@@ -263,12 +263,20 @@ it("boots out an earlier daemon's stopped job before starting the new one", asyn
   expect(verbs).toEqual(['bootout', 'bootstrap'])
 })
 
+it('lets a restarting daemon exit before removing its registration and bootstrapping', async () => {
+  launchctl.print = [running, stopped]
+  await expect(launchMacDaemonFromStableBundle(options, roomyDeadline())).resolves.not.toBeNull()
+  expect(launchctlCalls('bootout')).toHaveLength(1)
+  expect(launchctlCalls('bootstrap')).toHaveLength(1)
+})
+
 it.each([
   ['running', running],
   ['unverifiable', { ...ok, code: 1, stderr: 'Operation not permitted' }]
 ])('never starts beside an earlier job that reads %s', async (_state, print) => {
   launchctl.print = [print]
-  const error = await launchFailure()
+  // No retirement wait may consume the time reserved for bootstrap and readiness.
+  const error = await launchFailure(Date.now() + 20_000)
   expect(error).toBeInstanceOf(Error)
   expect(launchctlCalls('bootstrap')).toHaveLength(0)
   expect(launchctlCalls('bootout')).toHaveLength(0)

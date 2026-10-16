@@ -172,6 +172,16 @@ function retryLine(): SshHostServerStatusLine {
   }
 }
 
+function heldMoveLine(): SshHostServerStatusLine {
+  return {
+    tone: 'warning',
+    text: translate(
+      'auto.components.settings.sshHostServer.moveHeld',
+      'Orca paused moving this host’s projects to its managed server because it couldn’t confirm the server’s copy. Nothing is lost: the host keeps its projects and stays locked until the move finishes. Connect again to resume. If the server can’t come back, stop or forget it in Settings > Managed servers.'
+    )
+  }
+}
+
 /** Projects the server already had: this desktop's own tabs and automations for them stayed behind. */
 function linkedProjectsLine(
   linked: readonly SshManagedServerLinkedProject[]
@@ -299,7 +309,7 @@ function unservedLine(
       }
     case 'deferred':
     case 'failed':
-      return { ...retryLine(), ...withDetail(status.detail) }
+      return { ...(status.held ? heldMoveLine() : retryLine()), ...withDetail(status.detail) }
   }
 }
 

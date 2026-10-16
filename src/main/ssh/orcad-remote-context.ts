@@ -5,13 +5,24 @@ import type { OrcadActivationRecord } from './orcad-activation-record'
 import { readOrcadActivationRecord } from './orcad-activation-record-store'
 import { resolveOrcadRuntimeTarget } from './orcad-runtime-target'
 import { prepareWindowsOrcadHost } from './orcad-windows-host-preparation'
-import { execOrcadRemote } from './orcad-remote-runtime-control'
 import {
   isWslOrcadHostTarget,
   type OrcadHostTarget,
   type OrcadHostTransport
 } from './orcad-host-transport'
+import {
+  decideOrcadMachineHome,
+  orcadMachineClaimCommand,
+  orcadMachineDataRoot,
+  orcadMachineHomeDir,
+  orcadMachineHomeProbeCommand,
+  parseOrcadMachineClaim,
+  parseOrcadMachineHomeProbe
+} from './orcad-machine-home'
+import { execOrcadRemote, type OrcadRemoteExecTarget } from './orcad-remote-runtime-control'
 import { readRemoteHomeCommand } from './ssh-remote-commands'
+import { shellEscape } from './ssh-connection-utils'
+import { RELAY_REMOTE_DIR } from './relay-protocol'
 import {
   isWindowsRemoteHost,
   joinRemotePath,
@@ -30,6 +41,10 @@ export type OrcadRemoteContext<Target extends OrcadHostTarget = SshTarget> = {
   serverTarget: NodeRuntimeTarget
   connection: OrcadHostTransport
   host: RemoteHostPlatform
+  /**
+   * What `~/.orca-remote` hangs off: the login home, or this machine's own home when several
+   * machines share one (see `orcad-machine-home.ts`). `userDataDir` follows the same choice.
+   */
   remoteHome: string
   target: Target
   userDataDir: string
@@ -46,22 +61,32 @@ export async function resolveOrcadRemoteContext<Target extends OrcadHostTarget =
     throw new OrcadHostUnsupportedError('This SSH host platform is not supported by managed orcad.')
   }
   const remote = { conn: connection, host, signal }
-  const remoteHome = normalizeRemoteHome(
-    await execOrcadRemote(remote, readRemoteHomeCommand(host)),
-    host
+  const { orcadHome: remoteHome, userDataDir } = await resolveOrcadMachineHome(
+    remote,
+    !isWslOrcadHostTarget(target)
   )
-  if (!validateRemoteHome(remoteHome, host)) {
-    throw new Error(`Remote home is not a valid path: ${remoteHome.slice(0, 100)}`)
-  }
-  const serverTarget = await resolveOrcadRuntimeTarget({ conn: connection, host, signal })
+  const serverTarget = await resolveOrcadRuntimeTarget({
+    conn: connection,
+    host,
+    signal
+  })
   if (!isWslOrcadHostTarget(target)) {
     rememberSshHostPlatform(target.id, host, serverTarget)
   }
   if (isWindowsRemoteHost(host)) {
     // Every Windows host op, the activation record read included, runs on the pinned node.exe.
-    await prepareWindowsOrcadHost({ conn: connection, host, remoteHome, serverTarget, signal })
+    await prepareWindowsOrcadHost({
+      conn: connection,
+      host,
+      remoteHome,
+      serverTarget,
+      signal
+    })
   }
-  const activationRecord = await readOrcadActivationRecord({ ...remote, remoteHome })
+  const activationRecord = await readOrcadActivationRecord({
+    ...remote,
+    remoteHome
+  })
   return {
     activationRecord,
     serverTarget,
@@ -69,6 +94,68 @@ export async function resolveOrcadRemoteContext<Target extends OrcadHostTarget =
     host,
     remoteHome,
     target,
-    userDataDir: joinRemotePath(host, remoteHome, '.orca')
+    userDataDir
+  }
+}
+
+/**
+ * The directory orcad's state hangs off on this machine: the login home, or this machine's own
+ * home under it. Windows and WSL keep the login home: neither shares one across machines.
+ */
+export async function resolveOrcadMachineHome(
+  remote: OrcadRemoteExecTarget,
+  keyByMachine: boolean
+): Promise<{ loginHome: string; orcadHome: string; userDataDir: string }> {
+  const { host } = remote
+  if (!keyByMachine || isWindowsRemoteHost(host)) {
+    const loginHome = normalizeRemoteHome(
+      await execOrcadRemote(remote, readRemoteHomeCommand(host)),
+      host
+    )
+    if (!validateRemoteHome(loginHome, host)) {
+      throw new Error(`Remote home is not a valid path: ${loginHome.slice(0, 100)}`)
+    }
+    return {
+      loginHome,
+      orcadHome: loginHome,
+      userDataDir: joinRemotePath(host, loginHome, '.orca')
+    }
+  }
+  const probe = parseOrcadMachineHomeProbe(
+    await execOrcadRemote(remote, orcadMachineHomeProbeCommand(host)),
+    host
+  )
+  const { loginHome } = probe
+  let decision = decideOrcadMachineHome(probe, host)
+  if (decision.kind === 'claim') {
+    const won = parseOrcadMachineClaim(
+      (
+        await execOrcadRemote(
+          remote,
+          orcadMachineClaimCommand(host, loginHome, decision.machineKey)
+        )
+      ).trim()
+    )
+    if (won.state !== 'present') {
+      throw new Error(`orcad could not claim this host's ${RELAY_REMOTE_DIR}`)
+    }
+    decision =
+      won.machineKey === decision.machineKey
+        ? { kind: 'login-home' }
+        : { kind: 'machine-home', machineKey: decision.machineKey }
+  }
+  if (decision.kind === 'login-home') {
+    return {
+      loginHome,
+      orcadHome: loginHome,
+      userDataDir: joinRemotePath(host, loginHome, '.orca')
+    }
+  }
+  const orcadHome = orcadMachineHomeDir(host, loginHome, decision.machineKey)
+  await execOrcadRemote(remote, `umask 077; mkdir -p ${shellEscape(orcadHome)}`)
+  return {
+    loginHome,
+    orcadHome,
+    userDataDir: orcadMachineDataRoot(host, loginHome, decision.machineKey)
   }
 }

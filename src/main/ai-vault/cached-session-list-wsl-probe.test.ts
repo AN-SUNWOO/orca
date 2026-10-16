@@ -70,7 +70,13 @@ describe('AI Vault listing wsl.exe probes', () => {
         additionalCodexSessionsDirs: [join(NATIVE_CODEX_HOME, 'sessions')],
         wslHomeDirs: []
       }),
-      expect.anything()
+      expect.anything(),
+      expect.objectContaining({
+        sent: expect.any(Function),
+        work: expect.any(Function),
+        finish: expect.any(Function),
+        fail: expect.any(Function)
+      })
     )
   })
 
@@ -91,7 +97,13 @@ describe('AI Vault listing wsl.exe probes', () => {
     ])
     expect(scanAiVaultSessionsInService).toHaveBeenCalledWith(
       expect.objectContaining({ wslHomeDirs: [WSL_HOME] }),
-      expect.anything()
+      expect.anything(),
+      expect.objectContaining({
+        sent: expect.any(Function),
+        work: expect.any(Function),
+        finish: expect.any(Function),
+        fail: expect.any(Function)
+      })
     )
 
     runProcessMock.mockResolvedValue(FAILED)

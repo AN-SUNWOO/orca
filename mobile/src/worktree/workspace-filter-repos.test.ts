@@ -1,3 +1,4 @@
+import { NO_WORKSPACE_ROW_FILTERS } from '../../../src/shared/workspace-view/workspace-row-filters'
 import { describe, expect, it } from 'vitest'
 import { buildFilterRepos } from './workspace-filter-repos'
 import { filterWorktrees, type Worktree } from './workspace-list-sections'
@@ -56,11 +57,9 @@ describe('the repo filter', () => {
     const rows = [row('a', 'local-orca', 'local'), row('b', 'm4-orca', 'runtime:m4air')]
 
     expect(
-      filterWorktrees(
-        rows,
-        { filterRepoIds: new Set(['m4-orca']), hideSleeping: false, hideDefaultBranch: false },
-        ''
-      ).map((w) => w.worktreeId)
+      filterWorktrees(rows, { ...NO_WORKSPACE_ROW_FILTERS, filterRepoIds: ['m4-orca'] }, '').map(
+        (w) => w.worktreeId
+      )
     ).toEqual(['b'])
   })
 })

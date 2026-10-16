@@ -322,6 +322,8 @@ export type SshManagedServerStatus =
       terminals?: number
       /** Those terminals belong to another Orca desktop or session, so this one offers no move. */
       terminalsElsewhere?: boolean
+      /** A move to the managed server stopped short and keeps the host locked until it resumes. */
+      held?: true
     }
 
 /** Plain SSH terminals and SFTP browsing only; `reason` is the ladder's classified cause. */

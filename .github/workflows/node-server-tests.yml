@@ -60,6 +60,7 @@ jobs:
     outputs:
       should_run: ${{ steps.scope.outputs.should_run || steps.graph.outputs.should_run }}
       qualification: ${{ steps.scope.outputs.qualification || steps.graph.outputs.qualification }}
+      native_compatibility: ${{ steps.scope.outputs.native_compatibility || steps.graph.outputs.native_compatibility }}
       runners: ${{ steps.scope.outputs.runners || steps.graph.outputs.runners }}
     steps:
       - uses: actions/checkout@v6
@@ -76,6 +77,7 @@ jobs:
         env:
           PUSH_BASE: ${{ github.event.before }}
           EVENT_NAME: ${{ github.event_name }}
+          ALLOW_TEST_ONLY_NATIVE_SKIP: ${{ github.event_name == 'pull_request' && !inputs.build_template && inputs.ref == '' }}
         run: |
           if [ "$EVENT_NAME" = push ]; then
             # Compare the entire push, including multi-commit pushes and removed files.
@@ -88,10 +90,15 @@ jobs:
             fi
             exit 0
           fi
+          NATIVE_SCOPE_ARGS=()
+          if [ "$ALLOW_TEST_ONLY_NATIVE_SKIP" = true ]; then
+            NATIVE_SCOPE_ARGS=(--pull-request --diff-paths "$RUNNER_TEMP/node-server-native-diff")
+          fi
           # Compare the tested merge with its base, retaining both sides of renames.
           if git diff --name-only --no-renames -z HEAD^1 HEAD > "$RUNNER_TEMP/node-server-changes" &&
-             git diff --name-only --no-renames --diff-filter=M -z HEAD^1 HEAD > "$RUNNER_TEMP/node-server-modified"; then
-            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --defer-graph --modified-paths "$RUNNER_TEMP/node-server-modified"
+             git diff --name-only --no-renames --diff-filter=M -z HEAD^1 HEAD > "$RUNNER_TEMP/node-server-modified" &&
+             git diff --raw --no-renames --no-abbrev -z HEAD^1 HEAD > "$RUNNER_TEMP/node-server-native-diff"; then
+            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --defer-graph --modified-paths "$RUNNER_TEMP/node-server-modified" "${NATIVE_SCOPE_ARGS[@]}"
           else
             echo 'should_run=true' >> "$GITHUB_OUTPUT"
           fi
@@ -108,11 +115,16 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          ALLOW_TEST_ONLY_NATIVE_SKIP: ${{ github.event_name == 'pull_request' && !inputs.build_template && inputs.ref == '' }}
         run: |
           if [ "$EVENT_NAME" = push ]; then
             node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --full-qualification --modified-paths "$RUNNER_TEMP/node-server-modified"
           else
-            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --modified-paths "$RUNNER_TEMP/node-server-modified"
+            NATIVE_SCOPE_ARGS=()
+            if [ "$ALLOW_TEST_ONLY_NATIVE_SKIP" = true ]; then
+              NATIVE_SCOPE_ARGS=(--pull-request --diff-paths "$RUNNER_TEMP/node-server-native-diff")
+            fi
+            node config/scripts/node-server-change-scope.mjs "$RUNNER_TEMP/node-server-changes" --modified-paths "$RUNNER_TEMP/node-server-modified" "${NATIVE_SCOPE_ARGS[@]}"
           fi
 
   persistence:
@@ -359,7 +371,9 @@ jobs:
     if: >-
       ${{ !cancelled() && needs.persistence.result == 'success' &&
       needs.changes.outputs.should_run != 'false' &&
-      needs.changes.outputs.qualification != 'false' }}
+      needs.changes.outputs.qualification != 'false' &&
+      (github.event_name != 'pull_request' || inputs.build_template || inputs.ref != '' ||
+      needs.changes.outputs.native_compatibility != 'false') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     env:

@@ -99,6 +99,9 @@ const REASON_WORDS = {
     rewindRefused: codeWords('hostFinding'),
     rewindUnconfirmed: codeWords('hostFinding'),
     promptGone: causeWords('questionChanged', 'nothingLeft'),
+    // An approval or question waited on the person when its agent stopped: said naming the agent,
+    // with sending a message as the step on.
+    promptOwnerEnded: { fact: 'providerExited', action: 'nothingLeft' },
     optionRejected: causeWords('optionRejected', 'retry'),
     providerStarting: AGENT_STARTING,
     goalsUnsupported: causeWords('goalsUnsupported', 'hostFinding'),
@@ -115,6 +118,7 @@ const REASON_WORDS = {
     claudeAccountFolderMissing: { fact: 'claudeAccountFolderMissing', action: 'actFirst' },
     claudeAccountSetupFailed: { fact: 'claudeAccountSetupFailed', action: 'retry' },
     agentCommandNotRunnable: { fact: 'agentCommandNotRunnable', action: 'actFirst' },
+    runtimeNotInstalled: { fact: 'runtimeNotInstalled', action: 'actFirst' },
     attachFailed: codeWords('retry')
   },
   agent_session_ownership_unknown: {

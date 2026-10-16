@@ -22,6 +22,8 @@ import { useHostRepoMetadata, type FetchHostRepoMetadata } from './use-host-repo
 import { useHostScreenIdentity } from './use-host-screen-identity'
 import { useHostScreenState } from './use-host-screen-state'
 import { useHostViewSettings } from './use-host-view-settings'
+import { rowFiltersForView } from '../worktree/workspace-view-settings'
+import { countActiveWorkspaceFilters } from '../../../src/shared/workspace-view/workspace-row-filters'
 import { useHostWorktreeActions } from './use-host-worktree-actions'
 import { useHostWorktreeCatalog } from './use-host-worktree-catalog'
 import { useHostDisplay } from '../transport/use-host-display'
@@ -119,30 +121,47 @@ export function useHostScreenController({
       buildProjectSectionCatalog(
         state.servedProjectSections,
         state.desktopRepos,
-        state.visibleHostIds
+        state.view.filters.visibleHostIds
       ),
-    [state.servedProjectSections, state.desktopRepos, state.visibleHostIds]
+    [state.servedProjectSections, state.desktopRepos, state.view.filters.visibleHostIds]
   )
+  const collapsedGroups = useMemo(
+    () => new Set(state.view.collapsedGroups),
+    [state.view.collapsedGroups]
+  )
+  const rowFilters = useMemo(() => rowFiltersForView(state.view), [state.view])
   const sectionsResult = useWorkspaceSections({
     displayWorktrees,
-    sortMode: state.sortMode,
-    filters: state.filters,
+    sortMode: state.view.sortBy,
+    filters: rowFilters,
     search: state.search,
-    groupMode: state.groupMode,
+    groupMode: state.view.groupBy,
     pinnedIds: state.pinnedIds,
     showPinnedInGroups: state.showPinnedInGroups,
     projectCatalog,
     filterCatalogRepos: state.servedProjectSections?.repos ?? state.desktopRepos,
-    collapsedGroups: state.collapsedGroups,
-    workspaceStatuses: state.workspaceStatuses
+    collapsedGroups,
+    workspaceStatuses: state.view.workspaceStatuses,
+    repoHostIdByRepoId: state.repoHostIdByRepoId
   })
+  const { uniqueRepos } = sectionsResult
+  const activeFilterCount = useMemo(
+    () =>
+      countActiveWorkspaceFilters(
+        state.view.filters,
+        uniqueRepos.map((repo) => repo.id)
+      ),
+    [state.view.filters, uniqueRepos]
+  )
   const existingWorktreePaths = useMemo(() => state.worktrees.map((w) => w.path), [state.worktrees])
   const activeWorktreeScroll = useActiveWorktreeScroll(sectionsResult.sections)
 
   return {
     actions,
+    activeFilterCount,
     activeWorktreeScroll,
     catalog,
+    collapsedGroups,
     client,
     connState,
     contentMaxWidth,

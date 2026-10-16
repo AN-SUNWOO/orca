@@ -1,3 +1,4 @@
+import { prepareStructuredChatCliFork } from '../../../ai-vault/structured-chat-cli-fork'
 import {
   AiVaultSearchRequestSchema,
   AiVaultSearchStatusRequestSchema,
@@ -128,6 +129,12 @@ export const AI_VAULT_METHODS = [
     permission: 'workspace',
     params: AiVaultPrepareSessionResumeParams,
     handler: async (params, { runtime }) => {
+      if ('sourceChat' in params) {
+        await runtime.ensureStructuredAgentSessionHost()
+        return prepareStructuredChatCliFork(params, (args) =>
+          runtime.prepareAiVaultSessionResume(args)
+        )
+      }
       const args: AiVaultPrepareSessionResumeArgs = {
         agent: params.agent,
         ...(params.sessionId ? { sessionId: params.sessionId } : {}),

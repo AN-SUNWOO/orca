@@ -21,6 +21,7 @@ import {
   reposReorder,
   reposUpdate,
   runtimeEnvironmentCall,
+  runtimeEnvironmentsList,
   sshRepo
 } from './repos-runtime-routing-fixture'
 
@@ -615,6 +616,7 @@ describe('repo slice runtime routing', () => {
   })
 
   it('removes repos through their owning runtime environment', async () => {
+    runtimeEnvironmentsList.mockResolvedValue([{ id: 'env-1' }])
     runtimeEnvironmentCall.mockResolvedValue({
       id: 'rpc-3',
       ok: true,
@@ -682,6 +684,7 @@ describe('repo slice runtime routing', () => {
   })
 
   it('drops persisted visit timestamps for removed unhydrated runtime repos', async () => {
+    runtimeEnvironmentsList.mockResolvedValue([{ id: 'env-1' }])
     runtimeEnvironmentCall.mockResolvedValue({
       id: 'rpc-remove-runtime-unhydrated',
       ok: true,
@@ -741,6 +744,7 @@ describe('repo slice runtime routing', () => {
   })
 
   it('stops remote runtime terminals instead of killing remote ids through local pty IPC', async () => {
+    runtimeEnvironmentsList.mockResolvedValue([{ id: 'env-1' }])
     runtimeEnvironmentCall.mockResolvedValue({
       id: 'rpc-remote',
       ok: true,

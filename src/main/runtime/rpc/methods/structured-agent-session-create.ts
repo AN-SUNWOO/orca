@@ -175,7 +175,7 @@ export async function commitStructuredAgentSessionCreate(args: {
   if (prepared.atRest || prepared.resumeFrom) {
     return prepared.host.create(args.caller, prepared.attachParams, {
       ...prepared.atRest,
-      ...(prepared.resumeFrom
+      ...(prepared.resumeFrom?.cliSource
         ? {
             cliSourceStop: {
               host: args.runtime.cliSourceStopHost(),

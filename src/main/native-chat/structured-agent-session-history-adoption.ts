@@ -1,9 +1,6 @@
 // Adopting an Agent Session History row into a brand-new structured chat.
 //
-// Kept out of the runtime class files because those are `@ts-nocheck`: this decides which
-// credential directory a provider child will launch against and which file gets imported into a
-// journal, and a call site written there would compile however wrong it was. The runtime hands over
-// the facts it owns — the account homes it recognises, the records it holds — and this decides.
+// Credential homes and transcripts must come from runtime-owned facts, never client-supplied paths.
 
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import type { AgentSessionOperationRow } from '../../shared/agent-session-operation-ledger'

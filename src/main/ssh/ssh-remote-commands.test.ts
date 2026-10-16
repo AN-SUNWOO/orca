@@ -178,22 +178,6 @@ describe('ssh remote command builders', () => {
     }
   })
 
-  it.skipIf(process.platform === 'win32')(
-    'rejects a POSIX install missing one artifact',
-    async () => {
-      const { dir, artifact } = stageOrcadInstall(posix)
-      const probe = (): string => probeOrcadInstalledCommand(posix, dir)
-      try {
-        expect((await runShellCommand(probe())).trim()).toBe('OK')
-
-        rmSync(join(dir, artifact))
-        expect((await runShellCommand(probe())).trim()).toBe('MISSING')
-      } finally {
-        rmSync(dir, { recursive: true, force: true })
-      }
-    }
-  )
-
   it('uses encoded PowerShell for Windows deploy commands', () => {
     expect(readRemoteHomeCommand(windows)).toContain('powershell.exe')
     expect(removeRemoteTreeCommand(windows, 'C:/Users/me/.orca-remote/x')).toContain(

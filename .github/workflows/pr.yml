@@ -8,6 +8,7 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+      - converted_to_draft
 
 concurrency:
   group: pr-checks-${{ github.event.pull_request.number }}
@@ -24,9 +25,10 @@ jobs:
   # Per-job outputs also skip git-compat/xterm/packaging/shell when those
   # inputs are unchanged; empty diffs fail closed and run everything.
   code_paths:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     name: detect changes and check repository guards
-    # Reuse one lightweight checkout for detection and the always-required guards.
-    runs-on: ubuntu-slim
+    # Start routing without waiting behind the GitHub-hosted test queue.
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
     permissions:
       contents: read
@@ -175,13 +177,11 @@ jobs:
     name: static analysis and typecheck
     needs: [code_paths]
     if: needs.code_paths.outputs.static_analysis == 'true' || needs.code_paths.outputs.typecheck == 'true'
-    # Why ARM: measured 128s against 172s on ubuntu-latest, with every compute step faster --
-    # type-aware 24s->15s, anti-slop 28->19s, localization extraction 67->46s, the orcad smoke
-    # 39->14s. Both lint engines ship linux-arm64 and the Bun target follows process.arch, so
-    # the whole toolchain resolves. Free for public repositories.
-    runs-on: ubuntu-24.04-arm
+    # Leave headroom for typechecking and overlapping checks.
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     outputs:
       shards: ${{ steps.unit-plan.outputs.shards }}
+      managed_hook_node18: ${{ steps.managed_hook_node18.outcome }}
 
     steps:
       - name: Checkout
@@ -194,6 +194,22 @@ jobs:
           # blobless against ~11s without it.
           fetch-depth: 50
           persist-credentials: false
+
+      # The dependency action below restores Node 24 before installing or building packages.
+      - name: Prepare Node 18 smoke runtime
+        id: node18_runtime
+        if: needs.code_paths.outputs.managed_hook_node18 == 'true'
+        continue-on-error: true
+        uses: actions/setup-node@v6
+        with:
+          node-version: '18'
+          package-manager-cache: false
+
+      - name: Capture Node 18 executable
+        id: node18_executable
+        if: needs.code_paths.outputs.managed_hook_node18 == 'true' && steps.node18_runtime.outcome == 'success'
+        continue-on-error: true
+        run: node -p '"executable=" + process.execPath' >> "$GITHUB_OUTPUT"
 
       # Why two guarded installs: the mixed root+mobile store entry is 537 MB against
       # 321 MB for root alone, and restoring it costs 8.6s against 4.6s. Most PRs skip the
@@ -503,12 +519,6 @@ jobs:
           path: ci-shards/unit-selection.json
           retention-days: 14
 
-      - name: Set up Bun for Mobile CI tool tests
-        if: needs.code_paths.outputs.mobile_ci_tools == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: config/.bun-version
-
       - name: Test Mobile CI tools and runtime routing
         if: needs.code_paths.outputs.mobile_ci_tools == 'true'
         env:
@@ -524,6 +534,18 @@ jobs:
           config/scripts/win32-test-lane-registration.test.mjs
           config/scripts/vitest-node-runtime-boundary.test.ts
           config/scripts/vitest-sqlite-runtime-boundary.test.ts
+
+      # Report failure through the separate required check without blocking unrelated consumers.
+      - name: Smoke process-host package on Node 18
+        id: managed_hook_node18
+        if: success() && needs.code_paths.outputs.managed_hook_node18 == 'true'
+        continue-on-error: true
+        env:
+          NODE18_EXECUTABLE: ${{ steps.node18_executable.outputs.executable }}
+          ORCA_BACKGROUND_LAUNCH: '1'
+        run: |
+          test -n "$NODE18_EXECUTABLE"
+          "$NODE18_EXECUTABLE" config/scripts/smoke-process-host-node18.mjs
 
   git_compatibility:
     name: Git compatibility
@@ -873,7 +895,7 @@ jobs:
     uses: ./.github/workflows/unit-tests.yml
     with:
       node_versions: '["24"]'
-      runner: ubuntu-24.04-arm
+      runner: blacksmith-4vcpu-ubuntu-2404
       shards: ${{ needs.preflight.outputs.shards }}
       run_shards: ${{ needs.code_paths.outputs.mobile_ci_tools != 'true' }}
       browser_contract: ${{ needs.code_paths.outputs.orcad_browser == 'true' }}
@@ -1020,25 +1042,19 @@ jobs:
       needs.code_paths.result == 'success' &&
       needs.code_paths.outputs.managed_hook_node18 == 'true' &&
       needs.preflight.result == 'success'
-    # Why ARM: Node 18 publishes linux-arm64; the per-platform runtime files are read as data.
-    runs-on: ubuntu-24.04-arm
+    # Retain the required check while sharing preflight's checkout and built packages.
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/install-node-dependencies
-
-      - name: Setup Node 18 runtime
-        uses: actions/setup-node@v6
-        with:
-          node-version: '18'
-
-      # The process-host package declares engines >=18; load its staged public output on Node 18.
-      - name: Smoke process-host package
-        run: node config/scripts/smoke-process-host-node18.mjs
+      - name: Require process-host package smoke on Node 18
+        env:
+          MANAGED_HOOK_NODE18: ${{ needs.preflight.outputs.managed_hook_node18 }}
+        run: |
+          if [ "$MANAGED_HOOK_NODE18" != success ]; then
+            echo "::error::Node 18 process-host smoke: expected success, got $MANAGED_HOOK_NODE18"
+            exit 1
+          fi
 
   package:
     name: package
@@ -1352,6 +1368,7 @@ jobs:
           src/shared/__tests__/process-host/windows-command-line.win32.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.win32.test.ts
+          src/shared/omp-fresh-launch-cmd.win32.test.ts
           src/main/agent-hooks/windows-hook-payload-delivery.test.ts
           src/main/agent-hooks/managed-hook-stdin-lifecycle.test.ts
           src/main/jcode/hook-gate-script.test.ts
@@ -1499,7 +1516,8 @@ jobs:
 
   verify:
     name: PR checks passed
-    if: ${{ !cancelled() }}
+    # Publish an explicit result after every required dependency settles.
+    if: ${{ !cancelled() && github.event.pull_request.draft != true }}
     needs:
       - code_paths
       - preflight
@@ -1514,8 +1532,8 @@ jobs:
       - package
       - package_windows
       - layout_oracle
-    # Evaluating job results only needs the lightweight container runner.
-    runs-on: ubuntu-slim
+    # Report settled results without competing with the GitHub-hosted test queue.
+    runs-on: blacksmith-2vcpu-ubuntu-2204
     timeout-minutes: 5
 
     steps:
@@ -1532,6 +1550,8 @@ jobs:
           CODE_PATHS: ${{ needs.code_paths.result }}
           SHOULD_RUN: ${{ needs.code_paths.outputs.should_run }}
           PREFLIGHT: ${{ needs.preflight.result }}
+          STATIC_ANALYSIS_SHOULD_RUN: ${{ needs.code_paths.outputs.static_analysis }}
+          TYPECHECK_SHOULD_RUN: ${{ needs.code_paths.outputs.typecheck }}
           PREFLIGHT_SHOULD_RUN: ${{ needs.code_paths.outputs.static_analysis == 'true' || needs.code_paths.outputs.typecheck == 'true' }}
           GIT_COMPATIBILITY: ${{ needs.git_compatibility.result }}
           GIT_COMPATIBILITY_SHOULD_RUN: ${{ needs.code_paths.outputs.git_compatibility }}
@@ -1559,6 +1579,10 @@ jobs:
           if [ "$CODE_PATHS" != "success" ]; then
             exit 1
           fi
+          case "$STATIC_ANALYSIS_SHOULD_RUN:$TYPECHECK_SHOULD_RUN" in
+            true:true|true:false|false:true|false:false) ;;
+            *) echo "preflight: missing or invalid selection"; exit 1 ;;
+          esac
           if [ "$SHOULD_RUN" != "true" ]; then
             echo "Docs-only change; expensive PR checks skipped."
           fi
@@ -1570,11 +1594,14 @@ jobs:
                 echo "$name: expected success, got $result"
                 failed=1
               fi
-            else
+            elif [ "$should" = "false" ]; then
               if [ "$result" != "skipped" ]; then
                 echo "$name: expected skipped, got $result"
                 failed=1
               fi
+            else
+              echo "$name: missing or invalid selection"
+              failed=1
             fi
           }
           # Require success when the PR has code-relevant changes

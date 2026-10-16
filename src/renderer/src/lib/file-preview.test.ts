@@ -235,6 +235,34 @@ describe('openFileInBrowserTab', () => {
     expect(mocks.focusGroup).not.toHaveBeenCalled()
   })
 
+  // Why: the split is part of the tab create, so reusing an open document must leave no empty group.
+  it('creates no split when a side preview reuses an open document', () => {
+    mocks.connectionId = 'ssh-1'
+    mocks.browserTabsByWorktree = {
+      'wt-1': [
+        {
+          id: 'browser-9',
+          docLocation: {
+            kind: 'workspace-doc',
+            worktreeId: 'wt-1',
+            filePath: '/home/alice/report.html'
+          }
+        }
+      ]
+    }
+
+    openFilePreviewToSide({
+      language: 'html',
+      filePath: '/home/alice/report.html',
+      worktreeId: 'wt-1',
+      sourceGroupId: 'group-1'
+    })
+
+    expect(mocks.createEmptySplitGroup).not.toHaveBeenCalled()
+    expect(mocks.createBrowserTab).not.toHaveBeenCalled()
+    expect(mocks.setActiveBrowserTab).toHaveBeenCalledWith('browser-9')
+  })
+
   it('opens a second document in its own tab', () => {
     mocks.connectionId = 'ssh-1'
     mocks.browserTabsByWorktree = {

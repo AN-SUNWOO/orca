@@ -21,5 +21,9 @@ export function nativeChatAttachmentOwnerUnchanged(
   captured: NativeChatAttachmentOwner,
   current: NativeChatAttachmentOwner
 ): boolean {
+  if (captured.kind === 'remote' && current.kind === 'remote') {
+    // Why: an image saved on one server is unreadable on another.
+    return captured.clipboardImageEnvironmentId === current.clipboardImageEnvironmentId
+  }
   return captured.kind === current.kind && captured.kind !== 'not-ready'
 }

@@ -93,6 +93,7 @@ export abstract class AgentHookServerState {
   protected onStartupPromptClaim: ((body: unknown) => boolean | 'pending') | null = null
   protected clearStartupPromptClaims: (() => void) | null = null
   protected statusHooksEnabled = true
+  protected statusHookGeneration = 0
   protected onPaneStatusCleared: PaneStatusClearListener | null = null
   protected paneStatusClearListeners = new Set<PaneStatusClearListener>()
   protected statusDropListeners = new Set<StatusDropListener>()
@@ -181,7 +182,7 @@ export abstract class AgentHookServerState {
   ): EnrichedAgentHookEventPayload | undefined
   protected abstract clearTmuxInnerSubjects(paneKey: string): void
   protected abstract clearTmuxTabSubjects(tabId: string): void
-  protected abstract ingestSpoolRecord(record: SpoolRecord): void
+  protected abstract ingestSpoolRecord(record: SpoolRecord): Promise<void> | void
   protected abstract emitPaneStatusCleared(clear: AgentStatusClearIpcPayload): void
   protected abstract buildStatusChangeNotification(): {
     statuses: AgentHookStatusChangeEntry[]

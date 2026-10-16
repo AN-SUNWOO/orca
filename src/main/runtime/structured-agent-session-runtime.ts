@@ -51,10 +51,7 @@ import {
 import type { NativeChatShellEnvironmentPolicy } from '../../shared/native-chat-shell-environment'
 import { createStructuredAgentEnvironmentResolvers } from './structured-agent-shell-environment'
 import type { ClaudeStructuredAuthPolicy } from '../claude-accounts/claude-structured-auth-policy'
-import {
-  STRUCTURED_AGENT_RUNTIME_REGISTRATIONS,
-  type StructuredAgentAdapterContext
-} from './structured-agent-runtime-registrations'
+import type { StructuredAgentAdapterContext } from './structured-agent-runtime-registration-types'
 import { createStructuredAgentSessionLifecycleDelivery } from './structured-agent-session-lifecycle-delivery'
 import { createStructuredAgentSessionDispatchFollowUps } from './structured-agent-session-dispatch-followups'
 import { agentModelCatalogStore } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
@@ -241,9 +238,7 @@ export async function stopStructuredAgentSessionRuntime(options?: {
 }
 
 async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<InstalledRuntime> {
-  // Why thrown rather than defaulted: the caller is `@ts-nocheck`, so a dropped
-  // field arrives here as `undefined`. Refusing to install is loud; guessing a
-  // policy is the silent under-strip this assertion exists to prevent.
+  // A default policy could attribute sign-in failures to the wrong account.
   if (typeof deps.resolveClaudeAuthPolicy !== 'function') {
     throw new Error(CLAUDE_STRUCTURED_AUTH_POLICY_REQUIRED)
   }
@@ -304,6 +299,8 @@ async function installOnJournal(
     }),
     host: () => host
   }
+  const { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } =
+    await import('./structured-agent-runtime-registrations')
   const registrations = STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map(
     ({ definition, createAdapter }) => ({ definition, adapter: createAdapter(context) })
   )

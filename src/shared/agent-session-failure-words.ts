@@ -208,6 +208,8 @@ const FAILURE_SENTENCES = {
   claudeAccountSetupFailed: (_context, _fact, _surface, say) => say('claudeAccountSetupFailed'),
   agentCommandNotRunnable: (context, _fact, _surface, say) =>
     say('agentCommandNotRunnable', agent(say, context)),
+  runtimeNotInstalled: (context, _fact, _surface, say) =>
+    say('runtimeNotInstalled', agent(say, context)),
   managedAccountUnsupported: (context, _fact, _surface, say) =>
     joinSentences([
       say('managedAccountUnsupported'),

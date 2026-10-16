@@ -20,6 +20,14 @@ export const WORKSPACE_SORT_BY_ARMS = hostUnionArms<PersistedUIState['sortBy']>(
   manual: true
 })
 
+const WORKSPACE_PROJECT_ORDER_ARMS = hostUnionArms<PersistedUIState['projectOrderBy']>({
+  manual: true,
+  recent: true
+})
+const WORKSPACE_AGENT_ACTIVITY_LAYOUT_ARMS = hostUnionArms<
+  NonNullable<PersistedUIState['agentActivityDisplayMode']>
+>({ compact: true, full: true })
+
 // One branch per RepoIcon arm; `satisfies` over the mapped union fails tsc on a missing or stale arm.
 const repoIconBranches = {
   lucide: z.looseObject({ type: z.literal('lucide'), name: z.string() }),
@@ -142,7 +150,7 @@ export const hostPlatformSchema = z
  * sets that degrade to absent for the same reason: every read is a lookup that already fell back to
  * the current mode for an arm it could not map, so nothing is withheld that the reply granted.
  *
- * `workspaceStatuses` keeps its rows opaque — coerceMobileWorkspaceStatuses only counts them — but
+ * `workspaceStatuses` keeps its rows opaque — withDefaultWorkspaceStatuses only counts them — but
  * the container is checked, because main handed a non-array straight into the status catalog and
  * every group lookup then read `.find` off a string.
  *
@@ -157,6 +165,24 @@ export const hostViewSettingsSchema = z
       sortBy: salvagedOptional('sortBy', z.enum(WORKSPACE_SORT_BY_ARMS)),
       hideSleepingWorkspaces: salvagedOptional('hideSleepingWorkspaces', z.boolean()),
       hideDefaultBranchWorkspace: salvagedOptional('hideDefaultBranchWorkspace', z.boolean()),
+      hideAutomationGeneratedWorkspaces: salvagedOptional(
+        'hideAutomationGeneratedWorkspaces',
+        z.boolean()
+      ),
+      hideCliCreatedWorkspaces: salvagedOptional('hideCliCreatedWorkspaces', z.boolean()),
+      hideDetachedHeadWorkspaces: salvagedOptional('hideDetachedHeadWorkspaces', z.boolean()),
+      // Sent only to this host's own phone (client-ui.ts); absent means the host keeps it local.
+      hideWorkspacesFromOtherDevices: salvagedOptional(
+        'hideWorkspacesFromOtherDevices',
+        z.boolean()
+      ),
+      projectOrderBy: salvagedOptional('projectOrderBy', z.enum(WORKSPACE_PROJECT_ORDER_ARMS)),
+      // Kept as strings: a property a newer desktop adds is carried back unchanged on write.
+      worktreeCardProperties: salvagedOptional('worktreeCardProperties', z.array(z.string())),
+      agentActivityDisplayMode: salvagedOptional(
+        'agentActivityDisplayMode',
+        z.enum(WORKSPACE_AGENT_ACTIVITY_LAYOUT_ARMS)
+      ),
       alwaysShowDefaultBranchWorkspace: salvagedOptional(
         'alwaysShowDefaultBranchWorkspace',
         z.boolean()
@@ -170,19 +196,20 @@ export const hostViewSettingsSchema = z
       visibleWorkspaceHostIds: salvagedOptional(
         'visibleWorkspaceHostIds',
         z.array(z.string()).nullable()
-      )
+      ),
+      workspaceHostScope: salvagedOptional('workspaceHostScope', z.string())
     })
   })
   .transform((reply) => reply.ui)
 
 /**
- * The four host-list writes whose reply body no call site reads.
+ * The host-list writes whose reply body no call site reads.
  *
- * The `ui.set` patch, the pin write, the row delete and the activate ping are all decided by the
- * acceptance verdict alone — the pin write never interprets its reply at all, and the delete reads
- * `accepted` and nothing else.
+ * The `ui.set` patch, the card layout `settings.update`, the pin write, the row delete and the
+ * activate ping are all decided by the acceptance verdict alone — the pin write never interprets its
+ * reply at all, and the delete reads `accepted` and nothing else.
  *
- * `worktree.activate` is the one of the four whose payload a *second* consumer looks at, and it is
+ * `worktree.activate` is the one whose payload a *second* consumer looks at, and it is
  * deliberately left opaque: headlessActivationNeedsHostRenderer is a total guard over `unknown`
  * (worktree-activation-result.ts:1), and the session route's second report site
  * (use-mobile-session-startup.ts:170) reports from inside a fire-and-forget `void (async …)()` with

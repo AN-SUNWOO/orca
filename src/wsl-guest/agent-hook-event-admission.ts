@@ -1,5 +1,6 @@
 import { transitionHookPresence } from '../shared/agent-hook-presence-transition'
-import { isSameAgentProcess } from '../shared/agent-process-presence'
+import { hasOtherAgentProcessOwner, isSameAgentProcess } from '../shared/agent-process-presence'
+import { sameAgentStatusTerminalOwner } from '../shared/agent-status-terminal-owner'
 import { cacheRelayLegacyAgentStatus } from '../shared/agent-status-legacy-relay-cache'
 import type { HookListenerState } from '../shared/agent-hook-listener/listener-state'
 import type { AgentHookEventPayload } from '../shared/agent-hook-listener/listener-event'
@@ -35,6 +36,14 @@ export function applyRelayHookEvent(
     return undefined
   }
   const previous = host.state.lastStatusByPaneKey.get(incoming.paneKey)
+  if (
+    previous &&
+    !previous.providerSessionOnly &&
+    sameAgentStatusTerminalOwner(previous, incoming) &&
+    hasOtherAgentProcessOwner(previous.agentPresence, incoming.payload.agentType ?? 'unknown')
+  ) {
+    return undefined
+  }
   const cancellation = reconcileRelayClaudeCancel(host.state, previous, incoming, source)
   if (cancellation.hold) {
     return previous

@@ -1,3 +1,4 @@
+import { NativeChatCliForkMenuItems } from './NativeChatCliForkMenuItems'
 import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -69,7 +70,7 @@ function useTabSessionSwitch(
 
 /** The Session History row's "Resume in New Native Chat" / "Resume in New CLI", offered on the tab
  *  that shows that session and hidden wherever the row would not offer it. */
-export function TabSessionSurfaceSwitchMenuItems({
+function HistoryTabSessionSurfaceSwitchMenuItems({
   tab,
   nativeChat,
   leadingSeparator
@@ -117,5 +118,18 @@ export function TabSessionSurfaceSwitchMenuItems({
         }
       />
     </>
+  )
+}
+
+export function TabSessionSurfaceSwitchMenuItems(props: {
+  onComplete?: () => void
+  tab: Pick<TerminalTab, 'id' | 'worktreeId'>
+  nativeChat?: NativeChatTabSession
+  leadingSeparator: boolean
+}): React.JSX.Element | null {
+  return props.nativeChat ? (
+    <NativeChatCliForkMenuItems {...props} nativeChat={props.nativeChat} />
+  ) : (
+    <HistoryTabSessionSurfaceSwitchMenuItems {...props} />
   )
 }

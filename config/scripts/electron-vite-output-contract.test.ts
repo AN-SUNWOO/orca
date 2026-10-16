@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os'
 import { EventEmitter } from 'node:events'
 import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
+import { MainConfigFactory } from 'electron-vite'
+import { resolveConfig } from 'vite'
 import {
   DEV_BUNDLE_ID,
   DEV_HELPER_BUNDLE_ID,
@@ -161,26 +163,34 @@ describe('Electron Vite output contract', () => {
     )
   })
 
-  it('externalizes packaged dependencies but bundles self-contained main dependencies', () => {
-    const external = electronViteConfig.main?.build?.rollupOptions?.external
-    if (typeof external !== 'function') {
-      throw new Error('Expected main-process external predicate')
+  it('externalizes packaged dependencies but bundles self-contained main dependencies', async () => {
+    const main = await new MainConfigFactory(electronViteConfig.main ?? {}, {}, {}).build()
+    const resolved = await resolveConfig({ ...main, configFile: false }, 'build')
+    const patterns = resolved.build.rolldownOptions.external
+    if (!Array.isArray(patterns)) {
+      throw new Error('Expected mergeable main-process external patterns')
     }
+    const external = (source: string) =>
+      patterns.some((pattern) =>
+        typeof pattern === 'string' ? pattern === source : pattern.test(source)
+      )
 
-    expect(external('node-pty', undefined, false)).toBe(true)
-    expect(external('@parcel/watcher', undefined, false)).toBe(true)
-    expect(external('electron', undefined, false)).toBe(true)
-    expect(external('node:fs', undefined, false)).toBe(true)
-    expect(external('@orca/process-host', undefined, false)).toBe(true)
-    expect(external('@orca/process-host/spawn-observer', undefined, false)).toBe(true)
-    expect(external('@xterm/headless', undefined, false)).toBe(false)
-    expect(external('@xterm/addon-serialize', undefined, false)).toBe(false)
-    expect(external('tldts', undefined, false)).toBe(false)
-    expect(external('zod', undefined, false)).toBe(false)
-    expect(external('smol-toml', undefined, false)).toBe(false)
-    expect(external('smol-toml/package.json', undefined, false)).toBe(false)
-    expect(external('@noble/hashes/blake3', undefined, false)).toBe(false)
-    expect(external('@noble/hashes/utils', undefined, false)).toBe(false)
+    expect(external('node-pty')).toBe(true)
+    expect(external('@parcel/watcher')).toBe(true)
+    expect(external('electron')).toBe(true)
+    expect(external('electron/common')).toBe(true)
+    expect(external('fs')).toBe(true)
+    expect(external('node:fs')).toBe(true)
+    expect(external('@orca/process-host')).toBe(true)
+    expect(external('@orca/process-host/spawn-observer')).toBe(true)
+    expect(external('@xterm/headless')).toBe(false)
+    expect(external('@xterm/addon-serialize')).toBe(false)
+    expect(external('tldts')).toBe(false)
+    expect(external('zod')).toBe(false)
+    expect(external('smol-toml')).toBe(false)
+    expect(external('smol-toml/package.json')).toBe(false)
+    expect(external('@noble/hashes/blake3')).toBe(false)
+    expect(external('@noble/hashes/utils')).toBe(false)
     expect(electronViteConfig.main?.build?.externalizeDeps?.exclude).toContain('tldts')
     expect(electronViteConfig.main?.build?.externalizeDeps?.exclude).toContain('zod')
     expect(electronViteConfig.main?.build?.externalizeDeps?.exclude).toContain('smol-toml')

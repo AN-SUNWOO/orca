@@ -6,8 +6,8 @@ import {
   type IpcMainInvokeEvent,
   type WebContents
 } from 'electron'
-import { spawn } from 'node:child_process'
 import { open, stat } from 'node:fs/promises'
+import { runProcess } from '@orca/process-host'
 import type { Store } from '../persistence'
 import { PATH_ACCESS_DENIED_MESSAGE } from '../ipc/filesystem-auth'
 import { resolveDesktopAuthorizedPath } from '../ipc/local-file-access-resolution'
@@ -85,19 +85,6 @@ async function saveClipboardImageBufferForTarget(
 
 export function setTrustedClipboardRendererWebContentsId(webContentsId: number | null): void {
   trustedClipboardRendererWebContentsId = webContentsId
-}
-
-// Run a short-lived OS clipboard helper (PowerShell / wl-copy / xclip), feeding
-// it stdin when provided; resolves only on a clean exit.
-function runCommand(command: string, args: string[], stdin?: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ['pipe', 'ignore', 'ignore'] })
-    child.on('error', reject)
-    child.on('exit', (code) =>
-      code === 0 ? resolve() : reject(new Error(`${command} exited with ${code}`))
-    )
-    child.stdin?.end(stdin ?? '')
-  })
 }
 
 export function registerClipboardHandlers(store: Store): void {
@@ -288,7 +275,7 @@ function makeClipboardFileDeps(
     desktop: process.env.XDG_CURRENT_DESKTOP,
     resolveFilePath,
     writeBuffer: (format, buffer) => clipboard.writeBuffer(format, buffer),
-    runCommand
+    runProcess
   }
 }
 

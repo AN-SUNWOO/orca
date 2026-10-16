@@ -10,6 +10,7 @@ import { RESET_AFTER_BYTE_GAP } from '../../../../../shared/terminal-mode-reset-
 import { recordTerminalOutput } from '@/lib/pane-manager/pane-scroll'
 import { ensureArabicShapingJoinerForText } from '@/lib/pane-manager/terminal-arabic-shaping-joiner'
 import { registerPtyModelRestoreNeededHandler } from '../pty-model-restore-channel'
+import type { PtyModelRestoreNeededEvent } from '../../../../../shared/pty-model-restore-marker'
 import {
   acquireHiddenRendererPtyDeliveryClaim,
   declareRendererPtyDeliveryVisible
@@ -51,9 +52,25 @@ export function bindForegroundOutputRefresh(session: ConnectPanePtySession): voi
   }
 
   // Why: main reports dropped renderer-bound bytes out-of-band, routed per PTY by pty-model-restore-channel.ts.
-  function handleModelRestoreNeededMarker(): void {
+  function handleModelRestoreNeededMarker(event: PtyModelRestoreNeededEvent): void {
     if (session.disposed) {
       return
+    }
+    const episode = typeof event.hiddenDropEpisode === 'number' ? event.hiddenDropEpisode : null
+    // Why: main's latch stays armed until a restore paints, so a gap it can never serve re-marks
+    // on every unhide. A repeat of the disclosed episode is that same gap; any other marker may
+    // be new loss and proceeds, failing toward recovery.
+    const disclosed = session.hiddenOutputRestoreDisclosedGap
+    if (
+      episode !== null &&
+      disclosed !== null &&
+      disclosed.ptyId === session.transport.getPtyId() &&
+      disclosed.episode === episode
+    ) {
+      return
+    }
+    if (episode !== null) {
+      session.hiddenOutputRestoreLatestDropEpisode = episode
     }
     recordTerminalFreezeBreadcrumb('restore-marker', {
       id: redactPtyIdForDiagnostics(session.transport.getPtyId() ?? '')
@@ -90,6 +107,9 @@ export function bindForegroundOutputRefresh(session: ConnectPanePtySession): voi
     }
     session.unregisterModelRestoreNeeded?.()
     session.unregisterModelRestoreNeeded = null
+    // Marker bookkeeping is per PTY stream, like the restore state itself.
+    session.hiddenOutputRestoreLatestDropEpisode = null
+    session.hiddenOutputRestoreDisclosedGap = null
     session.modelRestoreSubscribedPtyId = ptyId
     // Why: markers exist only for PTYs whose bytes transit local main;
     // remote-runtime transports are structurally unaffected.
@@ -102,7 +122,7 @@ export function bindForegroundOutputRefresh(session: ConnectPanePtySession): voi
     )
   }
 
-  session.handleRemoteOutputPauseChanged = (paused, supported): void => {
+  session.handleRemoteOutputPauseChanged = (paused, supported, dropsReported): void => {
     const ptyId = session.transport.getPtyId()
     if (!ptyId || !isRemoteRuntimePtyId(ptyId)) {
       return
@@ -127,7 +147,24 @@ export function bindForegroundOutputRefresh(session: ConnectPanePtySession): voi
       session.registerSideEffectFactConsumerForPty(ptyId, true)
       session.remoteOutputFactConsumerPtyId = ptyId
     }
+    // Why: a host that reports drops lets a quiet pane reveal with zero snapshot fetches; others may have dropped anything.
+    if (!(supported && dropsReported)) {
+      session.markHiddenOutputRestoreNeeded()
+    }
+  }
+
+  session.handleRemotePausedOutputDropped = (): void => {
+    const ptyId = session.transport.getPtyId()
+    if (session.disposed || !ptyId || !isRemoteRuntimePtyId(ptyId)) {
+      return
+    }
+    // Why: the gap invalidates cross-chunk carry, exactly like a local drop marker.
+    session.transport.resetCrossChunkParserState?.()
+    const restoreWasInFlight = session.hiddenOutputRestoreInFlight !== null
     session.markHiddenOutputRestoreNeeded()
+    if (restoreWasInFlight) {
+      session.hiddenOutputRestoreFreshSnapshotNeeded = true
+    }
   }
 
   session.syncHiddenRendererPtyDelivery = (): void => {

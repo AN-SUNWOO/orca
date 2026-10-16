@@ -20,6 +20,7 @@ export const RUNTIME_ENVIRONMENT_HANDLER_CHANNELS = [
   'runtimeEnvironments:updateOrcad',
   'runtimeEnvironments:rollbackOrcad',
   'runtimeEnvironments:recoverOrcad',
+  'runtimeEnvironments:restartOrcad',
   'runtimeEnvironments:stopOrcad',
   'runtimeEnvironments:cancelOrcadStop',
   'runtimeEnvironments:forgetOrcad',
@@ -28,6 +29,7 @@ export const RUNTIME_ENVIRONMENT_HANDLER_CHANNELS = [
   'runtimeEnvironments:previewOrcadDeltaMove',
   'runtimeEnvironments:moveOrcadDelta',
   'runtimeEnvironments:keepOrcadServerVersion',
+  'runtimeEnvironments:allowOrcadMoveLeavingBehind',
   'runtimeEnvironments:createOrcadSshHost',
   'runtimeEnvironments:resumeOrcadSshHost',
   'runtimeEnvironments:listPendingOrcadSshProvisioning'

@@ -59,7 +59,7 @@ beforeAll(() => {
   sharedLauncherPath = join(sharedLauncherRoot, 'orca.exe')
   const result = runProcessSync({
     program: process.execPath,
-    args: ['config/scripts/build-windows-cli-launcher.mjs', '--output', sharedLauncherPath],
+    args: ['config/scripts/build-windows-cli-launcher.mjs'],
     cwd: projectRoot,
     timeoutMs: 300_000
   })
@@ -67,6 +67,10 @@ beforeAll(() => {
   if (result.code !== 0) {
     throw new Error(`${result.stdout}\n${result.stderr}`)
   }
+  copyFileSync(
+    join(projectRoot, 'native', 'windows-cli-launcher', '.build', 'orca.exe'),
+    sharedLauncherPath
+  )
 }, 300_000)
 
 afterAll(() => {

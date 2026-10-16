@@ -1,5 +1,5 @@
 import { makePaneKey } from '../../../../shared/stable-pane-id'
-import { terminalLayoutEqual } from '@/lib/terminal-layout-equality'
+import { terminalLayoutEqual } from '../../../../shared/terminal-layout-equality'
 import {
   normalizeTerminalLayoutPtyOwnership,
   resolveTerminalLayoutPtyOwnershipTransfers

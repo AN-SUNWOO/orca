@@ -9,7 +9,11 @@ import { AgentHookServerLifecycle } from './server-lifecycle'
 export abstract class AgentHookServerAgentPresence extends AgentHookServerLifecycle {
   private readonly presenceChecks = new WeakMap<
     AgentHookEventPayload,
-    Promise<AgentProcessVerdict | null>
+    {
+      token: string
+      statusHookGeneration: number
+      promise: Promise<AgentProcessVerdict | null>
+    }
   >()
 
   /** A live hook proves its own process alive; only another process's hook casts doubt on the owner. */
@@ -39,14 +43,22 @@ export abstract class AgentHookServerAgentPresence extends AgentHookServerLifecy
     if (row.connectionId !== null) {
       return Promise.resolve('unverifiable')
     }
+    const token = this.token
+    const statusHookGeneration = this.statusHookGeneration
     const pending = this.presenceChecks.get(row)
-    if (pending) {
-      return pending
+    if (pending?.token === token && pending.statusHookGeneration === statusHookGeneration) {
+      return pending.promise
     }
     const presence = row.agentPresence
-    const check = probeAgentProcessPresence(presence.process)
+    let suspended: boolean | undefined
+    const check = probeAgentProcessPresence(presence.process, undefined, undefined, (observed) => {
+      suspended = observed
+    })
       .then((verdict) => {
         if (
+          !this.statusHooksEnabled ||
+          this.token !== token ||
+          this.statusHookGeneration !== statusHookGeneration ||
           this.state.lastStatusByPaneKey.get(resolved) !== row ||
           row.agentPresence !== presence
         ) {
@@ -57,15 +69,23 @@ export abstract class AgentHookServerAgentPresence extends AgentHookServerLifecy
             preserveResumeIdentity: true,
             endedPresence: { ...presence, ended: true }
           })
+        } else if ((suspended === true) !== (presence.suspended === true)) {
+          const { suspended: _suspended, ...unsuspended } = presence
+          this.applyNormalizedStatus({
+            ...row,
+            hookEventName: undefined,
+            hasExplicitPrompt: undefined,
+            agentPresence: suspended ? { ...unsuspended, suspended: true } : unsuspended
+          })
         }
         return verdict
       })
       .finally(() => {
-        if (this.presenceChecks.get(row) === check) {
+        if (this.presenceChecks.get(row)?.promise === check) {
           this.presenceChecks.delete(row)
         }
       })
-    this.presenceChecks.set(row, check)
+    this.presenceChecks.set(row, { token, statusHookGeneration, promise: check })
     return check
   }
 }

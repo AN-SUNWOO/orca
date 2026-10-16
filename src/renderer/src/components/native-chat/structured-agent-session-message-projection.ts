@@ -5,7 +5,7 @@ import type {
 } from '../../../../shared/agent-session-journal-types'
 import type { StructuredAgentSessionOptimisticMessage } from '../../../../shared/structured-agent-session-message-projection'
 import { projectStructuredAgentSessionMessages as projectMessages } from '../../../../shared/structured-agent-session-message-projection'
-import { projectStructuredQuestionMessages } from './structured-agent-question-projection'
+import { projectStructuredQuestionMessages } from '../../../../shared/structured-agent-question-projection'
 import { isActionableStructuredAgentSessionPrompt } from '../../../../shared/structured-agent-session-live-turn'
 
 /** The desktop's transcript: a message the host accepted and then rejected stays where it was

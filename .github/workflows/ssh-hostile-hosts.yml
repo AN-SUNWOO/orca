@@ -7,7 +7,7 @@ name: SSH hostile hosts
 # or the slot build changes, and on demand.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     paths:
       # The managed deploy still runs on these relay-named install and runtime primitives.
       - 'src/main/ssh/ssh-relay-*'

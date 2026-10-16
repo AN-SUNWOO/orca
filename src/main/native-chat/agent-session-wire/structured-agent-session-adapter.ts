@@ -37,9 +37,9 @@ import type {
 import type { StructuredAgentSessionAtRestCommands } from './structured-agent-session-at-rest-commands'
 import type {
   AgentSessionOptionsResult,
-  AgentSessionSlashCommand,
-  AgentSessionThreadGoalChange
+  AgentSessionSlashCommand
 } from '../../../shared/agent-session-wire'
+import type { AgentSessionThreadGoalChange } from '../../../shared/agent-session-thread-goal-wire'
 import type { AgentSessionRefusalReason } from '../../../shared/agent-session-wire-refusals'
 import type { SubmissionRejectionFact } from '../../../shared/agent-session-failure'
 import type {
@@ -135,6 +135,7 @@ export type AgentSessionPreSpawnReason = Extract<
   | 'claudeAccountFolderMissing'
   | 'claudeAccountSetupFailed'
   | 'agentCommandNotRunnable'
+  | 'runtimeNotInstalled'
 >
 
 /** Acquisition failed with first-hand proof that no provider process existed. */

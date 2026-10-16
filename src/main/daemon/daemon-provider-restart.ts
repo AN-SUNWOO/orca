@@ -42,6 +42,7 @@ import {
 import { DaemonClient } from './client'
 import { clearSeveredDaemon } from './daemon-host-image-state'
 import { PROTOCOL_VERSION } from './types'
+import { recoverRetiredMacDaemonJobs } from './macos-retired-daemon-recovery'
 
 export type { RestartDaemonResult } from './daemon-restart-state'
 
@@ -60,6 +61,14 @@ async function runRestartDaemon(expectedDaemonPid?: number): Promise<RestartDaem
   }
 
   const runtimeDir = getRuntimeDir()
+  if (expectedDaemonPid === undefined) {
+    // Why not abort: a wedged leftover must never disable the restart that replaces the current daemon.
+    await recoverRetiredMacDaemonJobs(runtimeDir).catch((error: unknown) => {
+      console.warn(
+        `[daemon] Retired macOS terminal service recovery failed: ${error instanceof Error ? error.message : String(error)}`
+      )
+    })
+  }
   if (expectedDaemonPid !== undefined) {
     // Why before any teardown: a targeted restart must not end a single terminal when the
     // endpoint now belongs to a replacement daemon.

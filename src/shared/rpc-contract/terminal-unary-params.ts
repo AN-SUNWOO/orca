@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TERMINAL_KITTY_FILE_MAX_BYTES } from '../terminal-kitty-file'
 import { OptionalFiniteNumber, OptionalString, requiredString } from './rpc-param-primitives'
 import { isTuiAgent } from '../tui-agent-config'
 import { SpawnIntentParam } from './agent-session-params'
@@ -13,6 +14,16 @@ export const TerminalHandle = z.object({
   terminal: requiredString('Missing terminal handle'),
   // Additive fence understood by newer hosts; legacy hosts safely ignore it.
   expectedIncarnationId: requiredString('Missing PTY incarnation').optional()
+})
+
+export const TerminalReadKittyFile = TerminalHandle.extend({
+  path: z
+    .string()
+    .min(1)
+    .max(4096)
+    .refine((path) => !path.includes('\0')),
+  offset: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+  length: z.number().int().nonnegative().max(TERMINAL_KITTY_FILE_MAX_BYTES).optional()
 })
 
 export const TerminalFocus = TerminalHandle.extend({

@@ -408,7 +408,8 @@ describe('adopting an OpenCode CLI conversation', () => {
     const launch = await resolveAcpLaunchInvocation(spec, unmanaged, {
       resolveEnvironment: async () => baseEnvironment,
       resolveLaunchEnv: () => launchEnv,
-      resolveCommand: () => '/test/opencode'
+      resolveCommand: () => '/test/opencode',
+      dataDirectory: root
     })
 
     expect(adoption.transcriptPath).toBe(configuredDb)

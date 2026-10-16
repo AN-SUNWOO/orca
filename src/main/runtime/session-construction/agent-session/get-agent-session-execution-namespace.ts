@@ -162,6 +162,7 @@ export abstract class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends O
       launchConfig: startup.launchConfig,
       startupCommandDelivery: startup.startupCommandDelivery,
       launchAgent: request.agent,
+      terminalImageViewerSupported: _caller.terminalImageViewerSupported,
       launchRuntime,
       terminalKittyKeyboardProtocol: request.terminalKittyKeyboardProtocol,
       presentation: request.presentation ?? 'background',

@@ -108,6 +108,8 @@ export type PtyApi = {
   resetInputModes: (id: string) => void
   kill: (id: string, opts?: { keepHistory?: boolean }) => Promise<void>
   ackColdRestore: (id: string) => void
+  /** Hidden-output recovery painted main's snapshot; retires the hidden-delivery drop latch. */
+  ackHiddenOutputRestoreApplied: (id: string, hiddenDropEpisode?: number) => void
   ackData: (id: string, charCount: number, processedChars?: number) => void
   onDeliveryResyncRequest: (callback: (payload: { requestId: number }) => void) => () => void
   respondDeliveryResync: (payload: {

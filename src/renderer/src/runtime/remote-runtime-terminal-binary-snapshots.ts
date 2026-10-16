@@ -38,6 +38,9 @@ export abstract class RemoteRuntimeTerminalBinarySnapshots extends RemoteRuntime
           : stream.initialSnapshotReceived
             ? 'recovery'
             : 'initial'
+      if (stream.snapshotTarget === 'recovery') {
+        this.noteResyncSnapshotProgress(stream)
+      }
       return
     }
     if (frame.opcode === TerminalStreamOpcode.SnapshotChunk) {
@@ -53,6 +56,9 @@ export abstract class RemoteRuntimeTerminalBinarySnapshots extends RemoteRuntime
         return
       }
       stream.snapshotChunks.push(frame.payload)
+      if (stream.snapshotTarget === 'recovery') {
+        this.noteResyncSnapshotProgress(stream)
+      }
       return
     }
     if (frame.opcode === TerminalStreamOpcode.SnapshotEnd) {
@@ -92,8 +98,20 @@ export abstract class RemoteRuntimeTerminalBinarySnapshots extends RemoteRuntime
           carriesHistory: (info?.scrollbackRows ?? 0) > 0
         }
         if (matchesPendingRequest) {
+          const availability = classifySnapshotAvailability(stream.snapshotOverflowed, info)
+          if (
+            pendingRequest.repaintsPane &&
+            availability.kind === 'snapshot' &&
+            typeof info?.seq === 'number' &&
+            typeof stream.expectedSeq === 'number' &&
+            info.seq > stream.expectedSeq
+          ) {
+            // Why: the pane repaints through info.seq (output paused while hidden was dropped);
+            // a stale baseline would flag the next chunk as a gap and clear the pane (#22087).
+            stream.expectedSeq = info.seq
+          }
           pendingRequest.resolve({
-            availability: classifySnapshotAvailability(stream.snapshotOverflowed, info),
+            availability,
             snapshot: {
               data: data ?? '',
               cols: info?.cols ?? 80,

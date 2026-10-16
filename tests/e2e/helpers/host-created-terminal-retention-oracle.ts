@@ -64,12 +64,16 @@ export function createRetentionFixtureDirectory(): string {
 
 /** Long-lived stand-in for the agent a CLI dispatch spawns: it never exits, so
  *  a pruned tab is never explained away by a dead PTY. */
-export function writeRetentionFixture(directory: string): string {
+export function writeRetentionFixture(
+  directory: string,
+  options: { processTitle?: string } = {}
+): string {
   const fixturePath = path.join(directory, 'host-created-agent-terminal.mjs')
   writeFileSync(
     fixturePath,
     [
       "import { appendFileSync } from 'node:fs'",
+      ...(options.processTitle ? [`process.title = ${JSON.stringify(options.processTitle)}`] : []),
       'const sink = process.argv[2]',
       'const record = (line) => appendFileSync(sink, `${line}\\n`)',
       'record(`READY:${process.pid}`)',

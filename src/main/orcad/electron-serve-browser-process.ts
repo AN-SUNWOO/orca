@@ -14,6 +14,7 @@ import { spawnProcess } from '@orca/process-host'
 import { isProcessAlive } from '../../shared/serve-bundle-coordination'
 import { BROWSER_SIDECAR_OWNER_ENV } from '../../shared/browser-sidecar-lifetime'
 import { electronIsolatedProfileSwitches } from '../../shared/electron-isolated-profile-switches'
+import { headlessServeOzonePlatformSwitches } from '../../shared/headless-serve-ozone-platform'
 import { sendOrcadSidecarRequest } from './orcad-sidecar-runtime-client'
 import {
   ElectronSidecarTabRegistry,
@@ -77,6 +78,8 @@ function electronServeEnvironment(userDataPath: string): NodeJS.ProcessEnv {
   if (process.env.ORCA_E2E_USER_DATA_DIR || process.env.ORCA_E2E_HOME_DIR) {
     environment.ORCA_E2E_USER_DATA_DIR = userDataPath
   }
+  // Why not ORCA_BACKGROUND_LAUNCH: an older installed app would hide without handing opens to the desktop app.
+  environment.ORCA_ORCAD_SIDECAR = '1'
   return environment
 }
 
@@ -112,6 +115,7 @@ export class ElectronServeBrowserProcess {
         '--serve-json',
         '--serve-no-pairing',
         ...electronIsolatedProfileSwitches(process.env),
+        ...headlessServeOzonePlatformSwitches(process.platform),
         `--user-data-dir=${userDataPath}`
       ],
       env: { ...electronServeEnvironment(userDataPath), [BROWSER_SIDECAR_OWNER_ENV]: '1' },
@@ -157,6 +161,8 @@ export class ElectronServeBrowserProcess {
 
   createCommands(host: RuntimeBrowserCommandHost): RuntimeBrowserCommands {
     return new Proxy({} as RuntimeBrowserCommands, {
+      // Why: startup checks membership before invoking dynamically resolved commands.
+      has: (_target, property) => typeof property === 'string' && property !== 'then',
       get: (_target, property) => {
         if (property === 'then') {
           return undefined

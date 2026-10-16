@@ -6,9 +6,9 @@ import type { SkippedTranscriptRecord } from './session-transcript-record-budget
 
 // Rows Session History lists have no count bound: one smaller than an Unlimited
 // scan evicts that scan's own upcoming hits, so every scan re-parsed everything
-// (STA-10405). They live as long as this process; the persisted snapshot keeps
-// the newest transcripts. Rows only other readers created (search index, title
-// lookups) keep a count bound, since an index build reads the whole corpus.
+// (STA-10405). They live as long as this process. Rows only other readers
+// created (search index, title lookups) keep a count bound, since an index build
+// reads the whole corpus. Neither bound deletes from the persisted rows.
 export const MAX_UNLISTED_ENTRIES = 4096
 // Live parser state is the heavy part of a row and is count-bounded even on
 // listed rows. Dropping it costs one whole re-read of a file that changed, never
@@ -46,6 +46,22 @@ export type SessionParseCacheEntry = {
   skippedRecords?: SkippedTranscriptRecord[]
 }
 
+// Persisted subset of a cache entry: the non-serializable parser state is
+// dropped, and `foldSession` with it, so a restart pays one re-parse for a
+// session whose sibling moved rather than storing every row twice.
+export type PersistedSessionParseCacheEntry = Omit<
+  SessionParseCacheEntry,
+  'resume' | 'foldSession' | 'skippedRecords'
+>
+
+// The database behind this map (session-parse-cache-persistence.ts). A row the
+// map's bounds drop is read back from it rather than re-parsed.
+export type SessionParseCacheColdTier = {
+  read(path: string): PersistedSessionParseCacheEntry | undefined
+  stored(path: string, entry: PersistedSessionParseCacheEntry): void
+  deleted(path: string): void
+}
+
 const cache = new Map<string, SessionParseCacheEntry>()
 // Paths a History scan has listed. Kept apart from the rows so a forced whole
 // re-read, which drops the row, leaves it listed.
@@ -54,24 +70,10 @@ const listedPaths = new Set<string>()
 // count-bounded sets.
 const unlistedPaths = new Set<string>()
 const resumePaths = new Set<string>()
-let revision = 0
-let onChange: (() => void) | null = null
+let coldTier: SessionParseCacheColdTier | null = null
 
-export function sessionParseCacheRevision(): number {
-  return revision
-}
-
-export function observeSessionParseCacheChanges(observer: (() => void) | null): void {
-  onChange = observer
-}
-
-function notifyChange(): void {
-  revision++
-  try {
-    onChange?.()
-  } catch (error) {
-    console.debug('[ai-vault] session parse cache checkpoint scheduling failed', error)
-  }
+export function setSessionParseCacheColdTier(next: SessionParseCacheColdTier | null): void {
+  coldTier = next
 }
 
 export function resetSessionParseCacheForTests(): void {
@@ -79,18 +81,16 @@ export function resetSessionParseCacheForTests(): void {
   listedPaths.clear()
   unlistedPaths.clear()
   resumePaths.clear()
-  revision = 0
-  onChange = null
+  coldTier = null
 }
 
-// Drops one entry after its file is deleted. Cleanliness, not correctness:
-// discovery walks disk first, so a trashed file is never rediscovered anyway.
+// Drops one entry after its file is deleted, or to force a whole re-read. The
+// cold tier drops it too, or the next lookup would read it back.
 export function invalidateSessionParseCacheEntry(path: string): void {
   unlistedPaths.delete(path)
   resumePaths.delete(path)
-  if (cache.delete(path)) {
-    notifyChange()
-  }
+  cache.delete(path)
+  coldTier?.deleted(path)
 }
 
 export function noteSessionParseCacheListed(path: string): void {
@@ -98,61 +98,19 @@ export function noteSessionParseCacheListed(path: string): void {
   unlistedPaths.delete(path)
 }
 
-// Persisted subset of a cache entry: the non-serializable `resume` parser
-// state is dropped, and `foldSession` with it, so a restart pays one re-parse
-// for a session whose sibling moved rather than storing every row twice
-// (see session-parse-cache-persistence.ts).
-export type PersistedSessionParseCacheEntry = Omit<SessionParseCacheEntry, 'resume' | 'foldSession'>
-
-export function snapshotSessionParseCacheForPersistence(): [
-  string,
-  PersistedSessionParseCacheEntry
-][] {
-  return [...cache].map(([path, entry]): [string, PersistedSessionParseCacheEntry] => [
-    path,
-    {
-      mtimeMs: entry.mtimeMs,
-      sizeBytes: entry.sizeBytes,
-      platform: entry.platform,
-      session: entry.session,
-      ...(entry.sidecar === undefined ? {} : { sidecar: entry.sidecar })
-    }
-  ])
-}
-
-// Seeded entries carry `resume: null`: after a restart an unchanged file is a
-// cache hit; a file that changed while the app was closed pays one full
-// (not incremental) re-parse. They count as listed: the file can't say which
-// reader made a row, and the unlisted bound would cut History's own rows to it.
-export function seedSessionParseCache(
-  entries: Iterable<[string, PersistedSessionParseCacheEntry]>
-): void {
-  const newest = new Map<string, PersistedSessionParseCacheEntry>()
-  for (const [path, entry] of entries) {
-    if (cache.has(path)) {
-      continue
-    }
-    newest.delete(path)
-    newest.set(path, entry)
-  }
-  // In-process entries win; among persisted duplicates the newest row wins.
-  for (const [path, entry] of newest) {
-    listedPaths.add(path)
-    cache.set(path, {
-      mtimeMs: entry.mtimeMs,
-      sizeBytes: entry.sizeBytes,
-      platform: entry.platform,
-      session: entry.session,
-      // Absent in files an older build wrote; `sidecarUnchanged` reads that as
-      // unknown, so such a row re-enriches on its first scan.
-      sidecar: entry.sidecar,
-      resume: null
-    })
-  }
-}
-
 export function getSessionParseCacheEntry(path: string): SessionParseCacheEntry | undefined {
-  return cache.get(path)
+  const entry = cache.get(path)
+  if (entry !== undefined || coldTier === null) {
+    return entry
+  }
+  const persisted = coldTier.read(path)
+  if (persisted === undefined) {
+    return undefined
+  }
+  // A restart costs a file that changed one whole (not incremental) re-parse.
+  const restored: SessionParseCacheEntry = { ...persisted, resume: null }
+  placeRow(path, restored)
+  return restored
 }
 
 export function storeSessionParseCacheEntry(path: string, entry: SessionParseCacheEntry): void {
@@ -164,6 +122,19 @@ export function storeSessionParseCacheEntry(path: string, entry: SessionParseCac
     previous.platform !== entry.platform ||
     previous.session !== entry.session ||
     !sameSidecar(previous.sidecar, entry.sidecar)
+  placeRow(path, entry)
+  if (changed) {
+    coldTier?.stored(path, {
+      mtimeMs: entry.mtimeMs,
+      sizeBytes: entry.sizeBytes,
+      platform: entry.platform,
+      session: entry.session,
+      ...(entry.sidecar === undefined ? {} : { sidecar: entry.sidecar })
+    })
+  }
+}
+
+function placeRow(path: string, entry: SessionParseCacheEntry): void {
   cache.delete(path)
   cache.set(path, entry)
   resumePaths.delete(path)
@@ -175,9 +146,6 @@ export function storeSessionParseCacheEntry(path: string, entry: SessionParseCac
   if (entry.resume !== null && cache.has(path)) {
     resumePaths.add(path)
     trimOldestTranscripts(resumePaths, MAX_RESUME_ENTRIES, dropResumePoint)
-  }
-  if (changed) {
-    notifyChange()
   }
 }
 

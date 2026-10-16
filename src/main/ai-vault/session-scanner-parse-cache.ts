@@ -37,10 +37,7 @@ import {
 
 export {
   invalidateSessionParseCacheEntry,
-  resetSessionParseCacheForTests,
-  seedSessionParseCache,
-  snapshotSessionParseCacheForPersistence,
-  type PersistedSessionParseCacheEntry
+  resetSessionParseCacheForTests
 } from './session-parse-cache-store'
 
 // Incremental append-parsing applies only to transcripts that are append-only

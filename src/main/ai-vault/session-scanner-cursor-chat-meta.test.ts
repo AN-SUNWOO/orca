@@ -78,13 +78,11 @@ import {
   createSessionParseStats,
   parseAgentSessionFileCached,
   resetSessionParseCacheForTests,
-  seedSessionParseCache,
-  snapshotSessionParseCacheForPersistence,
   type SessionParseStats
 } from './session-scanner-parse-cache'
 import {
   getSessionParseCacheEntry,
-  type PersistedSessionParseCacheEntry
+  setSessionParseCacheColdTier
 } from './session-parse-cache-store'
 import { isolatedScanRoots } from './session-scanner-test-fixtures'
 import type { FileWithMtime } from './session-scanner-types'
@@ -459,14 +457,15 @@ describe('cursor sidecar enrichment', () => {
     await parseCursorCached(await cursorCandidate(cursorHome))
 
     // What a build older than the sidecar field wrote: no such key.
-    const persisted = snapshotSessionParseCacheForPersistence().map(
-      ([path, entry]): [string, PersistedSessionParseCacheEntry] => {
-        const { sidecar: _sidecar, ...rest } = entry
-        return [path, rest]
-      }
-    )
+    const candidate = await cursorCandidate(cursorHome)
+    const {
+      resume: _resume,
+      foldSession: _fold,
+      sidecar: _sidecar,
+      ...persisted
+    } = getSessionParseCacheEntry(candidate.path)!
     resetSessionParseCacheForTests()
-    seedSessionParseCache(persisted)
+    setSessionParseCacheColdTier({ read: () => persisted, stored: () => {}, deleted: () => {} })
 
     const { session, stats } = await parseCursorCached(await cursorCandidate(cursorHome))
     expect(stats.reused).toBe(0)

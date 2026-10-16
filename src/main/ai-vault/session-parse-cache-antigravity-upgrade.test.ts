@@ -6,15 +6,14 @@ import {
   ensureSessionParseCacheLoaded,
   flushSessionParseCachePersist,
   initSessionParseCachePersistence,
-  resetSessionParseCachePersistenceForTests,
-  scheduleSessionParseCachePersist
+  resetSessionParseCachePersistenceForTests
 } from './session-parse-cache-persistence'
 import {
   createSessionParseStats,
   parseAgentSessionFileCached,
-  resetSessionParseCacheForTests,
-  snapshotSessionParseCacheForPersistence
+  resetSessionParseCacheForTests
 } from './session-scanner-parse-cache'
+import { getSessionParseCacheEntry } from './session-parse-cache-store'
 import { createAntigravityWorkspaceResolver } from './session-scanner-antigravity-history'
 import { writeAntigravityTranscript } from './session-scanner-test-fixtures'
 import type { SessionFileCandidate } from './session-scanner-types'
@@ -56,13 +55,13 @@ async function candidate(): Promise<SessionFileCandidate> {
 it('reparses an unchanged pre-fix cached Antigravity transcript after an update', async () => {
   const input = await candidate()
   await parseAgentSessionFileCached(input, 'linux')
-  const entries = snapshotSessionParseCacheForPersistence().map(([path, entry]) => [
-    path,
-    {
-      ...entry,
-      session: entry.session && { ...entry.session, antigravityOpeningPrompt: undefined }
-    }
-  ])
+  const {
+    resume: _resume,
+    foldSession: _fold,
+    ...entry
+  } = getSessionParseCacheEntry(input.file.path)!
+  const staleSession = entry.session && { ...entry.session, antigravityOpeningPrompt: undefined }
+  const entries = [[input.file.path, { ...entry, session: staleSession }]]
   const cacheFile = join(root ?? '', 'cache.json')
   await writeFile(cacheFile, JSON.stringify({ schemaVersion: 3, appVersion: 'pre-fix', entries }))
   resetSessionParseCacheForTests()
@@ -94,7 +93,6 @@ it('retains the opening identity in current caches without retaining full prompt
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: 'fixed' })
   const stats = createSessionParseStats()
   const original = await parseAgentSessionFileCached(input, 'linux', stats)
-  scheduleSessionParseCachePersist()
   await flushSessionParseCachePersist()
   resetSessionParseCacheForTests()
   resetSessionParseCachePersistenceForTests()

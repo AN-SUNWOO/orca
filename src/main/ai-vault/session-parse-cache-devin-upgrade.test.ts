@@ -10,9 +10,9 @@ import {
 import {
   createSessionParseStats,
   parseAgentSessionFileCached,
-  resetSessionParseCacheForTests,
-  snapshotSessionParseCacheForPersistence
+  resetSessionParseCacheForTests
 } from './session-scanner-parse-cache'
+import { getSessionParseCacheEntry } from './session-parse-cache-store'
 import type { SessionFileCandidate } from './session-scanner-types'
 
 let root: string | undefined
@@ -48,20 +48,16 @@ it('reparses unchanged ATIF transcripts cached before Devin source fields were s
     }
   }
   await parseAgentSessionFileCached(candidate, process.platform)
-  const entries = snapshotSessionParseCacheForPersistence().map(([filePath, entry]) => [
-    filePath,
-    {
-      ...entry,
-      session: entry.session && {
-        ...entry.session,
-        title: 'Devin session devin-session',
-        messageCount: 0,
-        previewMessages: [],
-        firstUserPrompt: null,
-        lastUserPrompt: null
-      }
-    }
-  ])
+  const { resume: _resume, foldSession: _fold, ...entry } = getSessionParseCacheEntry(path)!
+  const staleSession = entry.session && {
+    ...entry.session,
+    title: 'Devin session devin-session',
+    messageCount: 0,
+    previewMessages: [],
+    firstUserPrompt: null,
+    lastUserPrompt: null
+  }
+  const entries = [[path, { ...entry, session: staleSession }]]
   const cacheFile = join(root, 'cache.json')
   await writeFile(cacheFile, JSON.stringify({ schemaVersion: 2, appVersion: 'old', entries }))
   resetSessionParseCacheForTests()

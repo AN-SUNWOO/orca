@@ -1,7 +1,8 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
+import SyncDatabase from '../sqlite/sync-database'
 import {
   ensureSessionParseCacheLoaded,
   flushSessionParseCachePersist,
@@ -76,8 +77,9 @@ it('does not reparse an unchanged corpus past the resume bound, across scans or 
   await list(first)
   await list(second)
   await flushSessionParseCachePersist()
-  const snapshot = JSON.parse(await readFile(cacheFile, 'utf8'))
-  expect(snapshot.entries).toHaveLength(CANDIDATES)
+  const db = new SyncDatabase(join(root, 'session-parse-cache.sqlite'))
+  expect(db.prepare('SELECT COUNT(*) AS count FROM rows').get()).toEqual({ count: CANDIDATES })
+  db.close()
   resetSessionParseCachePersistenceForTests()
   resetSessionParseCacheForTests()
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: 'test' })

@@ -6,8 +6,9 @@ const processTable = vi.hoisted(() => ({
   read: vi.fn(),
   capture: vi.fn()
 }))
-vi.mock('../pty-descendant-termination', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../pty-descendant-termination')>(),
+vi.mock('../pty-descendant-termination', () => ({
+  DESCENDANT_SNAPSHOT_TIMEOUT_MS: 1_000,
+  readProcessTableBeforeDeadline: (reader: () => Promise<unknown>) => reader().catch(() => null),
   readProcessTable: processTable.read,
   captureDescendantSnapshot: processTable.capture
 }))

@@ -4,13 +4,13 @@ import type { PtyTransport } from './pty-transport-types'
 import type { PaneCwdMap } from './resolve-split-cwd'
 import { splitTerminalPaneWithInheritedCwd } from './terminal-pane-split-with-inherited-cwd'
 import { createDeferred } from './pty-connection-test-async'
+import type { sendPaneCommandToLayoutOwner } from './terminal-pane-layout-owner-commands'
 
 const mocks = vi.hoisted(() => ({
   layoutOwnerIsMain: false,
   recordCreatedTerminalPaneSplit: vi.fn(),
   resolveSplitCwd: vi.fn(),
-  splitThroughLayoutOwner:
-    vi.fn<(split: unknown, mount: (leafId: string | undefined) => void) => boolean>(),
+  sendPaneCommandToLayoutOwner: vi.fn<typeof sendPaneCommandToLayoutOwner>(),
   splitWebRuntimeTerminal: vi.fn()
 }))
 
@@ -20,8 +20,8 @@ vi.mock('../../../../shared/layout-owner-switch', () => ({
   }
 }))
 
-vi.mock('./terminal-pane-split-through-layout-owner', () => ({
-  splitThroughLayoutOwner: mocks.splitThroughLayoutOwner
+vi.mock('./terminal-pane-layout-owner-commands', () => ({
+  sendPaneCommandToLayoutOwner: mocks.sendPaneCommandToLayoutOwner
 }))
 
 vi.mock('@/runtime/web-runtime-terminal-actions', () => ({
@@ -37,13 +37,21 @@ vi.mock('./terminal-pane-split-completion', () => ({
 }))
 
 function makeManager(splitPane: ReturnType<typeof vi.fn>): PaneManager {
-  return { splitPane } as unknown as PaneManager
+  // A pane counts as mounted once a split that placed it returned a pane.
+  const getNumericIdForLeaf = (leafId: string): number | null =>
+    splitPane.mock.calls.some(
+      (call, index) => call[2]?.leafId === leafId && splitPane.mock.results[index]?.value
+    )
+      ? 2
+      : null
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the split reads only splitPane and getNumericIdForLeaf.
+  return { splitPane, getNumericIdForLeaf } as unknown as PaneManager
 }
 
 describe('splitTerminalPaneWithInheritedCwd', () => {
   beforeEach(() => {
     mocks.layoutOwnerIsMain = false
-    mocks.splitThroughLayoutOwner.mockReset()
+    mocks.sendPaneCommandToLayoutOwner.mockReset()
     mocks.recordCreatedTerminalPaneSplit.mockReset()
     mocks.resolveSplitCwd.mockReset()
     mocks.splitWebRuntimeTerminal.mockReset()
@@ -240,13 +248,13 @@ describe('splitTerminalPaneWithInheritedCwd', () => {
       source: 'keyboard'
     })
 
-    expect(mocks.splitThroughLayoutOwner).not.toHaveBeenCalled()
+    expect(mocks.sendPaneCommandToLayoutOwner).not.toHaveBeenCalled()
     expect(splitPane).toHaveBeenCalledWith(1, 'vertical', { cwd: '/cached' })
   })
 
   it('in a layout-owner build, mounts the pane main minted only once main answers', () => {
     mocks.layoutOwnerIsMain = true
-    mocks.splitThroughLayoutOwner.mockReturnValue(true)
+    mocks.sendPaneCommandToLayoutOwner.mockReturnValue(true)
     const createdPane = { id: 2 }
     const splitPane = vi.fn(() => createdPane)
 
@@ -262,13 +270,17 @@ describe('splitTerminalPaneWithInheritedCwd', () => {
       source: 'keyboard'
     })
 
-    expect(mocks.splitThroughLayoutOwner).toHaveBeenCalledWith(
-      { worktreeId: 'worktree-1', tabId: 'tab-1', leafId: 'leaf-1', direction: 'vertical' },
-      expect.any(Function)
+    expect(mocks.sendPaneCommandToLayoutOwner).toHaveBeenCalledWith(
+      'worktree-1',
+      { type: 'splitPane', tabId: 'tab-1', leafId: 'leaf-1', direction: 'vertical' },
+      {
+        apply: expect.any(Function),
+        asToday: expect.any(Function)
+      }
     )
     expect(splitPane).not.toHaveBeenCalled()
 
-    mocks.splitThroughLayoutOwner.mock.calls[0]?.[1]('leaf-minted')
+    mocks.sendPaneCommandToLayoutOwner.mock.calls[0]?.[2].apply({ leafId: 'leaf-minted' })
 
     expect(splitPane).toHaveBeenCalledWith(1, 'vertical', {
       leafId: 'leaf-minted',
@@ -278,11 +290,12 @@ describe('splitTerminalPaneWithInheritedCwd', () => {
       source: 'keyboard',
       direction: 'vertical'
     })
+    expect(mocks.sendPaneCommandToLayoutOwner).toHaveBeenCalledOnce()
   })
 
   it('in a layout-owner build, splits as today where a paired server owns the layout', () => {
     mocks.layoutOwnerIsMain = true
-    mocks.splitThroughLayoutOwner.mockReturnValue(false)
+    mocks.sendPaneCommandToLayoutOwner.mockReturnValue(false)
     const splitPane = vi.fn(() => ({ id: 2 }))
 
     splitTerminalPaneWithInheritedCwd({
@@ -298,5 +311,37 @@ describe('splitTerminalPaneWithInheritedCwd', () => {
     })
 
     expect(splitPane).toHaveBeenCalledWith(1, 'horizontal', { cwd: '/cached' })
+  })
+
+  function splitInLayoutOwnerBuild(manager: PaneManager | null): void {
+    mocks.layoutOwnerIsMain = true
+    mocks.sendPaneCommandToLayoutOwner.mockReturnValue(true)
+    splitTerminalPaneWithInheritedCwd({
+      worktreeId: 'worktree-1',
+      tabId: 'tab-1',
+      manager: manager ?? makeManager(vi.fn()),
+      getManager: () => manager,
+      paneTransports: new Map(),
+      paneCwdMap: new Map([[1, { cwd: '/cached', confirmed: true }]]),
+      fallbackCwd: '/fallback',
+      pane: { id: 1, leafId: 'leaf-1' } as ManagedPane,
+      direction: 'vertical',
+      source: 'keyboard'
+    })
+  }
+
+  it.each([
+    ['the manager is gone', null],
+    ['the source pane is gone', makeManager(vi.fn(() => null))]
+  ])('withdraws the pane main saved when %s by the time main answers', (_case, manager) => {
+    splitInLayoutOwnerBuild(manager)
+
+    mocks.sendPaneCommandToLayoutOwner.mock.calls[0]?.[2].apply({ leafId: 'leaf-minted' })
+
+    expect(mocks.sendPaneCommandToLayoutOwner).toHaveBeenLastCalledWith(
+      'worktree-1',
+      { type: 'closePane', tabId: 'tab-1', leafId: 'leaf-minted' },
+      { apply: expect.any(Function), asToday: expect.any(Function) }
+    )
   })
 })

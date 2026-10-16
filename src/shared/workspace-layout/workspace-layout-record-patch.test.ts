@@ -55,9 +55,41 @@ function commandsFor(model: WorkspaceLayoutModel): LayoutCommand[] {
           direction: 'vertical'
         })
       }
+      if (first) {
+        commands.push({
+          type: 'renamePane',
+          workspace,
+          tabId: tab.id,
+          leafId: first,
+          title: 'Pane'
+        })
+      }
       if (second) {
         commands.push({ type: 'closePane', workspace, tabId: tab.id, leafId: second })
+        commands.push({
+          type: 'closePane',
+          workspace,
+          tabId: tab.id,
+          leafId: second,
+          userPaneClose: true
+        })
         commands.push({ type: 'equalizePanes', workspace, tabId: tab.id })
+        commands.push({
+          type: 'movePane',
+          workspace,
+          tabId: tab.id,
+          leafId: second,
+          targetLeafId: first!,
+          side: 'left'
+        })
+        if (tab.panes.root?.type === 'split') {
+          commands.push({
+            type: 'setPaneRatios',
+            workspace,
+            tabId: tab.id,
+            root: { ...tab.panes.root, ratio: 0.7 }
+          })
+        }
       }
     }
   }

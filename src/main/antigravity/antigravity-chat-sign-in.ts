@@ -51,7 +51,7 @@ export type AntigravityChatSignInHost = {
 
 let flow: Flow | null = null
 // The latest flow's state, which every client follows by revision.
-const signIn = new RevisionedState<AntigravityChatSignInState | null>(null)
+const signInState = new RevisionedState<AntigravityChatSignInState | null>(null)
 
 const settled = (phase: Phase): boolean => phase !== 'starting' && phase !== 'waiting'
 
@@ -60,12 +60,12 @@ function publish(
   next: Omit<AntigravityChatSignInState, 'flowId'>,
   cleanupFailed = false
 ): void {
-  const shown = signIn.get().value
+  const shown = signInState.get().value
   // A replaced flow was already shown cancelled, and its successor owns the state.
   if (shown?.flowId !== current.id || (settled(shown.phase) && !cleanupFailed)) {
     return
   }
-  signIn.set({ flowId: current.id, ...next })
+  signInState.set({ flowId: current.id, ...next })
   if (settled(next.phase)) {
     current.ended.abort()
   }
@@ -82,7 +82,7 @@ export function startAntigravityChatSignIn(host: AntigravityChatSignInHost): { f
   }
   const current: Flow = { id: randomUUID(), ended: new AbortController(), done: Promise.resolve() }
   flow = current
-  signIn.set({ flowId: current.id, phase: 'starting' })
+  signInState.set({ flowId: current.id, phase: 'starting' })
   // After the replaced flow has let go of the chats' starts.
   current.done = (previous?.done ?? Promise.resolve()).then(() => runFlow(current, host))
   return { flowId: current.id }
@@ -184,7 +184,7 @@ export function cancelAntigravityChatSignIn(flowId: string): AntigravityChatSign
     throw new Error('That Antigravity sign-in is no longer running.')
   }
   publish(flow, { phase: 'cancelled' })
-  return signIn.get().value
+  return signInState.get().value
 }
 
 /** At once without `shown`, else once the revision passes it or after a bounded wait that the
@@ -195,8 +195,8 @@ export async function readAntigravityChatSignInStatus(
   shown?: number,
   signal?: AbortSignal
 ): Promise<AntigravityChatSignInStatus> {
-  await signIn.waitForChange(shown, STATUS_WAIT_MS, signal)
-  const { value, revision } = signIn.get()
+  await signInState.waitForChange(shown, STATUS_WAIT_MS, signal)
+  const { value, revision } = signInState.get()
   const token = join(
     requireLegacyAgentSessionAccountHome(accountHome).path,
     'antigravity-acp',

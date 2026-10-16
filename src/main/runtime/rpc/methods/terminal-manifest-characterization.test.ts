@@ -32,6 +32,7 @@ const METHOD_CASES: readonly (readonly [string, unknown, boolean])[] = [
   ['terminal.stopExact', { worktree: 'worktree', expectedPtyIds: ['pty'] }, false],
   ['terminal.resizeForClient', { terminal: 'term', mode: 'restore', clientId: 'client' }, false],
   ['terminal.focus', { terminal: 'term' }, false],
+  ['terminal.reveal', { worktreeId: 'worktree', tabId: 'tab' }, false],
   ['terminal.close', { terminal: 'term' }, false],
   ['terminal.closeTab', { terminal: 'term' }, false],
   ['agentTeams.tmuxCompat', { teamId: 'team', token: 'token', envPane: 'pane', argv: [] }, false],
@@ -69,11 +70,11 @@ async function invoke(name: string, params: unknown, runtime: Partial<OrcaRuntim
 
 describe('terminal RPC manifest characterization', () => {
   it('preserves all method names, order, streaming flags, and parseable minimum inputs', () => {
-    expect(TERMINAL_METHODS).toHaveLength(38)
+    expect(TERMINAL_METHODS).toHaveLength(39)
     expect(TERMINAL_METHODS.map((method) => [method.name, 'stream' in method])).toEqual(
       METHOD_CASES.map(([name, _params, stream]) => [name, stream])
     )
-    expect(new Set(TERMINAL_METHODS.map((method) => method.name)).size).toBe(38)
+    expect(new Set(TERMINAL_METHODS.map((method) => method.name)).size).toBe(39)
     for (const [name, params] of METHOD_CASES) {
       expect(() => schemaFor(name).parse(params), name).not.toThrow()
     }

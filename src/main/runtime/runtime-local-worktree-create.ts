@@ -70,7 +70,13 @@ async function performRuntimeLocalWorktreeCreate<T>(args: RuntimeLocalWorktreeCr
   // Why: the layout choice must reach name retirement and metadata too, not just the path.
   const settings = {
     ...hostSettings,
-    nestWorkspaces: request.nestWorkspaces ?? hostSettings.nestWorkspaces
+    nestWorkspaces: request.nestWorkspaces ?? hostSettings.nestWorkspaces,
+    // Why: a paired desktop keeps this toggle in its own profile, never in the host's.
+    refreshLocalBaseRefOnWorktreeCreate:
+      request.refreshLocalBaseRefOnWorktreeCreate ??
+      hostSettings.refreshLocalBaseRefOnWorktreeCreate,
+    localBaseRefSuggestionDismissed:
+      request.localBaseRefSuggestionDismissed ?? hostSettings.localBaseRefSuggestionDismissed
   }
   const pathSettings = getWorktreePathSettings(repo, settings, getWorktreeMirrorDistro(store, repo))
   const gitExecOptions = getLocalProjectGitExecOptions(store, repo)

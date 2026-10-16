@@ -9,6 +9,10 @@ import type {
 } from '../../shared/agent-launch-tab-publication'
 import type { AgentLaunchPaneVerdictEvent } from '../../shared/agent-launch-pane-verdict'
 import type {
+  TerminalPaneRevealReply,
+  TerminalPaneRevealRequest
+} from '../../shared/terminal-pane-reveal'
+import type {
   AgentProviderSessionMetadata,
   SleepingAgentLaunchConfig
 } from '../../shared/agent-session-resume'
@@ -111,6 +115,15 @@ export const uiTerminalAndSessionTabsApi = {
   },
   replyAgentLaunchTabPublish: (reply: AgentLaunchTabPublishReply): void => {
     ipcRenderer.send('agentLaunch:tabPublishReply', reply)
+  },
+  onRevealTerminalPane: (callback: (data: TerminalPaneRevealRequest) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: TerminalPaneRevealRequest) =>
+      callback(data)
+    ipcRenderer.on('ui:revealTerminalPane', listener)
+    return () => ipcRenderer.removeListener('ui:revealTerminalPane', listener)
+  },
+  replyTerminalPaneReveal: (reply: TerminalPaneRevealReply): void => {
+    ipcRenderer.send('ui:terminalPaneRevealReply', reply)
   },
   onAgentLaunchPaneVerdict: (
     callback: (data: AgentLaunchPaneVerdictEvent) => void

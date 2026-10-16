@@ -12438,6 +12438,10 @@
         "UnsealedCredentialNotice": {
           "body": "{{credential}} 未加密存储 — 该系统没有 Orca 可以使用的操作系统密钥环。任何可以读取您的磁盘或其备份的人都可以读取该凭据。安装并解锁 gnome-keyring 或 kwallet，然后再次保存以密封它。"
         },
+        "sshManagedHostRemove": {
+          "description": "{{label}} 运行着一个受管的 Orca 服务器。请在“受管服务器”中使用“停止…”从主机移除该服务器；如果主机已不存在，请使用“忘记…”。之后即可移除此 SSH 主机。",
+          "open": "打开受管服务器"
+        },
         "managedServers": {
           "row": {
             "notRunning": "未运行",
@@ -12479,7 +12483,11 @@
             "target": "通过 SSH 主机访问",
             "port": "服务器端口",
             "link": "使用 SSH",
-            "linking": "正在连接…"
+            "linking": "正在连接…",
+            "pendingLink": "通过 SSH 连接未完成。",
+            "pendingUnlink": "停止 SSH 访问未完成。",
+            "retry": "重试",
+            "cancelLink": "取消"
           },
           "search": {
             "title": "受管服务器",
@@ -17963,6 +17971,13 @@
           "deleteColumn": "删除列",
           "deleteTable": "删除表格"
         }
+      }
+    },
+    "startup": {
+      "webHostUnreachable": {
+        "title": "无法连接到你的 Orca 主机",
+        "description": "没有任何内容丢失。主机响应后 Orca 会重新加载，在此之前不会保存更改。",
+        "retry": "立即重试"
       }
     }
   },

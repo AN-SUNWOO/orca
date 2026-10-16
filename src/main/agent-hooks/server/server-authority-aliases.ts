@@ -209,6 +209,11 @@ export abstract class AgentHookServerAuthorityAliases extends AgentHookServerAut
     if (restartedTokenHash) {
       this.restartedStatusLaunchTokenHashByPaneKey.set(toPaneKey, restartedTokenHash)
     }
+    const agentExit = this.agentExitedAtByPaneKey.get(previousOwnerPaneKey)
+    if (agentExit) {
+      agentExit.paneKeys.add(toPaneKey)
+      this.agentExitedAtByPaneKey.set(toPaneKey, agentExit)
+    }
     const activeTurnCompletedAt = this.activeHookTurnCompletedAtByPaneKey.get(previousOwnerPaneKey)
     if (activeTurnCompletedAt !== undefined) {
       this.activeHookTurnCompletedAtByPaneKey.delete(previousOwnerPaneKey)

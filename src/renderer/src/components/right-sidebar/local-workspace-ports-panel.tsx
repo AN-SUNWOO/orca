@@ -25,15 +25,19 @@ import {
 } from './local-workspace-port-sections'
 import { LocalPortSection } from './local-port-section'
 import { LocalPortDetailsDialog } from './local-port-details-dialog'
+import { SshForwardedPortsSection } from './ssh-forwarded-ports-section'
 
 /** Right-sidebar Ports panel for a workspace that runs on an endpoint's own machine. */
 export function LocalWorkspacePortsPanel({
   isVisible,
-  runtimeTarget
+  runtimeTarget,
+  sshForwardTargetId = null
 }: {
   isVisible: boolean
   /** The endpoint that owns the active workspace, even if the sidebar is focused elsewhere. */
   runtimeTarget: RuntimeClientTarget | null
+  /** A managed server's SSH host, whose connection carries this client's forwards. */
+  sshForwardTargetId?: string | null
 }): React.JSX.Element {
   const activeWorktree = useActiveWorktree()
   const activeRepo = useRepoById(activeWorktree?.repoId ?? null)
@@ -226,6 +230,8 @@ export function LocalWorkspacePortsPanel({
           </TooltipContent>
         </Tooltip>
       </div>
+
+      {sshForwardTargetId && <SshForwardedPortsSection connectionId={sshForwardTargetId} />}
 
       {displayScan?.unavailableReason && (
         <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">

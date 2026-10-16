@@ -41,6 +41,9 @@ const store = {
     Object.values(store.worktreesByRepo)
       .flat()
       .find((worktree) => worktree.id === id),
+  sshConnectionStates: new Map<string, { remotePlatform?: NodeJS.Platform }>(),
+  sshStateByEnvironment: new Map(),
+  runtimeStatusByEnvironmentId: new Map(),
   tabsByWorktree: { 'wt-1': [{ id: 'tab-1' }] },
   openFiles: [] as { id: string; worktreeId: string }[],
   browserTabsByWorktree: {} as Record<string, { id: string }[]>,
@@ -97,6 +100,7 @@ describe('launchSleepingAgentSession Windows shell quoting', () => {
       activeRuntimeEnvironmentId: null
     }
     store.repos = [{ id: 'repo-1', connectionId: null, path: 'C:\\Users\\neil\\repo' }]
+    store.sshConnectionStates = new Map()
     store.worktreesByRepo = {
       'repo-1': [
         {
@@ -167,6 +171,21 @@ describe('launchSleepingAgentSession Windows shell quoting', () => {
       }
     }
     await expect(launch(omp)).resolves.toBe(expected)
+  })
+  it('quotes for PowerShell on an SSH host that reported Windows', async () => {
+    store.settings.terminalWindowsShell = 'cmd.exe'
+    store.repos = [{ id: 'repo-1', connectionId: 'ssh-1', path: 'C:\\repo' }]
+    store.sshConnectionStates = new Map([['ssh-1', { remotePlatform: 'win32' }]])
+    const omp: SleepingAgentSessionRecord = {
+      ...record,
+      agent: 'omp',
+      providerSession: {
+        key: 'session_id',
+        id: SESSION_ID,
+        transcriptPath: "C:\\neil's sessions\\session.jsonl"
+      }
+    }
+    await expect(launch(omp)).resolves.toBe("omp '--resume' 'C:\\neil''s sessions\\session.jsonl'")
   })
   it('keeps the remote OMP path instead of using the local Windows shell or UUID', async () => {
     store.settings.terminalWindowsShell = 'cmd.exe'

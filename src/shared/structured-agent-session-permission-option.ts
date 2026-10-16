@@ -80,3 +80,30 @@ export function structuredAgentSessionPermissionDescriptor(state: {
     settable: true
   }
 }
+
+/** The value a host predating per-chat modes shows: it runs its own Agent Permissions. */
+export const LEGACY_HOST_PERMISSION_VALUE = 'host'
+
+/** A read-only pill for a host that ignores per-chat modes, so its chats never look unset. */
+export function legacyHostPermissionDescriptor(): SessionOptionDescriptor {
+  return {
+    id: AGENT_CHAT_PERMISSION_MODE_OPTION_ID,
+    label: 'Permissions',
+    category: 'mode',
+    kind: {
+      type: 'select',
+      currentValue: LEGACY_HOST_PERMISSION_VALUE,
+      choices: [
+        {
+          value: LEGACY_HOST_PERMISSION_VALUE,
+          label: "Host's Agent Permissions",
+          description:
+            "This host runs an older Orca that applies its Agent Permissions to every chat and can't ask per chat. Update Orca on the host to choose a mode here."
+        }
+      ]
+    },
+    valueSource: 'applied',
+    transport: 'agent-session',
+    settable: false
+  }
+}

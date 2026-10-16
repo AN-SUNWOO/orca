@@ -6,6 +6,7 @@ import { removeWorktreeVisitEntries } from '@/lib/worktree-visit-recency'
 import { forgetAmbiguousOwnerWarnings } from '../listing/worktree-owner-settings'
 import { omitRecordKeys } from './record-key-omission'
 import { removeWorktreeLayout } from '../../tabs/worktree-layout-lifecycle'
+import { omitSleepingAgentSessionsForWorktrees } from './sleeping-agent-session-omission'
 
 /** Clears worktree-owned renderer state after successful removal so a reused identity cannot inherit stale preferences. */
 export function applyRemoveWorktreeSuccessState(
@@ -120,6 +121,9 @@ export function applyRemoveWorktreeSuccessState(
         new Set(worktreeIds),
         executionHostId
       ),
+      // Why: terminal shutdown clears these earlier, but teardown awaits after that and a
+      // provider-session event routed by worktree id can write a record in between (#24784).
+      ...omitSleepingAgentSessionsForWorktrees(s, new Set(worktreeIds)),
       sortEpoch: s.sortEpoch + 1
     }
   })

@@ -23,6 +23,7 @@ import { isListedRemoteServer } from '../../../../shared/runtime-environments'
 import { RuntimeHostStatusRow } from './RuntimeHostStatusRow'
 import { connectedHostCountLabel, connectingHostsLabel } from './ssh-status-segment-copy'
 import { SshTargetStatusRow } from './SshTargetStatusRow'
+import { syncSshConfigTargetsPassively } from '../../lib/ssh-config-passive-sync'
 import { connectRuntimeHostAndReloadProjects } from './runtime-environment-explicit-connect'
 import {
   overallDotColor,
@@ -159,6 +160,7 @@ export function SshStatusSegment({
       onOpenChange={(open) => {
         if (open) {
           void hydrateRuntimeEnvironmentStatuses()
+          void syncSshConfigTargetsPassively()
           recordFeatureInteraction('ssh')
         }
       }}

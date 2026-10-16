@@ -12,6 +12,10 @@ on:
     paths:
       - 'src/main/daemon/**'
       - '!src/main/daemon/**/*.test.ts'
+      - '!src/main/daemon/serialize-grid-roundtrip.ts'
+      - '!src/main/daemon/mock-descendant-sweep.ts'
+      - '!src/main/daemon/daemon-host-relocation.test-fixture.ts'
+      - '!src/main/daemon/daemon-endpoint-reachability-test-harness.ts'
       # D7 packages production entries; the unit jobs own these test roots.
       - 'src/main/orcad/**'
       - '!src/main/orcad/**/*.test.ts'

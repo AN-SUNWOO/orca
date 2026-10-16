@@ -25,8 +25,15 @@ function createIdempotentOrcadCleanup(cleanup: () => Promise<void>): () => Promi
 
 export { ORCAD_SHUTDOWN_DEADLINE_MS }
 
-/** True when this call began the stop; false when another source already owns it. */
-export type OrcadShutdownTrigger = (reason: string, onFailed?: () => void) => boolean
+/**
+ * True when this call began the stop; false when another source already owns it.
+ * `stoppedExitCode` is the code a completed stop exits with; a fatal fault passes non-zero.
+ */
+export type OrcadShutdownTrigger = (
+  reason: string,
+  onFailed?: () => void,
+  stoppedExitCode?: number
+) => boolean
 
 /**
  * A launcher and its child can both receive the same process-group or service stop signal.
@@ -38,21 +45,38 @@ export function installOrcadShutdownSignals(
   deadlineMs = ORCAD_SHUTDOWN_DEADLINE_MS
 ): OrcadShutdownTrigger {
   let stopping = false
-  const shutdown: OrcadShutdownTrigger = (signal, onFailed) => {
+  let exitCode = 0
+  let failed = false
+  let retractClean: (() => void) | undefined
+  const markFailed = (): void => {
+    if (!failed) {
+      failed = true
+      retractClean?.()
+    }
+  }
+  const shutdown: OrcadShutdownTrigger = (signal, onFailed, stoppedExitCode = 0) => {
     if (stopping) {
+      // A fatal fault during a clean stop must still exit as a failure, not as that clean stop.
+      if (stoppedExitCode !== 0 && exitCode === 0) {
+        exitCode = stoppedExitCode
+        onFailed?.()
+        markFailed()
+      }
       return false
     }
     stopping = true
+    exitCode = stoppedExitCode
+    retractClean = onFailed
     setTimeout(() => {
       console.error(`orcad: shutdown after ${signal} exceeded ${deadlineMs}ms — exiting`)
-      onFailed?.()
+      markFailed()
       process.exit(1)
     }, deadlineMs)
     stop()
-      .then(() => process.exit(0))
+      .then(() => process.exit(exitCode))
       .catch((error) => {
         console.error(`orcad: shutdown after ${signal} failed:`, error)
-        onFailed?.()
+        markFailed()
         process.exit(resolveOrcadExitCode(error))
       })
     return true

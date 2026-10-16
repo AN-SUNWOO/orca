@@ -24,7 +24,12 @@ import { openRigTurnFor } from './structured-agent-session-queued-rig-turn.test-
 import { sameQueuePause } from './structured-agent-session-queued-publication'
 import { structuredQueuePauses } from './structured-agent-session-queued-pause'
 
+import { createStructuredSessionObservationClock } from './structured-agent-session-observation-clock.test-fixture'
+
 let rig: QueuedMessageTestRig
+const observationClock = createStructuredSessionObservationClock(() => rig.host, HOST_TEST_SESSION)
+beforeEach(() => observationClock.start())
+afterEach(() => observationClock.restore())
 
 /** Integration suites own their rig; pure projection checks stay fixture-free. */
 function installRigLifecycleHooks(): void {
@@ -32,12 +37,12 @@ function installRigLifecycleHooks(): void {
     rig = await createQueuedMessageTestRig()
   })
 
-  afterEach(() => rig.dispose())
+  afterEach(() => observationClock.restoreBeforeCleanup(() => rig.dispose()))
 }
 
 /** No drain step may convert the drafts, and the queue reads paused. */
 async function expectPaused(...draftIds: string[]): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 250))
+  await observationClock.observe(250)
   for (const draftId of draftIds) {
     expect(await rig.handoff(draftId)).toBeUndefined()
   }
@@ -152,7 +157,7 @@ describe("a Stop's queue pause", () => {
     await handedOver(sentId)
     // Only the card the user asked for went: the queue is still paused, though not shown while
     // that turn is on its way.
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    await observationClock.observe(250)
     expect(await rig.handoff(heldId)).toBeUndefined()
     expect(derivedPauses()).toEqual(['stopped'])
     expect(await rig.queuePause()).toBeNull()

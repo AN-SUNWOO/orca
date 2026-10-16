@@ -36,7 +36,10 @@ export function agentHookRuntimeDeps(
       readChildWork: (subject) => server.getStructuredChildWorkViews(subject),
       readChildWorkRecords: (subject) => server.getStructuredChildWork(subject)
     },
-    checkHookAgentPresence: (paneKey) => server.checkAgentPresence(paneKey),
+    checkHookAgentPresence: (paneKey, exitedSince) =>
+      exitedSince === undefined
+        ? server.checkAgentPresence(paneKey)
+        : server.checkAgentPresenceSince(paneKey, exitedSince),
     reconcileAgentStatusForEndedProcess: (paneKeys) =>
       server.reconcileEndedProcessForPaneKeys(paneKeys),
     dropAgentStatusForRemovedWorktree: (worktreeId, host) =>

@@ -25,9 +25,12 @@ export function useNativeChatStructuredComposerTransport(args: {
   setOptionPickerRequest: Dispatch<SetStateAction<NativeChatOptionPickerRequest | null>>
   onError: NativeChatStructuredComposerTransport['onError']
   onSubmitted: () => void
+  /** Present while this chat's host may not take a turn; Send is held and a send refused. */
+  sendBlockedReason?: string | null
 }): NativeChatStructuredComposerTransport {
   const { props, controller, sendThroughLaunch, starting, worktreeId, optionPickerRequest } = args
   const { setOptionPickerRequest, onError, onSubmitted } = args
+  const sendBlockedReason = args.sendBlockedReason ?? null
   const acceptsImages = useStructuredAgentAcceptsImages(
     props.target,
     props.agent,
@@ -36,10 +39,14 @@ export function useNativeChatStructuredComposerTransport(args: {
   return useMemo((): NativeChatStructuredComposerTransport => {
     const threadGoal = controller.threadGoal
     const setThreadGoalObjective = threadGoal?.hostChanges
-      ? (objective: string) => threadGoal.change({ kind: 'set', objective })
+      ? (objective: string) =>
+          sendBlockedReason === null
+            ? threadGoal.change({ kind: 'set', objective })
+            : Promise.resolve(false)
       : null
     return {
       send: (text, attachments) =>
+        sendBlockedReason === null &&
         sendThroughLaunch(text, attachments.length > 0, () =>
           controller.send(
             text,
@@ -65,6 +72,7 @@ export function useNativeChatStructuredComposerTransport(args: {
         }),
       ...(setThreadGoalObjective ? { threadGoal: { setObjective: setThreadGoalObjective } } : {}),
       sendOut: controller.sendOut || starting,
+      ...(sendBlockedReason !== null ? { sendBlockedReason } : {}),
       optionsSurface: controller.optionSurface,
       conversationCommands: controller.conversationCommands,
       optionSnapshot: controller.optionSnapshot,
@@ -90,6 +98,7 @@ export function useNativeChatStructuredComposerTransport(args: {
     props.agent,
     props.sessionId,
     props.target,
+    sendBlockedReason,
     sendThroughLaunch,
     setOptionPickerRequest,
     starting

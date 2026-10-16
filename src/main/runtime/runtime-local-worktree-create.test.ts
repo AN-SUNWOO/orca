@@ -200,6 +200,42 @@ describe('runtime nested-workspaces layout', () => {
   })
 })
 
+describe('runtime keep-local-main-up-to-date choice', () => {
+  const addRefreshArg = (): unknown => mocks.add.mock.calls[0]?.[4]
+  const addOptions = (): AddWorktreeOptions | undefined => mocks.add.mock.calls[0]?.[6]
+
+  beforeEach(() => {
+    mocks.consume.mockResolvedValue({ status: 'miss', reason: 'disabled', rearm: mocks.rearm })
+    mocks.remoteBase.mockResolvedValue({
+      remote: 'origin',
+      branch: 'main',
+      ref: 'refs/remotes/origin/main',
+      base: 'origin/main'
+    })
+  })
+
+  it('refreshes local main when the client turned it on, over the host default', async () => {
+    await createWorktree({ refreshLocalBaseRefOnWorktreeCreate: true })
+    expect(mocks.consume).toHaveBeenCalledWith(
+      expect.objectContaining({ refreshLocalBaseRef: true })
+    )
+    expect(addRefreshArg()).toBe(true)
+    expect(addOptions()?.suggestLocalBaseRefUpdate).toBeUndefined()
+  })
+
+  it('suppresses the suggestion the client already dismissed', async () => {
+    await createWorktree({ localBaseRefSuggestionDismissed: true })
+    expect(addRefreshArg()).toBe(false)
+    expect(addOptions()?.suggestLocalBaseRefUpdate).toBeUndefined()
+  })
+
+  it('keeps the host setting and suggestion when the client sends neither', async () => {
+    await createWorktree({})
+    expect(addRefreshArg()).toBe(false)
+    expect(addOptions()?.suggestLocalBaseRefUpdate).toBe(true)
+  })
+})
+
 describe('runtime prepared-worktree replenishment', () => {
   it('keeps a failed claim reserved through the normal-add fallback', async () => {
     mocks.consume.mockResolvedValue({

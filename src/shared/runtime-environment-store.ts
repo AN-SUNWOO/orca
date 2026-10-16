@@ -269,10 +269,16 @@ function assertNoIndependentSshAccess(environment: KnownRuntimeEnvironment): voi
       'This server is managed by Orca over SSH; its pairing cannot be replaced or removed here. To decommission it, run `orca environment stop --environment <name> --yes` or use Settings > Managed servers; for a host that is gone, run `orca environment forget --environment <name> --yes`.'
     )
   }
-  if (environment.sshAccess || environment.pendingSshAccessOperation) {
+  if (environment.pendingSshAccessOperation) {
     throw new RuntimeEnvironmentStoreError(
       'invalid_argument',
-      "Unlink this server's SSH access before replacing its pairing or removing it."
+      "This server's SSH access change didn't finish. Retry or cancel it under Settings > Remote Orca Servers > SSH access for paired servers before replacing its pairing or removing it."
+    )
+  }
+  if (environment.sshAccess) {
+    throw new RuntimeEnvironmentStoreError(
+      'invalid_argument',
+      "Unlink this server's SSH access under Settings > Remote Orca Servers > SSH access for paired servers before replacing its pairing or removing it."
     )
   }
 }

@@ -68,6 +68,9 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     if (disposition === 'suppress') {
       return
     }
+    if (event.origin === 'process' && event.payload.state === 'working') {
+      this.forgetAgentExit(paneKey)
+    }
     if (disposition === 'restart') {
       this.observations.rebind(paneKey)
     }

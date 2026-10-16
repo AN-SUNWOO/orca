@@ -68,6 +68,10 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
       })
       return undefined
     }
+    if (payload.source !== undefined || payload.agentPresence?.process) {
+      // A hook (not a late terminal repaint) means an agent claimed the pane after the last exit.
+      this.forgetAgentExit(payload.paneKey)
+    }
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Main admits enriched legacy rows; the shared view declares their base event type.
     const previous = this.state.lastStatusByPaneKey.get(payload.paneKey) as
       | EnrichedAgentHookEventPayload
@@ -246,7 +250,12 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
     }
     // Why carried forward only within one host: main's OSC parse resolves the handle, so a later
     // hook must not erase its terminal join; a connection change must not inherit another host's.
-    const { claudeRunningNonAgentTask: _unpaired, ...unpairedPayload } = effectivePayload
+    // Why drop the settled list: it vouches for this replay's transition only, not for the stored row.
+    const {
+      claudeRunningNonAgentTask: _unpaired,
+      claudeSettledRequests: _settled,
+      ...unpairedPayload
+    } = effectivePayload
     const runningNonAgentTask = pairedClaudeNonAgentWork(previous, effectivePayload)
     const pairedPayload =
       runningNonAgentTask === undefined

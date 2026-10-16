@@ -43,6 +43,8 @@ export type RuntimeManagedWorktreeCreateArgs = {
   workspaceStatus?: string
   manualOrder?: number
   nestWorkspaces?: boolean
+  refreshLocalBaseRefOnWorktreeCreate?: boolean
+  localBaseRefSuggestionDismissed?: boolean
   sparseCheckout?: { directories: string[]; presetId?: string }
   pushTarget?: GitPushTarget
   runHooks?: boolean

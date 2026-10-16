@@ -50,13 +50,13 @@ export async function assertWorktreeCleanForRemoval(
     throw new Error(`${SUBMODULE_DIRTY_REMOVAL_DETAIL}\n${blockingStatus.trim()}`)
   }
 
-  const error = new Error('Worktree has uncommitted or untracked changes.')
   // Why not the raw stdout: `-z` output is NUL-delimited and `.trim()` leaves
   // interior NULs, so attaching it verbatim put raw control bytes into the
   // user-facing removal error — and listed the tolerated shared link, the one
   // entry that is not the user's work and cannot be committed away.
-  ;(error as Error & { stdout?: string }).stdout = blockingStatus
-  throw error
+  throw Object.assign(new Error('Worktree has uncommitted or untracked changes.'), {
+    stdout: blockingStatus
+  })
 }
 
 /** Git's main submodule refusal test: a `.gitmodules` path whose directory holds a `.git`. */

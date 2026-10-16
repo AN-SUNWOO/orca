@@ -411,30 +411,41 @@ describe('registerPtyHandlers Codex launch refusal on an unreadable managed home
   })
 
   // #29209: a host runtime skips resume prep when the launch env names a client-sent CODEX_HOME.
-  it.each(['window', 'host'] as const)(
-    '%s lane: resume prep sees the request CODEX_HOME',
-    async (lane) => {
+  it.each(['window', 'host', 'window restart'] as const)(
+    '%s: resume preserves the request home and selected-account restart',
+    async (entry) => {
+      const restart = entry === 'window restart'
       readFileSyncMock.mockReturnValue(TEST_CODEX_AUTH_JSON)
-      setupDaemonAdapter()
+      const daemonSpawn = setupDaemonAdapter()
       const runtime = makeRuntime()
-      const prepareResume = vi.fn<PrepareCodexSessionResume>(async () => null)
+      const sourceHome = `${TEST_CODEX_HOME}-source`
+      const prepareResume = vi.fn<PrepareCodexSessionResume>(async (args) => ({
+        outcome: 'resume',
+        codexHomePath: args.useSelectedAccount ? TEST_CODEX_HOME : sourceHome
+      }))
       register(() => TEST_CODEX_HOME, runtime, prepareResume)
       const controller: RuntimeSpawnController = runtime.setPtyController.mock.calls[0]?.[0]
       const request: RuntimeSpawnRequest = {
         cols: 80,
         rows: 24,
         launchAgent: 'codex',
+        command: `codex resume ${RESUME_SESSION.id}`,
         resumeProviderSession: RESUME_SESSION,
+        ...(restart ? { replacesPtyId: 'old-pty' } : {}),
         env: { CODEX_HOME: '/client/codex-home' }
       }
 
-      await (lane === 'host'
+      await (entry === 'host'
         ? controller.spawn(request)
         : handlers.get('pty:spawn')!(null, request))
 
       expect(prepareResume.mock.calls[0]?.[0].launchEnv).toMatchObject({
         CODEX_HOME: '/client/codex-home'
       })
+      expect(prepareResume.mock.calls[0]?.[0].useSelectedAccount).toBe(restart ? true : undefined)
+      expect(daemonSpawn.mock.calls[0]?.[0].env.CODEX_HOME).toBe(
+        restart ? TEST_CODEX_HOME : sourceHome
+      )
     }
   )
 

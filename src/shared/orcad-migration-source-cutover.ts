@@ -4,6 +4,7 @@
  */
 import { z } from 'zod'
 import {
+  MAX_ORCAD_MIGRATION_REPOSITORIES,
   parseOrcadMigrationManifest,
   type OrcadMigrationManifest
 } from './orcad-migration-manifest'
@@ -47,6 +48,11 @@ const CutoverRecordSchema = z.object({
   supersedesMigrationId: z.string().min(1).max(128).optional(),
   // What the retained source must still look like; absent means this manifest's own catalog.
   sourceBaselineFingerprint: z.string().min(1).max(64).optional(),
+  // Source projects the server already held at the same host path: linked to its rows, not moved.
+  linkedRepositoryIds: z
+    .array(z.string().min(1).max(1_024))
+    .max(MAX_ORCAD_MIGRATION_REPOSITORIES)
+    .optional(),
   manifest: z.unknown()
 })
 

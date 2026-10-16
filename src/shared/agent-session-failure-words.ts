@@ -55,8 +55,9 @@ export type AgentJournalDispatchRejection = {
   rejection: SubmissionRejectionFact
 }
 
-/** `row`: a status row, about the chat. `rejection`: a rejected message's reason, about it. */
-export type AgentSessionFailureSurface = 'row' | 'rejection'
+/** `row`: a status row, about the chat. `rejection`: a rejected message's reason, about it.
+ *  `answer`: a refused answer to an approval or question, about it. */
+export type AgentSessionFailureSurface = 'row' | 'rejection' | 'answer'
 
 export type AgentSessionFailureWordsContext = {
   /** The chat's agent, when the writer knows it. */
@@ -207,6 +208,8 @@ const FAILURE_SENTENCES = {
   claudeAccountSetupFailed: (_context, _fact, _surface, say) => say('claudeAccountSetupFailed'),
   agentCommandNotRunnable: (context, _fact, _surface, say) =>
     say('agentCommandNotRunnable', agent(say, context)),
+  runtimeNotInstalled: (context, _fact, _surface, say) =>
+    say('runtimeNotInstalled', agent(say, context)),
   managedAccountUnsupported: (context, _fact, _surface, say) =>
     joinSentences([
       say('managedAccountUnsupported'),
@@ -217,7 +220,14 @@ const FAILURE_SENTENCES = {
           : say('chooseClaudeAccountThenSend')
     ]),
   providerExited: (context, _fact, surface, say) =>
-    say(surface === 'row' ? 'providerExitedRow' : 'providerExitedRejection', agent(say, context)),
+    say(
+      surface === 'row'
+        ? 'providerExitedRow'
+        : surface === 'answer'
+          ? 'providerExitedAnswer'
+          : 'providerExitedRejection',
+      agent(say, context)
+    ),
   restartFailed: couldNot('couldNotRestart'),
   providerRejected: (context, fact, _surface, say) =>
     quotingPersonDetail(

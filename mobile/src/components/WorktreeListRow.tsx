@@ -5,7 +5,10 @@ import type { MobileRenderableRepoIcon } from '../host-screen/host-screen-reply-
 import { triggerMediumImpact } from '../platform/haptics'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import type { Worktree } from '../worktree/workspace-list-types'
+import type { WorktreeCardDetails } from '../../../src/shared/worktree/card-properties'
+import type { AgentActivityDisplayMode } from '../../../src/shared/ui-chrome-types'
 import { areStructurallyEqual } from '../worktree/structural-equality'
+import { getWorktreeMetaGlyphPresence } from '../worktree/worktree-meta-glyph-presence'
 import { AgentSpinner } from './AgentSpinner'
 import { HostKindIcon } from './HostKindIcon'
 import { MobileRepoIcon } from './MobileRepoIcon'
@@ -29,6 +32,9 @@ type Props = {
   // When the list is already grouped under this repo's section header, the row
   // omits its own repo icon+name to avoid the redundant "📁 orca" on every row.
   hideRepo?: boolean
+  /** What the desktop's shared Card layout and properties show. */
+  cardDetails: WorktreeCardDetails
+  agentActivityDisplayMode: AgentActivityDisplayMode
   status: WorktreeRollupStatus
   onPress: (item: Worktree) => void
   onLongPress?: (item: Worktree) => void
@@ -42,6 +48,8 @@ function WorktreeListRowComponent({
   repoColor,
   repoIcon,
   hideRepo = false,
+  cardDetails,
+  agentActivityDisplayMode,
   status,
   onPress,
   onLongPress,
@@ -52,6 +60,7 @@ function WorktreeListRowComponent({
   const metaText = isFolderWorkspace ? folderMeta : displayBranch(item.branch)
   const lineageDepth = Math.max(0, item.lineageDepth ?? 0)
   const lineageChildCount = item.lineageChildCount ?? 0
+  const shouldHideRepo = hideRepo && !item.showProjectName
 
   return (
     <Pressable
@@ -97,7 +106,7 @@ function WorktreeListRowComponent({
           >
             {item.displayName || item.repo}
           </Text>
-          {item.linkedPR && (
+          {cardDetails.pr && item.linkedPR && (
             <View style={styles.prBadge}>
               <GitPullRequest size={10} color={prStateColor(item.linkedPR.state)} />
               <Text style={[styles.prNumber, { color: prStateColor(item.linkedPR.state) }]}>
@@ -110,13 +119,7 @@ function WorktreeListRowComponent({
               <Text style={styles.folderBadgeText}>Folder</Text>
             </View>
           )}
-          <WorktreeMetaGlyphs
-            comment={item.comment}
-            linkedLinearIssue={item.linkedLinearIssue}
-            linkedGitLabMR={item.linkedGitLabMR}
-            linkedIssue={item.linkedIssue}
-            linkedGitLabIssue={item.linkedGitLabIssue}
-          />
+          <WorktreeMetaGlyphs presence={getWorktreeMetaGlyphPresence(item, cardDetails)} />
         </View>
         <View style={styles.worktreeMetaRow}>
           {lineageDepth > 0 && (
@@ -125,7 +128,7 @@ function WorktreeListRowComponent({
               <Text style={styles.childBadgeText}>Child</Text>
             </View>
           )}
-          {item.hostContextLabel ? (
+          {cardDetails.host && item.hostContextLabel ? (
             <View
               style={[styles.childBadge, styles.hostBadge]}
               accessibilityLabel={[item.hostContextLabel, item.hostContextHealthLabel]
@@ -147,7 +150,7 @@ function WorktreeListRowComponent({
           {/* Repo glyph+name only when not already grouped under this repo;
               MobileRepoIcon falls back to a Folder (matching desktop's default)
               rather than a bare colored dot. */}
-          {!hideRepo && (
+          {!shouldHideRepo && (
             <>
               <MobileRepoIcon repoIcon={repoIcon} size={11} color={repoColor} />
               <Text style={styles.repoName} numberOfLines={1}>
@@ -161,8 +164,13 @@ function WorktreeListRowComponent({
         </View>
         {/* Only agents get a secondary activity line, matching desktop. A plain
             terminal's shell-output tail is intentionally not surfaced here. */}
-        {item.agents && item.agents.length > 0 ? (
-          <WorktreeAgentList agents={item.agents} now={now} unvisited={item.unread} />
+        {cardDetails.inlineAgents && item.agents && item.agents.length > 0 ? (
+          <WorktreeAgentList
+            agents={item.agents}
+            now={now}
+            unvisited={item.unread}
+            fullList={agentActivityDisplayMode === 'full'}
+          />
         ) : null}
         {lineageChildCount > 0 && onToggleLineage ? (
           <Pressable
@@ -285,7 +293,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     fontFamily: typography.monoFamily,
-    flexShrink: 1
+    // Why: path takes only leftover space so badges truncate last.
+    flex: 1
   },
   childBadge: {
     flexDirection: 'row',

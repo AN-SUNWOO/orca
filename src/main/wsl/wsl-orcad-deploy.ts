@@ -23,7 +23,7 @@ import {
 } from '../ssh/orcad-managed-runtime-context'
 import { isWaitingOrcadUpdateDeferral } from '../ssh/orcad-managed-auto-update'
 import { pruneManagedOrcadVersions } from '../ssh/orcad-managed-version-gc'
-import { wakeStoppedManagedOrcad } from '../ssh/orcad-managed-wake'
+import { wakeAlreadyActiveOrcad } from '../ssh/orcad-already-active-wake'
 import { resolveOrcadRemoteContext } from '../ssh/orcad-remote-context'
 import { deployOrcad } from '../ssh/orcad-remote-deploy'
 import { ORCAD_PID_FILENAME } from '../ssh/orcad-remote-launch'
@@ -194,11 +194,8 @@ async function launchOverTransport(
     return { outcome: 'deferred', distro: name, ...deferredUpdate }
   }
   if (deployed.outcome === 'already-active') {
-    // A stopped distro ended the active slot with it; start it again only on proven exit.
-    const wake = await wakeStoppedManagedOrcad(slot)
-    if (wake.outcome === 'recovery-refused') {
-      throw new Error(wake.reason)
-    }
+    // A stopped distro ended the active slot with it.
+    await wakeAlreadyActiveOrcad(slot)
   }
   const readiness = await probeManagedOrcadReadiness(
     context,

@@ -719,7 +719,7 @@ export class HostSessionRegistry {
 
   // A director names this seat the loser of a duplicate: stop taking phones for it now, and
   // close it once its splices have had time to finish. Repeats are one demotion.
-  demote(request: DemoteRequest): 'demoted' | 'already-demoted' | 'not-seated' | 'off' {
+  demote(request: DemoteRequest): 'demoted' | 'already-demoted' | 'draining' | 'not-seated' | 'off' {
     // Only a reserve-mode cell takes demotions, so flipping admitMode back reverts the route.
     if (!this.reserveMode()) return 'off'
     const session = this.get(request)
@@ -735,6 +735,8 @@ export class HostSessionRegistry {
     ) {
       return 'not-seated'
     }
+    // A drain already told this host to go: its own grace stands, never cut to the demotion's.
+    if (this.drainSentHosts.has(session.relayHostId) || session.regionalDrainAttemptId) return 'draining'
     const socket = session.socket
     if (this.demotedSeats.get(key) === socket) return 'already-demoted'
     this.demotedSeats.set(key, socket)

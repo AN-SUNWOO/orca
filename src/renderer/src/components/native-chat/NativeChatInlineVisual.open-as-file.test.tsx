@@ -31,12 +31,17 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { openDocPreviewSource } from '@/components/browser-pane/workspace-doc/doc-preview-document-actions'
 import { ORCA_EDITOR_FILE_SAVED_EVENT } from '@/components/editor/editor-autosave'
 import { buildDocPreviewGrantRequest } from '@/lib/doc-preview-grants'
+import { fileArtifactSourceKey } from '@/lib/file-artifact-source-key'
 import { readRuntimeFileContent } from '@/runtime/runtime-file-read-client'
 import { writeRuntimeFile } from '@/runtime/runtime-file-mutation-client'
 import { getRemoteFileArgs } from '@/runtime/runtime-file-routing'
-import { readDocPreviewArtifactRequest } from '@/components/browser-pane/workspace-doc/doc-preview-artifact-share'
+import {
+  docPreviewGrantFileOwner,
+  readDocPreviewArtifactRequest
+} from '@/components/browser-pane/workspace-doc/doc-preview-artifact-share'
 import { useAppStore } from '@/store'
 import { makeWorktree } from '@/store/slices/worktrees-slice-test-fixtures'
+import { getDefaultSettings } from '../../../../shared/constants'
 import { FILE_MUTATION_OWNERSHIP_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
 
 const ROOT = '/home/host/.config/orca/chat-scratch/0123456789abcdef0123456789abcdef'
@@ -44,6 +49,12 @@ const PATH = `${ROOT}/usage.html`
 const ADDRESS = { worktree: `path:${ROOT}`, relativePath: 'usage.html' }
 const target = { kind: 'environment' as const, environmentId: 'env-1' }
 const visual = (revision: string, html: string) => ({ ok: true, revision, html, path: PATH })
+
+const replies: Record<string, unknown> = {
+  'files.read': { content: '<p>v1</p>', truncated: false, byteLength: 9 },
+  'artifacts.getPublishedLink': { status: 'ok', value: null },
+  'artifacts.publish': { status: 'ok', value: { change: 'created', item: { shareUrl: 'u' } } }
+}
 
 afterEach(cleanup)
 
@@ -53,9 +64,7 @@ it('previews, edits and saves a paired chat visual on its host, then shows the s
     method === 'agentSession.readVisual'
       ? new Promise((resolve) => visualReads.push(resolve))
       : Promise.resolve(
-          method === 'files.read'
-            ? { content: '<p>v1</p>', truncated: false, byteLength: 9 }
-            : { capabilities: [FILE_MUTATION_OWNERSHIP_RUNTIME_CAPABILITY] }
+          replies[method] ?? { capabilities: [FILE_MUTATION_OWNERSHIP_RUNTIME_CAPABILITY] }
         )
   )
   const [createBrowserTab, openFile] = [vi.fn(), vi.fn()]
@@ -120,5 +129,32 @@ it('previews, edits and saves a paired chat visual on its host, then shows the s
   act(() => visualReads[2](visual('r2', '<p>v2</p>')))
   await waitFor(() =>
     expect(container.querySelector('iframe')?.getAttribute('srcdoc')).toContain('<p>v2</p>')
+  )
+
+  // Share: the opened preview's key, bytes read after the click, and nothing when that read fails.
+  useAppStore.setState({
+    settings: { ...getDefaultSettings('/tmp'), artifactSharingEnabled: true },
+    orcaProfileAuthStatus: {
+      activeProfileId: 'p',
+      configured: true,
+      state: 'connected',
+      persistence: 'none'
+    }
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Share as artifact' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Generate link' }))
+  await waitFor(() => expect(visualReads).toHaveLength(4))
+  await act(async () => visualReads[3]({ ok: false, error: 'not_found' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Generate link' }))
+  await waitFor(() => expect(visualReads).toHaveLength(5))
+  act(() => visualReads[4](visual('r3', '<p>v3</p>')))
+  const published = expect.objectContaining({
+    sourceKey: grant && fileArtifactSourceKey(docPreviewGrantFileOwner(grant.owner), PATH),
+    content: '<p>v3</p>'
+  })
+  await waitFor(() =>
+    expect(callRuntimeRpc.mock.calls.filter((call) => call[1] === 'artifacts.publish')).toEqual([
+      [{ kind: 'local' }, 'artifacts.publish', published]
+    ])
   )
 })

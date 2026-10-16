@@ -6,10 +6,12 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
-import { afterAll, afterEach, beforeAll, expect, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, expect, vi } from 'vitest'
 import { build as buildVite } from 'vite'
 import { waitForBrowserCdpEndpoint } from './browser-session-ua-cdp-collector'
+import { popupFixtureHtml } from './browser-popup-compatibility-page-fixture'
 import { resolveElectronProbeLaunch } from './electron-probe-display-launch'
+import { startHiddenRendererFrameCapture } from './hidden-renderer-frame-capture-fixture'
 
 // Hidden renderer startup and CDP events can exceed the default one-second poll on CI.
 vi.setConfig({ expect: { poll: { timeout: 10_000 } } })
@@ -35,6 +37,7 @@ export let browser: Browser | null = null
 export let origin = ''
 let stderr = ''
 const pages = new Map<string, Page>()
+const stopFrameCaptures = new Map<Page, () => Promise<void>>()
 const statusPath = join(root, 'status.json')
 export const artifactDir = process.env.ORCA_POPUP_FIXTURE_ARTIFACT_DIR
 export const snapshots: ReturnType<typeof status>[] = []
@@ -77,25 +80,12 @@ export function status(): {
   return JSON.parse(readFileSync(statusPath, 'utf8'))
 }
 
-function fixtureHtml(): string {
-  return `<!doctype html><meta name="referrer" content="strict-origin-when-cross-origin"><body>
-    <button id="oauth" onclick="window.popup=window.open('/authorize?client_id=synthetic&amp;redirect_uri=${origin}/callback&amp;response_type=code');document.body.dataset.handle=String(!!window.popup)">OAuth</button>
-    <button id="blank" onclick="window.popup=window.open('about:blank#state');document.body.dataset.handle=String(!!window.popup);if(window.popup)window.popup.eval(&quot;window.opener.postMessage('blank:'+document.cookie,'*')&quot;)">Blank</button>
-    <button id="invalid" onclick="window.popup=window.open('about:blank?state=synthetic');document.body.dataset.handle=String(!!window.popup)">Invalid</button>
-    <button id="burst" onclick="window.handles=Array.from({length:5},()=>window.open('about:blank'));document.body.dataset.handles=JSON.stringify(window.handles.map(Boolean))">Burst</button>
-    <button id="stale" onclick="document.body.dataset.handle='waiting';setTimeout(()=>{window.popup=window.open('about:blank');document.body.dataset.handle=String(!!window.popup)},1100)">Stale</button>
-    <form method="post" target="_blank" action="/post"><input name="code" value="synthetic+value"><button id="post">POST</button></form>
-    <form method="post" target="_blank" action="/multipart" enctype="multipart/form-data"><input name="code" value="synthetic-multipart"><button id="multipart">Multipart</button></form>
-    <form method="post" target="_blank" action="/empty"><button id="empty">Empty POST</button></form>
-    <a id="link" href="/docs" target="_blank">Docs</a>
-    <a id="oauth-link" href="/authorize-link?client_id=synthetic&amp;redirect_uri=${origin}/callback&amp;response_type=code" target="_blank">OAuth link</a>
-    <a id="background" href="/background">Background</a>
-    <a id="shift" href="/shift">Popup link</a>
-    <script>window.addEventListener('message',event=>document.body.dataset.message=event.data)</script>
-  </body>`
-}
-
+const cdpConnected = Promise.withResolvers<void>()
 const server = createServer((request, response) => {
+  if (request.url === '/fixture-cdp-connected') {
+    void cdpConnected.promise.then(() => response.writeHead(204).end())
+    return
+  }
   const chunks: Buffer[] = []
   request.on('data', (chunk: Buffer) => chunks.push(chunk))
   request.on('end', () => {
@@ -127,7 +117,7 @@ const server = createServer((request, response) => {
     response.setHeader('Content-Type', 'text/html')
     response.end(
       ['/local', '/route', '/local-control', '/route-control'].includes(path)
-        ? fixtureHtml()
+        ? popupFixtureHtml(origin)
         : `<title>Hostile synthetic title</title><body>${path}<script>if(window.opener)window.opener.postMessage('callback:'+document.cookie,'*')</script></body>`
     )
   })
@@ -213,6 +203,7 @@ beforeAll(async () => {
   })
   await waitForBrowserCdpEndpoint(cdpPort)
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`)
+  cdpConnected.resolve()
   await waitForFixture(() => {
     if (!existsSync(statusPath)) {
       return false
@@ -246,6 +237,17 @@ beforeAll(async () => {
   }
 }, 60_000)
 
+beforeEach(async () => {
+  for (const page of pages.values()) {
+    if (!stopFrameCaptures.has(page)) {
+      stopFrameCaptures.set(
+        page,
+        await startHiddenRendererFrameCapture(page, (hasFrame) => expect.poll(hasFrame).toBe(true))
+      )
+    }
+  }
+})
+
 afterEach(async () => {
   const route = pages.get('route')
   if (route && !route.isClosed()) {
@@ -258,6 +260,8 @@ afterEach(async () => {
 })
 
 afterAll(async () => {
+  cdpConnected.resolve()
+  await Promise.allSettled([...stopFrameCaptures.values()].map((stop) => stop()))
   if (artifactDir && existsSync(statusPath)) {
     mkdirSync(artifactDir, { recursive: true })
     writeFileSync(

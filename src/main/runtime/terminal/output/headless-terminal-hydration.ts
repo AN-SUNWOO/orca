@@ -12,6 +12,7 @@ import { shouldModelAnswerHiddenPtyQueries } from '../../terminal-model-query-au
 
 export abstract class OrcaRuntimeWithMaybeHydrateHeadlessFromRenderer extends OrcaRuntimeWithSerializeMainTerminalBuffer {
   protected abstract getOrCreateHeadlessTerminal(ptyId: string): RuntimeHeadlessTerminal
+  protected abstract markPaneLiveTitlesDirty(): void
 
   // Why: hydrate the runtime headless emulator from the desktop renderer's
   // xterm buffer on the first onPtyData byte after a PTY is taken over by a
@@ -160,6 +161,7 @@ export abstract class OrcaRuntimeWithMaybeHydrateHeadlessFromRenderer extends Or
         leaf.lastAgentStatus = status
       }
     }
+    this.markPaneLiveTitlesDirty()
   }
 
   /** Per-chunk reply-ownership capture (Phase 5). Evaluated synchronously at

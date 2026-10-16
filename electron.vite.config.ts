@@ -66,6 +66,12 @@ const ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL =
     ? JSON.stringify(orcaDiagnosticsTokenUrl)
     : 'null'
 
+// Why: the dark layout-owner path (src/shared/layout-owner-switch.ts) is compiled in only for a
+// build that asks for it; every other build substitutes 'window', so its branches fold away.
+const ORCA_LAYOUT_OWNER_LITERAL = JSON.stringify(
+  process.env.ORCA_LAYOUT_OWNER === 'main' ? 'main' : 'window'
+)
+
 // Why: official skill installs pin to the commit the build came from, so they match the
 // bundled skills on every channel. Main runs the installer; the renderer prints the command.
 const ORCA_BUILD_COMMIT_LITERAL = JSON.stringify(resolveBuildSourceCommit())
@@ -253,7 +259,8 @@ export const electronViteConfig: UserConfig = {
       ORCA_BUILD_IDENTITY: ORCA_BUILD_IDENTITY_LITERAL,
       ORCA_POSTHOG_WRITE_KEY: ORCA_POSTHOG_WRITE_KEY_LITERAL,
       ORCA_DIAGNOSTICS_TOKEN_URL: ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL,
-      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL
+      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL,
+      ORCA_LAYOUT_OWNER: ORCA_LAYOUT_OWNER_LITERAL
     },
     // Why: @xterm/headless declares "exports": null in package.json, which
     // prevents Vite's default resolver from finding the CJS entry. Point
@@ -276,7 +283,8 @@ export const electronViteConfig: UserConfig = {
   },
   renderer: {
     define: {
-      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL
+      ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL,
+      ORCA_LAYOUT_OWNER: ORCA_LAYOUT_OWNER_LITERAL
     },
     resolve: {
       alias: {

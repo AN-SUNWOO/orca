@@ -4,8 +4,6 @@ import {
   FLOATING_TERMINAL_WORKTREE_ID,
   MOCK_GIT_WORKTREES,
   OrcaRuntimeService,
-  RpcDispatcher,
-  TERMINAL_METHODS,
   addSparseWorktree,
   addWorktree,
   computeWorktreePathMock,
@@ -17,6 +15,7 @@ import {
   tmpdir,
   writeFile
 } from '../orca-runtime-test-mocks.spec'
+import { RpcDispatcher, TERMINAL_METHODS } from '../orca-runtime-test-mocks/terminal-rpc.spec'
 import type { WorktreeMeta } from '../orca-runtime-test-mocks.spec'
 import {
   TEST_FOLDER_WORKSPACE_KEY,

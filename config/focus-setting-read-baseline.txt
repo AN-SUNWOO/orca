@@ -189,7 +189,7 @@
 1 src/renderer/src/components/sidebar/workspace-reference-refresh-targets.ts
 1 src/renderer/src/components/sidebar/worktree-card-secondary-rows.tsx
 1 src/renderer/src/components/sidebar/worktree-filter-visibility.ts
-2 src/renderer/src/components/sidebar/worktree-list/listing/use-filters.ts
+1 src/renderer/src/components/sidebar/worktree-list/listing/use-filters.ts
 1 src/renderer/src/components/sidebar/worktree-list/listing/use-section-rows.ts
 1 src/renderer/src/components/sidebar/worktree-list/rows/ProjectGroupDialogs.tsx
 1 src/renderer/src/components/sidebar/worktree-visibility-host-target.ts

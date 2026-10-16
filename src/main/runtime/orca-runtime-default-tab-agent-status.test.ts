@@ -32,7 +32,7 @@ class DefaultTabRuntime extends OrcaRuntimeService {
     super(store)
   }
 
-  protected override async resolveTerminalWorkspaceLaunchScope(): Promise<TerminalWorkspaceLaunchScope> {
+  override async resolveTerminalWorkspaceLaunchScope(): Promise<TerminalWorkspaceLaunchScope> {
     return {
       id: WORKTREE_ID,
       path: '/repo/app',

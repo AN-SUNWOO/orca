@@ -7,7 +7,7 @@ import { closeTestStores, createStore, testState } from '../../persistence-test-
 import type { Store } from '../../persistence'
 import type { Repo } from '../../../shared/repo-types'
 import { wslMoveCutoverFixture as cutover } from '../../persistence/__fixtures__/wsl-mover/wsl-move-cutover-fixture'
-import { writeWslMoveCutover } from '../../persistence/moving-wsl-projects/wsl-move-cutover-journal'
+import { seedWslMoveCutover } from '../../persistence/__fixtures__/wsl-mover/wsl-move-journal-seeding'
 import {
   WslMoveProjectFencedError,
   loadWslMoveFence,
@@ -74,7 +74,7 @@ describe('folderWorkspaces:update under a WSL move', () => {
       createdFrom: 'folder-scan'
     })
     const workspace = store.createFolderWorkspace({ projectGroupId: group.id, name: 'notes' })
-    writeWslMoveCutover(
+    seedWslMoveCutover(
       testState.dir,
       cutover('move-1', 'source-fenced', {}, { folderWorkspaceIds: [workspace.id] })
     )
@@ -111,7 +111,7 @@ describe('projects:update under a WSL move', () => {
   it('refuses a runtime preference change when a source repo is moving', async () => {
     store.addRepo(repo('repo-1'))
     store.addRepo(repo('repo-2'))
-    writeWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
+    seedWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
     registerRepoCatalogHandlers(new BrowserWindow(), store)
     const projectFor = (repoId: string) =>
       store.getProjects().find((project) => project.sourceRepoIds.includes(repoId))
@@ -129,7 +129,7 @@ describe('projects:update under a WSL move', () => {
 describe('RuntimeRepositorySettingsController under a WSL move', () => {
   it('refuses a settings edit to a moving repo and writes nothing', async () => {
     store.addRepo(repo('repo-1'))
-    writeWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
+    seedWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
     const notifyReposChanged = vi.fn()
     const controller = new RuntimeRepositorySettingsController({
       getStore: () => store,

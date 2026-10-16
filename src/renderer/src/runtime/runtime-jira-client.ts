@@ -55,6 +55,7 @@ export {
   jiraSearchUsers
 } from './runtime-jira-user-fields-client'
 export { jiraStatusForTarget } from './runtime-jira-project-client'
+export { jiraListFavouriteFiltersForTarget } from './runtime-jira-favourite-filters-client'
 export type { RuntimeJiraSettings } from './runtime-jira-target'
 
 export type JiraConnectResult = { ok: true; viewer: JiraViewer } | { ok: false; error: string }

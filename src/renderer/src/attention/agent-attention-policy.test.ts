@@ -18,6 +18,7 @@ function makeSurface(overrides: Partial<AgentAttentionSurface> = {}): AgentAtten
     isSurfaceViewed: () => false,
     isWorkspaceViewed: () => false,
     isWorkspaceActive: () => false,
+    isWorkspaceMuted: () => false,
     resolveViewedSubjectKey: () => null,
     ...overrides
   }
@@ -46,6 +47,19 @@ function makeSink(): AgentAttentionSink & { calls: string[] } {
 }
 
 describe('resolveAgentAttention', () => {
+  it('rejects a muted workspace before any other gate, so it earns no unread or delivery', () => {
+    const hasLiveSession = vi.fn(() => true)
+    const decision = resolveAgentAttention(
+      completion(),
+      makeSurface({ isWorkspaceMuted: () => true, hasLiveSession })
+    )
+    expect(decision).toEqual({ admitted: false, cause: 'muted-workspace' })
+    expect(hasLiveSession).not.toHaveBeenCalled()
+    const sink = makeSink()
+    applyAgentAttention(decision, sink)
+    expect(sink.calls).toEqual([])
+  })
+
   it('rejects a subject with no live session and no fresh activity evidence', () => {
     const decision = resolveAgentAttention(
       completion(),

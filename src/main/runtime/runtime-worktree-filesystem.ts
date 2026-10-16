@@ -18,6 +18,7 @@ import {
   mergeRuntimeFolderWorkspace
 } from './runtime-folder-workspace'
 import type { RuntimeStore } from './runtime-store-contract'
+import { isWslMoveRepoBlocked } from '../persistence/moving-wsl-projects/wsl-move-background-backoff'
 
 /** Callers hold a local removal route; an `ssh:` or `runtime:` host is refused before this. */
 export async function isLocalRuntimeWorktreePathMissing(
@@ -44,6 +45,8 @@ export function listRuntimeFolderWorkspaces(
   const rootId = getRuntimeFolderWorkspaceRootId(repo)
   const allMeta = store.getAllWorktreeMeta()
   const expectedHostId = getRepoExecutionHostId(repo)
+  // A project a WSL move is taking still lists, without stamping identities it lacks.
+  const canWrite = !isWslMoveRepoBlocked(repo)
   const ids = Object.keys(allMeta).filter(
     (worktreeId) =>
       isRuntimeFolderWorkspaceIdForRepo(repo, worktreeId) &&
@@ -58,12 +61,12 @@ export function listRuntimeFolderWorkspaces(
     const existing = getRepoOwnedWorktreeMeta(repo, worktreeId, allMeta, repoOwnerCount)
     const meta: Partial<WorktreeMeta> = existing?.instanceId
       ? existing
-      : existing || repoOwnerCount === 1
+      : canWrite && (existing || repoOwnerCount === 1)
         ? store.setWorktreeMeta(worktreeId, {
             instanceId: getRuntimeFolderWorkspaceInstanceIdentity(repo, worktreeId),
             ...(existing ? {} : { displayName: repo.displayName, lastActivityAt: Date.now() })
           })
-        : {}
+        : (existing ?? {})
     return {
       ...mergeRuntimeFolderWorkspace(repo, worktreeId, meta),
       hostId: repoOwnerCount === 1 ? (meta.hostId ?? expectedHostId) : expectedHostId

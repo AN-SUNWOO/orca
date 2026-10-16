@@ -216,6 +216,37 @@ describe('useNativeChatComposerPaste', () => {
     expect(store.chips).toHaveLength(0)
   })
 
+  it.each(['event', 'menu'] as const)(
+    'saves a clipboard image on the server whose host runs the agent via %s paste (#27997)',
+    async (source) => {
+      mocks.saveClipboardImageAsTempFile.mockResolvedValue('/tmp/remote.png')
+      const store = createChipStore()
+      const owner = { kind: 'remote', clipboardImageEnvironmentId: 'env-1' } as const
+      const probe = await renderProbe({ resolveAttachmentOwner: () => owner, store })
+      await act(async () =>
+        source === 'event'
+          ? probe.latest().handlePaste(imagePasteEvent())
+          : probe.latest().pasteFromClipboard()
+      )
+      expect(mocks.saveClipboardImageAsTempFile).toHaveBeenCalledWith({
+        runtimeEnvironmentId: 'env-1'
+      })
+      expect(store.chips).toEqual([expect.objectContaining({ path: '/tmp/remote.png' })])
+    }
+  )
+
+  it('rejects a remote image saved before the chat moved to another server', async () => {
+    let owner: NativeChatAttachmentOwner = { kind: 'remote', clipboardImageEnvironmentId: 'env-1' }
+    let resolveSave: (path: string) => void = () => {}
+    mocks.saveClipboardImageAsTempFile.mockReturnValue(new Promise((r) => (resolveSave = r)))
+    const store = createChipStore()
+    const probe = await renderProbe({ resolveAttachmentOwner: () => owner, store })
+    await act(async () => probe.latest().handlePaste(imagePasteEvent()))
+    owner = { kind: 'remote', clipboardImageEnvironmentId: 'env-2' }
+    await act(async () => resolveSave('/tmp/remote.png'))
+    expect(store.chips).toHaveLength(0)
+  })
+
   it('surfaces a failed image save through the composer notice', async () => {
     mocks.saveClipboardImageAsTempFile.mockRejectedValue(new Error('Disk full.'))
     const store = createChipStore()

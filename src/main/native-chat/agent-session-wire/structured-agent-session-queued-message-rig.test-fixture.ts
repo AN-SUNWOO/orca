@@ -11,11 +11,15 @@ import { agentSessionFailureWords } from '../../../shared/agent-session-failure-
 import { computeAgentSessionPayloadFingerprint } from '../../../shared/agent-session-mutation-envelope'
 import type { AgentJournalSubmission } from '../../../shared/agent-session-journal-types'
 import type { AgentSessionQueuePause } from '../../../shared/agent-session-wire'
+import type { AgentSessionExecutionLocation } from '../../../shared/agent-session-record'
 import type { AgentMessageSource } from '../../../shared/agent-session-message-source'
 import { agentSessionMessagePayload } from '../../../shared/structured-agent-session-send-mutation'
 import { openTestAgentSessionRecordStore } from '../../runtime/agent-session-record-store-test-harness'
 import { AgentSessionRecoveryCapsule } from '../../runtime/agent-session-recovery-capsule'
-import { StructuredAgentSessionHost } from './structured-agent-session-host'
+import {
+  StructuredAgentSessionHost,
+  type StructuredAgentSessionHostDeps
+} from './structured-agent-session-host'
 import { rotateStructuredAgentSessionHostInstanceForTests } from './structured-agent-session-queued-pause'
 import {
   HOST_TEST_NOW as NOW,
@@ -54,6 +58,10 @@ export async function createQueuedMessageTestRig(
     idleSweep?: { idleMs: number; intervalMs: number }
     /** Teardown records its restart offers, which `restartOffers` lists. */
     recoveryCapsule?: true
+    /** Where the chat runs, when not the default worktree. */
+    location?: AgentSessionExecutionLocation
+    /** How the host probes a recorded owner; absent answers indeterminate. */
+    probeOwner?: StructuredAgentSessionHostDeps['probeOwner']
   } = {}
 ) {
   const root = await mkdtemp(join(tmpdir(), 'orca-queued-messages-'))
@@ -71,13 +79,16 @@ export async function createQueuedMessageTestRig(
       claimKeyId: 'key-1',
       mintSpawnToken: () => 'spawn-1',
       now: () => NOW,
+      ...(options.probeOwner ? { probeOwner: options.probeOwner } : {}),
       ...(options.idleSweep ? { idleSweep: options.idleSweep } : {}),
       ...(options.recoveryCapsule ? { recoveryCapsule: new AgentSessionRecoveryCapsule(root) } : {})
     })
   let host = makeHost()
-  expect(await host.attach(QUEUED_RIG_CALLER, hostTestAttachParams(null))).toMatchObject({
-    ok: true
-  })
+  const firstAttach = hostTestAttachParams(
+    null,
+    options.location ? { location: options.location } : {}
+  )
+  expect(await host.attach(QUEUED_RIG_CALLER, firstAttach)).toMatchObject({ ok: true })
 
   function envelope(
     fields: Record<string, unknown>,

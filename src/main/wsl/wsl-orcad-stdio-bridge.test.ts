@@ -90,7 +90,7 @@ describe('listenWslOrcadStdioBridge (real listener, fake wsl.exe echo children)'
     expect(children.commands).toHaveLength(3)
     expect(children.live()).toBe(2)
     for (const command of children.commands) {
-      expect(command).toContain("'.orca-remote/runtimes'/node-*/bin/node")
+      expect(command).toContain("'.orca-remote/runtimes/node-'*'/bin/node'")
       expect(command).toContain(` ${echo.port}; fi; done;`)
     }
   })

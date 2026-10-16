@@ -152,4 +152,50 @@ describe('startRuntimeLocalWorktreeTerminals default shell seeding', () => {
       expect(createTerminal).toHaveBeenCalledWith(`id:${worktree.id}`, { surfaceOwner: false })
     }
   })
+
+  it('hands failed startup and defaults to renderer before host provisioning', async () => {
+    const { ports, createTerminal } = createPorts()
+    createTerminal.mockRejectedValueOnce(new Error('pty unavailable'))
+    const setup = { runnerScriptPath: '/repo/setup.sh', envVars: {} }
+    const startup = { command: 'codex' }
+    const defaultTabs = {
+      runCommands: true,
+      tabs: [{ title: 'Dev', command: 'pnpm dev' }]
+    }
+    await startRuntimeLocalWorktreeTerminals({
+      request: {
+        repoSelector: repo.id,
+        name: 'recover',
+        activate: true,
+        awaitTerminalProvisioning: true
+      },
+      repo,
+      worktree,
+      startup,
+      setup,
+      defaultTabs,
+      ports
+    })
+    expect(ports.provision).not.toHaveBeenCalled()
+    expect(ports.activate).toHaveBeenCalledWith(repo.id, worktree.id, startup, setup, defaultTabs)
+    expect(createTerminal).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not treat agent attribution alone as a promised chat on activation', async () => {
+    const { ports } = createPorts()
+    await startRuntimeLocalWorktreeTerminals({
+      request: { repoSelector: repo.id, name: 'attributed', activate: true },
+      repo,
+      worktree,
+      createdWithAgent: 'codex',
+      ports
+    })
+    expect(ports.activate).toHaveBeenCalledWith(
+      repo.id,
+      worktree.id,
+      undefined,
+      undefined,
+      undefined
+    )
+  })
 })

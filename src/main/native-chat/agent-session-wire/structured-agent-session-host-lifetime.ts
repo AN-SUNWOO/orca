@@ -49,6 +49,8 @@ export type StructuredAgentSessionLifetimeContext = {
   now: () => number
   /** Re-projects the session's status after its agent stopped and the chat stays. */
   publishStatus?: (sessionId: string) => void
+  /** A generation ended (`StructuredAgentSessionClientDelivery.publishGenerationEnded`). */
+  generationEnded?: (sessionId: string) => void
   /** Hands the delivery loop what is queued; for a caller inside the session's serialize. */
   wakeDelivery?: (sessionId: string) => void
   /** The one exit handler (`structured-agent-session-child-exit`), for a caller inside the
@@ -195,6 +197,7 @@ export async function stopStructuredAgentSessionAgentUnderSerialize(
         journal: session.journal,
         sessionId,
         fence: child.fence,
+        rowFence: Math.max(child.fence, record?.lease.runtimeFence ?? child.fence),
         generation: child.generation ?? 'unknown',
         turnItemId: quitCuts,
         trigger: ending.quit,

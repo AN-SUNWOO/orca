@@ -27,7 +27,6 @@ import {
 import {
   agentLaunchPlatformForScope,
   agentLaunchProjectRuntime,
-  openCodeModelCheckPlatform,
   resolveAgentLaunchRuntime
 } from './agent-launch-scope-runtime'
 import { resolveQoderTerminalCommand } from './qoder-terminal-command-resolution'
@@ -182,9 +181,6 @@ async function buildRuntimeAgentTerminalStartupOptions(
       shell: agentLaunchQuotingShell(runtime),
       sessionOptions: host.toSessionOptions(opts.launchPreferences)
     }),
-    ...(host.store
-      ? { modelCheckPlatform: openCodeModelCheckPlatform(host.store, workspace, runtime.platform) }
-      : {}),
     prompt: opts.startupPrompt ?? '',
     cwd: resolveTerminalStartupCwd(workspace.path, opts.cwd) ?? workspace.path,
     hostIdentity: host.hostIdentity,

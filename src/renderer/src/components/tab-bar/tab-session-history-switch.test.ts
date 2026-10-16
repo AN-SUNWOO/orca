@@ -46,7 +46,10 @@ vi.mock('@/runtime/local-runtime-capabilities', async (importOriginal) => ({
 vi.mock('@/runtime/host-structured-agents', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   readHostStructuredAgents: () =>
-    ['claude', 'codex', 'grok', 'omp', 'opencode', 'pi'].map((agent) => ({ agent, capabilities: {} }))
+    ['claude', 'codex', 'grok', 'omp', 'opencode', 'pi'].map((agent) => ({
+      agent,
+      capabilities: {}
+    }))
 }))
 vi.mock('@/lib/renderer-app-platform', () => ({ getRendererAppPlatform: () => mocks.platform }))
 
@@ -192,24 +195,15 @@ describe('resolveTabSessionHistorySubject', () => {
     ).toEqual({ ...chatSubject })
   })
 
-  it('finds a chat of any agent whose CLI can open a copy', () => {
-    expect(
-      resolveTabSessionHistorySubject(makeState(), {
-        tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
-        nativeChat: { sessionId: 'orca-chat-1', agent: 'grok' }
-      })
-    ).toEqual({ ...chatSubject })
-  })
-
-  it.each(['opencode', 'omp'] as const)(
-    'skips a %s chat, whose CLI cannot open a copy',
+  it.each(['grok', 'opencode', 'omp'] as const)(
+    'finds a %s chat, whose conversation can be copied to its CLI',
     (agent) => {
       expect(
         resolveTabSessionHistorySubject(makeState(), {
           tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
           nativeChat: { sessionId: 'orca-chat-1', agent }
         })
-      ).toBeNull()
+      ).toEqual({ ...chatSubject })
     }
   )
 

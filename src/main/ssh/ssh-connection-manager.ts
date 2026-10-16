@@ -50,7 +50,9 @@ export class SshConnectionManager {
       throw createSshCredentialDeclinedError(target.label)
     }
 
-    if (this.connectingTargets.has(target.id)) {
+    // Why: replacing a connection whose own reconnect is asking the user would close that dialog
+    // and open another one.
+    if (this.connectingTargets.has(target.id) || existing?.isAwaitingCredential()) {
       throw new Error(`Connection to ${target.label} is already in progress`)
     }
 
@@ -161,6 +163,17 @@ export class SshConnectionManager {
       return
     }
     await conn.reconnect()
+  }
+
+  /** Restarts every reconnect stalled on a backoff, a spent ladder, or a pre-wake handshake. */
+  retryStalledReconnects(): string[] {
+    const restarted: string[] = []
+    for (const [targetId, conn] of this.connections) {
+      if (conn.retryAfterNetworkReturn()) {
+        restarted.push(targetId)
+      }
+    }
+    return restarted
   }
 
   getConnection(targetId: string): SshConnection | undefined {

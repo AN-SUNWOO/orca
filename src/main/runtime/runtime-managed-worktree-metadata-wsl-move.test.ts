@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { closeTestStores, createStore, testState } from '../persistence-test-harness'
 import type { Store } from '../persistence'
 import { wslMoveCutoverFixture as cutover } from '../persistence/__fixtures__/wsl-mover/wsl-move-cutover-fixture'
-import { writeWslMoveCutover } from '../persistence/moving-wsl-projects/wsl-move-cutover-journal'
+import { seedWslMoveCutover } from '../persistence/__fixtures__/wsl-mover/wsl-move-journal-seeding'
 import {
   WslMoveProjectFencedError,
   loadWslMoveFence,
@@ -71,7 +71,7 @@ beforeEach(() => {
   testState.dir = mkdtempSync(join(tmpdir(), 'wsl-move-meta-'))
   store = createStore()
   loadWslMoveFence(testState.dir)
-  writeWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
+  seedWslMoveCutover(testState.dir, cutover('move-1', 'source-fenced'))
 })
 afterEach(async () => {
   resetWslMoveFenceForTests()

@@ -287,6 +287,22 @@ describe('backing out a conversion whose server is registered but never committe
     expect(listOrcadMigrationSourceCutovers(userDataPath)).toHaveLength(1)
   })
 
+  it('finishes the same move on a later attempt once the server answers again', async () => {
+    destination.commit.mockRejectedValueOnce(new Error('socket closed'))
+    await expect(convert()).rejects.toThrow()
+    destination.readState.mockRejectedValueOnce(new Error('socket closed'))
+    await expect(abandon()).rejects.toThrow('socket closed')
+    const [held] = listOrcadMigrationSourceCutovers(userDataPath)
+    expect(store.getSshTarget(TARGET.id)?.orcadFence).toBeDefined()
+
+    await expect(convert()).resolves.toMatchObject({
+      outcome: 'converted',
+      migrationId: held!.migrationId
+    })
+    expect(destination.commits).toBe(1)
+    expect(listEnvironments(userDataPath)).toHaveLength(1)
+  })
+
   it('clears a stale journal a stopped server left, so the host converts again', async () => {
     await expect(convert()).resolves.toMatchObject({ outcome: 'converted' })
     // A stopped server from a build that left its journal behind.

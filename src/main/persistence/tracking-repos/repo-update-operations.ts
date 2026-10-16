@@ -69,7 +69,7 @@ function assertKindChangeHidesNoWorkspaces(
   throw new Error(
     nextKind === 'git'
       ? `This folder project has ${count} other workspace${plural} that a Git project can't show, so its type was not changed. Delete ${them} first, or keep it as a folder project.`
-      : `This Git project has ${count} workspace${plural} besides its main folder with saved tabs or details that a folder project can't show, so its type was not changed. Delete ${them} first, or keep it as a Git project.`
+      : `This Git project has ${count} other worktree${plural} that a folder project can't show, so its type was not changed. Delete ${count === 1 ? 'that worktree' : 'those worktrees'} first, or keep it as a Git project.`
   )
 }
 

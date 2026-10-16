@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Repo } from '../../../shared/repo-types'
-import { getDefaultWorkspaceSession } from '../../../shared/constants'
 import { RepoUpdatePersistenceOperations } from './repo-update-operations'
 
 function makeRepo(overrides: Partial<Repo> & Pick<Repo, 'id'>): Repo {
@@ -15,7 +14,7 @@ function makeRepo(overrides: Partial<Repo> & Pick<Repo, 'id'>): Repo {
 }
 
 function makeOperations(repos: Repo[]) {
-  const state = { repos, projectGroups: [], worktreeMeta: {}, workspaceSession: getDefaultWorkspaceSession() }
+  const state = { repos, projectGroups: [], worktreeMeta: {} }
   const scheduleSave = vi.fn()
   const operations = new RepoUpdatePersistenceOperations({
     state,

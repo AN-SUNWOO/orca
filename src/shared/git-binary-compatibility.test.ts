@@ -26,10 +26,6 @@ import {
 } from './git-object-quarantine'
 import { isForEachRefExcludeUnsupportedError } from './git-ref-command-capabilities'
 import { isNoWriteFetchHeadUnsupportedError } from './git-fetch-head-capability'
-import {
-  hasUnsupportedRevParsePathFormatEcho,
-  isUnsupportedWorktreeListZError
-} from './git-worktree-command-capabilities'
 import { gitCredentialPromptGuardEnv } from './git-credential-prompt-env'
 import { buildGitGrepArgs } from './text-search'
 import { parseGitRemoteFetchUrls } from './git-remote-url-index'
@@ -46,7 +42,7 @@ import { encodeGitPathspecs } from './git-pathspec-stdin'
 import { GitBinaryTestFixture } from './git-binary.test-fixture'
 import { registerGitRepositoryRegistrationBinaryCompatibilityCase } from './git-repository-registration-binary-compatibility.test-cases'
 import { registerGitResolutionBinaryCompatibilityCases } from './git-resolution-binary-compatibility.test-cases'
-import { registerGitWorktreeLifecycleBinaryCompatibilityCases } from './git-worktree-lifecycle-binary-compatibility.test-cases'
+import { registerGitWorktreeBinaryCompatibilityCases } from './git-worktree-binary-compatibility.test-cases'
 
 const image = process.env.ORCA_GIT_COMPAT_IMAGE
 const binary = process.env.ORCA_GIT_COMPAT_BINARY
@@ -295,70 +291,12 @@ describeBinaryCompatibility('real Git binary compatibility', () => {
     }
   })
 
-  it('recognizes worktree-list and rev-parse compatibility boundaries', async () => {
-    await expectPreferredOrRecognizedFallback(
-      ['worktree', 'list', '--porcelain', '-z'],
-      supports(2, 36),
-      isUnsupportedWorktreeListZError
-    )
-    await expect(runGit(['worktree', 'list', '--porcelain'])).resolves.toMatchObject({
-      stdout: expect.stringContaining('worktree ')
-    })
-
-    // Why: the `prunable` porcelain annotation landed in Git 2.31 — five
-    // releases before `-z` (2.36) — so only Git <2.31 emits neither and needs
-    // Orca's path-existence fallback (issue #8389).
-    await runGit(['worktree', 'add', '-b', 'compat-stale', 'stale-wt'])
-    await rm(join(repoPath, 'stale-wt'), { recursive: true, force: true })
-    const staleList = await runGit(['worktree', 'list', '--porcelain'])
-    expect(staleList.stdout.includes('prunable')).toBe(supports(2, 31))
-
-    const preferred = await runGit([
-      'rev-parse',
-      '--path-format=absolute',
-      '--show-toplevel',
-      '--git-common-dir',
-      '--git-dir'
-    ])
-    expect(hasUnsupportedRevParsePathFormatEcho(preferred.stdout)).toBe(!supports(2, 31))
-    await expect(
-      runGit(['rev-parse', '--show-toplevel', '--git-common-dir', '--git-dir'])
-    ).resolves.toBeDefined()
-  })
-
-  registerGitWorktreeLifecycleBinaryCompatibilityCases(runGit, () => repoPath, supports)
-
-  // Why pin this: the prepared-checkout retarget bound reads these as data, and it fails closed,
-  // so a version that printed a different shape would silently stop every retarget rather than
-  // error. Built with `commit-tree` so the check leaves no ref, branch, or worktree behind.
-  it('measures retarget drift identically on every supported Git', async () => {
-    const tree = (await runGit(['rev-parse', 'HEAD^{tree}'])).stdout.trim()
-    const head = (await runGit(['rev-parse', 'HEAD'])).stdout.trim()
-    const ahead1 = (await runGit(['commit-tree', tree, '-p', head, '-m', 'drift 1'])).stdout.trim()
-    const ahead2 = (
-      await runGit(['commit-tree', tree, '-p', ahead1, '-m', 'drift 2'])
-    ).stdout.trim()
-
-    await expect(
-      runGit(['rev-list', '--count', '--max-count=101', '--end-of-options', `${head}..${ahead2}`])
-    ).resolves.toMatchObject({ stdout: '2\n' })
-    // `--max-count` must report the capped number, not the full one: the bound reads it as a
-    // ceiling, so a Git that returned the true count would reject every retarget instead.
-    await expect(
-      runGit(['rev-list', '--count', '--max-count=1', '--end-of-options', `${head}..${ahead2}`])
-    ).resolves.toMatchObject({ stdout: '1\n' })
-    await expect(
-      runGit(['rev-list', '--count', '--max-count=101', '--end-of-options', `${ahead2}..${head}`])
-    ).resolves.toMatchObject({ stdout: '0\n' })
-
-    await expect(runGit(['merge-base', '--end-of-options', head, ahead2])).resolves.toMatchObject({
-      stdout: `${head}\n`
-    })
-    // A parentless commit shares no history, which is the case the bound must reject however few
-    // commits each side carries.
-    const unrelated = (await runGit(['commit-tree', tree, '-m', 'unrelated root'])).stdout.trim()
-    await expect(runGit(['merge-base', '--end-of-options', head, unrelated])).rejects.toBeDefined()
-  })
+  registerGitWorktreeBinaryCompatibilityCases(
+    runGit,
+    () => repoPath,
+    supports,
+    expectPreferredOrRecognizedFallback
+  )
 
   // Why pin this: Orca answers "which remote has this URL" from one `git remote -v`
   // instead of one `git remote get-url` per remote. That is only equivalent if both

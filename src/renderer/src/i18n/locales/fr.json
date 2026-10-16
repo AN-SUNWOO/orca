@@ -14265,10 +14265,7 @@
             "databaseCount_other": "{{value0}} bases de données",
             "scanning": "Analyse de {{value0}}",
             "reading": "Lecture de {{value0}} fichiers",
-            "stoppedAfter": "Arrêté après {{value0}}",
-            "scanned": "{{value0}} analysés",
-            "stoppedAt": "arrêté à {{value0}}",
-            "refresh": "Actualiser"
+            "scanned": "{{value0}} analysés"
           }
         }
       },

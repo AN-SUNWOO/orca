@@ -14157,10 +14157,7 @@
             "databaseCount_other": "데이터베이스 {{value0}}개",
             "scanning": "{{value0}} 스캔 중",
             "reading": "파일 {{value0}}개 읽는 중",
-            "stoppedAfter": "{{value0}}에서 중지됨",
-            "scanned": "{{value0}} 스캔함",
-            "stoppedAt": "{{value0}}에서 중지됨",
-            "refresh": "새로 고침"
+            "scanned": "{{value0}} 스캔함"
           }
         }
       },

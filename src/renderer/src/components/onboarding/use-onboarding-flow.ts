@@ -279,6 +279,7 @@ export function useOnboardingFlow(
     currentStepId: currentStep.id,
     selectedAgent,
     yoloPermissions,
+    yoloPermissionsChosen: yoloPermissionsInteractedRef,
     theme,
     settings,
     updateSettings,

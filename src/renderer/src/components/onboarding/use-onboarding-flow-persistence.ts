@@ -28,12 +28,14 @@ function selectedAgentOrBlank(agent: TuiAgent | null): TuiAgent | 'blank' {
   return agent ?? 'blank'
 }
 
-/** Yolo mode covers chats too; like the Arguments it writes, a custom new-chat mode is kept. */
-function onboardingChatPermissionMode(
+/** Yolo mode covers chats too, once flipped in this flow; like the Arguments it writes, a custom
+ *  new-chat mode is kept. */
+export function onboardingChatPermissionSetting(
   current: AgentChatPermissionMode | undefined,
-  yolo: boolean
-): Pick<GlobalSettings, 'nativeChatPermissionMode'> {
-  return current === 'accept-edits' || current === 'auto'
+  yolo: boolean,
+  chosen: boolean
+): Partial<Pick<GlobalSettings, 'nativeChatPermissionMode'>> {
+  return !chosen || current === 'accept-edits' || current === 'auto'
     ? {}
     : { nativeChatPermissionMode: yolo ? 'full-access' : 'ask' }
 }
@@ -147,6 +149,8 @@ type PersistCurrentStepDeps = {
   currentStepId: StepId
   selectedAgent: TuiAgent | null
   yoloPermissions: boolean
+  /** Whether the person flipped Yolo mode in this flow; a replay left untouched keeps chats as set. */
+  yoloPermissionsChosen: { readonly current: boolean }
   theme: GlobalSettings['theme']
   settings: GlobalSettings | null
   updateSettings: (updates: Partial<GlobalSettings>) => Promise<void> | void
@@ -163,6 +167,7 @@ export function usePersistCurrentStep({
   currentStepId,
   selectedAgent,
   yoloPermissions,
+  yoloPermissionsChosen,
   theme,
   settings,
   updateSettings,
@@ -184,7 +189,11 @@ export function usePersistCurrentStep({
             agentDefaultArgs: settings.agentDefaultArgs,
             agentDefaultEnv: settings.agentDefaultEnv
           }),
-          ...onboardingChatPermissionMode(settings.nativeChatPermissionMode, yoloPermissions)
+          ...onboardingChatPermissionSetting(
+            settings.nativeChatPermissionMode,
+            yoloPermissions,
+            yoloPermissionsChosen.current
+          )
         })
         const choseAgent = defaultTuiAgent !== 'blank'
         const wasAlreadyChosen = onboardingChecklist.choseAgent
@@ -242,6 +251,7 @@ export function usePersistCurrentStep({
     theme,
     updateSettings,
     yoloPermissions,
+    yoloPermissionsChosen,
     setError
   ])
 }

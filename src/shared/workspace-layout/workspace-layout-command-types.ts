@@ -40,7 +40,16 @@ export type LayoutCommand =
       /** The new pane's id, when the runtime minted it before applying. */
       newLeafId?: string
     })
-  | (On & { type: 'closePane'; tabId: string; leafId: string })
+  | (On & {
+      type: 'closePane'
+      tabId: string
+      leafId: string
+      /**
+       * A user's close of one pane of a split, as the desktop's pane close: the tab's last pane is
+       * refused (closing it is a tab close).
+       */
+      userPaneClose?: true
+    })
   | (On & {
       type: 'closeTabs'
       tabIds: string[]

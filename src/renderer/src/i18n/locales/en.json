@@ -1230,6 +1230,14 @@
       "aiVaultResumeRefusal": {
         "openInChat": "This {{value0}} conversation is open in a chat. Refresh Session History to open it.",
         "ownershipUnknown": "Orca could not confirm who owns this {{value0}} conversation. Refresh Session History and try again."
+      },
+      "pendingWorktreeCreation": {
+        "checkingOutFiles": "Checking out files… {{percent}}%",
+        "provisioningVm": "Provisioning VM…",
+        "settingUpWorkspace": "Setting up your workspace…",
+        "preparingWorkspace": "Preparing workspace…",
+        "creatingWorktree": "Creating worktree…",
+        "fetchingBaseBranch": "Fetching base branch…"
       }
     },
     "hooks": {
@@ -3350,7 +3358,11 @@
               "command_label": "Command",
               "agent_toolbar_hint": "Supports /goal, skills, paths",
               "agent_footer_hint": "Multi-line prompts are fine — keep them focused.",
-              "resize_hint": "Drag corner to resize"
+              "resize_hint": "Drag corner to resize",
+              "length_over_limit": "Too long to save.",
+              "length_count": "{{value0}} / {{value1}} characters",
+              "prompt_over_host_limit": "Too long for this host. Update Orca on the host to save longer prompts.",
+              "size_count": "{{value0}} / {{value1}}"
             },
             "TerminalQuickCommandDialogFooter": {
               "2e2b958dfc": "Save",
@@ -12804,6 +12816,13 @@
           "description": "This host goes back to its managed server as it is. What the older version of Orca added or changed here is not moved; it stays only in this computer’s saved settings until they are cleaned up.",
           "cancel": "Cancel",
           "confirm": "Keep the server’s version"
+        },
+        "moveAnyway": {
+          "action": "Move anyway…",
+          "title": "Move this host anyway",
+          "description": "Orca moves this host to its managed server without the saved items below. They stay on this computer and don’t appear on the managed server. Unsaved edits are kept, never deleted.",
+          "cancel": "Cancel",
+          "confirm": "Move anyway"
         },
         "NotificationHostToggles": {
           "offCount": "{{count}} off",

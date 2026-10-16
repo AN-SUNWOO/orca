@@ -227,6 +227,12 @@ describe('ElectronServeBrowserProcess start-up', () => {
     expect(processHandle.isAvailable()).toBe(true)
   })
 
+  it('marks the launch as the orcad sidecar so the installed app hands user opens on', async () => {
+    await startProvider()
+
+    expect(spawnSpec().env?.ORCA_ORCAD_SIDECAR).toBe('1')
+  })
+
   it('keeps polling until the sidecar advertises browser.headless.v1', async () => {
     await setControl({
       capabilities: [['runtime.v1'], ['runtime.v1'], ['runtime.v1', 'browser.headless.v1']]

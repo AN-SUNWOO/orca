@@ -11,6 +11,88 @@
   },
   "gates": [
     {
+      "id": "terminal-provider.retired-macos-daemon-recovery",
+      "title": "Restart releases retired macOS daemon conversation owners across upgrades",
+      "maturity": "experimental",
+      "protection": "partial",
+      "owner": "daemon-terminal",
+      "layer": "macos-daemon-lifecycle",
+      "surfaces": [
+        "Manage Sessions Restart",
+        "agent conversation locks",
+        "legacy terminal daemons"
+      ],
+      "platforms": ["macos"],
+      "providers": ["local-daemon"],
+      "coveredPlatforms": ["macos"],
+      "coveredProviders": ["local-daemon"],
+      "coverageNotes": "Packaged GUI recovery is tested with deterministic job/process evidence and an isolated native launchd service holding a real advisory writer lock. Linux, Windows, Node/SSH hosts, WSL and mobile/relay do not execute GUI-service recovery; healthy legacy routing is unchanged.",
+      "motivatingLinks": ["https://github.com/stablyai/orca/pull/29130"],
+      "invariant": "An explicit Restart may recover same-profile GUI services with retired endpoint ownership, including older protocols, only after exact job and root identity checks. It must verify descendants exited before releasing the job. Healthy, newer, foreign-profile, starting or unverifiable owners must not be stopped. Recovery failure is logged and must not block restarting the current daemon.",
+      "oracle": "Recover an old-protocol conversation owner and require descendants to exit before the root is killed and its label released. Reject connected/unknown endpoints, present/unreadable ownership records, new processes, replaced jobs, recycled roots and failed descendant verification. Require recovery before current-session fanout, and a completed current-daemon restart if recovery fails.",
+      "commands": [
+        "ORCA_BACKGROUND_LAUNCH=1 pnpm test src/main/daemon/macos-retired-daemon-jobs.test.ts src/main/daemon/macos-retired-daemon-recovery.test.ts src/main/daemon/daemon-init-restart-sequence.test.ts src/main/daemon/terminal-descendant-shutdown.test.ts src/main/daemon/macos-daemon-launchd.test.ts"
+      ],
+      "testFiles": [
+        "src/main/daemon/macos-retired-daemon-jobs.test.ts",
+        "src/main/daemon/macos-retired-daemon-recovery.test.ts",
+        "src/main/daemon/daemon-init-restart-sequence.test.ts",
+        "src/main/daemon/terminal-descendant-shutdown.test.ts",
+        "src/main/daemon/macos-daemon-launchd.test.ts"
+      ],
+      "assertionRefs": [
+        {
+          "file": "src/main/daemon/macos-retired-daemon-recovery.test.ts",
+          "assertions": [
+            "releases retired old-protocol conversation owners before returning from Restart",
+            "never signals a root recycled during descendant teardown"
+          ]
+        },
+        {
+          "file": "src/main/daemon/daemon-init-restart-sequence.test.ts",
+          "assertions": [
+            "still restarts the current daemon when retired-daemon recovery cannot prove cleanup"
+          ]
+        }
+      ],
+      "evidenceRuns": [
+        {
+          "date": "2026-10-15",
+          "runner": "local",
+          "platform": "macos",
+          "command": "ORCA_BACKGROUND_LAUNCH=1 pnpm test src/main/daemon/macos-retired-daemon-jobs.test.ts src/main/daemon/macos-retired-daemon-recovery.test.ts src/main/daemon/daemon-init-restart-sequence.test.ts src/main/daemon/terminal-descendant-shutdown.test.ts src/main/daemon/macos-daemon-launchd.test.ts",
+          "result": "passed",
+          "durationSeconds": 2.27,
+          "summary": "79 tests passed. A separate native launchd fixture preserved its fresh service, then recovered the retired tree and released a real writer lock in 306 ms. Field recovery released 80 locks held by the previous daemon."
+        }
+      ],
+      "runtimeBudget": {
+        "p95Seconds": 5,
+        "scope": "deterministic retired-job recovery and restart contract"
+      },
+      "flakeHistory": {
+        "status": "unknown",
+        "evidence": "Focused local tests and native smoke pass; CI soak history is not yet collected."
+      },
+      "redGreenEvidence": {
+        "status": "partial",
+        "evidence": "The installed build restarted protocol 46 while a retired protocol 45 process retained 80 writer locks. The isolated native fixture now releases its real writer lock; automated baseline mutation evidence is not collected."
+      },
+      "performanceBudget": {
+        "required": true,
+        "evidence": "No startup work or periodic scans. One bounded launchctl list per explicit restart; at most 32 same-profile supported services. Only verified retired candidates invoke the existing bounded descendant verifier. Tests assert one discovery and one initial descendant capture per recovered job."
+      },
+      "promotionCriteria": [
+        "Collect 100 focused CI passes or 14 days of soak history.",
+        "Capture packaged upgrade and Restart recovery with multiple retired jobs."
+      ],
+      "knownGaps": [
+        "Full packaged GUI upgrade journey and multi-job native recovery remain uncollected.",
+        "Recovery is specific to signed-helper launchd jobs; fork-launched and already reparented processes have no equivalent retained ownership evidence."
+      ],
+      "demotionRule": "Keep experimental or demote if recovery signals an unverified owner, treats loss of contact as exit, reports success before descendant exit, adds background scanning, or lets a recovery failure block the current-daemon restart."
+    },
+    {
       "id": "agent-session.delayed-terminal-launch",
       "title": "Delayed terminal launches retain their harness preparation and recover process discovery",
       "maturity": "experimental",

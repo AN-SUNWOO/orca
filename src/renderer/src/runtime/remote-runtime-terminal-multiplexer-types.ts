@@ -193,6 +193,8 @@ export type RemoteRuntimeMultiplexedTerminalState = {
   resyncPendingSend: boolean
   resyncTimer: ReturnType<typeof setTimeout> | null
   resyncAttempts: number
+  /** Consecutive resync timeouts with no recovery frame at all. */
+  resyncUnansweredTimeouts: number
   capacityRejected: boolean
   watchdog: RemoteTerminalStreamWatchdog
 }

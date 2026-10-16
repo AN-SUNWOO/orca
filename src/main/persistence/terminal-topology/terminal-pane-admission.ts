@@ -18,6 +18,7 @@ import { nameBasedLoadContext } from '../../../shared/workspace-layout/workspace
 import { paneKeyOf } from '../../../shared/workspace-layout/workspace-layout-model'
 import { saveWorkspaceLayout } from '../../../shared/workspace-layout/workspace-layout-save'
 import { patchStoredSession } from '../../../shared/workspace-layout/workspace-layout-record-patch'
+import { followRemoteSessionAfterPaneClose } from './pane-close-remote-session'
 
 /** A new tab, or a split of an existing pane, with the ids its terminal will run under. */
 export type TerminalPaneAdmission =
@@ -64,15 +65,16 @@ export function applyCommandToSession(
   command: LayoutCommand
 ): PaneLayoutChange<LayoutApplyOutcome> {
   const loaded = loadWorkspaceLayout(hostId, session, nameBasedLoadContext())
-  return applyToSession(loaded, command, (after) =>
-    patchStoredSession(session, saveWorkspaceLayout(loaded), after)
-  )
+  return applyToSession(loaded, command, (after) => {
+    const patched = patchStoredSession(session, saveWorkspaceLayout(loaded), after)
+    return patched === session ? null : followRemoteSessionAfterPaneClose(command, session, patched)
+  })
 }
 
 function applyToSession(
   loaded: LoadedWorkspaceLayout,
   command: LayoutCommand,
-  write: (after: WorkspaceSessionState) => WorkspaceSessionState = (after) => after
+  write: (after: WorkspaceSessionState) => WorkspaceSessionState | null = (after) => after
 ): PaneLayoutChange<LayoutApplyOutcome> {
   const applied = applyLayoutCommand(loaded.layout, command, {
     mintId: randomUUID,

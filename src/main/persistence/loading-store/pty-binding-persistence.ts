@@ -24,7 +24,6 @@ import type {
 } from '../../../shared/terminal-leaf-move'
 import {
   admitPane,
-  applyLayout,
   moveLeaf,
   topologyCommitContext,
   withdrawPane,
@@ -36,8 +35,6 @@ import type {
 } from '../terminal-topology/terminal-pane-admission'
 import type {
   CommandOf,
-  LayoutApplyOutcome,
-  LayoutCommand,
   LayoutRefusalCode
 } from '../../../shared/workspace-layout/workspace-layout-command-types'
 import { findTerminalBindingConflict } from '../../../shared/workspace-layout/terminal-owner-invariants'
@@ -258,13 +255,6 @@ export class PtyBindingPersistenceOperations {
 
   private topology(): TerminalTopologyCommitContext {
     return topologyCommitContext(this[ptyBindingPersistenceOperationsContext])
-  }
-
-  /** A client's layout command (`layout.apply`); the commit module owns the write. */
-  applyLayoutCommand(command: LayoutCommand, hostId?: string | null): Promise<LayoutApplyOutcome> {
-    return this[ptyBindingPersistenceOperationsContext].runtime.runDurableMutation(
-      applyLayout(resolveHostId(hostId), command, this.topology())
-    )
   }
 }
 

@@ -42,6 +42,14 @@ it.each([
   expect(selectPrE2eSpecs([path])).toContain('tests/e2e/ssh-orcad-browser-routing.spec.ts')
 })
 
+it.each([
+  'src/renderer/src/lib/workspace-browser-tab-open.ts',
+  'src/renderer/src/lib/http-link-destinations.ts',
+  'src/renderer/src/components/terminal-pane/terminal-http-link-source-owner.ts'
+])('routes the managed terminal link oracle from %s', (path) => {
+  expect(selectPrE2eSpecs([path])).toContain('tests/e2e/ssh-orcad-terminal-browser-link.spec.ts')
+})
+
 const workflow = parse(readFileSync('.github/workflows/e2e.yml', 'utf8'))
 const prWorkflow = parse(readFileSync('.github/workflows/pr.yml', 'utf8'))
 const classify = (specs) => classifyE2eJobs(JSON.stringify(specs))

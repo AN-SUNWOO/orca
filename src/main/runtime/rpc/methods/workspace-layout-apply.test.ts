@@ -89,6 +89,23 @@ describe('layout.apply', () => {
     expect(applyLayoutCommand).toHaveBeenCalledWith(SPLIT)
   })
 
+  it('takes no close semantics or blank title from the window', async () => {
+    const apply = (await registeredMethods(true)).find((method) => method.name === 'layout.apply')
+    const pane = { workspace: WORKTREE, tabId: 'tab-1', leafId: 'leaf-1' }
+
+    expect(
+      apply?.params?.parse({
+        command: { type: 'closePane', ...pane, userPaneClose: true }
+      })
+    ).toEqual({ command: { type: 'closePane', ...pane } })
+    expect(
+      apply?.params?.safeParse({ command: { type: 'renamePane', ...pane, title: '  ' } }).success
+    ).toBe(false)
+    expect(
+      apply?.params?.parse({ command: { type: 'renamePane', ...pane, title: ' Build ' } })
+    ).toEqual({ command: { type: 'renamePane', ...pane, title: 'Build' } })
+  })
+
   it('applies to the partition that holds the tab, such as an SSH host’s', async () => {
     const { runtime, applyLayoutCommand } = runtimeHolding('ssh:target-1')
 
@@ -96,7 +113,7 @@ describe('layout.apply', () => {
       ok: true,
       result: { leafId: 'minted' }
     })
-    expect(applyLayoutCommand).toHaveBeenCalledWith(SPLIT, 'ssh:target-1')
+    expect(applyLayoutCommand).toHaveBeenCalledWith(SPLIT, ['ssh:target-1'])
   })
 
   it('refuses a paired server’s workspace, which keeps its mirrored layout', async () => {

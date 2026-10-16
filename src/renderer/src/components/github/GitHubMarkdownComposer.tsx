@@ -201,7 +201,8 @@ export function GitHubMarkdownComposer({
       return
     }
     editorRef.current = editor
-    editor.setEditable(!disabled)
+    // Editability updates must not restore the submitted draft through onChange.
+    editor.setEditable(!disabled, false)
   }, [disabled, editor])
 
   useEffect(() => {

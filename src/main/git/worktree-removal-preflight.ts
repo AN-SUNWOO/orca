@@ -59,7 +59,7 @@ export async function assertWorktreeCleanForRemoval(
   throw error
 }
 
-/** Mirrors Git's own submodule refusal: a `.gitmodules` path whose directory holds a `.git`. */
+/** Git's main submodule refusal test: a `.gitmodules` path whose directory holds a `.git`. */
 async function hasPopulatedSubmodule(
   worktreePath: string,
   gitOptions: Omit<WorktreeRemovalPreflightOptions, 'ignoredUntrackedPaths'>

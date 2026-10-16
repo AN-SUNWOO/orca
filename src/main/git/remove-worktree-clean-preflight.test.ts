@@ -43,7 +43,8 @@ beforeEach(() => {
 
 describe('assertWorktreeCleanForRemoval', () => {
   beforeEach(() => {
-    gitExecFileAsyncMock.mockReset()
+    // Calls after the status read are the dirty refusal's `.gitmodules` probe: no file, exit 1.
+    gitExecFileAsyncMock.mockReset().mockRejectedValue(new Error('git config exited with code 1'))
   })
 
   it('returns without checking git status for force removals', async () => {

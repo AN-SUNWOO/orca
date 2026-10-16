@@ -24,6 +24,13 @@ function commandsFor(model: WorkspaceLayoutModel): LayoutCommand[] {
   for (const [workspace, layout] of Object.entries(model.workspaces)) {
     commands.push({ type: 'createTerminalTab', workspace })
     commands.push({ type: 'openEditorTab', workspace, fileId: '/new.md', contentType: 'editor' })
+    commands.push({
+      type: 'closeTabs',
+      workspace,
+      tabIds: ['tab-not-listed'],
+      force: true,
+      recordClose: 'cleanup'
+    })
     const lastGroup = layout.groups.at(-1)
     if (layout.groupLayout?.type === 'split') {
       commands.push({
@@ -34,6 +41,13 @@ function commandsFor(model: WorkspaceLayoutModel): LayoutCommand[] {
     }
     for (const tab of layout.tabs) {
       commands.push({ type: 'closeTabs', workspace, tabIds: [tab.id], force: true })
+      commands.push({
+        type: 'closeTabs',
+        workspace,
+        tabIds: [tab.id],
+        force: true,
+        recordClose: 'user'
+      })
       commands.push({
         type: 'renameTab',
         workspace,
@@ -215,8 +229,15 @@ describe('patchStoredSession', () => {
           ...changedRecords(diffStoredSession(before, after)),
           ...loadForms
         ])
+        // A map the stored partition lacks is reported whole on one side, by record on the other.
+        const wholeMaps = commanded.includes('session/closedTerminalTabTombstonesByTabId')
+          ? ['closedTab/']
+          : []
         expect(
-          written.filter((record) => !commanded.includes(record)),
+          written.filter(
+            (record) =>
+              !commanded.includes(record) && !wholeMaps.some((table) => record.startsWith(table))
+          ),
           `${label} commanded=${commanded.join(',')}`
         ).toEqual([])
       }
@@ -311,6 +332,29 @@ describe('patchStoredSession', () => {
         stored.terminalLayoutsByTabId['tab-legacy']
       )
     })
+  })
+
+  it('does not write a sibling the load supplied when a close only renumbers it', () => {
+    const profile = LEGACY_WORKSPACE_LAYOUT_PROFILES.find(
+      (candidate) => candidate.name === 'row without a tab-bar entry, still bound to a terminal'
+    )!
+    const stored = profile.build()
+    const loaded = loadWorkspaceLayout(profile.hostId, stored, nameBasedLoadContext())
+    const [workspace] = Object.keys(stored.tabsByWorktree)
+    const result = applyLayoutCommand(
+      loaded.layout,
+      { type: 'closeTabs', workspace: workspace!, tabIds: ['tab-a'], force: true },
+      CONTEXT
+    )
+    if (!result.ok) {
+      throw new Error(result.code)
+    }
+
+    const after = saveWorkspaceLayout({ ...loaded, layout: result.model })
+    const patched = patchStoredSession(stored, saveWorkspaceLayout(loaded), after)
+
+    expect(after.unifiedTabs?.[workspace!]?.map((entry) => entry.entityId)).toEqual(['tab-b'])
+    expect(patched.unifiedTabs?.[workspace!] ?? []).toEqual([])
   })
 
   it('keeps a legacy partition’s unrelated records as stored when a pane splits', () => {

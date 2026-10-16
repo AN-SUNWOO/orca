@@ -160,6 +160,24 @@ describe('layout.apply', () => {
     ).toBe(false)
   })
 
+  it('accepts the close of one tab with the window’s reason, but no force or refusals', async () => {
+    const apply = (await registeredMethods(true)).find((method) => method.name === 'layout.apply')
+    const close = { type: 'closeTabs', workspace: WORKTREE, recordClose: 'user' }
+
+    expect(
+      apply?.params?.parse({
+        command: { ...close, tabIds: ['tab-1'], force: false, refusePinned: true }
+      })
+    ).toEqual({ command: { ...close, tabIds: ['tab-1'] } })
+    expect(apply?.params?.safeParse({ command: { ...close, tabIds: ['a', 'b'] } }).success).toBe(
+      false
+    )
+    expect(
+      apply?.params?.safeParse({ command: { ...close, tabIds: ['a'], recordClose: 'pty-exit' } })
+        .success
+    ).toBe(false)
+  })
+
   it('applies group sizes to the workspace’s routed partition', async () => {
     const { runtime, applyLayoutCommand } = runtimeHolding('ssh:target-1')
     const ratios = {

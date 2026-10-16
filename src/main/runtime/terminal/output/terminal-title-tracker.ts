@@ -9,7 +9,8 @@ import type { TerminalGitHubPRLink } from '../../../../shared/terminal-github-pr
 
 export abstract class OrcaRuntimeWithGetUnpersistedTrackedTitleForPty extends OrcaRuntimeWithEmitDaemonPtyTransientFact {
   protected abstract recheckHookAgentPresenceForPty(
-    ptyId: string
+    ptyId: string,
+    exitedSince?: number
   ): Promise<'live' | 'unverifiable' | 'exited' | null>
   protected abstract applyTrackedPtyTitle(
     ptyId: string,

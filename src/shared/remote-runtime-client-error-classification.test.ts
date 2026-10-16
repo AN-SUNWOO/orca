@@ -8,6 +8,7 @@ import {
 describe('remote runtime client error classification', () => {
   it.each([
     'remote_runtime_unavailable',
+    'remote_runtime_busy',
     'runtime_rpc_queue_overloaded',
     'runtime_timeout',
     'runtime_unavailable',
@@ -54,7 +55,8 @@ describe('remote runtime client error classification', () => {
     'Remote Orca runtime connection closed.',
     'Remote Orca runtime is not connected.',
     "Error invoking remote method 'runtimeEnvironments:call': RuntimeRpcCallQueueOverloadError: Remote runtime call queue is full; retry after current calls finish.",
-    'Remote runtime subscription closed before it started.'
+    'Remote runtime subscription closed before it started.',
+    "Error invoking remote method 'runtimeEnvironments:call': Error: Remote runtime request limit reached; retry after pending requests finish."
   ])('normalizes unstructured connection failure: %s', (message) => {
     const error = toRemoteRuntimeClientErrorLike(new Error(message))
     expect(isRecoverableRemoteRuntimeConnectionError(error)).toBe(true)

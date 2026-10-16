@@ -256,7 +256,7 @@ export function mergeFetchedWorktrees(
             },
             // Why: an order save re-reads as a sortOrder-only change; re-sorting on it would schedule the next save (#27268).
             ...(worktreesDifferOnlyInSortOrder(s.worktreesByRepo[args.repoId], mergedWorktrees)
-              ? {}
+              ? { sortOrderEpoch: s.sortOrderEpoch + 1 }
               : { sortEpoch: s.sortEpoch + 1 })
           }
         : {}),

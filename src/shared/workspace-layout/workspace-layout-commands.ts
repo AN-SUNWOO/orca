@@ -68,7 +68,7 @@ function applyCommand(
     case 'closePane':
       return closePane(model, command)
     case 'closeTabs':
-      return closeTabs(model, command)
+      return closeTabs(model, command, context)
     case 'moveTab':
       return moveTab(model, command)
     case 'splitGroup':

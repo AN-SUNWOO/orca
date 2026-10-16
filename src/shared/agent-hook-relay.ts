@@ -1,4 +1,5 @@
 import type { AgentProcessPresence } from './agent-process-presence'
+import type { ClaudeSettledRequest } from './agent-hook-listener/claude-settled-permission-requests'
 // Why: defines the wire shape carried by the JSON-RPC `agent.hook` notification
 // the relay sends to Orca. Consumed by `src/wsl-guest/agent-hook-server.ts` (which
 // produces it after the shared listener parses an HTTP POST) and by
@@ -107,6 +108,8 @@ export type AgentHookRelayEnvelope = {
   compactTrigger?: 'manual' | 'auto'
   /** Claude tool execution id, when the source hook provides one. */
   toolUseId?: string
+  /** Optional, replay only: Claude requests the relay saw end while this receiver may have been away. */
+  claudeSettledRequests?: readonly ClaudeSettledRequest[]
   /** Claude subagent identity, when the source hook provides one. */
   toolAgentId?: string
   /** Claude teammate name carried by TeammateIdle. */

@@ -58,9 +58,15 @@ export function useSidebarWorktreeSortOrder(args: {
   const { repoMap, sortBy } = args
   // Why settled (not live): the store coalesces bump bursts so rows don't jump (store/settled-sort-epoch.ts).
   const settledSortEpoch = useAppStore((s) => s.settledSortEpoch)
+  const sortOrderEpoch = useAppStore((s) => s.sortOrderEpoch)
 
   // Why a latching ref: a live signal makes Smart authoritative for the session, even after that activity ends.
   const sessionHasHadLiveSmartSignal = useRef(false)
+  // Why: cold Smart and Manual fallback rows rank by sortOrder and never persist it, so they can follow another client's save without looping.
+  const persistedRankTrigger =
+    sortBy === 'manual' || (sortBy === 'smart' && !sessionHasHadLiveSmartSignal.current)
+      ? sortOrderEpoch
+      : 0
 
   const recomputedSort = useMemo(() => {
     const state = useAppStore.getState()
@@ -119,7 +125,7 @@ export function useSidebarWorktreeSortOrder(args: {
     }
     // settledSortEpoch is an intentional trigger not read in the memo; its change signals a recompute.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [settledSortEpoch, repoMap, sortBy])
+  }, [settledSortEpoch, persistedRankTrigger, repoMap, sortBy])
   // Why: stable ID order prevents rank-only refreshes from echoing an unchanged snapshot.
   const sortedIds = useReusedArrayIdentity(recomputedSort.sortedIds)
 

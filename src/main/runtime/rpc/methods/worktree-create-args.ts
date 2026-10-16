@@ -48,6 +48,12 @@ export function buildManagedWorktreeCreateArgs(
     workspaceStatus: params.workspaceStatus,
     manualOrder: params.manualOrder,
     ...(params.nestWorkspaces !== undefined ? { nestWorkspaces: params.nestWorkspaces } : {}),
+    ...(params.refreshLocalBaseRefOnWorktreeCreate !== undefined
+      ? { refreshLocalBaseRefOnWorktreeCreate: params.refreshLocalBaseRefOnWorktreeCreate }
+      : {}),
+    ...(params.localBaseRefSuggestionDismissed !== undefined
+      ? { localBaseRefSuggestionDismissed: params.localBaseRefSuggestionDismissed }
+      : {}),
     sparseCheckout: params.sparseCheckout,
     pushTarget: params.pushTarget,
     runHooks: params.runHooks === true,

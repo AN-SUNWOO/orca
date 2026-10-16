@@ -99,6 +99,7 @@ export function buildTerminalCreateWindow(args: {
         onRequestTerminalTabMount: () => () => {},
         replyTerminalCreate,
         onPublishAgentLaunchTab: () => () => {},
+        onRevealTerminalPane: () => () => {},
         onAgentLaunchPaneVerdict: () => () => {},
         onSplitTerminal: () => () => {},
         onRenameTerminal: () => () => {},

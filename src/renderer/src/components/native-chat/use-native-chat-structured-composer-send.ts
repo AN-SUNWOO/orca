@@ -67,6 +67,14 @@ export function useNativeChatStructuredComposerSend({
         return
       }
       const hostCommand = isNativeChatStructuredHostCommand(text, agent, structuredTransport)
+      // A held host takes no turn, and its notice says why; an option command only changes what
+      // the next turn runs with.
+      if (
+        structuredTransport.sendBlockedReason !== undefined &&
+        (!hostCommand || structuredAgentSessionCommandChangesConversation(text))
+      ) {
+        return
+      }
       // A command picked while images await re-attaching would send them without a file.
       const attachAgain = nativeChatAttachImagesAgainReason(attachments)
       if (attachAgain) {

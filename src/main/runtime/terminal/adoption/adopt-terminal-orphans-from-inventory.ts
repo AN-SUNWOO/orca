@@ -243,4 +243,13 @@ export abstract class OrcaRuntimeWithAdoptTerminalOrphansFromInventory extends O
     const record = this.getLivePtyForHandle(handle)?.record ?? this.handles.get(handle)
     return record?.ptyId ? this.getPtyLivenessVerdict(record.ptyId) : null
   }
+
+  /** The hook store's verdict on the agent in this terminal, keeping exits proven since `exitedSince`. */
+  checkTerminalAgentPresence(
+    handle: string,
+    exitedSince: number
+  ): Promise<'live' | 'unverifiable' | 'exited' | null> {
+    const ptyId = (this.getLivePtyForHandle(handle)?.record ?? this.handles.get(handle))?.ptyId
+    return ptyId ? this.recheckHookAgentPresenceForPty(ptyId, exitedSince) : Promise.resolve(null)
+  }
 }

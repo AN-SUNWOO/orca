@@ -8,6 +8,7 @@ import {
   AGENT_SESSION_REPEATED_STOP_RUNTIME_CAPABILITY
 } from '../../../src/shared/protocol-version'
 import { AGENT_SESSION_SEND_OPTIONS_RUNTIME_CAPABILITY } from '../../../src/shared/agent-session-create-capabilities'
+import { AGENT_SESSION_PERMISSION_MODES_RUNTIME_CAPABILITY } from '../../../src/shared/agent-session-permission-modes-capability'
 
 /** Structured-session features the connected host advertised; null until the status probe answers. */
 export type StructuredAgentSessionHostSupport = {
@@ -26,6 +27,8 @@ export type StructuredAgentSessionHostSupport = {
   sendOptions: boolean
   /** A Stop naming no turn stops what the chat has in flight; an older host needs the turn. */
   conversationStop: boolean
+  /** The host applies each chat's permission mode; 1.4.225–1.4.226 do without advertising it. */
+  permissionModes: boolean
 }
 
 export function structuredAgentSessionHostSupport(
@@ -39,6 +42,7 @@ export function structuredAgentSessionHostSupport(
     statusFeed: capabilities.includes(AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY),
     quietRepeatedStop: capabilities.includes(AGENT_SESSION_REPEATED_STOP_RUNTIME_CAPABILITY),
     sendOptions: capabilities.includes(AGENT_SESSION_SEND_OPTIONS_RUNTIME_CAPABILITY),
-    conversationStop: capabilities.includes(AGENT_SESSION_CONVERSATION_STOP_RUNTIME_CAPABILITY)
+    conversationStop: capabilities.includes(AGENT_SESSION_CONVERSATION_STOP_RUNTIME_CAPABILITY),
+    permissionModes: capabilities.includes(AGENT_SESSION_PERMISSION_MODES_RUNTIME_CAPABILITY)
   }
 }

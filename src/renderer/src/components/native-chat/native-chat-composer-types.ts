@@ -39,6 +39,8 @@ export type NativeChatStructuredComposerTransport = {
   ) => boolean | 'queued'
   /** A send is out: Send stays disabled, and a send returns false, until it settles. */
   sendOut?: boolean
+  /** Send is held for this reason, which the disabled button says. */
+  sendBlockedReason?: string
   dispatchCommand: (text: string) => Promise<StructuredAgentSessionCommandOutcome>
   optionsSurface: SessionOptionsSurface
   optionSnapshot: SessionOptionDescriptor[]

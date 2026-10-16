@@ -29,6 +29,14 @@ function typedFiles(directory) {
 }
 
 describe('typecheck project coverage', () => {
+  it('keeps CLI tests in the scheduled CLI typecheck project', () => {
+    const project = projects.find(({ config }) => config === 'config/tsconfig.tc.cli.json')
+    expect(project).toBeDefined()
+    const tests = typedFiles('src/cli').filter(isTest)
+    expect(tests.length).toBeGreaterThan(0)
+    expect(tests.filter((file) => !project.files.has(resolve(root, file)))).toEqual([])
+  })
+
   it('checks every shared test exactly once, in the scheduled Node project', () => {
     const tests = typedFiles('src/shared').filter(isTest)
     expect(tests.length).toBeGreaterThan(0)

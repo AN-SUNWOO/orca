@@ -10,6 +10,7 @@ import type { Worktree } from '../../../../../../shared/worktree/types'
 import { makeRepo, makeWorktree } from '../../../worktree-jump-palette-test-fixtures'
 import type { SortBy } from '../../smart-sort'
 import { useSidebarWorktreeSortOrder } from './use-sort-order'
+import { makeTerminalTab } from '../../../../store/slices/worktrees-slice-test-fixtures'
 
 const initialState = useAppStore.getInitialState()
 const repo = makeRepo()
@@ -33,6 +34,19 @@ function replaceWorktrees(worktrees: Worktree[]): void {
   useAppStore.setState((s) => ({
     worktreesByRepo: { [repo.id]: worktrees },
     sortEpoch: s.sortEpoch + 1
+  }))
+}
+
+// Same shape as another client's order save landing here: sortOrder changes, sortEpoch does not.
+function publishSortOrders(sortOrderById: Record<string, number>): void {
+  useAppStore.setState((s) => ({
+    worktreesByRepo: {
+      [repo.id]: (s.worktreesByRepo[repo.id] ?? []).map((worktree) => ({
+        ...worktree,
+        sortOrder: sortOrderById[worktree.id] ?? worktree.sortOrder
+      }))
+    },
+    sortOrderEpoch: s.sortOrderEpoch + 1
   }))
 }
 
@@ -307,5 +321,43 @@ describe('useSidebarWorktreeSortOrder', () => {
     expect(result.current).toEqual(['b', 'a'])
     expect(useAppStore.getState().settledSortEpoch).toBe(useAppStore.getState().sortEpoch)
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each(['smart', 'manual'] as const)(
+    'follows another client order save while %s ranks by persisted sortOrder',
+    (sortBy) => {
+      seed(
+        [makeWorktree('a', 'A', { sortOrder: 2 }), makeWorktree('b', 'B', { sortOrder: 1 })],
+        sortBy
+      )
+      const { result } = renderSortOrder()
+      expect(result.current).toEqual(['a', 'b'])
+      act(() => publishSortOrders({ a: 1, b: 2 }))
+      expect(result.current).toEqual(['b', 'a'])
+      expect(useAppStore.getState().sortEpoch).toBe(1)
+    }
+  )
+
+  it('keeps live Smart order steady when only persisted sortOrder changes', () => {
+    const persistSortOrder = vi.fn(async () => ({ updated: 0 }))
+    vi.stubGlobal('api', { worktrees: { persistSortOrder } })
+    try {
+      seed(
+        [makeWorktree('a', 'A', { sortOrder: 2 }), makeWorktree('b', 'B', { sortOrder: 1 })],
+        'smart'
+      )
+      useAppStore.setState({
+        tabsByWorktree: { a: [makeTerminalTab({ id: 'tab-a', worktreeId: 'a' })] },
+        ptyIdsByTabId: { 'tab-a': ['pty-a'] }
+      })
+      const { result } = renderSortOrder()
+      const before = result.current
+      const savesBefore = persistSortOrder.mock.calls.length
+      act(() => publishSortOrders({ a: 1, b: 2 }))
+      expect(result.current).toBe(before)
+      expect(persistSortOrder.mock.calls.length).toBe(savesBefore)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

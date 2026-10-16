@@ -12420,6 +12420,10 @@
         "UnsealedCredentialNotice": {
           "body": "{{credential}} se almacena sin cifrar: este sistema no tiene ningún conjunto de claves del sistema operativo que Orca pueda usar. Cualquiera que pueda leer su disco o una copia de seguridad del mismo puede leer la credencial. Instale y desbloquee gnome-keyring o kwallet, luego guárdelo nuevamente para sellarlo."
         },
+        "sshManagedHostRemove": {
+          "description": "{{label}} ejecuta un servidor Orca gestionado. En Servidores gestionados, usa Detener… para quitar el servidor del host, u Olvidar… si el host ya no existe. Después podrás eliminar este host SSH.",
+          "open": "Abrir Servidores gestionados"
+        },
         "managedServers": {
           "row": {
             "notRunning": "No está en ejecución",
@@ -12461,7 +12465,11 @@
             "target": "Conectar a través del host SSH",
             "port": "Puerto del servidor",
             "link": "Usar SSH",
-            "linking": "Conectando…"
+            "linking": "Conectando…",
+            "pendingLink": "La conexión por SSH no terminó.",
+            "pendingUnlink": "La desactivación del acceso SSH no terminó.",
+            "retry": "Reintentar",
+            "cancelLink": "Cancelar"
           },
           "search": {
             "title": "Servidores gestionados",
@@ -17959,6 +17967,13 @@
           "deleteColumn": "Eliminar columna",
           "deleteTable": "Eliminar tabla"
         }
+      }
+    },
+    "startup": {
+      "webHostUnreachable": {
+        "title": "No se pudo contactar con tu host de Orca",
+        "description": "No se perdió nada. Orca se recargará cuando el host responda y no guardará cambios hasta entonces.",
+        "retry": "Reintentar ahora"
       }
     }
   },

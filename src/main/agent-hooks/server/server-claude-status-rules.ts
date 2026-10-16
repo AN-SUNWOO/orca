@@ -5,6 +5,7 @@ import {
 } from '../../../shared/claude-subagent-roster'
 import { isAskUserQuestionTool } from '../../../shared/agent-question-answered-intent'
 import type { AgentHookEventPayload } from '../../../shared/agent-hook-listener/listener-event'
+import { isClaudePermissionSettledByReplay } from '../../../shared/agent-hook-listener/claude-settled-permission-requests'
 import type { EnrichedAgentHookEventPayload } from './server-types'
 
 /** The shell fact a Claude row stores beside its `mainAgent`; restart seeds a settled main agent only
@@ -78,6 +79,9 @@ export function shouldKeepClaudePermissionVisible(
     return false
   }
   if (isClaudePermissionOwningChildEnding(previous, next)) {
+    return false
+  }
+  if (isClaudePermissionSettledByReplay(previous, next)) {
     return false
   }
   if (isClaudePermissionResumingApprovedTool(previous, next)) {

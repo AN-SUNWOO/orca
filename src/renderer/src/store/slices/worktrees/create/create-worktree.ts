@@ -9,6 +9,10 @@ import type { WorktreeSlice } from '../../worktree-helpers'
 import type { WorktreeSliceGet, WorktreeSliceSet } from '../listing/worktree-slice-types'
 import type { CreateWorktreeResult } from '../../../../../../shared/worktree/create-types'
 import {
+  pickClientWorktreeCreateSettings,
+  type ClientWorktreeCreateSettings
+} from './client-worktree-create-settings'
+import {
   CLIENT_WORKTREE_CREATE_MAX_ATTEMPTS,
   getClientWorktreeCreateCandidate,
   getGeneratedWorktreeCreateRetryCandidate,
@@ -51,7 +55,7 @@ async function runCreateAttempt(
   request: WorktreeCreateRequest,
   attempt: WorktreeCreateAttempt,
   target: RuntimeTarget,
-  nestWorkspaces?: boolean
+  clientCreateSettings: ClientWorktreeCreateSettings = {}
 ): Promise<CreateAttemptOutcome> {
   const provisionedRoot = request.options?.provisionedRoot
   const create = async (
@@ -79,8 +83,8 @@ async function runCreateAttempt(
             'worktree.create',
             {
               ...buildRuntimeWorktreeCreateParams(request, { ...attempt, parentWorkspace }),
-              // Why: the host's own store default would otherwise decide the layout over the user's choice.
-              ...(nestWorkspaces === undefined ? {} : { nestWorkspaces })
+              // Why: the host's own store defaults would otherwise override the user's choices.
+              ...clientCreateSettings
             },
             { timeoutMs: 10 * 60_000 }
           )
@@ -239,7 +243,7 @@ export function createCreateWorktree(
               manualOrder
             },
             target,
-            get().settings?.nestWorkspaces
+            pickClientWorktreeCreateSettings(get().settings)
           )
           if (lostRequestedParent(outcome, parent, target)) {
             warnParentDroppedOnce()

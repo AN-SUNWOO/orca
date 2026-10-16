@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
   createSupport: vi.fn(),
   toastInfo: vi.fn(),
   toastError: vi.fn(),
-  launchAgentInNewTab: vi.fn()
+  launchAgentInNewTab: vi.fn(),
+  hostPermission: vi.fn()
 }))
 
 vi.mock('sonner', () => ({ toast: { info: mocks.toastInfo, error: mocks.toastError } }))
@@ -21,6 +22,10 @@ vi.mock('@/runtime/structured-agent-session-client', () => ({
     }
     return new Promise(() => undefined)
   })
+}))
+
+vi.mock('@/runtime/structured-chat-host-permission', () => ({
+  readStructuredChatHostPermissionVerdict: mocks.hostPermission
 }))
 
 import { useAppStore } from '@/store'
@@ -66,6 +71,7 @@ function expectNoChatCommitted(): void {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.hostPermission.mockResolvedValue({ kind: 'allowed' })
   localStorage.clear()
   useAppStore.setState({
     activeWorktreeId: WORKTREE,
@@ -188,6 +194,33 @@ describe('a structured chat launch on a paired server', () => {
     launch?.cancel()
   })
 
+  // An older server ignores the chat's mode and would run Claude with its own bypass flag.
+  it.each(['refused', 'unverified'] as const)(
+    'starts nothing on a server whose permission verdict is %s, and says so once',
+    async (kind) => {
+      mocks.createSupport.mockResolvedValue({ supported: true })
+      mocks.hostPermission.mockResolvedValue(
+        kind === 'refused' ? { kind, hostMode: 'full-access' } : { kind }
+      )
+
+      const launch = beginStructuredAgentSessionProvisionalLaunch({
+        plan: pairedPlan(),
+        hooks: {},
+        onHostDeclined: vi.fn()
+      })
+      const settlement = await launch?.settlement
+
+      expect(mocks.hostPermission).toHaveBeenCalledWith(
+        { kind: 'environment', environmentId: 'server-1' },
+        'claude'
+      )
+      expect(settlement).toEqual(expect.objectContaining({ kind: 'failed', notified: true }))
+      expect(mocks.toastError).toHaveBeenCalledTimes(1)
+      expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
+      expectNoChatCommitted()
+    }
+  )
+
   it('opens the chat on the server that admitted it', async () => {
     mocks.createSupport.mockResolvedValue({ supported: true })
 
@@ -283,6 +316,20 @@ describe('a structured chat launch on this machine', () => {
     })
     expect(onHostDeclined).not.toHaveBeenCalled()
     expectNoChatCommitted()
+  })
+
+  it('never asks this machine for a permission verdict: it applies every chat mode', async () => {
+    mocks.createSupport.mockResolvedValue({ supported: true })
+    const launch = beginStructuredAgentSessionProvisionalLaunch({
+      plan: localPlan(),
+      hooks: {},
+      onHostDeclined: vi.fn()
+    })
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().unifiedTabsByWorktree[WORKTREE]).toHaveLength(1)
+    )
+    expect(mocks.hostPermission).not.toHaveBeenCalled()
+    launch?.cancel()
   })
 
   it('opens the chat once this machine admits it', async () => {

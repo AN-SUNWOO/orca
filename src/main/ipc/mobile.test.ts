@@ -37,7 +37,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { registerMobileHandlers } from './mobile'
 import { NETWORK_EXPOSURE_FAILED_GUIDANCE } from '../runtime/network-exposure-guidance'
-import { OrcaRuntimeService } from '../runtime/orca-runtime'
+import { createMobileRpcSurfaceRuntime } from '../runtime/runtime-rpc-mobile-method-allowlist-fixtures'
 import { OrcaRuntimeRpcServer } from '../runtime/runtime-rpc'
 import { WebSocketTransport } from '../runtime/rpc/ws-transport'
 
@@ -856,7 +856,7 @@ describe('runtime pairing bind host', () => {
   const startServer = async (userDataPath: string): Promise<OrcaRuntimeRpcServer> => {
     const server = new OrcaRuntimeRpcServer({
       methods: [],
-      runtime: new OrcaRuntimeService(),
+      runtime: createMobileRpcSurfaceRuntime().runtime,
       userDataPath,
       enableWebSocket: true,
       wsPort: 0

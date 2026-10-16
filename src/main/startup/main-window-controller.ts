@@ -32,7 +32,6 @@ import {
   recordProcessGoneCrash
 } from './main-window-lifecycle-flags'
 import { presentGpuFallbackRecoveredLaunchPrompt } from './gpu-lifecycle'
-import { maybeAutoRenameBranchOnFirstWorkFromHook } from './branch-rename-hook'
 import {
   resumeSyntheticTitleSpinnerTimer,
   stopSyntheticTitleSpinnerTimer
@@ -203,7 +202,6 @@ export function openMainWindow(options: { revealOnDidFinishLoad?: boolean } = {}
   window.on('restore', () => setTrayAttention(false))
   installMainWindowAgentStatusListeners({
     window,
-    maybeAutoRenameBranchOnFirstWork: maybeAutoRenameBranchOnFirstWorkFromHook,
     onRecordAgentState: (agentType, status) =>
       recordCoalescedCrashBreadcrumb({
         name: 'agent_state_changed',

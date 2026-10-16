@@ -56,7 +56,9 @@ describe('worktree remote runtime mutations', () => {
       settings: {
         ...store.getState().settings!,
         activeRuntimeEnvironmentId: 'env-1',
-        nestWorkspaces: false
+        nestWorkspaces: false,
+        refreshLocalBaseRefOnWorktreeCreate: true,
+        localBaseRefSuggestionDismissed: false
       },
       worktreesByRepo: { repo1: [] }
     })
@@ -88,6 +90,8 @@ describe('worktree remote runtime mutations', () => {
         setupDecision: 'skip',
         sparseCheckout: { directories: ['src'], presetId: 'preset-1' },
         nestWorkspaces: false,
+        refreshLocalBaseRefOnWorktreeCreate: true,
+        localBaseRefSuggestionDismissed: false,
         telemetrySource: 'sidebar',
         displayName: 'Feature title',
         linkedIssue: 123,

@@ -9,14 +9,16 @@ import type {
   ConfirmForegroundProcessRequest,
   ConfirmShellForegroundRequest,
   GetForegroundProcessRequest,
-  InspectProcessRequest
+  InspectProcessRequest,
+  TerminatePtyJobAndReportRequest
 } from './daemon-foreground-process-protocol'
 
 export type {
   ConfirmForegroundProcessRequest,
   ConfirmShellForegroundRequest,
   GetForegroundProcessRequest,
-  InspectProcessRequest
+  InspectProcessRequest,
+  TerminatePtyJobAndReportRequest
 } from './daemon-foreground-process-protocol'
 
 // ─── Protocol Version ────────────────────────────────────────────────
@@ -45,6 +47,7 @@ export {
   PROTOCOL_VERSION,
   PTY_STARTUP_INGRESS_PROTOCOL_VERSION,
   MODE_2031_UNSUBSCRIBE_FACT_PROTOCOL_VERSION,
+  TERMINATE_PTY_JOB_AND_REPORT_PROTOCOL_VERSION,
   supportsMode2031UnsubscribeFact,
   supportsPtyStartupIngress
 } from './daemon-protocol-version'
@@ -311,6 +314,7 @@ export type DaemonRequest =
   | InspectProcessRequest
   | ConfirmForegroundProcessRequest
   | ConfirmShellForegroundRequest
+  | TerminatePtyJobAndReportRequest
   | TerminalBufferActionRequest
   | ShutdownRequest
   | PingRequest

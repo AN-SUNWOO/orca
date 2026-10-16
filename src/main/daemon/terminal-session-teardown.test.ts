@@ -20,7 +20,7 @@ function createPlainShellSession(overrides: Partial<Session> = {}): Session {
     forceKillAndWaitForExit: vi.fn(async () => {}),
     beginTermination: vi.fn(() => true),
     kill: vi.fn(),
-    terminateOwnedTree: vi.fn(() => 'terminated' as const),
+    job: { terminateOwnedTree: vi.fn(() => 'terminated' as const) },
     scheduleForceDisposeFallback: vi.fn(),
     signalTerminationRoot: vi.fn(),
     ...overrides
@@ -225,6 +225,6 @@ describe('pty job ownership reaches the daemon teardown path', () => {
     await teardown.killSession('s1', session, true)
 
     expect(sweepTerminateOwnedTree()()).toBe('terminated')
-    expect(session.terminateOwnedTree).toHaveBeenCalled()
+    expect(session.job.terminateOwnedTree).toHaveBeenCalled()
   })
 })

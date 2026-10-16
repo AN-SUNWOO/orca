@@ -331,6 +331,7 @@ jobs:
               . != "tests/e2e/orcad-serve-mode-switch.spec.ts" and
               . != "tests/e2e/workspace-layout-oracle-headless.spec.ts" and
               . != "tests/e2e/windows-missing-appdata-startup.spec.ts" and
+              . != "tests/e2e/file-explorer-copy-file-windows.spec.ts" and
               (startswith("tests/e2e/ssh-orcad-") | not)
             )' <<<"$TEST_FILES_JSON" > "$RUNNER_TEMP/general-e2e-specs"
           fi
@@ -494,10 +495,10 @@ jobs:
 
   # D7 on Windows: both hosts share <userData>\daemon and so one daemon pipe. Built here rather than
   # from the Linux e2e build because the slot, template and addons are Windows-native. Also runs the
-  # missing-AppData startup check, which needs the same Windows e2e build.
+  # missing-AppData startup check and the explorer file-copy check, which need the same Windows e2e build.
   orcad-serve-mode-switch-windows:
     name: orca serve on Windows (D7 mode switch, missing AppData)
-    if: inputs.test_files == '' || contains(inputs.test_files, 'tests/e2e/orcad-serve-mode-switch.spec.ts') || contains(inputs.test_files, 'tests/e2e/windows-missing-appdata-startup.spec.ts')
+    if: inputs.test_files == '' || contains(inputs.test_files, 'tests/e2e/orcad-serve-mode-switch.spec.ts') || contains(inputs.test_files, 'tests/e2e/windows-missing-appdata-startup.spec.ts') || contains(inputs.test_files, 'tests/e2e/file-explorer-copy-file-windows.spec.ts')
     runs-on: windows-2022
     timeout-minutes: 45
     env:
@@ -534,6 +535,13 @@ jobs:
           SKIP_BUILD: '1'
           ORCA_E2E_FORWARD_APP_LOGS: '1'
         run: pnpm exec playwright test --config tests/playwright.config.ts tests/e2e/windows-missing-appdata-startup.spec.ts --project=electron-headless --workers=1
+      # Explorer pastes only a real CF_HDROP, which needs the Windows clipboard and shell.
+      - name: Copy a file from the explorer
+        if: ${{ !cancelled() && (inputs.test_files == '' || contains(inputs.test_files, 'tests/e2e/file-explorer-copy-file-windows.spec.ts')) }}
+        env:
+          SKIP_BUILD: '1'
+          ORCA_E2E_FORWARD_APP_LOGS: '1'
+        run: pnpm exec playwright test --config tests/playwright.config.ts tests/e2e/file-explorer-copy-file-windows.spec.ts --project=electron-headless --workers=1
       - name: Switch serve hosts on one profile
         if: ${{ !cancelled() && (inputs.test_files == '' || contains(inputs.test_files, 'tests/e2e/orcad-serve-mode-switch.spec.ts')) }}
         env:

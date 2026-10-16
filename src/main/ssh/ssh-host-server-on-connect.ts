@@ -61,6 +61,9 @@ export type HostServerOnConnectResult =
       detail?: string
       terminals?: number
       terminalsElsewhere?: boolean
+      canLeaveBehind?: true
+      /** A move that stopped short kept the host locked; the next connect resumes it. */
+      held?: true
     }
 
 export type HostServerTerminalVerdict = {
@@ -293,7 +296,12 @@ async function afterConversion(
       if (result.code === 'orcad_migration_terminals') {
         return { route: 'unserved', reason: terminalReason(result.verdict) }
       }
-      return { route: 'unserved', reason: 'refused', detail: result.reason }
+      return {
+        route: 'unserved',
+        reason: 'refused',
+        detail: result.reason,
+        ...(result.canLeaveBehind ? { canLeaveBehind: true } : {})
+      }
   }
 }
 
@@ -326,9 +334,16 @@ async function unfinished(
     // A staged or registered destination keeps its fence; the connect reports it below.
     console.warn('[ssh] The managed Orca server setup keeps its fence:', error)
   }
+  // Why re-read: only the journal says whether the abort released the host or left it locked.
+  const held = !empty && !unavailable && deps.hasUnfinishedConversion(target)
   if (!unavailable) {
     // Shown under the SSH host, with the host's orcad.log tail when the failure carries one.
-    return { route: 'unserved', reason, detail: boundedDetail(failure) }
+    return {
+      route: 'unserved',
+      reason,
+      detail: boundedDetail(failure),
+      ...(held ? { held: true as const } : {})
+    }
   }
   deps.recordUnavailable(target, unavailable)
   return { route: 'unserved', reason: 'orcad_unavailable', detail: unavailable }

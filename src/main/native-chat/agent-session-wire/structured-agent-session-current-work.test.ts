@@ -1,16 +1,22 @@
 // The host's one projection of current work (`structuredAgentSessionCurrentWork`), end to end
 // against the real host, store and SQLite journal: what an ended generation left holds nothing and
-// reads as nothing to every host reader (the projection, the session list, the frames and pages a
-// chat client is sent, Stop, the queue), whether or not its cleanup landed, while a live owner's
-// work holds exactly as before.
+// reads as nothing to every reader (the projection, the session list, a chat client, Stop, a prompt
+// answer, the queue), whether or not its cleanup or its release landed, while a live owner's work
+// holds exactly as before.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
 import type { AgentSessionExecutionLocation } from '../../../shared/agent-session-record'
-import type {
-  AgentSessionStatusSummary,
-  AgentSessionSubscribeEvent
-} from '../../../shared/agent-session-wire'
+import type { AgentSessionStatusSummary } from '../../../shared/agent-session-wire'
+import {
+  isActionableStructuredAgentSessionPrompt,
+  runningStructuredAgentSessionTurnId
+} from '../../../shared/structured-agent-session-live-turn'
+import {
+  EMPTY_STRUCTURED_AGENT_SESSION,
+  reduceStructuredAgentSession,
+  type StructuredAgentSessionState
+} from '../../../shared/structured-agent-session-reducer'
 import {
   liveTestJournalRows,
   openTestJournalHostDatabase
@@ -47,26 +53,15 @@ const FOLDER: AgentSessionExecutionLocation = {
   workspaceKind: 'folder'
 }
 
-type HostWork = Pick<
-  Extract<AgentSessionSubscribeEvent, { type: 'batch' }>,
-  'latestTurn' | 'actionablePromptIds' | 'working'
->
-
-/** A chat subscriber and the session list, each fed by the host as a real one is: the subscriber
- *  keeps the current-work fields of the newest frame or page that stated them. */
+/** A chat client and the session list, each fed by the host as a real one is. */
 function watch(current: QueuedMessageTestRig) {
-  let work: HostWork = {}
+  let chat: StructuredAgentSessionState = EMPTY_STRUCTURED_AGENT_SESSION
   let listed: AgentSessionStatusSummary | undefined
   current.host.subscribe({
     id: 'chat-1',
     sessionId: SESSION,
     emit: (event) => {
-      const fields =
-        event.type === 'snapshot' ? event.page : event.type === 'batch' ? event : undefined
-      if (fields?.working !== undefined) {
-        const { latestTurn, actionablePromptIds, working } = structuredClone(fields)
-        work = { latestTurn, actionablePromptIds, working }
-      }
+      chat = reduceStructuredAgentSession(chat, { type: 'event', event: structuredClone(event) })
     }
   })
   current.host.subscribeStatus({
@@ -79,7 +74,19 @@ function watch(current: QueuedMessageTestRig) {
       }
     }
   })
-  return { work: () => work, listed: () => listed }
+  return {
+    chat: () => chat,
+    listed: () => listed,
+    /** Whether the chat would let the person answer the prompt. */
+    answerable: () =>
+      chat.items.some(
+        (item) =>
+          item.itemId === APPROVAL_ID &&
+          item.body.kind === 'approval' &&
+          item.body.resolution.state === 'pending' &&
+          isActionableStructuredAgentSessionPrompt(item.itemId, chat.actionablePromptIds)
+      )
+  }
 }
 
 /** The tail page a client hydrates from. */
@@ -125,10 +132,10 @@ describe("a dead generation's leftovers, its settlement refused and its lease re
     expect(page.latestTurn?.turn.state).toBe('interrupted')
     expect(page.actionablePromptIds).toEqual([])
     expect(page.working).toBe(false)
-    await vi.waitFor(() =>
-      expect(view.work()).toMatchObject({ actionablePromptIds: [], working: false })
-    )
-    expect(view.work().latestTurn?.turn.state).not.toBe('running')
+    await vi.waitFor(() => expect(view.chat().actionablePromptIds).toEqual([]))
+    expect(view.chat().working).toBe(false)
+    expect(runningStructuredAgentSessionTurnId(view.chat())).toBeNull()
+    expect(view.answerable()).toBe(false)
   })
 
   it('gives Stop nothing to stop: the dead turn is not touched', async () => {
@@ -148,7 +155,7 @@ describe('a close Orca asked for, its settlement refused', () => {
     await current.workingSend()
     await leaveUnfinishedWork(current, { prompt: true })
     const view = watch(current)
-    await vi.waitFor(() => expect(view.work().actionablePromptIds).toEqual([APPROVAL_ID]))
+    await vi.waitFor(() => expect(view.answerable()).toBe(true))
     const database = openTestJournalHostDatabase(current.root)
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     database.db.exec(REJECT_RECOVERED_ROWS)
@@ -170,10 +177,9 @@ describe('a close Orca asked for, its settlement refused', () => {
 
     expect(currentJournal(current).cursor().sequence).toBe(before)
     expect(turnState(current)).toBe('running')
-    await vi.waitFor(() =>
-      expect(view.work()).toMatchObject({ actionablePromptIds: [], working: false })
-    )
-    expect(view.work().latestTurn?.turn.state).not.toBe('running')
+    await vi.waitFor(() => expect(view.answerable()).toBe(false))
+    expect(view.chat().working).toBe(false)
+    expect(runningStructuredAgentSessionTurnId(view.chat())).toBeNull()
     expect(view.listed()?.status).not.toBe('working')
   })
 })
@@ -238,11 +244,10 @@ describe('a live owner', () => {
     expect(page.latestTurn?.turn).toMatchObject({ turnId: 'unfinished', state: 'running' })
     expect(page.actionablePromptIds).toEqual([APPROVAL_ID])
     expect(page.working).toBe(true)
-    await vi.waitFor(() => expect(view.work().actionablePromptIds).toEqual([APPROVAL_ID]))
-    expect(view.work()).toMatchObject({
-      working: true,
-      latestTurn: { turn: { turnId: 'unfinished', state: 'running' } }
-    })
+    await vi.waitFor(() => expect(view.chat().actionablePromptIds).toEqual([APPROVAL_ID]))
+    expect(view.chat().working).toBe(true)
+    expect(runningStructuredAgentSessionTurnId(view.chat())).toBe('unfinished')
+    expect(view.answerable()).toBe(true)
     expect(view.listed()?.status).not.toBe('idle')
   })
 })

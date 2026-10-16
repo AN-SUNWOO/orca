@@ -314,6 +314,10 @@ describe('CI dependency download caches', () => {
       '.github/workflows/ci-cache-warmup-platforms.yml',
       '.github/workflows/ci-cache-warmup-platform-jobs.yml'
     ])
+    expect(platforms.concurrency).toEqual({
+      group: 'ci-cache-warmup-platforms-${{ github.event.pull_request.number || github.ref }}',
+      'cancel-in-progress': "${{ github.event_name == 'pull_request' }}"
+    })
     expect(shared.jobs['warm-platforms'].uses).toBe(platforms.jobs['warm-platforms'].uses)
     expect(shared.on.schedule).toEqual([{ cron: '41 */6 * * *' }])
     expect(shared.on).toHaveProperty('workflow_dispatch')

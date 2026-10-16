@@ -72,8 +72,11 @@ export async function startOrcad(options: OrcadOptions = {}): Promise<OrcadHandl
   installOrcadHostAdapters()
   // Why: an orcad started from an Orca terminal must not fence its own CLI children to that Orca.
   stampRuntimeSourceEnv(process.env, null)
+  const userDataPath = resolveUserDataPath()
+  // Why, as on the desktop: an inherited value would aim the CLI-shared Codex home paths elsewhere.
+  process.env.ORCA_USER_DATA_PATH = userDataPath
   const { readiness, instance, stop } = await startOrcadWithHost(
-    resolveUserDataPath(),
+    userDataPath,
     (registerCleanup) => startOrcadRuntime(options, registerCleanup),
     () => {
       try {
@@ -196,8 +199,23 @@ async function startOrcadRuntime(
     registerCleanup
   )
 
+  // Why before the runtime: its structured Codex resolvers are constructor deps.
+  const { createOrcadAccountServices } = await import('./orcad-account-services')
+  const accountLaunch = createOrcadAccountServices({
+    store: profileStore,
+    setClaudeStatusLineListener: (listener) =>
+      agentHookServer.setClaudeStatusLineListener(listener),
+    registerCleanup,
+    clientCodexHomes: codexAccountHomes
+  })
+
   const runtime = new OrcaRuntimeService(profileStore, undefined, {
-    getAdditionalAiVaultCodexHomePaths: codexAccountHomes.listSessionHomes,
+    getAdditionalAiVaultCodexHomePaths: () => [
+      ...codexAccountHomes.listSessionHomes(),
+      ...(accountLaunch?.listCodexSessionHomes() ?? [])
+    ],
+    // Why absent on a WSL host: a resolver overrides the desktop-pushed CODEX_HOME.
+    ...accountLaunch?.runtimeDeps,
     // Why here too: orcad serves `worktree.ps` and `agentSession.*`; unwired it lists no agents.
     ...agentHookRuntimeDeps(agentHookServer, observedPaneIdentities, () =>
       profileStore.getSettings()
@@ -223,6 +241,8 @@ async function startOrcadRuntime(
       }
     }
   })
+
+  accountLaunch?.attachToRuntime(runtime)
 
   // Why before any launch: a desktop that owns this host's accounts pushed them on an earlier run.
   const { restoreOrcadHostAccountLaunchEnv } = await import('./orcad-host-account-launch-env-store')
@@ -253,14 +273,17 @@ async function startOrcadRuntime(
   // same call `--serve` makes, and it threads the store through. Without the store the
   // handlers install fine and every terminal.create then fails at persistence time.
   //
-  // Claude-auth preparation is left unset: account selection is the client's, which sends the
-  // prepared account env. Codex only needs this host's hook put into that env's home.
+  // A client-sent Codex account home wins; otherwise this host's own selection applies. A WSL host
+  // has none: its desktop sends the prepared account env.
   await registerHeadlessPtyRuntime(
     runtime,
-    codexAccountHomes.selectLaunchHome,
+    async (target, launchEnv, context) =>
+      (await codexAccountHomes.selectLaunchHome(target, launchEnv, context)) ??
+      (accountLaunch ? accountLaunch.prepareCodexHome(target, launchEnv, context) : null),
     () => profileStore.getSettings(),
-    undefined,
-    profileStore
+    accountLaunch?.prepareClaudeAuth,
+    profileStore,
+    accountLaunch?.prepareCodexSessionResume
   )
 
   // Why: same post-registration reconciliation `--serve` performs. Skipping it leaves

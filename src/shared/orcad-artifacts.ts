@@ -181,6 +181,9 @@ export const ORCAD_ARTIFACTS: readonly OrcadArtifact[] = [
   { filename: ORCAD_PORT_SCAN_COMMAND_WORKER_ENTRY },
   // Forked so transcript parsing stays off the server's event loop; session search stays in-process.
   { filename: ORCAD_SESSION_SCANNER_SERVICE_ENTRY },
+  // Worker threads the account services start: CLI probes off the event loop, Claude account setup.
+  { filename: 'worker-thread-child-process-entry.js' },
+  { filename: 'claude-profile-setup-worker-entry.js' },
   // Target-specific even when the JavaScript bundle is shared across packaged slots.
   { filename: ORCAD_SERVER_TARGET_FILENAME },
   // orcad never depends on a host runtime or host-installed native module.

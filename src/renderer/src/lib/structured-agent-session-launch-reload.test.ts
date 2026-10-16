@@ -178,7 +178,8 @@ describe('structured agent launch reload recovery', () => {
           })
         })
       }),
-      expect.any(Function)
+      expect.any(Function),
+      true
     )
   })
 })

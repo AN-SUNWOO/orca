@@ -24,7 +24,7 @@ export const MobileRelayHostWorktreesParamsSchema = z
 /** One of a server's own `worktree.ps` rows (RuntimeWorktreePsSummary), carrying the server's host id. */
 export type MobileRelayServerWorktreeRow = Record<string, unknown> & {
   hostId: `runtime:${string}`
-  /** The desktop's "Hide other-client workspaces" hides this row; sent only while that is on. */
+  /** The desktop calls this row another client's; the phone applies the shared filter value. */
   desktopOtherClient?: true
 }
 

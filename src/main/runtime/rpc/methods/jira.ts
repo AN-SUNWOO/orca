@@ -4,6 +4,7 @@ import {
 } from '../../../../shared/jira-payload-stream'
 import { defineMethod, defineStreamingMethod, type RpcContext } from '../core'
 import { JIRA_ATTACHMENT_IMAGE_METHODS } from './jira-attachment-image'
+import { JiraFavouriteFilterParams } from '../../../../shared/rpc-contract/jira-favourite-filter-params'
 import {
   AssignableUsers,
   GenerateIssueSummary,
@@ -214,6 +215,13 @@ export const JIRA_METHODS = [
         emit
       )
     }
+  }),
+  defineMethod({
+    name: 'jira.listFavouriteFilters',
+    permission: 'workspace',
+    params: JiraFavouriteFilterParams,
+    handler: async (params, { runtime, signal }) =>
+      runtime.jiraListFavouriteFilters(params.siteId, signal)
   }),
   defineMethod({
     name: 'jira.listProjects',

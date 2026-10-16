@@ -1,9 +1,27 @@
 import type { AiVaultServicePendingCall } from './session-scanner-service-client-state'
 import type { AiVaultServiceRequest } from './session-scanner-service-protocol'
+import type { AiVaultScanWork } from '../../shared/ai-vault-scan-progress'
 
 /** No-progress window: a scan whose work keeps advancing re-arms it, however long it runs. */
 export const AI_VAULT_SERVICE_SCAN_TIMEOUT_MS = 130_000
 export const AI_VAULT_SERVICE_INTERACTIVE_TIMEOUT_MS = 15_000
+
+/** The named call exhausted its deadline; a shared child fault may reject other calls too. */
+export class AiVaultServiceDeadlineError extends Error {
+  constructor(
+    message: string,
+    readonly operation: AiVaultServiceRequest['operation'],
+    readonly requestId: number
+  ) {
+    super(message)
+  }
+}
+
+/** Follows one scan request: when the child received it, and each report of its work. */
+export type AiVaultServiceScanListener = {
+  sent: (requestId: number) => void
+  work: (work: AiVaultScanWork) => void
+}
 
 function armAiVaultServiceRequestDeadline(
   call: AiVaultServicePendingCall,
@@ -19,7 +37,13 @@ function armAiVaultServiceRequestDeadline(
   // Same text for both meanings: remote clients humanize it, so a new wording
   // would reach older ones as "stopped unexpectedly".
   call.timer = setTimeout(() => {
-    onTimeout(new Error(`AI Vault service timed out after ${timeoutMs}ms.`))
+    onTimeout(
+      new AiVaultServiceDeadlineError(
+        `AI Vault service timed out after ${timeoutMs}ms.`,
+        call.request.operation,
+        call.request.id
+      )
+    )
   }, timeoutMs)
   call.timer.unref?.()
 }
@@ -37,6 +61,7 @@ export function sendAiVaultServiceCall(
   }
   armAiVaultServiceRequestDeadline(call, onTimeout)
   call.sent = true
+  call.scanListener?.sent(call.request.id)
   child.send(call.request)
 }
 
@@ -47,17 +72,18 @@ export function sendAiVaultServiceCall(
  */
 export function noteAiVaultServiceScanProgress(
   call: AiVaultServicePendingCall,
-  units: number,
+  progress: { units: number; work?: AiVaultScanWork },
   onTimeout: (error: Error) => void
 ): void {
-  if (
-    call.cancelled ||
-    !call.sent ||
-    call.request.operation !== 'scan' ||
-    units <= call.progressUnits
-  ) {
+  if (call.cancelled || !call.sent || call.request.operation !== 'scan') {
     return
   }
-  call.progressUnits = units
+  if (progress.work) {
+    call.scanListener?.work(progress.work)
+  }
+  if (progress.units <= call.progressUnits) {
+    return
+  }
+  call.progressUnits = progress.units
   armAiVaultServiceRequestDeadline(call, onTimeout)
 }

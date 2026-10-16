@@ -51,10 +51,9 @@ const rows = [
 const result: RuntimeWorktreePsResult = { worktrees: rows, totalCount: 4, truncated: false }
 
 function context(
-  overrides: Partial<Pick<RpcContext, 'clientKind' | 'pairedDeviceParentId'>>,
-  hides = true
+  overrides: Partial<Pick<RpcContext, 'clientKind' | 'pairedDeviceParentId'>>
 ): Parameters<typeof markWorktreePsOtherClientRows>[1] {
-  return { runtime: { hidesWorkspacesFromOtherDevices: () => hides }, ...overrides }
+  return overrides
 }
 
 function marked(next: RuntimeWorktreePsResult): string[] {
@@ -62,16 +61,13 @@ function marked(next: RuntimeWorktreePsResult): string[] {
 }
 
 describe('markWorktreePsOtherClientRows', () => {
-  it("marks, for this host's own phone, the rows its sidebar hides", () => {
+  it("marks, for this host's own phone, the rows its sidebar calls another client's", () => {
     expect(
       marked(markWorktreePsOtherClientRows(result, context({ clientKind: 'mobile' })))
     ).toEqual(['laptop'])
   })
 
-  it('leaves rows untouched while the setting is off, or for any other caller', () => {
-    expect(markWorktreePsOtherClientRows(result, context({ clientKind: 'mobile' }, false))).toBe(
-      result
-    )
+  it('leaves rows untouched for any other caller', () => {
     expect(markWorktreePsOtherClientRows(result, context({ clientKind: 'runtime' }))).toBe(result)
     expect(markWorktreePsOtherClientRows(result, context({}))).toBe(result)
     expect(

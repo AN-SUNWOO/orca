@@ -108,6 +108,29 @@ describe('AI Vault service scan watchdog', () => {
     client.dispose()
   })
 
+  it('forwards a trailing work snapshot without extending the scan deadline', async () => {
+    const { children, client } = setup()
+    const work = vi.fn()
+    const scan = client.request(SCAN, undefined, { sent: () => undefined, work })
+    const child = children[0]!
+    readyAiVaultServiceChild(child)
+    await Promise.resolve()
+    const id = aiVaultServiceRequestId(child, 'scan')
+    const rejected = expect(scan).rejects.toThrow(TIMED_OUT)
+    progress(child, id, 1)
+    vi.advanceTimersByTime(AI_VAULT_SERVICE_SCAN_TIMEOUT_MS - 1)
+    child.emit('message', {
+      type: 'progress',
+      id,
+      units: 1,
+      work: { stage: 'finding', agents: [], read: { done: 0, total: 0 } }
+    })
+    expect(work).toHaveBeenCalledOnce()
+    vi.advanceTimersByTime(1)
+    await rejected
+    client.dispose()
+  })
+
   it('ignores progress for another request id', async () => {
     const { children, client } = setup()
     const { scan, child, id } = await startScan(client, children)

@@ -111,7 +111,7 @@ export const LEGACY_WORKSPACE_LAYOUT_PROFILES: readonly WorkspaceLayoutProfile[]
     session.tabsByWorktree[GIT_KEY]![0]!.ptyId = null
     return session
   }),
-  local('tab-bar entry declaring a group that does not list it', () => {
+  local('tab listed by two groups, its tab-bar entry naming the second', () => {
     const session = addWorkspace(emptySession(), GIT_KEY, [
       { id: 'g1', tabs: [{ id: 'tab-a', leaves: [[leaf(1), 'pty-a']] }] },
       { id: 'g2', tabs: [{ id: 'tab-b', leaves: [[leaf(2), 'pty-b']] }] }

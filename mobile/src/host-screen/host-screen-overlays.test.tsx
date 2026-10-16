@@ -27,6 +27,7 @@ vi.mock('../components/PickerModal', () => ({ PickerModal: 'PickerModal' }))
 import { MOBILE_DESKTOP_RELAY_RUNTIME_CAPABILITY } from '../../../src/shared/mobile-desktop-relay-contract'
 import { FakeSession } from '../transport/mobile-endpoint-supervisor-test-fakes'
 import type { Worktree } from '../worktree/workspace-list-types'
+import { INITIAL_MOBILE_VIEW } from '../worktree/workspace-view-settings'
 import { HostScreenOverlays } from './host-screen-overlays'
 
 let renderer: ReactTestRenderer | null = null
@@ -52,7 +53,7 @@ async function actionLabels(row: Partial<Worktree>): Promise<string[]> {
     state: {
       actionTarget: { worktreeId: 'wt', repo: 'orca', branch: 'main', ...row },
       confirmDelete: null,
-      filters: { filterRepoIds: new Set() },
+      view: { ...INITIAL_MOBILE_VIEW },
       hostLabelById: new Map(),
       pinnedIds: new Set()
     }

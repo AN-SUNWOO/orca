@@ -81,6 +81,9 @@ export const jiraApi = {
 
   listProjects: (args?: { siteId?: string }) => ipcRenderer.invoke('jira:listProjects', args),
 
+  listFavouriteFilters: (args: { siteId: string }) =>
+    ipcRenderer.invoke('jira:listFavouriteFilters', args),
+
   listIssueTypes: (args: { projectIdOrKey: string; siteId?: string }) =>
     ipcRenderer.invoke('jira:listIssueTypes', args),
 

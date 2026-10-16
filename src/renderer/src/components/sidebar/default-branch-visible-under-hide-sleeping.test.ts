@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeVisibleWorktreeIds } from './visible-worktrees'
+import { computeVisibleWorktreeIds } from './compute-visible-worktrees'
 import { isDefaultBranchWorkspace } from '../../../../shared/worktree/workspace-kinds'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'

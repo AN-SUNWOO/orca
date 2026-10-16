@@ -80,10 +80,7 @@ describe('recent project rank scan budget', () => {
       pendingByRepo: new Map(),
       mixedWorktreeHostContextLabels: undefined,
       noticeHostContextLabelByRepoId: undefined,
-      lineageById: {},
-      worktreeMap: new Map(),
-      nestLineage: false,
-      cyclicLineageIds: new Set()
+      occurrencePlan: { bySection: new Map(), preferredByIdentity: new Map() }
     }
     appendProjectGroupSections(ctx, {
       orderedGroups: grouped,

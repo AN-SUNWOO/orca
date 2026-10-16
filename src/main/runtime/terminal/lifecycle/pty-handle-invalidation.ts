@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithResolveKnownWorkspaceFileTarget } from '../../orca-runtime-resolve-known-workspace-file-target'
+import { OrcaRuntimeWithResolveKnownWorkspaceFileTarget } from '../../workspaces/known-workspace-file-target'
 import type { PtyIncarnationId } from '../../../../shared/pty-incarnation'
 import { getPtyExecutionHost } from '../../../../shared/terminal-execution-host'
 import {

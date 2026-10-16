@@ -1,6 +1,5 @@
-import { createHash } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { getAppEnvironment } from '../../shared/app-environment'
 import { LOCAL_BUILD_COMPATIBILITY_CONTRACT } from '../../shared/local-build-compatibility-contract'
@@ -11,8 +10,9 @@ import { compareDottedVersions } from '../orcad/native-host-abi'
 import { DaemonClient } from './client'
 import { DaemonEndpointOwnershipError, holdDaemonAdoptionLease } from './daemon-endpoint-adoption'
 import { buildDaemonScriptArgs, type DaemonChildSpawnOptions } from './daemon-launched-child-spawn'
-import { PROTOCOL_VERSION } from './daemon-protocol-version'
+import { macDaemonJobLabel } from './macos-daemon-job-label'
 import type { DaemonProcessHandle } from './daemon-spawner'
+import { DAEMON_SHUTDOWN_TIMEOUT_MS } from './daemon-shutdown-deadline'
 import {
   getMacDaemonBundleRoot,
   materializeMacDaemonBundle,
@@ -42,11 +42,7 @@ const BOOTSTRAP_TIMEOUT_MS = 10_000
 const STARTUP_TIMEOUT_MS = 10_000
 const JOB_CHECK_INTERVAL_MS = 250
 
-/** One job per profile and protocol, matching the one daemon each of them may run. */
-export function macDaemonJobLabel(userDataPath: string): string {
-  const profileKey = createHash('sha256').update(resolve(userDataPath)).digest('hex').slice(0, 16)
-  return `com.stablyai.orca.terminal.${profileKey}.v${PROTOCOL_VERSION}`
-}
+export { macDaemonJobLabel } from './macos-daemon-job-label'
 
 function buildMacDaemonLaunchJob(
   options: MacDaemonLaunchOptions,
@@ -139,8 +135,12 @@ export async function launchMacDaemonFromStableBundle(
     return fallBackToFork(reason, error, deadlineMs)
   }
 
-  // A stopped job from an earlier daemon holds the label; a running one may own the endpoint.
-  if (!(await releaseMacDaemonJob(service))) {
+  // Reserve bootstrap/readiness time while shutdown and launchd finish retiring the old job.
+  const releaseByMs = Math.min(
+    Date.now() + DAEMON_SHUTDOWN_TIMEOUT_MS + 2_000,
+    deadlineMs - BOOTSTRAP_TIMEOUT_MS - STARTUP_TIMEOUT_MS
+  )
+  if (!(await releaseMacDaemonJob(service, releaseByMs))) {
     throw new Error('A macOS terminal service from an earlier launch is still registered')
   }
   // The inherited environment can contain credentials; never leave it on disk after bootstrap.

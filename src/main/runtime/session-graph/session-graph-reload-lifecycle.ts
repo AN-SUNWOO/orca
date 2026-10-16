@@ -200,6 +200,10 @@ export abstract class OrcaRuntimeWithHasTerminalsForWorktree extends OrcaRuntime
       return
     }
     this.graphReloadLifecycle.settleActive('cancelled')
+    // Why: a closed window never republishes, so a serve host must take its graph back (#27292).
+    if (this.servesHeadlessGraph) {
+      this.headlessGraphFallbackAvailable = true
+    }
     if (this.shouldRestoreHeadlessGraph(windowId)) {
       this.pendingHeadlessPromotionWindowId = null
       this.restoreHeadlessGraphAuthority()

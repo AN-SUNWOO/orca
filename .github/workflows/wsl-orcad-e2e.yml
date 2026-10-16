@@ -8,10 +8,14 @@ name: WSL orcad E2E
 on:
   pull_request:
     paths:
-      - "src/main/wsl/**"
-      - "src/main/ssh/orcad-*"
-      - "src/main/ssh/remote-install-transport.ts"
-      - ".github/workflows/wsl-orcad-e2e.yml"
+      - 'src/main/wsl/**'
+      - '!src/main/wsl/**/*.test.ts'
+      - 'src/main/wsl/wsl-orcad-real-distro-lane.test.ts'
+      # This lane executes only the real distro test above.
+      - 'src/main/ssh/orcad-*'
+      - '!src/main/ssh/orcad-*.test.ts'
+      - 'src/main/ssh/remote-install-transport.ts'
+      - '.github/workflows/wsl-orcad-e2e.yml'
   workflow_dispatch:
 
 permissions:
@@ -23,7 +27,7 @@ concurrency:
 
 env:
   # wsl.exe prints UTF-16LE to pipes unless told otherwise.
-  WSL_UTF8: "1"
+  WSL_UTF8: '1'
   ROOTFS_URL: https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-wsl-amd64.wsl
   ROOTFS_SHA256: 9b2f7730dc68227dd04a9f3e5eab86ad85caf556b8606ad94f1f29ff5c4fd3f5
   WSL_MSI_URL: https://github.com/microsoft/WSL/releases/download/3.0.1/wsl.3.0.1.0.x64.msi
@@ -65,7 +69,7 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 45
     env:
-      ORCA_BACKGROUND_LAUNCH: "1"
+      ORCA_BACKGROUND_LAUNCH: '1'
       ORCA_WSL_ORCAD_LANE_RECEIPTS: ${{ github.workspace }}\test-results\wsl-orcad-lane
     defaults:
       run:
@@ -162,10 +166,10 @@ jobs:
         with:
           path: ${{ runner.temp }}/wsl-rootfs
           key: wsl-orcad-rootfs-${{ env.ROOTFS_SHA256 }}
-      - name: "Phase 1: deploy, RPC, kill orcad, terminate distro"
+      - name: 'Phase 1: deploy, RPC, kill orcad, terminate distro'
         timeout-minutes: 20
         env:
-          ORCA_RUN_WSL_ORCAD_LANE: "1"
+          ORCA_RUN_WSL_ORCAD_LANE: '1'
           ORCA_WSL_ORCAD_LANE_PHASE: launch
           ORCA_ORCAD_TEMPLATE_PATH: ${{ runner.temp }}/orcad-template
         run: |
@@ -173,10 +177,10 @@ jobs:
           node node_modules/vitest/vitest.mjs run --config config/vitest.config.ts src/main/wsl/wsl-orcad-real-distro-lane.test.ts --reporter=verbose 2>&1 | Tee-Object (Join-Path $env:ORCA_WSL_ORCAD_LANE_RECEIPTS 'launch.log')
           if ($global:LASTEXITCODE -ne 0) { throw "launch phase failed: $global:LASTEXITCODE" }
       # A new process: the holders must have kept both distros Running since phase 1 exited.
-      - name: "Phase 2: holders survive, reconnect, teardown"
+      - name: 'Phase 2: holders survive, reconnect, teardown'
         timeout-minutes: 10
         env:
-          ORCA_RUN_WSL_ORCAD_LANE: "1"
+          ORCA_RUN_WSL_ORCAD_LANE: '1'
           ORCA_WSL_ORCAD_LANE_PHASE: survive
           ORCA_ORCAD_TEMPLATE_PATH: ${{ runner.temp }}/orcad-template
         run: |

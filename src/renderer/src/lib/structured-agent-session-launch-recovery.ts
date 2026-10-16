@@ -78,7 +78,7 @@ export async function recoverPublishedSessionReceipt(
       )
     : undefined
   if (state.intent.params.firstMessage && !firstMessage) {
-    return launchStructuredAgentSession(state.intent, state.onHostSeed)
+    return launchStructuredAgentSession(state.intent, state.onHostSeed, true)
   }
   if (state.intent.createMessageSupport === true) {
     publishStructuredAgentSessionCreateHydration(state.intent, history.page, fence)
@@ -98,7 +98,7 @@ async function retrySameIntent(
 ): Promise<StructuredAgentLaunchReceipt> {
   throwIfLaunchCancelled(state)
   try {
-    const receipt = await launchStructuredAgentSession(state.intent, state.onHostSeed)
+    const receipt = await launchStructuredAgentSession(state.intent, state.onHostSeed, true)
     throwIfLaunchCancelled(state)
     if (state.intent.createMessageSupport !== true) {
       await verifyPublishedSession(state)

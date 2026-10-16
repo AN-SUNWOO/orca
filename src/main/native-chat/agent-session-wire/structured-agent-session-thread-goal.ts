@@ -6,11 +6,11 @@ import type {
   AgentJournalItemIdentity,
   AgentJournalThreadGoal
 } from '../../../shared/agent-session-journal-types'
+import type { AgentSessionMutationEnvelope } from '../../../shared/agent-session-wire'
 import type {
-  AgentSessionMutationEnvelope,
   AgentSessionThreadGoalChange,
   AgentSessionThreadGoalResult
-} from '../../../shared/agent-session-wire'
+} from '../../../shared/agent-session-thread-goal-wire'
 import type { MutationPlan } from './structured-agent-session-mutation-plans'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
 import { contextStructuredAgentSessionCurrentWork } from './structured-agent-session-current-work'

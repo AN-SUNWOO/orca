@@ -114,7 +114,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
         sectionCount={sections.length}
         catalogError={state.catalogError}
         search={state.search}
-        activeFilterCount={settings.activeFilterCount}
+        activeFilterCount={controller.activeFilterCount}
       />
 
       {sections.length > 0 && (
@@ -140,12 +140,14 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
             if (!section.title) {
               return null
             }
-            const isCollapsed = state.collapsedGroups.has(section.key)
+            const isCollapsed = controller.collapsedGroups.has(section.key)
             const rawSection = rawSections.find((s) => s.key === section.key)
             const count = rawSection?.data.length ?? 0
             // Why: the desktop's header draws its anchor repo's colour and icon.
             const repoSectionLook =
-              state.groupMode === 'repo' && section.repo ? repoLookById.get(section.repo.id) : null
+              state.view.groupBy === 'repo' && section.repo
+                ? repoLookById.get(section.repo.id)
+                : null
             const repoSectionColor = repoSectionLook?.color ?? null
             const repoSectionIcon = repoSectionLook?.icon ?? null
             return (
@@ -161,7 +163,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                 {section.icon === 'pin' && (
                   <Pin size={12} color={colors.textMuted} style={styles.sectionIcon} />
                 )}
-                {state.groupMode === 'repo' ? (
+                {state.view.groupBy === 'repo' ? (
                   <View style={styles.sectionRepoIcon}>
                     <MobileRepoIcon
                       repoIcon={repoSectionIcon}
@@ -193,7 +195,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
               status={getWorktreeStatus(item)}
               repoColor={repoLookById.get(item.repoId)?.color ?? repoColor(item.repo)}
               repoIcon={repoLookById.get(item.repoId)?.icon ?? null}
-              hideRepo={state.groupMode === 'repo'}
+              hideRepo={state.view.groupBy === 'repo' && !item.showProjectName}
               onPress={actions.openWorktreeSession}
               onLongPress={
                 item.workspaceKind === 'folder-workspace' ? undefined : state.setActionTarget

@@ -42,6 +42,7 @@ const LAYOUT_ORACLE_PREFIXES = [
   'src/main/runtime/session-tabs/mobile-session-hydration.ts',
   'src/main/runtime/session-tabs/mobile-session-reconciliation.ts',
   'src/main/runtime/session-tabs/mobile-session-preservation.ts',
+  'src/main/runtime/workspaces/session-hosts/get-runtime-id.ts',
   'src/renderer/src/components/terminal/terminal-tab-actions.ts',
   'src/renderer/src/components/tab-bar/web-runtime-tab-move-mirror.ts',
   'src/shared/rpc-contract/workspace-layout-params.ts',
@@ -65,11 +66,17 @@ const LAYOUT_ORACLE_PREFIXES = [
   'config/scripts/pr-layout-oracle-route.mjs'
 ]
 
-const LAUNCH_LAYOUT_WRITERS = [
+const RUNTIME_LAYOUT_WRITERS = [
   'src/main/runtime/terminal/launch/terminal-create.ts',
   'src/main/runtime/terminal/launch/terminal-split.ts',
   'src/main/runtime/terminal/launch/terminal-split-surface.ts',
-  'src/main/runtime/terminal/stop/worktree-terminal-stop.ts'
+  'src/main/runtime/terminal/stop/worktree-terminal-stop.ts',
+  'src/main/runtime/workspaces/workspace-file-session-targets.ts',
+  'src/main/runtime/workspaces/persisted-surfaces/has-exact-persisted-terminal-surface-identity.ts',
+  'src/main/runtime/runtime-terminal-orphan-adoption.ts',
+  'src/main/runtime/terminal/adoption/adopt-terminal-orphans-from-inventory.ts',
+  'src/main/runtime/session-tabs/mobile-session-membership.ts',
+  'src/main/runtime/session-tabs/pty-backed-session-publication.ts'
 ]
 
 // Runtime matches only the modules that create, move, close, persist or publish layout.
@@ -88,7 +95,7 @@ export function isLayoutOracleSource(file) {
     return false
   }
   return (
-    LAUNCH_LAYOUT_WRITERS.includes(file) ||
+    RUNTIME_LAYOUT_WRITERS.includes(file) ||
     LAYOUT_ORACLE_PREFIXES.some((prefix) => file.startsWith(prefix)) ||
     LAYOUT_ORACLE_RUNTIME_MODULE.test(file)
   )

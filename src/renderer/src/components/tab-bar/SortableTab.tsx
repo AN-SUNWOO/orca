@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { X, Minimize2, Pin } from 'lucide-react'
 import { stripLeadingAgentTitleDecoration } from '../../../../shared/agent-title-decoration'
@@ -139,7 +139,13 @@ export default function SortableTab({
   })
 
   // Why: no transform/transition/opacity so tabs stay anchored during drag, only the insertion bar moves (see TabBar.tsx).
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpening, setMenuOpening] = useState<number | null>(null)
+  const menuGeneration = useRef(0)
+  const setMenuOpen = useCallback((open: boolean) => {
+    // Every gesture retires the old opening, even when React batches close and reopen.
+    const generation = ++menuGeneration.current
+    setMenuOpening(open ? generation : null)
+  }, [])
   const [menuPoint, setMenuPoint] = useState({ x: 0, y: 0 })
   const {
     isEditing,
@@ -163,17 +169,17 @@ export default function SortableTab({
     const closeMenu = (): void => setMenuOpen(false)
     window.addEventListener(CLOSE_ALL_CONTEXT_MENUS_EVENT, closeMenu)
     return () => window.removeEventListener(CLOSE_ALL_CONTEXT_MENUS_EVENT, closeMenu)
-  }, [])
+  }, [setMenuOpen])
 
   // Why: webview clicks miss the renderer pointerdown Radix uses for outside-click, so dismiss on window blur instead.
   useEffect(() => {
-    if (!menuOpen) {
+    if (menuOpening === null) {
       return
     }
     const dismiss = (): void => setMenuOpen(false)
     window.addEventListener('blur', dismiss)
     return () => window.removeEventListener('blur', dismiss)
-  }, [menuOpen])
+  }, [menuOpening, setMenuOpen])
 
   // Why: while editing, drop drag listeners so typing can't start a drag; attributes stay spread to keep dnd-kit a11y.
   const dragListeners = isEditing ? undefined : listeners
@@ -368,7 +374,7 @@ export default function SortableTab({
           setMenuOpen(true)
         }}
       >
-        {isEditing || menuOpen ? (
+        {isEditing || menuOpening !== null ? (
           tabRoot
         ) : (
           <TabHoverCard
@@ -396,11 +402,17 @@ export default function SortableTab({
       </div>
 
       <SortableTabContextMenu
+        sessionSwitchOpening={menuOpening}
+        onSessionSwitchComplete={() => {
+          if (menuGeneration.current === menuOpening) {
+            setMenuOpen(false)
+          }
+        }}
         tab={tab}
         unifiedTabId={unifiedTabId}
         groupId={groupId}
         isActive={isActive}
-        open={menuOpen}
+        open={menuOpening !== null}
         point={menuPoint}
         tabCount={tabCount}
         hasTabsToRight={hasTabsToRight}

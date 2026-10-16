@@ -21,7 +21,6 @@ import { mainProcessState as state } from './main-process-state'
 export async function prepareCodexSessionResumeForLaunch(args: {
   providerSession: AgentProviderSessionMetadata
   target: CodexAccountSelectionTarget
-  launchEnv?: NodeJS.ProcessEnv
   useSelectedAccount?: boolean
 }): Promise<CodexSessionResumePreparation | null> {
   const runtimeHome = state.codexRuntimeHome

@@ -33,7 +33,9 @@ export function mobileStructuredSendQueues(
   queueCapable: boolean,
   state: Pick<StructuredAgentSessionState, 'items' | 'currentRequests'>
 ): boolean {
-  return queueCapable && !pendingPromptsAllUnanswerableHere(selectAgentSessionCurrentRequests(state))
+  return (
+    queueCapable && !pendingPromptsAllUnanswerableHere(selectAgentSessionCurrentRequests(state))
+  )
 }
 
 export type StructuredMobileSendAttachment = StructuredAgentSessionAttachment & {

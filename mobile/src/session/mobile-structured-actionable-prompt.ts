@@ -8,7 +8,10 @@ import {
   type StructuredQuestionItem
 } from './mobile-structured-agent-prompts'
 
-type PromptState = Pick<StructuredAgentSessionState, 'items' | 'currentRequests' | 'actionablePromptIds'>
+type PromptState = Pick<
+  StructuredAgentSessionState,
+  'items' | 'currentRequests' | 'actionablePromptIds'
+>
 
 /** The approval a person can answer: pending, and named by the host as waiting when it names them
  *  (`isActionableStructuredAgentSessionPrompt`): one an agent that ended raised is not. */

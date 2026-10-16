@@ -50,7 +50,10 @@ export abstract class OrcaRuntimeWithMigrationCatalog extends OrcaRuntimeWithRes
 
   async commitStagedOrcadMigrationCatalog(
     manifest: OrcadMigrationManifest,
-    options: { signal?: AbortSignal; expectedBlobs?: readonly OrcadMigrationBlobDescriptor[] } = {}
+    options: {
+      signal?: AbortSignal
+      expectedBlobs?: readonly OrcadMigrationBlobDescriptor[]
+    } = {}
   ): Promise<OrcadMigrationCatalogState> {
     return commitStagedOrcadMigrationCatalogDurably({
       store: this.requireMigrationStore(
@@ -156,14 +159,16 @@ export abstract class OrcaRuntimeWithMigrationCatalog extends OrcaRuntimeWithRes
     request: HostTerminalScrollbackReadRequest
   ): Promise<SessionReadTerminalScrollbackResult> {
     const store = this.store
-    const readSnapshot = store?.readTerminalScrollbackSnapshot
-    if (!store || !readSnapshot) {
+    const readSnapshot = store?.readTerminalScrollbackSnapshotAsync
+    const statSnapshotSize = store?.statTerminalScrollbackSnapshotSize
+    if (!store || !readSnapshot || !statSnapshotSize) {
       throw new Error('runtime_unavailable')
     }
     return readHostTerminalScrollback(
       {
         resolveWorktreeId: async (selector) => (await this.resolveWorktreeSelector(selector)).id,
         getWorkspaceSession: (worktreeId) => this.workspaceSessions.get(worktreeId),
+        statSnapshotSize: (ref) => statSnapshotSize.call(store, ref),
         readSnapshot: (ref) => readSnapshot.call(store, ref)
       },
       request

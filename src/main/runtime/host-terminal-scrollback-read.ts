@@ -6,10 +6,15 @@ export type HostTerminalScrollbackReadDeps = {
   /** Resolves the caller's worktree selector the way every workspace method does; throws when unknown. */
   resolveWorktreeId: (selector: string) => Promise<string>
   getWorkspaceSession: (worktreeId: string) => WorkspaceSessionState | null
-  readSnapshot: (ref: string) => string | null
+  /** Byte size of the stored file, checked before any bytes are read; null when absent. */
+  statSnapshotSize: (ref: string) => Promise<number | null>
+  readSnapshot: (ref: string) => Promise<string | null>
 }
 
-export type HostTerminalScrollbackReadRequest = { worktree: string; ref: string }
+export type HostTerminalScrollbackReadRequest = {
+  worktree: string
+  ref: string
+}
 
 function worktreeSessionNamesScrollbackRef(
   session: WorkspaceSessionState,
@@ -36,13 +41,17 @@ export async function readHostTerminalScrollback(
   if (!session || !worktreeSessionNamesScrollbackRef(session, worktreeId, request.ref)) {
     throw new Error('terminal_scrollback_not_found')
   }
-  const buffer = deps.readSnapshot(request.ref)
-  if (!buffer) {
+  const size = await deps.statSnapshotSize(request.ref)
+  if (size === null || size <= 0) {
     throw new Error('terminal_scrollback_not_found')
   }
-  // Why: the store read is already tail-bounded; this keeps the wire bounded if a store is not.
-  if (Buffer.byteLength(buffer, 'utf-8') > TERMINAL_SCROLLBACK_STORE_BYTE_LIMIT) {
+  // Why: refuse a file no store write could have produced before reading any of it.
+  if (size > TERMINAL_SCROLLBACK_STORE_BYTE_LIMIT) {
     throw new Error('terminal_scrollback_too_large')
+  }
+  const buffer = await deps.readSnapshot(request.ref)
+  if (!buffer) {
+    throw new Error('terminal_scrollback_not_found')
   }
   return { buffer }
 }

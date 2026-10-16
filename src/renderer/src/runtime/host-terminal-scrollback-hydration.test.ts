@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TerminalLayoutSnapshot } from '../../../shared/terminal-tab-types'
 import {
+  HOST_TERMINAL_SCROLLBACK_HOLD_MS,
   resetHostTerminalScrollbackHydrationForTests,
   startHostTerminalScrollbackHydration,
   type HostTerminalScrollbackHydrationDeps,
@@ -26,14 +27,19 @@ function layout(overrides: Partial<TerminalLayoutSnapshot> = {}): TerminalLayout
 }
 
 function harness(overrides: Partial<HostTerminalScrollbackHydrationDeps> = {}) {
-  const tabState: HostTerminalScrollbackTabState = { layout: layout(), localOnly: undefined }
+  const tabState: HostTerminalScrollbackTabState = {
+    layout: layout(),
+    localOnly: undefined
+  }
   const deps = {
     getTabState: vi.fn(() => tabState),
     resolveEnvironmentId: vi.fn((_worktreeId: string): string | null => 'env-wsl'),
-    readLocalSnapshot: vi.fn((_ref: string): string | null => null),
-    hostSupportsRead: vi.fn(async (_environmentId: string) => true),
+    hasLocalSnapshot: vi.fn((_ref: string) => false),
+    peekHostSupportsRead: vi.fn((_environmentId: string): boolean | undefined => true),
+    warmHostSupportsRead: vi.fn(async (_environmentId: string): Promise<unknown> => true),
     readHostSnapshot: vi.fn(
-      async (_environmentId: string, _worktreeId: string, _ref: string) => 'host history'
+      async (_environmentId: string, _worktreeId: string, _ref: string, _signal: AbortSignal) =>
+        'host history'
     ),
     isTabMounted: vi.fn((_tabId: string) => false),
     storeLocalOnly: vi.fn((tabId: string, buffers: Record<string, string>) => {
@@ -49,33 +55,82 @@ beforeEach(() => {
   resetHostTerminalScrollbackHydrationForTests()
 })
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+function rpcFailure(code: string): Error {
+  return Object.assign(new Error(code), { code })
+}
+
 describe('startHostTerminalScrollbackHydration', () => {
   it('reads a host-run pane from its host when this client has no copy', async () => {
     const { deps, tabState } = harness()
     await startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)
-    expect(deps.hostSupportsRead).toHaveBeenCalledWith('env-wsl')
-    expect(deps.readHostSnapshot).toHaveBeenCalledExactlyOnceWith('env-wsl', 'repo::/wt', REF)
+    expect(deps.peekHostSupportsRead).toHaveBeenCalledWith('env-wsl')
+    expect(deps.warmHostSupportsRead).not.toHaveBeenCalled()
+    expect(deps.readHostSnapshot).toHaveBeenCalledExactlyOnceWith(
+      'env-wsl',
+      'repo::/wt',
+      REF,
+      expect.any(AbortSignal)
+    )
     expect(tabState.localOnly).toEqual({ 'leaf-1': 'host history' })
   })
 
-  it('does nothing new when the host does not advertise the read', async () => {
-    const { deps, tabState } = harness({ hostSupportsRead: vi.fn(async () => false) })
-    await startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)
+  it('mounts at once on a host cached as not advertising the read', () => {
+    const { deps } = harness({ peekHostSupportsRead: vi.fn(() => false) })
+    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
+    expect(deps.warmHostSupportsRead).not.toHaveBeenCalled()
     expect(deps.readHostSnapshot).not.toHaveBeenCalled()
-    expect(tabState.localOnly).toBeUndefined()
+  })
+
+  it('mounts at once on an unknown host and warms its status once per environment', async () => {
+    const { deps } = harness({ peekHostSupportsRead: vi.fn(() => undefined) })
+    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
+    expect(startHostTerminalScrollbackHydration('tab-2', 'repo::/wt', deps)).toBeNull()
+    await Promise.resolve()
+    expect(startHostTerminalScrollbackHydration('tab-3', 'repo::/wt', deps)).toBeNull()
+    await vi.waitFor(() => expect(deps.warmHostSupportsRead).toHaveBeenCalledOnce())
+    expect(deps.warmHostSupportsRead).toHaveBeenCalledWith('env-wsl')
+    expect(deps.readHostSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('holds once a background warm has cached the capability', async () => {
+    let known: boolean | undefined
+    const { deps } = harness({
+      peekHostSupportsRead: vi.fn(() => known),
+      warmHostSupportsRead: vi.fn(async () => {
+        known = true
+        return true
+      })
+    })
+    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
+    await vi.waitFor(() => expect(known).toBe(true))
+    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).not.toBeNull()
+  })
+
+  it('skips a leaf bound to a live PTY, whose screen replaces restored history', () => {
+    const { deps, tabState } = harness()
+    tabState.layout = layout({ ptyIdsByLeafId: { 'leaf-1': 'pty-1' } })
+    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
+    expect(deps.hasLocalSnapshot).not.toHaveBeenCalled()
+    expect(deps.peekHostSupportsRead).not.toHaveBeenCalled()
   })
 
   it('never asks a host for a pane this machine runs', () => {
     const { deps } = harness({ resolveEnvironmentId: vi.fn(() => null) })
     expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
-    expect(deps.hostSupportsRead).not.toHaveBeenCalled()
-    expect(deps.readLocalSnapshot).not.toHaveBeenCalled()
+    expect(deps.peekHostSupportsRead).not.toHaveBeenCalled()
+    expect(deps.hasLocalSnapshot).not.toHaveBeenCalled()
   })
 
-  it('keeps using the local copy when this client still has one', () => {
-    const { deps } = harness({ readLocalSnapshot: vi.fn(() => 'local history') })
+  it('keeps using the local copy, stat-checked once per ref', () => {
+    const { deps } = harness({ hasLocalSnapshot: vi.fn(() => true) })
     expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
-    expect(deps.hostSupportsRead).not.toHaveBeenCalled()
+    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
+    expect(deps.hasLocalSnapshot).toHaveBeenCalledExactlyOnceWith(REF)
+    expect(deps.peekHostSupportsRead).not.toHaveBeenCalled()
   })
 
   it('skips leaves that already carry bytes', () => {
@@ -87,18 +142,58 @@ describe('startHostTerminalScrollbackHydration', () => {
     expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
   })
 
-  it('tries each snapshot once and shares an in-flight read', async () => {
-    const { deps } = harness({
-      readHostSnapshot: vi.fn(async (): Promise<string> => {
-        throw new Error('host unreachable')
-      })
+  it('shares an in-flight read and retries after a transport failure', async () => {
+    const readHostSnapshot = vi.fn(async (): Promise<string> => {
+      throw new Error('host unreachable')
     })
+    const { deps, tabState } = harness({ readHostSnapshot })
     const first = startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)
     expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBe(first)
     await first
-    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
-    expect(deps.readHostSnapshot).toHaveBeenCalledOnce()
     expect(deps.storeLocalOnly).not.toHaveBeenCalled()
+    readHostSnapshot.mockResolvedValue('after reconnect')
+    await startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)
+    expect(readHostSnapshot).toHaveBeenCalledTimes(2)
+    expect(tabState.localOnly).toEqual({ 'leaf-1': 'after reconnect' })
+  })
+
+  it('never asks again after a not-found answer or stored bytes', async () => {
+    const { deps } = harness({
+      readHostSnapshot: vi.fn(async (): Promise<string> => {
+        throw rpcFailure('terminal_scrollback_not_found')
+      })
+    })
+    await startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)
+    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).toBeNull()
+
+    const stored = harness()
+    await startHostTerminalScrollbackHydration('tab-2', 'repo::/wt', stored.deps)
+    stored.tabState.localOnly = undefined
+    expect(startHostTerminalScrollbackHydration('tab-2', 'repo::/wt', stored.deps)).toBeNull()
+  })
+
+  it('aborts the read when the hold bound passes and drops late bytes', async () => {
+    vi.useFakeTimers()
+    let observed: AbortSignal | undefined
+    const { deps } = harness({
+      readHostSnapshot: vi.fn(
+        (_environmentId: string, _worktreeId: string, _ref: string, signal: AbortSignal) =>
+          new Promise<string>((resolve, reject) => {
+            observed = signal
+            signal.addEventListener('abort', () => {
+              resolve('late history')
+              reject(new Error('aborted'))
+            })
+          })
+      )
+    })
+    const pending = startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)
+    await vi.advanceTimersByTimeAsync(HOST_TERMINAL_SCROLLBACK_HOLD_MS)
+    await pending
+    expect(observed?.aborted).toBe(true)
+    expect(deps.storeLocalOnly).not.toHaveBeenCalled()
+    // An abort is not a definite answer, so a later mount may try again.
+    expect(startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)).not.toBeNull()
   })
 
   it('does not write under a pane that mounted while the read was in flight', async () => {
@@ -108,16 +203,18 @@ describe('startHostTerminalScrollbackHydration', () => {
   })
 
   it('drops bytes for a leaf whose ref changed during the read', async () => {
-    const state: { current: HostTerminalScrollbackTabState | null } = { current: null }
+    const state: { current: HostTerminalScrollbackTabState | null } = {
+      current: null
+    }
     const { deps, tabState } = harness({
-      readHostSnapshot: async () => {
+      readHostSnapshot: vi.fn(async () => {
         if (state.current) {
           state.current.layout = layout({
             scrollbackRefsByLeafId: { 'leaf-1': `v1-${'d'.repeat(32)}` }
           })
         }
         return 'stale history'
-      }
+      })
     })
     state.current = tabState
     await startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)
@@ -128,7 +225,7 @@ describe('startHostTerminalScrollbackHydration', () => {
     const webSession = createWebWorkspaceSessionApi().session
     expect(webSession).toBeDefined()
     const { deps, tabState } = harness({
-      readLocalSnapshot: (ref) => webSession?.readTerminalScrollback({ ref }) ?? null
+      hasLocalSnapshot: (ref) => webSession?.hasTerminalScrollback({ ref }) ?? false
     })
     await startHostTerminalScrollbackHydration('tab-1', 'repo::/wt', deps)
     expect(deps.readHostSnapshot).toHaveBeenCalledOnce()

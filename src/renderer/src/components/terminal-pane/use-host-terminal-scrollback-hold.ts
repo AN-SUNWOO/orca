@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { startHostTerminalScrollbackHydration } from '@/runtime/host-terminal-scrollback-hydration'
-
-// Why bounded: a slow or unreachable host must never keep a terminal from mounting.
-export const HOST_TERMINAL_SCROLLBACK_HOLD_MS = 3_000
+import {
+  HOST_TERMINAL_SCROLLBACK_HOLD_MS,
+  startHostTerminalScrollbackHydration
+} from '@/runtime/host-terminal-scrollback-hydration'
 
 /**
  * True while this tab's scrollback is being read from its host. The pane mounts once, and mount
@@ -10,7 +10,7 @@ export const HOST_TERMINAL_SCROLLBACK_HOLD_MS = 3_000
  */
 export function useHostTerminalScrollbackHold(tabId: string, worktreeId: string): boolean {
   // Why in the initializer: the hold must be known on the first render, before the pane mounts;
-  // the start is deduplicated per tab, so a repeated render does not refetch.
+  // the start is synchronous and deduplicated per tab, so a repeated render does not refetch.
   const [pending] = useState(() => startHostTerminalScrollbackHydration(tabId, worktreeId))
   const [held, setHeld] = useState(pending !== null)
   useEffect(() => {
@@ -23,6 +23,7 @@ export function useHostTerminalScrollbackHold(tabId: string, worktreeId: string)
         setHeld(false)
       }
     }
+    // Why: the read aborts at the same bound; this only guards a dependency that ignores abort.
     const timer = setTimeout(release, HOST_TERMINAL_SCROLLBACK_HOLD_MS)
     void pending.then(release)
     return () => {

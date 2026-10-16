@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { startHostTerminalScrollbackHydration } from '@/runtime/host-terminal-scrollback-hydration'
 import {
   HOST_TERMINAL_SCROLLBACK_HOLD_MS,
-  useHostTerminalScrollbackHold
-} from './use-host-terminal-scrollback-hold'
+  startHostTerminalScrollbackHydration
+} from '@/runtime/host-terminal-scrollback-hydration'
+import { useHostTerminalScrollbackHold } from './use-host-terminal-scrollback-hold'
 
 vi.mock('@/runtime/host-terminal-scrollback-hydration', () => ({
+  HOST_TERMINAL_SCROLLBACK_HOLD_MS: 3_000,
   startHostTerminalScrollbackHydration: vi.fn()
 }))
 const start = vi.mocked(startHostTerminalScrollbackHydration)

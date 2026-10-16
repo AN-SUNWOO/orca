@@ -45,3 +45,14 @@ describe('structured chat configured Arguments', () => {
     ).toThrow('Arguments are invalid')
   })
 })
+
+describe('future structured provider argument lookup', () => {
+  it('keeps configured arguments and empty fallback for an unregistered provider', () => {
+    const agentDefaultArgs = { claude: '', 'future-provider': '--label "future value"' }
+    expect(structuredAgentConfiguredArgs('future-provider', { agentDefaultArgs })).toEqual([
+      '--label',
+      'future value'
+    ])
+    expect(structuredAgentConfiguredArgs('future-provider', {})).toEqual([])
+  })
+})

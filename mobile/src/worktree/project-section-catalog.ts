@@ -12,11 +12,11 @@ import type { SectionRepo } from './workspace-list-types'
 export function buildProjectSectionCatalog(
   served: ServedProjectSections | null,
   desktopRepos: readonly SectionRepo[],
-  visibleHostIds: ReadonlySet<ExecutionHostId> | null
+  visibleHostIds: readonly ExecutionHostId[] | null
 ): ProjectSectionCatalog {
   const shown = (repos: readonly SectionRepo[]) =>
     visibleHostIds
-      ? repos.filter((repo) => visibleHostIds.has(getRepoExecutionHostId(repo)))
+      ? repos.filter((repo) => visibleHostIds.includes(getRepoExecutionHostId(repo)))
       : repos
   if (!served) {
     return { ...NO_PROJECT_SECTION_CATALOG, repos: shown(desktopRepos) }

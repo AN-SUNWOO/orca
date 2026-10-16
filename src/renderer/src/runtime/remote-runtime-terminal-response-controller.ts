@@ -86,6 +86,9 @@ export abstract class RemoteRuntimeTerminalResponseController extends RemoteRunt
       if (stream.supportsOutputPause) {
         stream.callbacks.onOutputPauseCapability?.()
       }
+      if (!stream.initialSnapshotReceived) {
+        stream.callbacks.onSubscribeAcknowledged?.()
+      }
     } else if (event.type === 'end') {
       disposeRemoteTerminalStreamState(stream, 'Remote terminal stream ended.')
       this.streams.delete(event.streamId)

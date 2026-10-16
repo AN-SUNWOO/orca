@@ -51,17 +51,17 @@
 2 src/renderer/src/runtime/web-session-terminal-orphan-topology.ts
 3 src/renderer/src/runtime/web-session-terminal-recovery-snapshot-validation.ts
 10 src/renderer/src/store/slices/browser/browser-close-actions.ts
-6 src/renderer/src/store/slices/browser/browser-hydration-actions.ts
+1 src/renderer/src/store/slices/browser/browser-hydration-actions.ts
+1 src/renderer/src/store/slices/browser/browser-hydration-state.ts
 5 src/renderer/src/store/slices/browser/browser-page-focus-actions.ts
 2 src/renderer/src/store/slices/browser/browser-page-state-actions.ts
 6 src/renderer/src/store/slices/browser/browser-tab-actions.ts
 4 src/renderer/src/store/slices/browser/browser-tab-focus-actions.ts
 2 src/renderer/src/store/slices/browser/create-browser-slice.ts
-1 src/renderer/src/store/slices/direct-ssh-terminal-recovery.ts
 9 src/renderer/src/store/slices/editor/actions/check-run-details-actions.ts
 7 src/renderer/src/store/slices/editor/actions/close-file-action.ts
 1 src/renderer/src/store/slices/editor/actions/git-status-actions.ts
-5 src/renderer/src/store/slices/editor/actions/hydrate-editor-session.ts
+4 src/renderer/src/store/slices/editor/actions/hydrated-editor-session-state.ts
 3 src/renderer/src/store/slices/editor/actions/markdown-preview-actions.ts
 27 src/renderer/src/store/slices/editor/actions/open-combined-diff.ts
 13 src/renderer/src/store/slices/editor/actions/open-conflict-file.ts
@@ -81,7 +81,7 @@
 4 src/renderer/src/store/slices/editor/tabs/editor-open-target-group.ts
 2 src/renderer/src/store/slices/tab-group-reference-repair.ts
 4 src/renderer/src/store/slices/tab-group-state.ts
-2 src/renderer/src/store/slices/tabs-hydration.ts
+1 src/renderer/src/store/slices/tabs-hydration.ts
 4 src/renderer/src/store/slices/tabs/create-tabs-slice.ts
 17 src/renderer/src/store/slices/tabs/tabs-close-actions.ts
 14 src/renderer/src/store/slices/tabs/tabs-create-actions.ts
@@ -117,3 +117,5 @@
 5 src/renderer/src/store/terminals/workspace-terminal-hydration-patch.ts
 2 src/renderer/src/store/terminals/workspace-terminal-hydration.ts
 2 src/renderer/src/store/terminals/workspace-terminal-reconnect.ts
+4 src/renderer/src/store/workspace-layout-frame-slices.ts
+12 src/renderer/src/store/workspace-layout-frame-store-patch.ts

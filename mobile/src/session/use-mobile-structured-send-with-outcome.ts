@@ -23,9 +23,9 @@ import { structuredSessionOperationId } from './structured-session-operation-id'
 import { timeoutForDeadline } from './mobile-structured-agent-session-rpc'
 import { structuredAgentSessionSendSelection } from '../../../src/shared/structured-agent-session-option-view'
 import {
-  pendingStructuredApproval,
-  pendingStructuredQuestion
-} from './mobile-structured-agent-prompts'
+  actionableStructuredApproval,
+  actionableStructuredQuestion
+} from './mobile-structured-actionable-prompt'
 
 /** Whether a send made now asks the host to queue it. The host's queue waits on any pending prompt;
  *  one this build cannot answer would hold the send forever, so it starts a turn instead. */
@@ -114,9 +114,8 @@ export function useMobileStructuredSendWithOutcome(args: {
         pending: commandPending,
         controller: { agent: agent ?? undefined, ...controller },
         busy: () =>
-          selectAgentSessionCurrentRequests(stateRef.current).some(
-            (item) => pendingStructuredApproval(item) || pendingStructuredQuestion(item)
-          )
+          actionableStructuredApproval(stateRef.current) ||
+          actionableStructuredQuestion(stateRef.current)
             ? 'prompt'
             : runningStructuredAgentSessionTurnId(stateRef.current)
               ? 'working'

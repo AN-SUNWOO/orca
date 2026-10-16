@@ -175,6 +175,70 @@ export function latestTurnAfterStructuredAgentSessionBatch(
   return carriesRows || event.latestTurn !== undefined ? event.latestTurn : previous
 }
 
+/** The host's actionable prompts once `event` applies, under `latestTurn`'s rule: a batch carrying
+ *  rows restates them, so one without them came from an older host and drops the claim. */
+export function actionablePromptIdsAfterStructuredAgentSessionBatch(
+  previous: string[] | undefined,
+  event: Extract<AgentSessionSubscribeEvent, { type: 'batch' }>
+): string[] | undefined {
+  const { items, removedItemIds, submissions } = event.batch
+  const carriesRows = items.length > 0 || removedItemIds.length > 0 || submissions.length > 0
+  return carriesRows || event.actionablePromptIds !== undefined
+    ? event.actionablePromptIds
+    : previous
+}
+
+/** The host's working answer once `event` applies, under `latestTurn`'s rule. */
+export function hostWorkingAfterStructuredAgentSessionBatch(
+  previous: boolean | undefined,
+  event: Extract<AgentSessionSubscribeEvent, { type: 'batch' }>
+): boolean | undefined {
+  const { items, removedItemIds, submissions } = event.batch
+  const carriesRows = items.length > 0 || removedItemIds.length > 0 || submissions.length > 0
+  return carriesRows || event.working !== undefined ? event.working : previous
+}
+
+/** Whether a frame's turn, prompts and working answer, when it names them, are what the state
+ *  already holds: a generation's end can change them with no row, so a frame that does is never a
+ *  no-op. */
+export function restatesStructuredAgentSessionHostWork(
+  event: Pick<
+    Extract<AgentSessionSubscribeEvent, { type: 'batch' }>,
+    'latestTurn' | 'actionablePromptIds' | 'working'
+  >,
+  state: {
+    latestTurn?: AgentSessionLatestTurn | null
+    actionablePromptIds?: string[]
+    working?: boolean
+  }
+): boolean {
+  return (
+    (event.latestTurn === undefined ||
+      JSON.stringify(event.latestTurn) === JSON.stringify(state.latestTurn)) &&
+    (event.actionablePromptIds === undefined ||
+      event.actionablePromptIds.join('\n') === state.actionablePromptIds?.join('\n')) &&
+    (event.working === undefined || event.working === state.working)
+  )
+}
+
+/** Whether the session's own agent is working: the host's answer when it gave one, else what the
+ *  client derives from its rows (an older host). */
+export function structuredAgentSessionHostSaysWorking(
+  hostWorking: boolean | undefined,
+  derived: () => boolean
+): boolean {
+  return hostWorking ?? derived()
+}
+
+/** Whether a pending prompt waits on the person: the host names the ones that do, and a prompt an
+ *  agent that has ended raised is not among them. An older host names none: every pending one. */
+export function isActionableStructuredAgentSessionPrompt(
+  itemId: string,
+  actionablePromptIds: readonly string[] | undefined
+): boolean {
+  return actionablePromptIds === undefined || actionablePromptIds.includes(itemId)
+}
+
 /**
  * Whether the newest thing the active turn produced is the model's own reasoning.
  *

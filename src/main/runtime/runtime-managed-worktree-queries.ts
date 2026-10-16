@@ -22,7 +22,7 @@ import {
   isLegacyRepoForExternalWorktreeVisibility,
   toDetectedWorktree
 } from '../../shared/worktree/ownership'
-import { projectResolvedWorktreeLineage } from '../../shared/resolved-worktree-lineage'
+import { projectWorktreeLineageWithHostPeers } from '../worktree-lineage-host-peers'
 import {
   createWorktreeVisibilitySourceMatcher,
   resolveCustomWorktreeVisibilitySources,
@@ -153,7 +153,7 @@ export class RuntimeManagedWorktreeQueries {
         authoritative: true,
         source: 'git',
         catalogVersion: getLocalWorktreeCatalogVersion(repo.id),
-        worktrees: projectResolvedWorktreeLineage(detected, store.getAllWorktreeLineage?.() ?? {})
+        worktrees: projectWorktreeLineageWithHostPeers(store, repo, detected)
       }
     }
     const scan = await scanRuntimeWorktreesUntilNotOvertaken(store, repo, (target) =>
@@ -211,7 +211,7 @@ export class RuntimeManagedWorktreeQueries {
       source: scan.ok ? 'git' : 'metadata-fallback',
       // Why the scan's generation: the rows describe the catalog as of when the scan began.
       catalogVersion: localWorktreeCatalogVersionAt(scan.scanGeneration),
-      worktrees: projectResolvedWorktreeLineage(detected, store.getAllWorktreeLineage?.() ?? {})
+      worktrees: projectWorktreeLineageWithHostPeers(store, repo, detected)
     }
   }
 

@@ -83,9 +83,10 @@ describe('ref-mirroring vet steps', () => {
         process.stdout.write(JSON.stringify(result));
       `
       const identities = (cwd) => run(process.execPath, ['--input-type=module', '-e', script], cwd)
-      expect(identities(shallow)).toBe(identities(source))
+      const shallowIdentities = identities(shallow)
+      expect(shallowIdentities).toBe(identities(source))
       expect(
-        JSON.parse(identities(shallow)).every((identity) => identity.version.startsWith('1.4.168-'))
+        JSON.parse(shallowIdentities).every((identity) => identity.version.startsWith('1.4.168-'))
       ).toBe(true)
     } finally {
       rmSync(directory, { recursive: true, force: true })

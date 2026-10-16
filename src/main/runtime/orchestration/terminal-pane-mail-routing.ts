@@ -1,5 +1,5 @@
 import type { RuntimeTerminalAgentPresenceOptions } from '../runtime-terminal-agent-presence'
-import { OrcaRuntimeWithPruneMobileSessionTabGroupLayout } from '../orca-runtime-prune-mobile-session-tab-group-layout'
+import { OrcaRuntimeWithPruneMobileSessionTabGroupLayout } from '../session-lifecycle/projection/prune-mobile-session-tab-group-layout'
 import type { RuntimeLeafRecord, RuntimePtyWorktreeRecord } from '../runtime-terminal-state-records'
 import { isTerminalLeafId, makePaneKey, parsePaneKey } from '../../../shared/stable-pane-id'
 import {

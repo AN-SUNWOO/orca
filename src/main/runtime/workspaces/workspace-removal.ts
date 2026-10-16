@@ -1,5 +1,4 @@
 import type { RuntimeStore } from '../runtime-store-contract'
-import type { OrcaRuntimeWithStopTerminalsForWorktree } from '../terminal/stop/worktree-terminal-stop'
 import type { GitWorktreeInfo } from '../../../shared/worktree/types'
 import { OrcaRuntimeWithCreateManagedRemoteWorktree } from './workspace-metadata'
 import {
@@ -42,10 +41,6 @@ import {
 } from '../../persistence/moving-wsl-projects/wsl-move-scope-guard'
 
 export abstract class OrcaRuntimeWithRemoveManagedWorktree extends OrcaRuntimeWithCreateManagedRemoteWorktree {
-  abstract forgetStructuredSessionMail(sessionId: string): void
-  abstract stopTerminalsForWorktree(
-    ...args: Parameters<OrcaRuntimeWithStopTerminalsForWorktree['stopTerminalsForWorktree']>
-  ): ReturnType<OrcaRuntimeWithStopTerminalsForWorktree['stopTerminalsForWorktree']>
   abstract removeWorktreeMetadataAndHistory(
     store: RuntimeStore,
     worktreeId: string,

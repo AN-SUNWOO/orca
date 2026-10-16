@@ -553,6 +553,7 @@ describe('captureTerminalShutdownLayout', () => {
       }
     })
 
+    expect(layout.root).toEqual(SPLIT_ROOT)
     expect(layout.buffersByLeafId).toEqual({
       [LEAF_ID]: `mounted scrollback${CURSOR_HOME}`,
       [LEAF_ID_2]: 'unmounted scrollback'

@@ -124,7 +124,8 @@ function provisionWithSetup(
   host: WorktreeTerminalProvisioningHost,
   withSetup = true,
   setupOnly?: boolean,
-  defaultTabs?: typeof DEFAULT_TABS
+  defaultTabs?: typeof DEFAULT_TABS,
+  callerProvidesSurface = false
 ) {
   return provisionWorktreeTerminals(host, {
     worktreeSelector: 'id:wt-1',
@@ -134,6 +135,7 @@ function provisionWithSetup(
     hasStartupTerminal: false,
     ...(setupOnly !== undefined ? { setupOnly } : {}),
     ...(defaultTabs ? { defaultTabs } : {}),
+    callerProvidesSurface,
     setupCommandPlatform: 'posix'
   })
 }
@@ -196,18 +198,23 @@ describe('provisionWorktreeTerminals with a cleared creation choice', () => {
     expect(titles()).toEqual([undefined])
   })
 
-  it('opens a blank terminal when the Setup tab fails to spawn', async () => {
-    const { host, titles } = createHost(none)
-    const createTerminal = vi.mocked(host.createTerminal)
-    createTerminal.mockRejectedValueOnce(new Error('spawn failed'))
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    await expect(provisionWithSetup(host, true, true)).resolves.toEqual({
-      setupSpawned: false,
-      setupTerminalHandle: null
-    })
-    expect(titles()).toEqual(['Setup', undefined])
-    warn.mockRestore()
-  })
+  it.each([false, true])(
+    'opens a failed-Setup recovery shell only when the caller owes the surface (%s)',
+    async (callerProvidesSurface) => {
+      const { host, titles } = createHost(none)
+      const createTerminal = vi.mocked(host.createTerminal)
+      createTerminal.mockRejectedValueOnce(new Error('spawn failed'))
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      await expect(
+        provisionWithSetup(host, true, true, undefined, callerProvidesSurface)
+      ).resolves.toEqual({
+        setupSpawned: false,
+        setupTerminalHandle: null
+      })
+      expect(titles()).toEqual(callerProvidesSurface ? ['Setup'] : ['Setup', undefined])
+      warn.mockRestore()
+    }
+  )
 
   it('keeps the shell a split setup needs', async () => {
     const { host, titles } = createHost({ ...none, setupScriptLaunchMode: 'split-vertical' })

@@ -1352,6 +1352,7 @@ jobs:
           src/shared/__tests__/process-host/windows-command-line.win32.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.test.ts
           src/shared/__tests__/process-host/windows-cmd-shim-resolution.win32.test.ts
+          src/shared/omp-fresh-launch-cmd.win32.test.ts
           src/main/agent-hooks/windows-hook-payload-delivery.test.ts
           src/main/agent-hooks/managed-hook-stdin-lifecycle.test.ts
           src/main/jcode/hook-gate-script.test.ts
@@ -1499,6 +1500,7 @@ jobs:
 
   verify:
     name: PR checks passed
+    # Publish an explicit result after every required dependency settles.
     if: ${{ !cancelled() }}
     needs:
       - code_paths
@@ -1514,7 +1516,6 @@ jobs:
       - package
       - package_windows
       - layout_oracle
-    # Evaluating job results only needs the lightweight container runner.
     runs-on: ubuntu-slim
     timeout-minutes: 5
 
@@ -1532,6 +1533,8 @@ jobs:
           CODE_PATHS: ${{ needs.code_paths.result }}
           SHOULD_RUN: ${{ needs.code_paths.outputs.should_run }}
           PREFLIGHT: ${{ needs.preflight.result }}
+          STATIC_ANALYSIS_SHOULD_RUN: ${{ needs.code_paths.outputs.static_analysis }}
+          TYPECHECK_SHOULD_RUN: ${{ needs.code_paths.outputs.typecheck }}
           PREFLIGHT_SHOULD_RUN: ${{ needs.code_paths.outputs.static_analysis == 'true' || needs.code_paths.outputs.typecheck == 'true' }}
           GIT_COMPATIBILITY: ${{ needs.git_compatibility.result }}
           GIT_COMPATIBILITY_SHOULD_RUN: ${{ needs.code_paths.outputs.git_compatibility }}
@@ -1559,6 +1562,10 @@ jobs:
           if [ "$CODE_PATHS" != "success" ]; then
             exit 1
           fi
+          case "$STATIC_ANALYSIS_SHOULD_RUN:$TYPECHECK_SHOULD_RUN" in
+            true:true|true:false|false:true|false:false) ;;
+            *) echo "preflight: missing or invalid selection"; exit 1 ;;
+          esac
           if [ "$SHOULD_RUN" != "true" ]; then
             echo "Docs-only change; expensive PR checks skipped."
           fi
@@ -1570,11 +1577,14 @@ jobs:
                 echo "$name: expected success, got $result"
                 failed=1
               fi
-            else
+            elif [ "$should" = "false" ]; then
               if [ "$result" != "skipped" ]; then
                 echo "$name: expected skipped, got $result"
                 failed=1
               fi
+            else
+              echo "$name: missing or invalid selection"
+              failed=1
             fi
           }
           # Require success when the PR has code-relevant changes

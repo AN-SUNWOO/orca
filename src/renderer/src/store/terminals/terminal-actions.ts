@@ -139,7 +139,6 @@ export type TerminalActions = {
   markUnverifiedPtyLoss: (tabId: string) => void
   /** Records the relay's own answer that a PTY id is gone; the one `exited` a respawn may act on. */
   markPtySourceDisowned: (ptyId: string) => void
-  clearDirectSshTargetPtyBindings: (targetId: string) => number
   /** Awaited verified shutdown; unlike closeTab, physical teardown gates the state commit. */
   shutdownWorktreeTerminals: (
     worktreeId: string,

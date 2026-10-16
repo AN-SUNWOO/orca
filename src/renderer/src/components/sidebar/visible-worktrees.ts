@@ -1,21 +1,11 @@
-export type { SidebarFilterState } from './visible-worktree-kinds'
+export type { SidebarFilterState } from './sidebar-filter-actions'
 export {
   computeVisibleWorktreeIds,
   computeVisibleWorktrees,
   type VisibleWorktreeOptions
 } from './compute-visible-worktrees'
 import { computeVisibleWorktreeIds } from './compute-visible-worktrees'
-export {
-  isSleepingSweepExemptionNarrowingList,
-  isSleepingSweepExemptWorkspace
-} from './visible-worktree-kinds'
-export {
-  isAutomationGeneratedWorkspace,
-  isCliCreatedWorkspace,
-  isDetachedHeadWorkspace
-} from '../../../../shared/worktree/workspace-kinds'
-export { sidebarHasActiveFilters, computeClearFilterActions } from './sidebar-filter-actions'
-export type { ClearFilterActions } from './sidebar-filter-actions'
+export { sidebarHasActiveFilters } from './sidebar-filter-actions'
 import {
   getVisibleWorkspaceHostIdSet,
   worktreeMatchesVisibleHost

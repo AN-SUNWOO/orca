@@ -21,7 +21,7 @@ import { leafTuiIdleEvidence, ptyTuiIdleEvidence } from '../../tui-idle-evidence
 import { TUI_IDLE_QUIESCENCE_MS } from '../../orca-runtime-postlude'
 
 import type { OrcaRuntimeWithResolveWaiter } from '../../orca-runtime-resolve-waiter'
-import type { OrcaRuntimeWithDeliverPendingMessages } from '../../orca-runtime-deliver-pending-messages'
+import type { OrcaRuntimeWithDeliverPendingMessages } from '../../orchestration/mail/terminal-message-delivery'
 
 export abstract class OrcaRuntimeWithResolveExitWaiters extends OrcaRuntimeWithBindPtyIncarnationHandle {
   protected abstract resolveWaiter(

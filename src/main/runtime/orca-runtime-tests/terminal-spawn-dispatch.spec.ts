@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { OrcaRuntimeService } from '../orca-runtime-test-mocks.spec'
 import { TEST_WORKTREE_PATH, store } from '../orca-runtime-test-fixtures.spec'
-import { OrcaRuntimeWithRuntimeId } from '../orca-runtime-runtime-id'
-import { OrcaRuntimeWithStateFields } from '../orca-runtime-state-fields'
+import { OrcaRuntimeWithRuntimeId } from '../construction/runtime-identity-state'
+import { OrcaRuntimeWithStateFields } from '../construction/runtime-construction'
 import { OrchestrationDb } from '../orchestration/db/orchestration-db'
 
 // `agent.launch` settles a launch as failed only when its create threw before this hook ran.
@@ -149,7 +149,7 @@ describe('PTY registration dispatch characterization', () => {
         }
       }
       const runtimes: unknown[] = [
-        new OrcaRuntimeWithRuntimeId(),
+        Reflect.construct(OrcaRuntimeWithRuntimeId, []),
         new ConstructorRuntime(),
         new ConstructorRuntime(null),
         Reflect.construct(EarlyStateRuntime, [null])

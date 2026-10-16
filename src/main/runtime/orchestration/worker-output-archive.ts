@@ -1,6 +1,6 @@
 import type { AgentType, NativeChatMessage } from '../../../shared/native-chat-types'
 import type { OrchestrationWorkerReadFallbackReason } from '../../../shared/orchestration-worker-output'
-import type { OrcaRuntimeService } from '../orca-runtime'
+import type { WorkerTerminalReleaseRuntime } from './worker-terminal-release-runtime'
 import { OrchestrationError } from './orchestration-error'
 import type {
   WorkerTerminalArchiveKind,
@@ -83,7 +83,7 @@ export function summarizeWorkerOutputArchive(archive: WorkerTerminalArchiveRow):
 // hook-reported provider transcript; falls back to bounded redacted terminal output. Throws
 // typed archive_failed so release retains the live terminal when no evidence can be preserved.
 export async function captureWorkerOutputArchive(args: {
-  runtime: OrcaRuntimeService
+  runtime: WorkerTerminalReleaseRuntime
   dispatchId: string
   terminalHandle: string
   attachedAtMs: number

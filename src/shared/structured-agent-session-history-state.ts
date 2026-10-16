@@ -46,6 +46,10 @@ export function replacePage(
     subagentRoster: foldStructuredAgentSubagentRosterPage(undefined, page),
     activity: activity ?? null,
     ...(page.latestTurn !== undefined ? { latestTurn: page.latestTurn } : {}),
+    ...(page.actionablePromptIds !== undefined
+      ? { actionablePromptIds: page.actionablePromptIds }
+      : {}),
+    ...(page.working !== undefined ? { working: page.working } : {}),
     ...(backgroundTasks !== undefined
       ? { backgroundTasks }
       : page.backgroundTasks !== undefined

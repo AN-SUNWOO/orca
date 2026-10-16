@@ -14,7 +14,8 @@ const UNSUPPORTED_TUI_AGENT_ARGS: Partial<Record<TuiAgent, readonly string[]>> =
   kilo: ['--dangerously-skip-permissions']
 }
 
-export const DEFAULT_TUI_AGENT_ARGS: Partial<Record<TuiAgent, string>> = YOLO_TUI_AGENT_ARGS
+export const DEFAULT_TUI_AGENT_ARGS: Partial<Record<TuiAgent, string>> &
+  Readonly<Record<string, string | undefined>> = YOLO_TUI_AGENT_ARGS
 
 export const DEFAULT_TUI_AGENT_ENV: Partial<Record<string, Record<string, string>>> =
   YOLO_TUI_AGENT_ENV
@@ -107,7 +108,7 @@ export function normalizeTuiAgentEnvRecord(
   return normalized
 }
 
-export function getTuiAgentDefaultArgs(agent: TuiAgent): string {
+export function getTuiAgentDefaultArgs(agent: string): string {
   return DEFAULT_TUI_AGENT_ARGS[agent] ?? ''
 }
 
@@ -116,8 +117,8 @@ export function getTuiAgentDefaultEnv(agent: string): Record<string, string> {
 }
 
 export function resolveTuiAgentLaunchArgs(
-  agent: TuiAgent,
-  configuredArgs: Partial<Record<TuiAgent, string>> | null | undefined
+  agent: string,
+  configuredArgs: Readonly<Record<string, string | undefined>> | null | undefined
 ): string {
   if (
     configuredArgs &&

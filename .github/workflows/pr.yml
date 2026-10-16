@@ -1533,7 +1533,8 @@ jobs:
       - package
       - package_windows
       - layout_oracle
-    runs-on: ubuntu-slim
+    # Report settled results without competing with the GitHub-hosted test queue.
+    runs-on: blacksmith-2vcpu-ubuntu-2204
     timeout-minutes: 5
 
     steps:

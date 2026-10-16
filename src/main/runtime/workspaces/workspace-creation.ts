@@ -1,3 +1,4 @@
+import { applyClaudeTerminalImageViewerEnv } from '../terminal-image-viewer-env'
 import type { Repo } from '../../../shared/repo-types'
 import type {
   WorktreeLineageInput,
@@ -8,6 +9,7 @@ import type { RuntimeManagedWorktreeCreateArgs } from '../runtime-managed-worktr
 import type { CreateWorktreeResult } from '../../../shared/worktree/create-types'
 import { isTuiAgentEnabled } from '../../../shared/tui-agent-selection'
 import { isFolderRepo } from '../../../shared/repo-kind'
+import { notifyLineageRepos } from '../../worktree-lineage-change-notification'
 import { resolveWorktreeCreateRoute } from '../../worktree-create-execution-host-route'
 import { ExecutionHostNotDispatchableError } from '../../providers/execution-host-provider-dispatch'
 import { SshHostNotServedError } from '../../providers/ssh-host-not-served-error'
@@ -88,7 +90,18 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
             args.startupLaunchSource
           )
         : null
-    const effectiveStartup = args.startup ?? agentStartup?.startup ?? draftStartup?.startup
+    const resolvedStartup = args.startup ?? agentStartup?.startup ?? draftStartup?.startup
+    const effectiveStartup = resolvedStartup
+      ? applyClaudeTerminalImageViewerEnv(
+          resolvedStartup,
+          args.terminalImageViewerSupported,
+          resolvedStartup.launchAgent ??
+            args.startupAgent ??
+            args.createdWithAgent ??
+            agentStartup?.agent ??
+            draftStartup?.agent
+        )
+      : undefined
     const effectiveStartupFollowup = agentStartup?.followup
     const startupLaunchRuntime = args.startup
       ? undefined
@@ -203,7 +216,7 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
     // rediscover roots only this repo changed.
     invalidateAuthorizedRootsCacheForRepo(this.store, repo)
 
-    this.notifyWorktreesChanged(repo.id)
+    notifyLineageRepos(this.notifyWorktreesChanged.bind(this), repo.id, lineage?.parentWorktreeId)
     const {
       warning: terminalWarning,
       returnedSetup,

@@ -6,6 +6,12 @@ import {
 } from '../../../../shared/execution-host'
 import type { RuntimeClientEvent } from '../../../../shared/runtime-client-events'
 import type { AppState } from '../../store/types'
+import type { WorktreeSortOrderUpdate } from '../../../../shared/worktree/sort-order-update'
+import {
+  hasHostRowsForSortOrders,
+  patchWorktreeSortOrders
+} from '../../store/slices/worktrees/listing/worktree-sort-order-patch'
+import { buildRuntimeClientEventEnvironmentKey } from './runtime-environment-subscription-selection'
 import { useAppStore } from '../../store'
 import {
   invalidateRemoteWorktreeLineage,
@@ -17,6 +23,11 @@ import {
 } from '../worktree-change-refresh-queue'
 
 const WORKTREE_RENAME_PURGE_GRACE_MS = 20_000
+
+// Why the subscription key: it changes on reconnect, re-pair and event-stream replay invalidation.
+function runtimeSortOrderFence(environmentId: string): string {
+  return buildRuntimeClientEventEnvironmentKey([environmentId])
+}
 const recentlyRenamedWorktreeIdExpiry = new Map<string, number>()
 
 function getAuthoritativeDetectedWorktreeIds(state: AppState, repoId: string): Set<string> | null {
@@ -54,8 +65,35 @@ export function createWorktreeEventRuntime(
       forceLocalOwner?: boolean
       executionHostId?: ExecutionHostId
       sortOrderOnly?: boolean
+      sortOrders?: WorktreeSortOrderUpdate[]
+      sortOrderFence?: string
     }
   ): Promise<void> => {
+    const sortOrderOwner = parseExecutionHostId(options?.executionHostId)
+    if (
+      options?.sortOrderOnly === true &&
+      options.sortOrders &&
+      options.executionHostId &&
+      sortOrderOwner?.kind === 'runtime' &&
+      options.sortOrderFence === runtimeSortOrderFence(sortOrderOwner.environmentId) &&
+      !renamed &&
+      !options.forceLocalOwner &&
+      hasHostRowsForSortOrders(
+        useAppStore.getState(),
+        repoId,
+        options.executionHostId,
+        options.sortOrders
+      )
+    ) {
+      // Why: the host published the saved values, so refetching the repo would only re-download them (#27268).
+      const { executionHostId, sortOrders } = options
+      useAppStore.setState((s) => patchWorktreeSortOrders(s, repoId, executionHostId, sortOrders))
+      // Keep the existing retry for a host whose lineage snapshot is not fresh.
+      if (!isRemoteWorktreeLineageFresh(useAppStore.getState, sortOrderOwner.environmentId)) {
+        await useAppStore.getState().fetchWorktreeLineage({ executionHostId })
+      }
+      return
+    }
     const localRefreshStartedWithRuntime =
       options?.forceLocalOwner === true && isRuntimeEnvironmentActive()
     // Why: capture active-ness before migration moves the pointer; re-key maps before the diff so a rename isn't a deletion.
@@ -171,7 +209,11 @@ export function createWorktreeEventRuntime(
       if (owner?.kind === 'runtime' && (event.sortOrderOnly !== true || event.renamed)) {
         invalidateRemoteWorktreeLineage(useAppStore.getState, owner.environmentId)
       }
-      refreshQueue.enqueue(event)
+      refreshQueue.enqueue(
+        event.sortOrders && owner?.kind === 'runtime'
+          ? { ...event, sortOrderFence: runtimeSortOrderFence(owner.environmentId) }
+          : event
+      )
     }
   }
   unsubs.push(worktreeChangeRefreshQueue.dispose)

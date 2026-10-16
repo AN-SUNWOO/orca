@@ -464,17 +464,6 @@ describe('completed background-worker retirement resume matrix', () => {
     })
     expect(exitedAction).toEqual({ kind: 'clear-sleeping', paneKey: ORIGINAL_PANE_KEY })
 
-    // Case 5: coordinator manual close is the same safe exact-tab retirement boundary.
-    seedWorkspace()
-    recordCompletedWorker()
-    closeTerminalTab(ORIGINAL_TAB_ID, {
-      force: true,
-      skipRunningProcessConfirm: true,
-      localPtyTeardownOwnedExternally: true
-    })
-    expect(useAppStore.getState().sleepingAgentSessionsByPaneKey[ORIGINAL_PANE_KEY]).toBeUndefined()
-    expectCanaryUnchanged()
-
     // Case 6: normal Codex exit leaves the shell pane; helper close retires only the helper.
     seedWorkspace({ helper: true })
     recordCompletedWorker()

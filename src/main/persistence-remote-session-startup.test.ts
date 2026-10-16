@@ -107,4 +107,25 @@ describe('remote session startup ownership', () => {
     reloaded.flush()
     expect(createStore().getWorkspaceSession(HOST).browserPagesByWorkspace).toEqual({})
   })
+
+  // STA-7117: a paired client registers none of these repos, so the removal must stay on its host.
+  it("drops only the removed host's rows when another paired host shares the repo id", () => {
+    const OTHER_HOST = 'runtime:other-host'
+    const seed = createStore()
+    seed.setWorkspaceSession(browserSession(), HOST)
+    seed.setWorkspaceSession(browserSession(), OTHER_HOST)
+    seed.setWorktreeMetaForHost(WORKTREE, HOST, { displayName: 'Removed host' })
+    seed.flush()
+    const reloaded = createStore()
+
+    reloaded.removeProjectForHost(REPO, HOST)
+    reloaded.flush()
+
+    const after = createStore()
+    expect(after.getWorkspaceSession(HOST).browserPagesByWorkspace).toEqual({})
+    expect(after.getWorktreeMeta(WORKTREE)).toBeUndefined()
+    expect(after.getWorkspaceSession(OTHER_HOST).browserPagesByWorkspace).toEqual({
+      [BROWSER.id]: [PAGE]
+    })
+  })
 })

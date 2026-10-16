@@ -109,6 +109,7 @@ export function useStructuredAgentSession(args: {
     sendSource,
     unavailable,
     threadGoal: threadGoalSupport,
+    reportedThreadGoal,
     contextUsage: contextUsageSupport,
     rewind: rewindSupport,
     acceptsImages
@@ -135,13 +136,8 @@ export function useStructuredAgentSession(args: {
     () => (transportState.queuedMessages ?? []).map((message) => message.messageId),
     [transportState.queuedMessages]
   )
-  const stopControl = useStructuredAgentSessionStop({
-    sessionId,
-    target,
-    transportState,
-    hostStopping,
-    mutate
-  })
+  const stopControlInput = { sessionId, target, transportState, hostStopping, mutate }
+  const stopControl = useStructuredAgentSessionStop(stopControlInput)
   const prompts = pendingStructuredSessionPrompts(transportState)
   const promptsUnanswerableHere = pendingPromptsAllUnanswerableHere(prompts)
   // A send after a command the queue will run goes behind it, even with follow-ups off.
@@ -158,6 +154,7 @@ export function useStructuredAgentSession(args: {
     target,
     // Never held for an in-doubt rewind: the host recovers it on the next send.
     fence: transportState.fence,
+    cursor: state.cursor,
     submissions: transportState.submissions,
     queuedMessageIds,
     queue,
@@ -167,12 +164,6 @@ export function useStructuredAgentSession(args: {
     sendOptions
   })
 
-  const threadGoal = useStructuredAgentSessionThreadGoal({
-    journalItems: transportState.journalItems,
-    journalEpoch: state.epoch,
-    support: threadGoalSupport,
-    mutate
-  })
   const contextUsage = useStructuredAgentSessionContextUsage(
     transportState.journalItems,
     contextUsageSupport,
@@ -188,6 +179,7 @@ export function useStructuredAgentSession(args: {
 
   const { pending } = sends
   const commandWrite = useStructuredAgentSessionCommandWrite(sessionId, write)
+  const agentName = structuredAgentLabel(agent)
   const sending = pending.some((entry) => entry.phase === 'sending')
   // What the host refuses a rewind behind; a command's own hold is the runner's below.
   const conversationBusy = transportState.conversationBusy || prompts.length > 0 || sending
@@ -205,17 +197,28 @@ export function useStructuredAgentSession(args: {
   })
   // A queued send is a card, never a transcript bubble.
   const isWorking = transportState.isWorking || transportState.queueSendsNext
+  // A message typed during a command queues behind it on the host.
+  const send = (...input: Parameters<typeof sends.send>) =>
+    // Legacy: an older host refuses sends while a command runs; removable once those hosts age out.
+    (!commandPending.current || hostStatesTurnScopes(transportState.journalItems)) &&
+    rewind.admitsSend() &&
+    sends.send(...input)
+  const threadGoal = useStructuredAgentSessionThreadGoal({
+    journalItems: transportState.journalItems,
+    journalEpoch: state.epoch,
+    support: threadGoalSupport,
+    reported: reportedThreadGoal,
+    mutate,
+    send
+  })
   const transcriptPending = useMemo(
     () => pendingSendsOutsideQueuedCards(pending, queuedMessageIds, isWorking),
     [isWorking, pending, queuedMessageIds]
   )
   // What the transcript reads: the journal plus the one notice a cut turn with no row gets.
   const transcriptItems = useMemo(
-    () =>
-      withNativeChatCutTurnNotices(transportState.journalItems, {
-        agentName: structuredAgentLabel(agent)
-      }),
-    [agent, transportState.journalItems]
+    () => withNativeChatCutTurnNotices(transportState.journalItems, { agentName }),
+    [agentName, transportState.journalItems]
   )
   const messages = useStructuredAgentSessionMessages(
     transcriptItems,
@@ -246,7 +249,7 @@ export function useStructuredAgentSession(args: {
     rewind,
     conversationCommands,
     ...structuredConversationCommandRunner({
-      agentName: structuredAgentLabel(agent),
+      agentName,
       pending: commandPending,
       // A /compact waits in line only where its card renders.
       commandsWait:
@@ -282,12 +285,7 @@ export function useStructuredAgentSession(args: {
     sendOut: sending || sends.held,
     /** The journal's rows for sent messages, which carry a rejected message's whole fact. */
     submissions: transportState.submissions,
-    // A message typed during a command queues behind it on the host.
-    send: (...input: Parameters<typeof sends.send>) =>
-      // Legacy: an older host refuses sends while a command runs; removable once those hosts age out.
-      (!commandPending.current || hostStatesTurnScopes(transportState.journalItems)) &&
-      rewind.admitsSend() &&
-      sends.send(...input),
+    send,
     isWorking,
     queueSendsNext: transportState.queueSendsNext,
     workingStartedAt: transportState.turnTiming.workingStartedAt,

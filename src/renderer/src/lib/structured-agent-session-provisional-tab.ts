@@ -21,6 +21,7 @@ import {
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
+import type { NativeChatComposerFocusIntent } from '@/components/native-chat/use-native-chat-composer-reveal-focus'
 import { holdEmptyWorkspaceDefaultSurfaceForLaunch } from './empty-workspace-default-surface-claims'
 import {
   captureStructuredLaunchSurfaceAddress,
@@ -56,6 +57,7 @@ export function structuredLaunchOwner(
 type ProvisionalLaunchArgs = {
   plan: AgentSessionLaunchPlan
   hooks: StructuredAgentLaunchHooks
+  focusIntent?: NativeChatComposerFocusIntent
   target?: AgentSessionLaunchTarget
   targetGroupId?: string
   activate?: boolean
@@ -76,51 +78,84 @@ type ProvisionalLaunchArgs = {
 export function beginStructuredAgentSessionProvisionalLaunch(
   args: ProvisionalLaunchArgs
 ): StructuredAgentSessionProvisionalLaunch | null {
+  const focusIntent = args.focusIntent
+  if (args.activate === false) {
+    focusIntent?.cancel()
+  }
   const worktreeId = args.target?.worktreeId ?? args.plan.worktreeId
-  const owner = worktreeId ? structuredLaunchOwner(args.plan, worktreeId, args.target) : null
-  if (!owner || !worktreeId) {
-    // No host to ask: the launch path refuses it with its own message.
-    return beginLocalProvisionalLaunch(args)
-  }
-  if (!args.deferPublication && args.beforeOpen?.() === false) {
-    return null
-  }
-  if (args.deferPublication && !args.target?.surfaceAddress) {
-    args = {
-      ...args,
-      target: {
-        ...args.target,
-        surfaceAddress: captureStructuredLaunchSurfaceAddress(worktreeId, args.targetGroupId)
-      }
+  let tabOpened = false
+  const cancelIfNoTab = (): void => {
+    if (!tabOpened) {
+      focusIntent?.cancel()
     }
   }
-  return beginHostAdmittedStructuredLaunch({
-    plan: args.plan,
-    hooks: args.hooks,
-    worktreeId,
-    executionHostId: owner.executionHostId,
-    target: owner.target,
-    openAdmitted: (seedOptions) =>
-      beginLocalProvisionalLaunch({
+  const open = (
+    launch: ReturnType<typeof beginLocalProvisionalLaunch>
+  ): ReturnType<typeof beginLocalProvisionalLaunch> => {
+    if (launch?.tab) {
+      tabOpened = true
+      if (args.activate !== false) {
+        focusIntent?.request(launch.tab.id)
+      }
+    } else if (!launch) {
+      cancelIfNoTab()
+    }
+    return launch
+  }
+  try {
+    const owner = worktreeId ? structuredLaunchOwner(args.plan, worktreeId, args.target) : null
+    if (owner && worktreeId && !args.deferPublication && args.beforeOpen?.() === false) {
+      cancelIfNoTab()
+      return null
+    }
+    if (!owner || !worktreeId) {
+      // No host to ask: the launch path refuses it with its own message.
+      return open(beginLocalProvisionalLaunch(args))
+    }
+    if (args.deferPublication && !args.target?.surfaceAddress) {
+      args = {
         ...args,
         target: {
           ...args.target,
-          worktreeId,
-          executionHostId: owner.executionHostId,
-          ...(seedOptions ? { seedOptions } : {})
-        },
-        beforeOpen: undefined
-      }),
-    onHostDeclined:
-      args.onHostDeclined ??
-      (() =>
-        openDeclinedStructuredLaunchTerminal({
-          plan: args.plan,
-          worktreeId,
-          ...(args.targetGroupId ? { targetGroupId: args.targetGroupId } : {}),
-          ...(args.declinedTerminal ? { terminal: args.declinedTerminal } : {})
-        }))
-  })
+          surfaceAddress: captureStructuredLaunchSurfaceAddress(worktreeId, args.targetGroupId)
+        }
+      }
+    }
+    const launch = beginHostAdmittedStructuredLaunch({
+      plan: args.plan,
+      hooks: args.hooks,
+      worktreeId,
+      executionHostId: owner.executionHostId,
+      target: owner.target,
+      openAdmitted: (seedOptions) =>
+        open(
+          beginLocalProvisionalLaunch({
+            ...args,
+            target: {
+              ...args.target,
+              worktreeId,
+              executionHostId: owner.executionHostId,
+              ...(seedOptions ? { seedOptions } : {})
+            },
+            beforeOpen: undefined
+          })
+        ),
+      onHostDeclined:
+        args.onHostDeclined ??
+        (() =>
+          openDeclinedStructuredLaunchTerminal({
+            plan: args.plan,
+            worktreeId,
+            ...(args.targetGroupId ? { targetGroupId: args.targetGroupId } : {}),
+            ...(args.declinedTerminal ? { terminal: args.declinedTerminal } : {})
+          }))
+    })
+    void launch.settlement.then(cancelIfNoTab, cancelIfNoTab)
+    return launch
+  } catch (error) {
+    cancelIfNoTab()
+    throw error
+  }
 }
 
 function beginLocalProvisionalLaunch(

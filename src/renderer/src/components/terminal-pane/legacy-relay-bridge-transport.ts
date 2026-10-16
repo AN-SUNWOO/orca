@@ -8,6 +8,7 @@
  * can't be reached, the pane stays bound and reattaches once it can: loss of contact is never exit.
  */
 import type { PtyConnectResult, PtyTransport } from './pty-transport-types'
+import type { RemoteRuntimeSnapshotRequestOptions } from '../../runtime/remote-runtime-terminal-multiplexer-types'
 import { SSH_SESSION_EXPIRED_ERROR } from './pty-connection/pty-connect-limits'
 import {
   legacyRelayBridgedPane,
@@ -173,7 +174,7 @@ export function createLegacyRelayBridgeTransport(ptyId: string, inner: PtyTransp
       : {}),
     ...(innerSnapshotOutcome
       ? {
-          serializeBufferOutcome: (opts?: { scrollbackRows?: number }) =>
+          serializeBufferOutcome: (opts?: RemoteRuntimeSnapshotRequestOptions) =>
             bridged()
               ? Promise.resolve({
                   availability: { kind: 'unknown-legacy-host' as const },

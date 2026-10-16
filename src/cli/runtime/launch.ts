@@ -12,6 +12,7 @@ import {
   resolveLaunchUserDataPath
 } from './launch-user-data-path'
 import { foregroundServeIsolatedProfileSwitches } from '../../shared/electron-isolated-profile-switches'
+import { headlessServeOzonePlatformSwitches } from '../../shared/headless-serve-ozone-platform'
 import { ELECTRON_NO_SANDBOX_REQUEST_ENV } from '../../shared/electron-no-sandbox-request'
 import { needsElectronNoSandbox } from './electron-sandbox-switch'
 import { getMacAppBundlePath } from './mac-app-update-bundle'
@@ -38,6 +39,7 @@ import {
 } from './serve-electron-preflight'
 import { MacServeStartupAbortError } from './serve-signal-exit-diagnostic'
 import { superviseServeService } from './serve-supervised-service'
+import { reexecThisServeUnderInitReaper } from './serve-pid1-init-reaper'
 import { supervisedAppImageUpdate } from './serve-appimage-update'
 import {
   relocateThisServeSupervisor,
@@ -130,6 +132,8 @@ function spawnDetached(command: string, args: string[], options: SpawnOptions): 
 }
 
 export function serveOrcaApp(args: ServeOrcaAppArgs = {}): Promise<number> {
+  // Why first: as a container or PrivatePIDs init, nothing would reap orphaned descendants.
+  reexecThisServeUnderInitReaper()
   const executable = resolveForegroundOrcaExecutable()
   // Why one value: the selector, orcad and Electron must all serve the profile the caller chose.
   const userDataPath = resolveLaunchUserDataPath()
@@ -225,6 +229,7 @@ function spawnElectronServe(
   // Why: the isolated profile has no login keychain, and the probe that discovers this blocks the
   // foreground process on the Keychain authorization prompt before it advertises readiness (#25453).
   childArgs.push(...foregroundServeIsolatedProfileSwitches())
+  childArgs.push(...headlessServeOzonePlatformSwitches(process.platform))
   const handoffPath =
     args.recipeJson !== true && getMacAppBundlePath(executable)
       ? getServeUpdateHandoffPath(userDataPath)

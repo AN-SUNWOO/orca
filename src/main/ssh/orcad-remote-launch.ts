@@ -37,6 +37,11 @@ import { selectOrcadSlotRuntimeCommand } from './orcad-remote-runtime'
 import { ORCAD_STOP_REQUEST_FILENAME } from '../../shared/orcad-stop-request'
 import { orcadWindowsSlotOpCommand } from './orcad-remote-windows-node'
 import {
+  captureOrcadLaunchSshSessionCommand,
+  recordsOrcadLaunchSshSession,
+  writeOrcadLaunchSshSessionCommand
+} from './orcad-launch-ssh-session'
+import {
   ORCAD_E2E_IDLE_TIMEOUT_ENV,
   ORCAD_MANAGED_ACTIVATION_ROOT_ENV,
   readOrcadE2EIdleTimeoutMs
@@ -112,7 +117,10 @@ export function orcadLaunchCommand(
     ...(remoteBasename(baseDir, host) === RELAY_REMOTE_DIR ? [baseDir] : []),
     spec.remoteInstallDir
   ]
+  // Why in the launching shell: the detached list below runs in a subshell whose variables are lost.
+  const recordSession = detach === 'nohup' && recordsOrcadLaunchSshSession(host)
   return [
+    ...(recordSession ? [captureOrcadLaunchSshSessionCommand()] : []),
     // Why first: the readiness file carries the pairing offer's device token, so every file this
     // launch creates must be owner-only from birth, not only the ones after the exec.
     'umask 077 &&',
@@ -140,7 +148,11 @@ export function orcadLaunchCommand(
           `exec nohup "$orcad_runtime" ${entry}`,
           `--json --bind ${shellEscape(spec.bindHost)} --port ${String(spec.port)}`,
           `> ${readiness} 2>> ${log} < /dev/null &`,
-          `echo $! > ${pidFile} && cat ${pidFile}`
+          `echo $! > ${pidFile} &&`,
+          ...(recordSession
+            ? [`${writeOrcadLaunchSshSessionCommand(host, spec.userDataDir)} &&`]
+            : []),
+          `cat ${pidFile}`
         ])
   ].join(' ')
 }

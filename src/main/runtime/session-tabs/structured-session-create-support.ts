@@ -19,7 +19,7 @@ import {
   resolveHostStructuredAgentCreateSupport,
   resolveHostStructuredAgentLaunchEnvironment
 } from '../structured-agent-launch-support'
-import { structuredAgentRuntimeRegistration } from '../structured-agent-runtime-registrations'
+import { structuredAgentRuntimeMetadata } from '../structured-agent-runtime-metadata'
 import { structuredLaunchSeedOptions } from '../../../shared/native-chat-session-option-defaults'
 import { hasPersistedStructuredAgentSessionStore as hasPersistedStructuredAgentSessionStoreOnDisk } from '../structured-agent-session-runtime'
 import { ensureStructuredAgentSessionHostUnlessRefused } from '../structured-agent-session-host-refusal'
@@ -58,10 +58,45 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     })
   }
 
+  /** Where a launch of `agent` finds its account, resolved on this host by the agent's own
+   *  registration; null for an agent this runtime does not register, whose create is refused. */
+  protected structuredAgentAccountHomeResolver(
+    agent: StructuredAgentId,
+    worktree: string,
+    purpose: 'launch' | 'read',
+    hostLaunchDirectory?: string
+  ) {
+    const registration = structuredAgentRuntimeMetadata(agent)
+    if (!registration) {
+      return null
+    }
+    const services = {
+      getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target),
+      prepareCodexLaunchHome: this.prepareCodexStructuredLaunchFn,
+      readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
+      workspaceTrustSettings: () => this.requireStore().getSettings()
+    }
+    return async ({ launchEnv, location }) =>
+      registration.resolveAccountHome(
+        {
+          launchEnv,
+          location: location ?? null,
+          purpose,
+          workspacePath:
+            purpose === 'launch'
+              ? async () =>
+                  hostLaunchDirectory ??
+                  (await this.resolveRuntimeFileTarget(worktree)).worktree.path
+              : null
+        },
+        services
+      )
+  }
+
   /** The definition this runtime registers for `agent`: what its account home pins. Read from the
    *  registration list, so neither create nor a catalog read installs the host to learn it. */
   protected requireRegisteredStructuredAgent(agent: StructuredAgentId) {
-    const definition = structuredAgentRuntimeRegistration(agent)?.definition
+    const definition = structuredAgentRuntimeMetadata(agent)?.definition
     if (!definition) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {
         reason: 'hostUnsupported'
@@ -187,7 +222,7 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     const support = await this.getStructuredAgentSessionCreateSupport(input.worktree, input.agent)
     // Adopting a conversation reads the agent's own transcript, so only an agent registered with an
     // importer adopts.
-    const transcriptImport = structuredAgentRuntimeRegistration(input.agent)?.transcriptImport
+    const transcriptImport = structuredAgentRuntimeMetadata(input.agent)?.transcriptImport
     if (!support.supported || (input.resumeFrom && !transcriptImport)) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {
         reason: 'hostUnsupported'

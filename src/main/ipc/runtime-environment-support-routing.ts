@@ -28,7 +28,10 @@ import {
   sendRemoteRuntimeRequestAbortable,
   sendRemoteRuntimeSharedControlRequestAbortable
 } from './runtime-environment-abortable-requests'
-import { subscribeRemoteRuntimeSharedControlRequest } from './runtime-environment-request-connections'
+import {
+  getRemoteRuntimeSharedControlDiagnostics,
+  subscribeRemoteRuntimeSharedControlRequest
+} from './runtime-environment-request-connections'
 
 type SupportRoute = {
   environment: KnownRuntimeEnvironment
@@ -47,11 +50,17 @@ type SubscriptionCallbacks = {
   onClose: () => void
 }
 
-export function shouldRouteCallBySupport(method: string): boolean {
-  // Snapshot recovery must stay available while shared-control streams reconnect after a restart.
-  return (
-    method !== 'status.get' && method !== 'session.tabs.list' && method !== 'session.tabs.listAll'
-  )
+export function shouldRouteCallBySupport(method: string, environmentId: string): boolean {
+  if (method === 'status.get') {
+    return false
+  }
+  if (method === 'session.tabs.list' || method === 'session.tabs.listAll') {
+    // Why: snapshot recovery must stay available while shared-control streams reconnect after a
+    // restart, but on a ready shared socket a one-shot socket per worktree switch only adds a
+    // connect and handshake to every switch (#26785).
+    return getRemoteRuntimeSharedControlDiagnostics(environmentId)?.state === 'ready'
+  }
+  return true
 }
 
 export function shouldRouteSubscriptionBySupport(method: string): boolean {

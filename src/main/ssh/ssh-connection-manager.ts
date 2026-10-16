@@ -165,6 +165,17 @@ export class SshConnectionManager {
     await conn.reconnect()
   }
 
+  /** Restarts every reconnect stalled on a backoff, a spent ladder, or a pre-wake handshake. */
+  retryStalledReconnects(): string[] {
+    const restarted: string[] = []
+    for (const [targetId, conn] of this.connections) {
+      if (conn.retryAfterNetworkReturn()) {
+        restarted.push(targetId)
+      }
+    }
+    return restarted
+  }
+
   getConnection(targetId: string): SshConnection | undefined {
     return this.connections.get(targetId)
   }

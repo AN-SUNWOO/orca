@@ -1,4 +1,4 @@
-import { RuntimeWorkspaceSelectors } from './workspace-selectors'
+import { OrcaRuntimeWithReadKittyFile } from '../orca-runtime-read-kitty-file'
 import type { RuntimeWorkspaceRepoScanRefresh } from './workspace-repo-scan-refresh'
 import type { ResolvedWorktree } from '../runtime-worktree-path-identity'
 import { splitWorktreeIdForFilesystem } from '../../../shared/worktree/id'
@@ -31,7 +31,7 @@ import { withUnregisteredRemovalCheckouts } from '../../worktree-removal-listing
 import type { RuntimeWorktreeScanCache } from '../orca-runtime-core'
 import { resolveWorktreeScanCacheTtlMs } from '../runtime-worktree-scan-cache'
 
-export abstract class RuntimeWorkspaceCatalog extends RuntimeWorkspaceSelectors {
+export abstract class RuntimeWorkspaceCatalog extends OrcaRuntimeWithReadKittyFile {
   protected abstract refreshRepoWorktreeScan(
     ...args: Parameters<RuntimeWorkspaceRepoScanRefresh['refreshRepoWorktreeScan']>
   ): ReturnType<RuntimeWorkspaceRepoScanRefresh['refreshRepoWorktreeScan']>
@@ -115,9 +115,7 @@ export abstract class RuntimeWorkspaceCatalog extends RuntimeWorkspaceSelectors 
       )
     )
     const lineageById = this.store?.getAllWorktreeLineage?.() ?? {}
-    const worktrees = perRepoWorktrees.flatMap((rows) =>
-      projectResolvedWorktreeLineage(rows, lineageById)
-    )
+    const worktrees = projectResolvedWorktreeLineage(perRepoWorktrees.flat(), lineageById)
     return { worktrees, platformByRepoId }
   }
 

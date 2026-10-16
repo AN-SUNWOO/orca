@@ -26,6 +26,7 @@ afterEach(() => {
 })
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import { NativeChatMessageList } from './NativeChatMessageList'
+import { transcriptWindowTop } from './native-chat-window-test-layout'
 import type { NativeChatOlderPageResult } from './native-chat-pagination'
 import type { NativeChatLiveSession } from './use-native-chat-live-session'
 import { NATIVE_CHAT_OLDER_HISTORY_PREFETCH_PX } from './use-native-chat-older-history-autoload'
@@ -132,11 +133,7 @@ const COLUMN_GAP_PX = 20
 const IN_FLOW_CHROME_PX = 32
 
 function flowAboveSpacer(spacer: HTMLElement): number {
-  let above = TOP_GUTTER_PX
-  for (let node = spacer.previousElementSibling; node; node = node.previousElementSibling) {
-    above += IN_FLOW_CHROME_PX + COLUMN_GAP_PX
-  }
-  return above
+  return transcriptWindowTop(spacer, TOP_GUTTER_PX, IN_FLOW_CHROME_PX + COLUMN_GAP_PX)
 }
 
 type LoadEarlier = () => Promise<NativeChatOlderPageResult>

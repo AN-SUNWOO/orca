@@ -209,6 +209,7 @@ export abstract class OrcaRuntimeWithCreateAgentSession extends OrcaRuntimeWithG
           env: withAgentSessionAccountEnv(startup.env, request.accountEnv),
           launchConfig: startup.launchConfig,
           launchAgent: request.agent,
+          terminalImageViewerSupported: caller.terminalImageViewerSupported,
           launchRuntime,
           terminalKittyKeyboardProtocol: request.terminalKittyKeyboardProtocol,
           startupCommandDelivery: startup.startupCommandDelivery,

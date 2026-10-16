@@ -58,6 +58,8 @@ export const WorktreeCreate = z
       .optional(),
     workspaceStatus: OptionalString,
     manualOrder: OptionalFiniteNumber,
+    // Why: the client's "Nest Workspaces" choice; absent (older clients) keeps the host's own setting.
+    nestWorkspaces: z.boolean().optional(),
     sparseCheckout: z
       .object({
         directories: z.array(z.string()),

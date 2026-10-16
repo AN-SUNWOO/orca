@@ -281,7 +281,7 @@ describe('committed adopting create RPC replay', () => {
         }
       }
     })
-    expect(sessionAdapter.acquire).toHaveBeenCalledTimes(1)
+    expect(sessionAdapter.acquire).not.toHaveBeenCalled()
     expect(internal.publishStructuredAgentSessionTab).toHaveBeenCalledTimes(2)
     expect(selectAccountHome).toHaveBeenCalledTimes(1)
     expect(await call(dispatcher, createParams(OPERATION, 'another-chat'))).toMatchObject({
@@ -300,7 +300,7 @@ describe('committed adopting create RPC replay', () => {
       ok: true,
       result: { ok: false, refusal: { code: 'agent_session_identity_required' } }
     })
-    expect(sessionAdapter.acquire).toHaveBeenCalledTimes(1)
+    expect(sessionAdapter.acquire).not.toHaveBeenCalled()
     expect(internal.publishStructuredAgentSessionTab).toHaveBeenCalledTimes(2)
   })
 })

@@ -22,7 +22,7 @@ export async function assertWorktreeCleanForRemoval(
       '--porcelain',
       ...(useNullTerminatedStatus ? ['-z'] : []),
       '--untracked-files=all',
-      // Why: a user's ignore-submodules setting hides edits inside a submodule, which would look clean before --force deletes them.
+      // Why: a user's ignore-submodules setting would hide submodule edits from this dirty check.
       '--ignore-submodules=none'
     ],
     {

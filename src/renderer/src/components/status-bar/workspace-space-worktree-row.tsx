@@ -22,6 +22,7 @@ import { CheckButton } from './workspace-space-selection-controls'
 import { WorkspaceDecisionHoverCard } from './workspace-space-decision-hover-card'
 import { WorkspaceSpaceStatusBadge } from './workspace-space-status-badge'
 import { WorkspaceSpaceSizeBar } from './workspace-space-breakdown-list'
+import { describeWorktreeDeleteError } from '../sidebar/worktree-delete-error-display'
 
 export function WorkspaceSpaceWorktreeRow({
   worktree,
@@ -51,7 +52,7 @@ export function WorkspaceSpaceWorktreeRow({
   onForceDelete: () => void
 }): React.JSX.Element {
   const isDeleting = deleteState?.isDeleting ?? false
-  const deleteError = deleteState?.error ?? null
+  const deleteError = deleteState?.error ? describeWorktreeDeleteError(deleteState.error) : null
   const canForceDelete = deleteState?.canForceDelete ?? false
   const canDelete = isWorkspaceSpaceRowReadyToDelete(worktree, decisionDetails) && !isDeleting
   const handleForceDelete = (event: React.MouseEvent<HTMLButtonElement>): void => {

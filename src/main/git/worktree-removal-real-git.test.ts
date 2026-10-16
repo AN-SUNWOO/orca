@@ -2,13 +2,15 @@
 // deregisters and refuses, or that deleting a checkout leaves Node's file pool free.
 import { execFile } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
-import { link, mkdir, mkdtemp, readFile, realpath, stat, unlink, writeFile } from 'node:fs/promises'
+import { link, mkdir, mkdtemp, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { removeTree } from '../../shared/windows-transient-lock-removal'
+import { classifyWorktreeForceDeleteReason } from '../../shared/worktree/removal'
+import { formatWorktreeRemovalError } from '../ipc/worktree-logic'
 import { listWorktreesStrict, removeWorktree } from './worktree'
 import { areWorktreePathsEqual } from './worktree-path-comparison'
 import { isPrunableGitFileWorktree } from '../worktree-prunable-git-file'
@@ -95,42 +97,38 @@ describe('worktree removal against the real Git binary', () => {
     expect(await isRegistered(worktreePath)).toBe(true)
   })
 
-  it('removes a clean initialized submodule and keeps a dirty one', async () => {
-    // Why: Git refuses every initialized submodule without --force, even when the tree is clean.
+  it('refuses a clean checkout with a submodule and offers Force Delete for it', async () => {
+    // Why: --force would delete submodule commits that exist only in this checkout, so Git's
+    // refusal must reach the user as a Force Delete choice rather than be retried away.
+    const emptyCommit = ['-c', 'user.name=o', '-c', 'user.email=o@example.invalid', 'commit']
     const originPath = join(scratchDir, 'origin')
     await mkdir(originPath)
     await git(['init', '-q'], originPath)
-    await git(['config', 'user.email', 'removal@example.invalid'], originPath)
-    await git(['config', 'user.name', 'Worktree Removal'], originPath)
-    await writeFile(join(originPath, 'file.txt'), 'vendored\n')
-    await git(['add', 'file.txt'], originPath)
-    await git(['commit', '-qm', 'origin'], originPath)
+    await git([...emptyCommit, '-q', '--allow-empty', '-m', 'origin'], originPath)
     await git(
-      ['-c', 'protocol.file.allow=always', 'submodule', 'add', originPath, 'vendor'],
+      ['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', originPath, 'vendor'],
       repoPath
     )
     await git(['commit', '-qm', 'add vendor'], repoPath)
-
     const subWorktreePath = join(workspaceRoot, 'repo', 'with-sub')
     await git(['worktree', 'add', '-q', subWorktreePath, '-b', 'with-sub'], repoPath)
     await git(
-      ['-c', 'protocol.file.allow=always', 'submodule', 'update', '--init'],
+      ['-c', 'protocol.file.allow=always', 'submodule', 'update', '-q', '--init'],
       subWorktreePath
     )
-    const dirtyFile = join(subWorktreePath, 'vendor', 'extra.txt')
-    await writeFile(dirtyFile, 'keep this\n')
+    // A commit only this checkout's submodule has, recorded by the parent so status stays clean.
+    const vendorPath = join(subWorktreePath, 'vendor')
+    await git([...emptyCommit, '-q', '--allow-empty', '-m', 'local only'], vendorPath)
+    const localCommit = (await git(['rev-parse', 'HEAD'], vendorPath)).trim()
+    await git(['commit', '-qam', 'bump vendor'], subWorktreePath)
 
-    await expect(removeWorktree(repoPath, subWorktreePath, false)).rejects.toThrow(
-      /uncommitted or untracked/
-    )
-    expect(await readFile(dirtyFile, 'utf8')).toBe('keep this\n')
+    const refusal = await removeWorktree(repoPath, subWorktreePath, false).catch((error) => error)
+    expect(refusal).toBeInstanceOf(Error)
+    expect(
+      classifyWorktreeForceDeleteReason(formatWorktreeRemovalError(refusal, subWorktreePath, false))
+    ).toBe('submodules')
     expect(await isRegistered(subWorktreePath)).toBe(true)
-
-    await unlink(dirtyFile)
-    await removeWorktree(repoPath, subWorktreePath, false)
-
-    expect(existsSync(subWorktreePath)).toBe(false)
-    expect(await isRegistered(subWorktreePath)).toBe(false)
+    expect((await git(['cat-file', '-t', localCommit], vendorPath)).trim()).toBe('commit')
   })
 
   it('does not delete a checkout through a malformed registration that names its git file', async () => {

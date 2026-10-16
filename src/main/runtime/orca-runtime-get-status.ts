@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithGetRuntimeId } from './orca-runtime-get-runtime-id'
+import { OrcaRuntimeWithGetRuntimeId } from './workspaces/session-hosts/get-runtime-id'
 import type { RuntimeDegradation, RuntimeStatus } from '../../shared/runtime-types'
 import {
   runtimeBrowserCommandsFactoryIsHeadless,

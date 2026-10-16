@@ -1,5 +1,5 @@
 import type { OrcaRuntimeWithBindPtyIncarnationHandle as BindPtyIncarnationHandleMethods } from '../terminal/identity/terminal-handle-bindings'
-import { OrcaRuntimeWithTouchMobileSessionTabsForWorktree } from '../orca-runtime-touch-mobile-session-tabs-for-worktree'
+import { OrcaRuntimeWithTouchMobileSessionTabsForWorktree } from './mobile-session-membership'
 import type { RetiredTerminalSurface } from '../mobile-session-terminal-retirement'
 import type { RuntimeMobileSessionRetiredTerminalSurface } from '../../../shared/runtime-types'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'

@@ -20,7 +20,7 @@ import {
   nativeChatRailReplyPreview
 } from './native-chat-message-rail-items'
 import { createNativeChatMessageListProjection } from './native-chat-message-list-projection'
-import type { NativeChatResolvedPrompt } from './native-chat-resolution-receipt'
+import type { NativeChatResolvedPrompt } from '../../../../shared/native-chat-resolution-receipt'
 import { nativeChatSubagentSections } from './native-chat-subagent-sections'
 import { projectNativeChatTaskListFrames } from './native-chat-task-list-frames'
 import { omitNativeChatThreadGoalRows } from './native-chat-thread-goal-rows'

@@ -2911,6 +2911,7 @@
         "notDeliveredSendAgain": "This message was not delivered. Send it again to continue.",
         "notSignedIn": "{{agent}} is not signed in.",
         "previousExitUnverifiable": "Couldn't stop {{agent}} from before.",
+        "providerExitedAnswer": "{{agent}} has stopped, so your answer was not sent. Send a message to continue.",
         "providerExitedRejection": "{{agent}} stopped before this message was sent.",
         "providerExitedRow": "{{agent}} stopped while this response was in progress. You can continue in this conversation.",
         "providerRateLimited": "{{agent}} is rate-limited and retrying.",
@@ -2925,6 +2926,7 @@
         "queueFull": "Too many messages were waiting for the agent, so this one was not sent.",
         "runCommandAgain": "Run /{{command}} again.",
         "runCommandWhenDone": "Run /{{command}} when it's done.",
+        "runtimeNotInstalled": "{{agent}} isn't installed on the computer running this chat. Install it from the chat in a current version of Orca.",
         "sendAgainToTryOnceMore": "Send your message again to try once more.",
         "sendToTryAgain": "Send your message to try again.",
         "sessionNotRestored": "{{agent}} couldn't reopen its earlier session, so this chat continues in a new one. {{agent}} doesn't remember the earlier messages.",
@@ -2938,15 +2940,22 @@
         "writeFailed": "Orca couldn't hand this message to the agent, so it was not sent."
       },
       "notices": {
+        "compaction": "Context compacted",
+        "contextCleared": "Context cleared",
         "historyItemTooLarge": "This part of the chat was too large to show.",
-        "historyRepaired": "Part of this chat's history couldn't be loaded."
+        "historyRepaired": "Part of this chat's history couldn't be loaded.",
+        "plan": "Plan"
       },
       "question": {
         "other": "Other…"
       },
-      "queuedMessages": {
-        "sendConfirmBody_one": "You are about to send a message. Do you want to clear the {{count}} message previously queued?",
-        "sendConfirmBody_other": "You are about to send a message. Do you want to clear the {{count}} messages previously queued?"
+      "receipt": {
+        "cancelled": "Cancelled",
+        "cancelledBy": "Cancelled on {{device}}",
+        "emptyAnswer": "Empty answer",
+        "resolved": "Resolved",
+        "resolver": "Answered on {{device}}",
+        "unavailable": "Selected answer unavailable"
       },
       "state": {
         "empty": {

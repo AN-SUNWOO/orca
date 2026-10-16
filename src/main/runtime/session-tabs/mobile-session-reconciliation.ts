@@ -1,7 +1,7 @@
 import type { OrcaRuntimeWithMergePreservedHeadlessMobileSessionTabs as MergePreservedHeadlessMobileSessionTabsMethods } from './mobile-session-preservation'
 import type { OrcaRuntimeWithStoredMobileSnapshotHasStalePreservedTab as StoredMobileSnapshotHasStalePreservedTabMethods } from './mobile-session-publication-preservation'
 /* eslint-disable unicorn/no-useless-spread */
-import { OrcaRuntimeWithWriteOrchestrationPointerPty } from '../orca-runtime-write-orchestration-pointer-pty'
+import { OrcaRuntimeWithWriteOrchestrationPointerPty } from '../orchestration/terminal-authority/write-orchestration-pointer-pty'
 import type { RuntimeMobileSessionTabsSnapshot } from '../../../shared/runtime-types'
 import type { WorkspaceSessionState } from '../../../shared/workspace-session-state-types'
 import { getMobileSessionSnapshotTabIdentityKeys } from '../mobile-session-tab-merge'

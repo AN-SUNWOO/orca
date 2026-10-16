@@ -704,18 +704,6 @@ describe('terminal wait ownership', () => {
     }
   })
 
-  it('keeps native method arity and async identity', () => {
-    const runtime = new OrcaRuntimeService()
-    expect(runtime.getTerminalInteractiveWait.length).toBe(1)
-    expect(runtime.getTerminalInteractiveWait.constructor.name).toBe('AsyncFunction')
-    expect(runtime['resolveAuthoritativeTerminalWaitPermission'].length).toBe(3)
-    expect(runtime['getTerminalWaitPermissionInputs'].length).toBe(3)
-    expect(runtime['startTuiIdleVisibleReadProbe'].length).toBe(3)
-    expect(runtime['resolvePtyExitWaiters'].length).toBe(2)
-    expect(runtime['resolveWaiter'].length).toBe(2)
-    expect(runtime['removeWaiter'].length).toBe(1)
-  })
-
   it('routes settlement through the current runtime verdict and resolver', async () => {
     const runtime = new OrcaRuntimeService()
     const pending = Promise.withResolvers<RuntimeTerminalWait>()

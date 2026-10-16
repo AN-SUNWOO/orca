@@ -15,6 +15,23 @@ const NON_TEST_FILES = new Set([
   'config/scripts/mobile-release-check-scope.test.mjs'
 ])
 
+const DESKTOP_SUITE_PREFIXES = [
+  'src/shared/',
+  'src/packages/process-host/',
+  'src/main/agent-launch/',
+  'src/main/runtime/rpc/',
+  'src/main/runtime/runtime-rpc/',
+  'src/main/runtime/agent-session-',
+  'src/main/native-chat/agent-session-wire/'
+]
+
+function isDesktopSuite(file) {
+  return (
+    DESKTOP_SUITE_PREFIXES.some((prefix) => file.startsWith(prefix)) &&
+    /\.test\.(?:[cm]?[jt]s|[jt]sx)$/.test(file)
+  )
+}
+
 export function shouldRunMobileTests(files) {
   return (
     files.length === 0 ||
@@ -23,6 +40,7 @@ export function shouldRunMobileTests(files) {
         file.split('/').includes('..') ||
         (!isDocsOnlyPath(file) &&
           !NON_TEST_FILES.has(file) &&
+          !isDesktopSuite(file) &&
           !file.startsWith('mobile/docs/') &&
           !file.startsWith('mobile/fastlane/'))
     )

@@ -24,6 +24,7 @@ on:
       - 'src/main/runtime/orca-runtime.ts'
       - 'src/main/runtime/agent-session-*.ts'
       - 'src/main/native-chat/agent-session-wire/**'
+      - 'src/main/runtime/structured-attention-original-delivery.test-fixture.ts'
       # Why: this job holds the only checks that load the Fastfile, so edits to
       # it or to the release workflow it guards must re-run them.
       - '.github/workflows/mobile.yml'
@@ -38,6 +39,16 @@ on:
       - 'config/scripts/pr-code-change-scope.mjs'
       - 'config/scripts/pr-package-test-paths.mjs'
       - 'config/scripts/pr-layout-oracle-route.mjs'
+      # Desktop suites do not feed mobile; keep fixtures and test/toolchain config inputs.
+      - '!src/shared/**/*.test.[jt]s'
+      - '!src/shared/**/*.test.[jt]sx'
+      - '!src/shared/**/*.test.[cm][jt]s'
+      - '!src/packages/process-host/**/*.test.[jt]s'
+      - '!src/packages/process-host/**/*.test.[jt]sx'
+      - '!src/packages/process-host/**/*.test.[cm][jt]s'
+      - '!src/main/**/*.test.[jt]s'
+      - '!src/main/**/*.test.[jt]sx'
+      - '!src/main/**/*.test.[cm][jt]s'
   # Why main too: two pull requests can each pass against their own base and disagree once both
   # land, and `verify` never runs on main. The same source paths as above, less the CI inputs only
   # `verify` reads.
@@ -57,10 +68,21 @@ on:
       - 'src/main/runtime/orca-runtime.ts'
       - 'src/main/runtime/agent-session-*.ts'
       - 'src/main/native-chat/agent-session-wire/**'
+      - 'src/main/runtime/structured-attention-original-delivery.test-fixture.ts'
       - '.github/workflows/mobile.yml'
       - 'config/mobile-ci.vitest.config.mjs'
       - 'config/scripts/run-mobile-ci-tests.mjs'
       - 'config/.bun-version'
+      # Desktop suites do not feed mobile; keep fixtures and test/toolchain config inputs.
+      - '!src/shared/**/*.test.[jt]s'
+      - '!src/shared/**/*.test.[jt]sx'
+      - '!src/shared/**/*.test.[cm][jt]s'
+      - '!src/packages/process-host/**/*.test.[jt]s'
+      - '!src/packages/process-host/**/*.test.[jt]sx'
+      - '!src/packages/process-host/**/*.test.[cm][jt]s'
+      - '!src/main/**/*.test.[jt]s'
+      - '!src/main/**/*.test.[jt]sx'
+      - '!src/main/**/*.test.[cm][jt]s'
 
 concurrency:
   # Per commit on main, not per branch. GitHub cancels any PENDING run in a group when a new one

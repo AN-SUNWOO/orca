@@ -60,7 +60,8 @@ import { STRUCTURED_AGENT_SESSION_AGENTS_METHODS } from './structured-agent-sess
 import { ARTIFACT_METHODS } from './artifacts'
 import { AGENT_HOOK_METHODS } from './agent-hooks'
 import { AGENT_LAUNCH_METHODS } from './agent-launch'
-import { WORKSPACE_LAYOUT_METHODS } from './workspace-layout'
+import { LAYOUT_APPLY_METHODS, WORKSPACE_LAYOUT_METHODS } from './workspace-layout'
+import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/layout-owner-switch'
 
 // Why: a flat manifest keeps registration order explicit and provides one
 // grep-point for "what methods does the RPC server expose?" — useful when
@@ -102,6 +103,8 @@ export const ALL_RPC_METHODS = [
   ...COMPUTER_METHODS,
   ...SESSION_TAB_METHODS,
   ...WORKSPACE_LAYOUT_METHODS,
+  // Switch point: a window-owned build registers no layout command.
+  ...(ORCA_LAYOUT_OWNER_IS_MAIN ? LAYOUT_APPLY_METHODS : []),
   ...NATIVE_CHAT_METHODS,
   ...FILE_METHODS,
   ...GIT_METHODS,

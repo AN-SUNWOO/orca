@@ -24,7 +24,7 @@ import type {
   AgentLaunchModeReceipt
 } from '../../shared/agent-launch-intent'
 import { RUNTIME_CAPABILITIES } from '../../shared/protocol-version'
-import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-agent-runtime-registrations'
+import { STRUCTURED_AGENT_RUNTIME_METADATA } from '../runtime/structured-agent-runtime-metadata'
 import {
   isNativeChatEnabled,
   resolveStructuredNativeChatSupport,
@@ -83,7 +83,7 @@ export type AgentLaunchModePlacement = {
   callerRendersStructured?: boolean
 }
 
-const REGISTERED_STRUCTURED_AGENTS: readonly string[] = STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map(
+const REGISTERED_STRUCTURED_AGENTS: readonly string[] = STRUCTURED_AGENT_RUNTIME_METADATA.map(
   ({ definition }) => definition.agent
 )
 
@@ -240,6 +240,18 @@ export function downgradeAgentLaunchModeForHost(
     support.reason ? HOST_SUPPORT_REASON[support.reason] : 'structured_unsupported_on_host',
     vocabulary
   )
+}
+
+export function downgradeAgentLaunchModeForStructuredRefusal(
+  receipt: AgentLaunchModeReceipt,
+  vocabulary: AgentLaunchModeVocabulary
+): AgentLaunchModeReceipt {
+  return {
+    mode: 'terminal',
+    preferred: receipt.preferred,
+    reason: 'structured_unsupported_on_host',
+    detail: `Your default is a structured chat session, but the host refused to create one here; started ${vocabulary.terminal} instead.`
+  }
 }
 
 function downgraded(

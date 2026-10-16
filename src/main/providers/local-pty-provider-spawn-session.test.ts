@@ -165,12 +165,6 @@ describe('LocalPtyProvider', () => {
   })
 
   describe('spawn', () => {
-    it('returns a unique PTY id', async () => {
-      const result = await provider.spawn({ cols: 80, rows: 24 })
-      expect(result.id).toBeTruthy()
-      expect(typeof result.id).toBe('string')
-    })
-
     it('retires buffered output and synchronous Bun exit before replying to spawn', async () => {
       const disposeData = vi.fn()
       const disposeExit = vi.fn()

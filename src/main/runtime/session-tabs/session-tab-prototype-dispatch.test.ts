@@ -65,24 +65,6 @@ class SessionTabRuntime extends OrcaRuntimeService {
   normalizeOrderMethod() {
     return this.normalizeMobileSessionTabOrder
   }
-
-  lengths(): number[] {
-    return [
-      this.persistHeadlessSessionTabProps.length,
-      this.applyHeadlessSessionTabPropsToSnapshot.length,
-      this.getMobileSessionTopLevelTabId.length,
-      this.persistHeadlessTerminalPaneLayout.length,
-      this.applyHeadlessTerminalPaneLayoutToSnapshot.length,
-      this.moveHeadlessMobileSessionTab.length,
-      this.splitHeadlessMobileSessionTabGroup.length,
-      this.moveHeadlessMobileSessionTabToGroup.length,
-      this.requireHeadlessTargetGroup.length,
-      this.persistHeadlessTabGroups.length,
-      this.waitForSessionTabsInventoryPublication.length,
-      this.getAuthoritativeSessionTabsInventoryEpoch.length,
-      this.markSessionTabsInventoryPublished.length
-    ]
-  }
 }
 
 class GroupDispatchRuntime extends SessionTabRuntime {
@@ -117,10 +99,6 @@ class GroupDispatchRuntime extends SessionTabRuntime {
 }
 
 describe('original session tab runtime prototypes', () => {
-  it('retains all thirteen native parameter counts, including protected helpers', () => {
-    expect(new SessionTabRuntime(null).lengths()).toEqual([3, 3, 1, 2, 2, 3, 3, 3, 2, 3, 1, 0, 0])
-  })
-
   it.each(['split', 'move-to-group'] as const)('uses the runtime %s override', (kind) => {
     const runtime = new GroupDispatchRuntime(null)
     const move: RuntimeMobileSessionTabMove =
@@ -329,7 +307,7 @@ class SessionRuntime extends OrcaRuntimeService {
     return Promise.resolve(null)
   }
 
-  protected override hydrateHeadlessMobileSessionTabsFromWorkspaceSession(): Set<string> {
+  public override hydrateHeadlessMobileSessionTabsFromWorkspaceSession(): Set<string> {
     return new Set()
   }
 

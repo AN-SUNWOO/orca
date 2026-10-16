@@ -192,3 +192,16 @@ describe('readStructuredAttentionWorkspaceLabels', () => {
     expect(labels).toEqual({ worktreeLabel: 'Notes' })
   })
 })
+
+it('preserves the missing notification settings failure before dispatch', () => {
+  let reads = 0
+  const h = harness({
+    readNotificationSettings() {
+      reads += 1
+      return undefined
+    }
+  })
+  expect(() => h.delivery.deliver(PROMPT, SUMMARY)).toThrow(TypeError)
+  expect(reads).toBe(1)
+  expect(h.sent).toEqual([])
+})

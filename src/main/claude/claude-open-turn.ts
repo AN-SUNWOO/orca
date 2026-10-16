@@ -80,6 +80,11 @@ export class ClaudeOpenTurn {
       : AGENT_JOURNAL_THREAD_SCOPE
   }
 
+  /** When the open turn started, or null when none is open. */
+  get startedAt(): number | null {
+    return this.current?.startedAt ?? null
+  }
+
   get isOpen(): boolean {
     return this.current !== null
   }

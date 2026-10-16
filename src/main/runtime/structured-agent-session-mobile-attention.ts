@@ -30,7 +30,7 @@ import { getRuntimeDesktopSurface } from './runtime-desktop-surface'
 export type StructuredAttentionWorkspaceLabels = { repoLabel?: string; worktreeLabel?: string }
 
 export type StructuredAttentionMobileDeliveryDeps = {
-  readNotificationSettings: () => NotificationSettings
+  readNotificationSettings: () => NotificationSettings | undefined
   /** In-memory metadata only: a lookup that could wait would let the alert outlive its prompt. */
   readWorkspaceLabels: (scope: AgentSessionExecutionLocation) => StructuredAttentionWorkspaceLabels
   /** In-memory only, like the labels: whether the desktop's Filters switches hide this workspace. */
@@ -85,7 +85,7 @@ export function createStructuredAttentionMobileDelivery(
         return
       }
       const scope = edge.type === 'prompt' ? edge.prompt.scope : edge.completion.scope
-      const settings = deps.readNotificationSettings()
+      const settings = deps.readNotificationSettings()!
       if (!settings.notifyHiddenWorkspaces && deps.isWorkspaceHidden(scope)) {
         return
       }

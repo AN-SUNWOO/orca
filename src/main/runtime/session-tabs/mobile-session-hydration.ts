@@ -1,6 +1,6 @@
-import type { OrcaRuntimeWithBuildHeadlessMobileSessionBrowserTabs as BuildHeadlessMobileSessionBrowserTabsMethods } from '../orca-runtime-build-headless-mobile-session-browser-tabs'
+import type { OrcaRuntimeWithBuildHeadlessMobileSessionBrowserTabs as BuildHeadlessMobileSessionBrowserTabsMethods } from '../session-lifecycle/projection/build-headless-mobile-session-browser-tabs'
 import type { OrcaRuntimeWithStoredMobileSnapshotHasStalePreservedTab as StoredMobileSnapshotHasStalePreservedTabMethods } from './mobile-session-publication-preservation'
-import type { OrcaRuntimeWithReconcileHeadlessMobileSessionBrowserTabs as ReconcileHeadlessMobileSessionBrowserTabsMethods } from '../orca-runtime-reconcile-headless-mobile-session-browser-tabs'
+import type { OrcaRuntimeWithReconcileHeadlessMobileSessionBrowserTabs as ReconcileHeadlessMobileSessionBrowserTabsMethods } from '../session-lifecycle/projection/reconcile-headless-mobile-session-browser-tabs'
 import type { BrowserWindow } from 'electron'
 import { RuntimeSessionTabsInventoryPublication } from './session-tabs-inventory-publication'
 import type { WorkspaceSessionState } from '../../../shared/workspace-session-state-types'
@@ -94,7 +94,7 @@ export abstract class OrcaRuntimeWithHydrateHeadlessMobileSessionTabsFromWorkspa
 
   protected abstract getAvailableAuthoritativeWindow(): BrowserWindow | null
 
-  protected hydrateHeadlessMobileSessionTabsFromWorkspaceSession(
+  hydrateHeadlessMobileSessionTabsFromWorkspaceSession(
     worktreeId?: string,
     options: {
       force?: boolean

@@ -1,4 +1,4 @@
-import type { OrcaRuntimeWithScheduleMobileSessionTabsChanged as ScheduleMobileSessionTabsChangedMethods } from '../orca-runtime-schedule-mobile-session-tabs-changed'
+import type { OrcaRuntimeWithScheduleMobileSessionTabsChanged as ScheduleMobileSessionTabsChangedMethods } from './session-tabs-change-publication'
 import { OrcaRuntimeWithMergePreservedHeadlessMobileSessionTabs } from './mobile-session-preservation'
 import type {
   RuntimeMobileSessionSnapshotTab,

@@ -1,9 +1,11 @@
+import type { RuntimeArtifactController } from './runtime-artifact-controller'
 import { afterEach, expect, it, vi } from 'vitest'
 import { RuntimeFileCommands } from './orca-runtime-files'
 import { OrcaRuntimeService } from './orca-runtime'
 import { RuntimeFileAccess } from './files/file-access'
 import { RuntimeFileReads } from './files/file-reads'
 import { RuntimeTerminalArtifacts } from './terminal/artifacts/terminal-artifacts'
+import { OrchestrationDb } from './orchestration/db/orchestration-db'
 import type { RuntimeFileCommandHost } from './files/file-command-host'
 
 const unexpectedHostRead = (): never => {
@@ -145,4 +147,82 @@ it('preserves omitted argument slots, owner receivers, and the returned promise'
   vi.spyOn(runtime, 'readFileExplorerPreview').mockReturnValueOnce(replacement)
   expect(runtime.readFileExplorerPreview('other-worktree', 'other-file')).toBe(replacement)
   expect(read).toHaveBeenCalledTimes(2)
+})
+
+it('delegates artifact listing to the current owner with the original argument and promise', () => {
+  const runtime = new OrcaRuntimeService(null)
+  const owner = runtime['artifacts']
+  const events: string[] = []
+  const returned: ReturnType<RuntimeArtifactController['list']> = Promise.resolve({
+    status: 'unconfigured',
+    message: 'not connected'
+  })
+  const list = vi.spyOn(owner, 'list').mockImplementation(function (
+    this: RuntimeArtifactController
+  ) {
+    events.push('list')
+    expect(this).toBe(owner)
+    expect(arguments.length).toBe(1)
+    return returned
+  })
+  Object.defineProperty(runtime, 'artifacts', {
+    get() {
+      events.push('owner')
+      return owner
+    }
+  })
+  const options = { cursor: 'next', apiUrl: 'https://artifacts.example.test' }
+
+  expect(runtime.listArtifacts(options)).toBe(returned)
+  expect(list).toHaveBeenCalledExactlyOnceWith(options)
+  expect(events).toEqual(['owner', 'list'])
+})
+
+it('replaces the database after clearing its old routing state and then uses runtime overrides', () => {
+  const runtime = new OrcaRuntimeService(null)
+  const first = new OrchestrationDb(':memory:')
+  const second = new OrchestrationDb(':memory:')
+  const events: string[] = []
+  const dbAtCall: (OrchestrationDb | null)[] = []
+  const record = (name: string) => {
+    events.push(name)
+    dbAtCall.push(runtime['_orchestrationDb'])
+  }
+  vi.spyOn(runtime['orchestrationFederation'], 'resetForDatabaseChange').mockImplementation(() =>
+    record('reset')
+  )
+  vi.spyOn(runtime['mailPointerRepointScheduler'], 'clear').mockImplementation(() =>
+    record('clear')
+  )
+  Object.defineProperties(runtime, {
+    ensureOrchestrationFederationRelay: {
+      value: function (this: OrcaRuntimeService) {
+        expect(this).toBe(runtime)
+        expect(arguments.length).toBe(0)
+        record('relay')
+      }
+    },
+    scheduleRestoredMessageRepoints: {
+      value: function (this: OrcaRuntimeService) {
+        expect(this).toBe(runtime)
+        expect(arguments.length).toBe(0)
+        record('repoint')
+      }
+    }
+  })
+  try {
+    runtime.setOrchestrationDb(first)
+    events.length = 0
+    dbAtCall.length = 0
+    runtime.setOrchestrationDb(second)
+
+    expect(events).toEqual(['reset', 'clear', 'relay', 'repoint'])
+    expect(dbAtCall).toEqual([first, first, second, second])
+    expect(runtime.getOrchestrationDb()).toBe(second)
+    expect(runtime.getExistingOrchestrationDb()).toBe(second)
+    expect(events).toEqual(['reset', 'clear', 'relay', 'repoint'])
+  } finally {
+    first.close()
+    second.close()
+  }
 })

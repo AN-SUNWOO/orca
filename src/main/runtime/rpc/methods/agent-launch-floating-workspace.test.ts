@@ -127,6 +127,7 @@ describe('agent.launch with the real floating workspace resolver', () => {
           `id:${FLOATING_TERMINAL_WORKTREE_ID}`,
           {
             startupAgent: 'codex',
+            terminalImageViewerSupported: false,
             // Derived on the host by the window's rule, from the same chat-view setting.
             viewMode: 'terminal',
             // A paired device's launch never moves the desktop window.

@@ -1,3 +1,4 @@
+import { terminalImageViewerSupported } from '../../terminal-image-viewer-env'
 import { resolveRuntimeNavigationTarget } from '../../../../shared/runtime-navigation'
 import { getExplicitWorktreeIdSelector } from '../../runtime-worktree-selection'
 import { defineMethod, defineStreamingMethod } from '../core'
@@ -52,16 +53,15 @@ export const SESSION_TAB_METHODS = [
     name: 'session.tabs.createTerminal',
     permission: 'workspace',
     params: CreateTerminalTab,
-    handler: async (
-      params,
-      { runtime, signal, clientKind, pairedDeviceId, clientCapabilities }
-    ) => {
+    handler: async (params, context) => {
+      const { runtime, signal, clientKind, pairedDeviceId, clientCapabilities } = context
       if (params.command) {
         await assertLegacyAiVaultResumeCommandAllowed(params.command, () =>
           runtime.ensureStructuredAgentSessionHost()
         )
       }
       return runtime.createMobileSessionTerminal(params.worktree, {
+        terminalImageViewerSupported: terminalImageViewerSupported(context),
         afterTabId: params.afterTabId,
         targetGroupId: params.targetGroupId,
         command: params.command,

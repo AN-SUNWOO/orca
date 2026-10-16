@@ -1,3 +1,4 @@
+import { terminalImageViewerSupported } from '../../../terminal-image-viewer-env'
 import { defineMethod } from '../../core'
 import {
   navigationTargetsHost,
@@ -36,7 +37,8 @@ export const TERMINAL_LIFECYCLE_METHODS = [
     name: 'terminal.create',
     permission: 'workspace',
     params: TerminalCreateParams,
-    handler: async (params, { runtime, pairedDeviceId, clientId, clientKind }) => {
+    handler: async (params, context) => {
+      const { runtime, pairedDeviceId, clientId, clientKind } = context
       // A focused terminal create predates paired-client navigation. Keep the
       // authority boundary here so a remote caller cannot activate the host
       // renderer. This legacy RPC remains a background create for paired viewers;
@@ -55,6 +57,7 @@ export const TERMINAL_LIFECYCLE_METHODS = [
           (canonicalWorktreeSelector, preAllocatedHandle) =>
             runtime.createTerminal(canonicalWorktreeSelector, {
               command: params.command,
+              terminalImageViewerSupported: terminalImageViewerSupported(context),
               ...(params.shell ? { shellOverride: params.shell } : {}),
               startupCommandDelivery: params.startupCommandDelivery,
               env: params.env,

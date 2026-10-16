@@ -50,7 +50,8 @@ type CreateAttemptOutcome = {
 async function runCreateAttempt(
   request: WorktreeCreateRequest,
   attempt: WorktreeCreateAttempt,
-  target: RuntimeTarget
+  target: RuntimeTarget,
+  nestWorkspaces?: boolean
 ): Promise<CreateAttemptOutcome> {
   const provisionedRoot = request.options?.provisionedRoot
   const create = async (
@@ -76,7 +77,11 @@ async function runCreateAttempt(
         : await callRuntimeRpc<CreateWorktreeResult>(
             target,
             'worktree.create',
-            buildRuntimeWorktreeCreateParams(request, { ...attempt, parentWorkspace }),
+            {
+              ...buildRuntimeWorktreeCreateParams(request, { ...attempt, parentWorkspace }),
+              // Why: the host's own store default would otherwise decide the layout over the user's choice.
+              ...(nestWorkspaces === undefined ? {} : { nestWorkspaces })
+            },
             { timeoutMs: 10 * 60_000 }
           )
   try {
@@ -233,7 +238,8 @@ export function createCreateWorktree(
               parentWorkspace: parent.parentWorkspace,
               manualOrder
             },
-            target
+            target,
+            get().settings?.nestWorkspaces
           )
           if (lostRequestedParent(outcome, parent, target)) {
             warnParentDroppedOnce()

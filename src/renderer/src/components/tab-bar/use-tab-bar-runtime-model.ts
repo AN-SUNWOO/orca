@@ -6,6 +6,8 @@ import type { Tab } from '../../../../shared/tab-types'
 import type { ProjectExecutionRuntimeResolution } from '../../../../shared/project-execution-runtime'
 import { useAppStore } from '../../store'
 import { buildStatusMap } from '../right-sidebar/status-display'
+import type { AgentDetectionTarget } from '@/hooks/useDetectedAgents'
+import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { getConnectionIdFromState } from '@/lib/connection-context'
 import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
 import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcript-readability'
@@ -65,6 +67,7 @@ export type TabBarRuntimeModel = {
   pinTab: (tabId: string) => void
   unpinTab: (tabId: string) => void
   defaultWindowsShell: string
+  agentDetectionTarget: AgentDetectionTarget | undefined
   defaultWindowsPowerShellImplementation: ReturnType<
     typeof resolveWindowsPowerShellImplementationSetting
   >
@@ -113,6 +116,7 @@ export function useTabBarRuntimeModel({
   const defaultWindowsShell = useAppStore(
     (s) => s.settings?.terminalWindowsShell ?? 'powershell.exe'
   )
+  const agentDetectionTarget = useAgentDetectionTargetForWorktree(worktreeId)
   const defaultWindowsPowerShellImplementation = useAppStore((s) =>
     resolveWindowsPowerShellImplementationSetting(s.settings)
   )
@@ -244,6 +248,7 @@ export function useTabBarRuntimeModel({
     pinTab,
     unpinTab,
     defaultWindowsShell,
+    agentDetectionTarget,
     defaultWindowsPowerShellImplementation,
     windowsTerminalCapabilities,
     showWindowsShellMenu,

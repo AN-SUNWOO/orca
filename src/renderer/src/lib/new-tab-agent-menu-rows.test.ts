@@ -1,7 +1,9 @@
 import { expect, it } from 'vitest'
+import type { TuiAgent } from '../../../shared/tui-agent'
 import { buildNewTabAgentMenuRows } from './new-tab-agent-menu-rows'
+const disabledTuiAgents: TuiAgent[] = ['pi']
 const input = {
-  settings: { experimentalNativeChat: true, disabledTuiAgents: ['pi'] },
+  settings: { experimentalNativeChat: true, disabledTuiAgents },
   detectedOnHost: ['claude', 'gemini'] as const,
   chatAgents: ['claude', 'codex', 'pi'] as const,
   hostChatAnswer: () => 'yes' as const

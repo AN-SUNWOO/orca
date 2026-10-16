@@ -17,6 +17,10 @@ const {
       disabledTuiAgents: [] as string[]
     },
     runtimeStatusByEnvironmentId: new Map(),
+    detectedAgentIds: null,
+    localDetectedAgentIdsByContext: {},
+    remoteDetectedAgentIds: {},
+    runtimeDetectedAgentIds: {},
     worktreesByRepo: {} as Record<string, unknown[]>,
     repos: [] as unknown[],
     openSettingsPage: vi.fn(),

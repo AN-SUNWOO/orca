@@ -5,6 +5,7 @@ import { useAppStore } from '../../store'
 import type { TabAgentLaunchOption } from './tab-agent-launch-options'
 import { useTabAgentMenuLaunch } from './QuickLaunchButton'
 import { useNewTabAgentMenuRows, type NewTabAgentMenuModel } from './use-new-tab-agent-menu-rows'
+import type { AgentDetectionTarget } from '@/hooks/useDetectedAgents'
 import { buildTabAgentLaunchOptionsFromRows } from './tab-agent-launch-options'
 import { buildTabCreateMenuOptions, type TabCreateMenuOption } from './tab-create-menu-options'
 import { resolveWindowsShellLaunchTarget } from './windows-shell-launch'
@@ -49,6 +50,7 @@ export function useTabBarCreateMenuController({
   projectRuntimeShellMenuMode,
   defaultWindowsShell,
   defaultWindowsPowerShellImplementation,
+  agentDetectionTarget,
   windowsTerminalCapabilities,
   onNewTerminalTab,
   onNewTerminalWithShell,
@@ -71,6 +73,7 @@ export function useTabBarCreateMenuController({
   defaultWindowsPowerShellImplementation: ReturnType<
     typeof resolveWindowsPowerShellImplementationSetting
   >
+  agentDetectionTarget: AgentDetectionTarget | undefined
   windowsTerminalCapabilities: WindowsTerminalCapabilities
   onNewTerminalTab: () => void
   onNewTerminalWithShell?: (shell: string) => void
@@ -82,7 +85,11 @@ export function useTabBarCreateMenuController({
   // Why: <webview> clicks are out-of-process, so Radix's document-pointerdown outside-click check misses them; use window blur.
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false)
   const [createMenuQuery, setCreateMenuQuery] = useState('')
-  const agentMenu = useNewTabAgentMenuRows(worktreeId, newTabMenuOpen && showAgentLaunchItems)
+  const agentMenu = useNewTabAgentMenuRows(
+    worktreeId,
+    newTabMenuOpen && showAgentLaunchItems,
+    agentDetectionTarget
+  )
   const commandOverrides = useAppStore((state) => state.settings?.agentCmdOverrides)
   const agentLaunchOptions = buildTabAgentLaunchOptionsFromRows(agentMenu.rows, commandOverrides)
   const pendingNewTabMenuFocusRef = useRef<(() => void) | null>(null)

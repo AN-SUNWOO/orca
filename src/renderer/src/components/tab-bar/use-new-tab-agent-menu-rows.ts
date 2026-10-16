@@ -31,8 +31,8 @@ import {
   readLocalRuntimeCapabilitiesOrUnknown,
   subscribeLocalRuntimeCapabilitiesKnown
 } from '@/runtime/local-runtime-capabilities'
-import { useDetectedAgents } from '@/hooks/useDetectedAgents'
-import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
+import { useDetectedAgents, type AgentDetectionTarget } from '@/hooks/useDetectedAgents'
+import { readDetectedAgentsForTarget } from '@/lib/agent-detection-target-inventory'
 
 function hostChatAnswer(input: AgentLaunchRoutingInput): HostChatAnswer {
   const support = structuredAgentLaunchSupport(input)
@@ -78,9 +78,18 @@ function answerFromSupport(
 
 export type NewTabAgentMenuModel = ReturnType<typeof useNewTabAgentMenuRows>
 
-export function useNewTabAgentMenuRows(worktreeId: string, open: boolean) {
-  const detectionTarget = useAgentDetectionTargetForWorktree(worktreeId)
-  const detection = useDetectedAgents(open ? detectionTarget : undefined)
+/** `detectionTarget` is the workspace's agent-inventory host, resolved by the caller. */
+export function useNewTabAgentMenuRows(
+  worktreeId: string,
+  open: boolean,
+  detectionTarget: AgentDetectionTarget | undefined
+) {
+  const acquired = useDetectedAgents(open ? detectionTarget : undefined)
+  // Why: only acquisition waits for the open menu; closing it must not erase the known inventory.
+  const storedIds = useAppStore((state) =>
+    detectionTarget ? readDetectedAgentsForTarget(state, detectionTarget) : null
+  )
+  const detection = { ...acquired, detectedIds: acquired.detectedIds ?? storedIds }
   useHostStructuredAgentsVersion()
   useSyncExternalStore(
     subscribeLocalRuntimeCapabilitiesKnown,
@@ -199,16 +208,20 @@ export function useNewTabAgentMenuRows(worktreeId: string, open: boolean) {
           if (!active) {
             return
           }
+          answered += 1
+          if (answered === agents.length) {
+            clearTimeout(timer)
+          }
+          // Why: only a host verdict relabels a row; a read that could not answer keeps what was known.
+          if (support.kind !== 'admitted' && support.kind !== 'declined') {
+            return
+          }
           setAnswers((previous) => ({
             owner,
             values: new Map<TuiAgent, HostChatAnswer>(
               previous?.owner === owner ? previous.values : []
             ).set(agent, answerFromSupport(support))
           }))
-          answered += 1
-          if (answered === agents.length) {
-            clearTimeout(timer)
-          }
         },
         () => undefined
       )

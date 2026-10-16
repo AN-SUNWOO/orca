@@ -38,6 +38,7 @@ function TabBarInner(props: TabBarProps): React.JSX.Element {
     projectRuntimeShellMenuMode: runtime.projectRuntimeShellMenuMode,
     defaultWindowsShell: runtime.defaultWindowsShell,
     defaultWindowsPowerShellImplementation: runtime.defaultWindowsPowerShellImplementation,
+    agentDetectionTarget: runtime.agentDetectionTarget,
     windowsTerminalCapabilities: runtime.windowsTerminalCapabilities,
     onNewTerminalTab,
     onNewTerminalWithShell,

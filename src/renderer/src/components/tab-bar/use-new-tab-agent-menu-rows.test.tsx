@@ -2,6 +2,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useAppStore } from '@/store'
+import { getDefaultSettings } from '../../../../shared/constants'
 import type { HostCreateSupport } from '@/lib/structured-agent-session-host-admission'
 import {
   STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY as CHAT,
@@ -12,11 +13,11 @@ const mocks = vi.hoisted(() => ({ support: vi.fn() }))
 vi.mock('@/lib/structured-agent-session-host-admission', () => ({
   askHostCreateSupport: mocks.support
 }))
+// Like the real hook: a closed menu acquires nothing, and the stored inventory stays.
 vi.mock('@/hooks/useDetectedAgents', () => ({
-  useDetectedAgents: () => ({ detectedIds: ['claude', 'codex', 'opencode'] })
-}))
-vi.mock('@/hooks/useAgentDetectionTarget', () => ({
-  useAgentDetectionTargetForWorktree: () => ({ kind: 'local' })
+  useDetectedAgents: (target: unknown) => ({
+    detectedIds: target === undefined ? null : ['claude', 'codex', 'opencode']
+  })
 }))
 vi.mock('@/runtime/local-runtime-capabilities', () => ({
   readLocalRuntimeCapabilitiesOrUnknown: () => null,
@@ -57,9 +58,13 @@ beforeEach(() => {
     )
   useAppStore.setState({
     ...initial,
-    settings: { ...initial.settings, experimentalNativeChat: true, disabledTuiAgents: [] },
+    settings: {
+      ...getDefaultSettings('/home/me'),
+      experimentalNativeChat: true,
+      disabledTuiAgents: []
+    },
     localDetectedAgentIdsByContext: { host: ['claude', 'codex'] },
-    detectedAgentIds: ['opencode']
+    detectedAgentIds: ['claude', 'codex', 'opencode']
   })
 })
 afterEach(() => {
@@ -70,7 +75,7 @@ it.each(['local', 'runtime:server'] as const)(
   'shows host refusals, keeps them across reopen and never blocks a supported chat on %s',
   async (host) => {
     useAppStore.setState({ activeWorkspaceExecutionHostId: host })
-    const hook = renderHook(({ open, id }) => useNewTabAgentMenuRows(id, open), {
+    const hook = renderHook(({ open, id }) => useNewTabAgentMenuRows(id, open, { kind: 'local' }), {
       initialProps: { open: false, id: 'one' }
     })
     const claude = () => hook.result.current.rows.find((row) => row.agent === 'claude')
@@ -102,3 +107,18 @@ it.each(['local', 'runtime:server'] as const)(
     expect(mocks.support).toHaveBeenCalledTimes(12)
   }
 )
+
+it('keeps a supported chat clickable when the host cannot answer', async () => {
+  const hook = renderHook(() => useNewTabAgentMenuRows('one', true, { kind: 'local' }))
+  await act(async () =>
+    pending[0]?.resolve({
+      kind: 'unreachable',
+      code: 'runtime_unavailable',
+      message: '',
+      error: null
+    })
+  )
+  expect(hook.result.current.rows.find((row) => row.agent === 'claude')).toMatchObject({
+    kind: 'chat'
+  })
+})

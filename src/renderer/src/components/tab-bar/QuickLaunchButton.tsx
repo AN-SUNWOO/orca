@@ -21,6 +21,7 @@ import type { LaunchSource } from '../../../../shared/telemetry-events'
 import { translate } from '@/i18n/i18n'
 import type { NewTabAgentMenuRow } from '@/lib/new-tab-agent-menu-rows'
 import { useNewTabAgentMenuRows, type NewTabAgentMenuModel } from './use-new-tab-agent-menu-rows'
+import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { chatUnavailableLabel, rowTitle, rowLabel, rowId } from './tab-agent-row-presentation'
 
 export type QuickLaunchAgentMenuItemsProps = {
@@ -203,7 +204,8 @@ export function useTabAgentMenuLaunch({
 }
 
 function QuickLaunchAgentMenuItemsInner(props: QuickLaunchAgentMenuItemsProps): React.JSX.Element {
-  const model = useNewTabAgentMenuRows(props.worktreeId, true)
+  const detectionTarget = useAgentDetectionTargetForWorktree(props.worktreeId)
+  const model = useNewTabAgentMenuRows(props.worktreeId, true, detectionTarget)
   const runLaunch = useTabAgentMenuLaunch(props)
   return <ProjectedAgentMenuItems {...props} model={model} runLaunch={runLaunch} />
 }

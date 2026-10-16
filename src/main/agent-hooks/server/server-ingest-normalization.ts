@@ -113,6 +113,12 @@ export abstract class AgentHookServerIngestNormalization extends AgentHookServer
     if (!normalized.event) {
       return
     }
+    const exit = this.agentExitedAtByPaneKey.get(this.resolvePaneKeyAlias(normalized.event.paneKey))
+    // Why: a hook spooled a full second before a proven exit (stamps are whole seconds) describes
+    // the dead agent; replaying it would install an obsolete owner. A same-second one may not.
+    if (exit && record.receivedAt + 1000 <= exit.at) {
+      return
+    }
     const replay = { ...normalized.event, isReplay: true as const }
     const statusDisposition = this.getAgentStatusDisposition(replay.paneKey, {
       source: record.source,

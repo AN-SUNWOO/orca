@@ -3,7 +3,6 @@ import type { RuntimeConstructionBindings as HostBindings } from './runtime-cons
 
 import type { RuntimeRepositoryCommandSurface } from '../runtime-repository-command-surface'
 
-import type { ExecutionHostId } from '../../../shared/execution-host'
 import type { LegacyWorkerRecoveryCandidate } from '../runtime-legacy-worker-terminal-recovery-types'
 
 import type { LegacyWorkerTerminalRecoveryPlan } from '../orchestration/orchestration-legacy-worker-terminal-recovery'
@@ -12,7 +11,7 @@ import { OrcaRuntimeWithTerminalDrivers } from '../terminal/driver/terminal-driv
 import type { FolderWorkspace } from '../../../shared/folder-workspace-types'
 import type { ResolvedWorktree } from '../runtime-worktree-path-identity'
 import { confirmRunTerminalShellAlone, readRunTerminalClientUse } from '../run-terminal-client-use'
-import { ALL_EXECUTION_HOSTS_SCOPE } from '../../../shared/execution-host'
+import { ALL_EXECUTION_HOSTS_SCOPE, type ExecutionHostId } from '../../../shared/execution-host'
 import { RuntimePreservedBranchCleanup } from '../runtime-preserved-branch-cleanup'
 import type {
   AgentSessionCreateOperation,
@@ -156,6 +155,8 @@ export abstract class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeW
   protected readonly reconcileAgentStatusForEndedProcessFn!:
     | HostBindings['reconcileAgentStatusForEndedProcess']
     | null
+
+  protected readonly forgetHookAgentExitFn!: HostBindings['forgetHookAgentExit'] | null
 
   protected readonly dropAgentStatusForRemovedWorktreeFn!:
     | HostBindings['dropAgentStatusForRemovedWorktree']

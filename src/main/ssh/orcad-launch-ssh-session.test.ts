@@ -19,7 +19,7 @@ import { getRemoteHostPlatform } from './ssh-remote-platform'
 const mac = getRemoteHostPlatform('darwin-arm64')
 const linux = getRemoteHostPlatform('linux-x64')
 
-// Table rows are `pid|ppid|comm|lstart`; a PID in FAKE_PS_GONE has no process, and any other
+// Table rows are `pid|ppid|comm|lstart|args`; a PID in FAKE_PS_GONE has no process, and any other
 // unlisted PID is the calling shell, whose parent is FAKE_PS_SHELL_PARENT.
 const FAKE_PS = `#!/bin/sh
 [ -n "$FAKE_PS_BROKEN" ] && exit 1
@@ -33,6 +33,7 @@ case "$field" in
   ppid) echo "  $(echo "$row" | cut -d'|' -f2)";;
   comm) echo "$row" | cut -d'|' -f3;;
   lstart) echo "$row" | cut -d'|' -f4;;
+  args) echo "$row" | cut -d'|' -f5;;
 esac
 `
 
@@ -63,6 +64,24 @@ function writeRecord(pid: string, record: string | null): void {
   if (record !== null) {
     writeFileSync(join(dir, ORCAD_LAUNCH_SSH_SESSION_FILENAME), `${record}\n`)
   }
+}
+
+function publishDaemon(pid: number, args: string): void {
+  spawnSync('mkdir', [join(dir, 'daemon')])
+  writeFileSync(join(dir, 'daemon', 'daemon-v1.pid'), JSON.stringify({ pid, startedAtMs: 1 }))
+  writeFileSync(
+    join(dir, 'ps-table'),
+    `${TABLE}\n${pid}|1|/opt/homebrew/bin/node|Thu Oct 9 07:59:59 2026|${args}`
+  )
+}
+
+function launchRecord(env: Record<string, string> = {}): string {
+  const pidFile = join(dir, ORCAD_PID_FILENAME)
+  return sh(
+    `${captureOrcadLaunchSshSessionCommand()} sleep 0 & echo $! > '${pidFile}' && ` +
+      `${writeOrcadLaunchSshSessionCommand(mac, dir)} && cat '${pidFile}'`,
+    env
+  ).trim()
 }
 
 function probe(env: Record<string, string> = {}): string {
@@ -132,17 +151,11 @@ describe.skipIf(process.platform === 'win32')('orcad launch SSH session', () => 
 
   it('carries the earlier session forward when the terminal daemon outlived orcad', () => {
     writeRecord('1', '1 400 Thu Oct 9 07:59:59 2026')
-    spawnSync('mkdir', [join(dir, 'daemon')])
-    // This test process stands in for the surviving daemon.
-    writeFileSync(
-      join(dir, 'daemon', 'daemon-v1.pid'),
-      JSON.stringify({ pid: process.pid, startedAtMs: 1 })
+    publishDaemon(
+      process.pid,
+      `node /x/daemon-entry.js --socket ${join(dir, 'daemon')}/daemon.sock`
     )
-    const pidFile = join(dir, ORCAD_PID_FILENAME)
-    const pid = sh(
-      `${captureOrcadLaunchSshSessionCommand()} sleep 0 & echo $! > '${pidFile}' && ` +
-        `${writeOrcadLaunchSshSessionCommand(mac, dir)} && cat '${pidFile}'`
-    ).trim()
+    const pid = launchRecord()
     expect(readFileSync(join(dir, ORCAD_LAUNCH_SSH_SESSION_FILENAME), 'utf8').trim()).toBe(
       `${pid} 400 Thu Oct 9 07:59:59 2026`
     )
@@ -150,12 +163,41 @@ describe.skipIf(process.platform === 'win32')('orcad launch SSH session', () => 
   })
 
   it('records nothing when a surviving daemon’s session was never recorded', () => {
-    spawnSync('mkdir', [join(dir, 'daemon')])
-    writeFileSync(join(dir, 'daemon', 'daemon-v1.pid'), JSON.stringify({ pid: process.pid }))
-    sh(
-      `${captureOrcadLaunchSshSessionCommand()} sleep 0 & ${writeOrcadLaunchSshSessionCommand(mac, dir)}`
+    publishDaemon(
+      process.pid,
+      `node /x/daemon-entry.js --socket ${join(dir, 'daemon')}/daemon.sock`
     )
+    launchRecord()
     expect(existsSync(join(dir, ORCAD_LAUNCH_SSH_SESSION_FILENAME))).toBe(false)
+  })
+
+  it.each([
+    ['a stale PID file naming another process', '/usr/sbin/cron'],
+    ['another data root’s daemon', 'node /x/daemon-entry.js --socket /other/daemon/daemon.sock']
+  ])('records this launch’s own session over %s', (_case, args) => {
+    writeRecord('1', '1 400 Thu Oct 9 07:59:59 2026')
+    publishDaemon(process.pid, args)
+    const pid = launchRecord()
+    expect(readFileSync(join(dir, ORCAD_LAUNCH_SSH_SESSION_FILENAME), 'utf8').trim()).toBe(
+      `${pid} 500 Thu Oct 9 08:00:00 2026`
+    )
+  })
+
+  it('leaves the attribution unknown when a live daemon’s command line can’t be read', () => {
+    writeRecord('1', '1 400 Thu Oct 9 07:59:59 2026')
+    publishDaemon(process.pid, '')
+    launchRecord()
+    expect(existsSync(join(dir, ORCAD_LAUNCH_SSH_SESSION_FILENAME))).toBe(false)
+  })
+
+  it('creates the data root on a first deploy before recording', () => {
+    const data = join(dir, 'fresh', 'data')
+    const pidFile = join(dir, ORCAD_PID_FILENAME)
+    sh(
+      `${captureOrcadLaunchSshSessionCommand()} sleep 0 & echo $! > '${pidFile}' && ` +
+        `${writeOrcadLaunchSshSessionCommand(mac, data)}`
+    )
+    expect(existsSync(join(data, ORCAD_LAUNCH_SSH_SESSION_FILENAME))).toBe(true)
   })
 
   it('removes an earlier record when this launch finds no session', () => {

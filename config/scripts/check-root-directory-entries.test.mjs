@@ -230,14 +230,13 @@ describe('root directory guard', () => {
     expect(result.stdout).not.toContain('guard passed')
   })
 
-  it('is wired into the PR verify gate', () => {
+  it('is wired into the ready PR verify gate', () => {
     const workflow = parse(readFileSync(join(projectDir, '.github/workflows/pr.yml'), 'utf8'))
     const guardJob = workflow.jobs.code_paths
     const guardStep = guardJob.steps.find(
       (step) => step.name === 'Reject new root-level files and folders'
     )
 
-    expect(guardJob.if).toBeUndefined()
     expect(guardStep.if).toBeUndefined()
     // Why >= 2 rather than 0: the guard compares the merge commit's first parent against the
     // merged tree, so it needs both parents present but no history beyond them. Depth 1 would

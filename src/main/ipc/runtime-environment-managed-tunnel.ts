@@ -58,7 +58,18 @@ export async function resolveManagedRuntimeEnvironment(
     }
   } else {
     // Why here: an auto-restored host may never see an SSH connect, so it would never update.
-    void updateManagedOrcadOnRestore(environment.id, createDeps)
+    const update = updateManagedOrcadOnRestore(environment.id, createDeps)
+    const targetId = getOrcadSshDeployment(environment)?.sshTargetId
+    if (targetId) {
+      // Why after the update: its settled status would otherwise replace the warning.
+      // Why lazy: the note publishes through this module.
+      void Promise.resolve(update)
+        .then(() => import('./ssh-host-launch-session-note'))
+        .then(({ noteEndedLaunchSshSession }) =>
+          noteEndedLaunchSshSession(targetId, environment.id)
+        )
+        .catch(() => {})
+    }
   }
   return resolveEnvironment(userDataPath, environment.id)
 }
@@ -126,7 +137,21 @@ export function clearManagedServerNotes(targetId: string, environmentId: string)
   if (current?.kind !== 'managed' || current.environmentId !== environmentId) {
     return
   }
-  if (current.update || current.serving || current.launchSessionEnded) {
-    publishHostServerStatus(targetId, { kind: 'managed', environmentId })
+  if (current.update || current.serving) {
+    // An update can keep the terminal daemon, so only a verified restart clears that warning.
+    publishHostServerStatus(targetId, {
+      kind: 'managed',
+      environmentId,
+      ...(current.launchSessionEnded ? { launchSessionEnded: true as const } : {})
+    })
+  }
+}
+
+/** A restart that verified a fresh daemon and a live launching session clears the warning. */
+export function clearLaunchSessionNote(targetId: string, environmentId: string): void {
+  const current = getSshHostServerStatus(targetId)
+  if (current?.kind === 'managed' && current.environmentId === environmentId) {
+    const { launchSessionEnded: _cleared, ...rest } = current
+    publishHostServerStatus(targetId, rest)
   }
 }

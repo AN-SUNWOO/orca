@@ -42,6 +42,11 @@ export function agentHookRuntimeDeps(
         : server.checkAgentPresenceSince(paneKey, exitedSince),
     reconcileAgentStatusForEndedProcess: (paneKeys) =>
       server.reconcileEndedProcessForPaneKeys(paneKeys),
+    forgetHookAgentExit: (paneKeys) => {
+      for (const paneKey of paneKeys) {
+        server.forgetAgentExit(paneKey)
+      }
+    },
     dropAgentStatusForRemovedWorktree: (worktreeId, host) =>
       server.dropStatusEntriesForRemovedWorktree(worktreeId, host),
     buildAgentHookPtyEnv: () =>

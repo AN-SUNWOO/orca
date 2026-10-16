@@ -68,3 +68,25 @@ it.each(workflows)('$file keeps its non-PR entry points eligible', ({ workflow }
     }
   }
 })
+
+it('keeps the root and README guards on ready docs-only PRs without another runner', () => {
+  const { workflow: prWorkflow } = workflows.find(({ file }) => file === 'pr.yml')
+  const detector = prWorkflow.jobs.code_paths
+  const eligible = compileAggregateExpression(detector.if ?? 'true', ['github', 'steps', 'needs'])
+  for (const shouldRun of ['false', 'true']) {
+    expect(
+      eligible({
+        github: { event_name: 'pull_request', event: { pull_request: { draft: false } } },
+        steps: { filter: { outputs: { should_run: shouldRun } } },
+        needs: {}
+      }).coerceString()
+    ).toBe('true')
+  }
+  expect(detector.needs).toBeUndefined()
+  for (const name of ['Reject new root-level files and folders', 'Check README local links']) {
+    const step = detector.steps.find((candidate) => candidate.name === name)
+    expect(step).toBeDefined()
+    expect(step.if).toBeUndefined()
+  }
+  expect(prWorkflow.jobs.root_directory_guard).toBeUndefined()
+})

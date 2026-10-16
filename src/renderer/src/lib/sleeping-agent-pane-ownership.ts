@@ -6,6 +6,7 @@ import type {
   TerminalPaneLayoutNode,
   TerminalTab
 } from '../../../shared/terminal-tab-types'
+import { parseAppSshPtyId } from '../../../shared/ssh-pty-id'
 import { parseLegacyNumericPaneKey, parsePaneKey } from '../../../shared/stable-pane-id'
 import { isWebTerminalSurfaceTabId } from '../../../shared/terminal-surface-id'
 import { isPaneSpawnDeferred } from './pane-spawn-deferral-registry'
@@ -131,6 +132,27 @@ function paneWillConnectOnActivation(
   return !isWebTerminalSurfaceTabId(tabId)
 }
 
+// Why: a record's worktreeId can be stale (e.g. agent-managed checkout); tab ids are global.
+function findPreservedTabOwner(
+  state: AppStoreState,
+  worktreeIdHint: string,
+  tabId: string
+): { tab: TerminalTab; worktreeId: string } | null {
+  const hinted = (state.tabsByWorktree[worktreeIdHint] ?? []).find(
+    (candidate) => candidate.id === tabId
+  )
+  if (hinted) {
+    return { tab: hinted, worktreeId: worktreeIdHint }
+  }
+  for (const [worktreeId, tabs] of Object.entries(state.tabsByWorktree)) {
+    const tab = tabs.find((candidate) => candidate.id === tabId)
+    if (tab) {
+      return { tab, worktreeId }
+    }
+  }
+  return null
+}
+
 export function recordPaneIsOwnedByPreservedPane(
   record: SleepingAgentSessionRecord,
   state: AppStoreState
@@ -142,10 +164,14 @@ export function recordPaneIsOwnedByPreservedPane(
       return false
     }
     const tabId = record.tabId ?? stable.tabId
-    const tab = worktreeTabs.find((candidate) => candidate.id === tabId) ?? null
-    if (!tab || !hasMatchingStablePaneLayout(tabId, stable.leafId, state.terminalLayoutsByTabId)) {
+    const owner = findPreservedTabOwner(state, record.worktreeId, tabId)
+    if (
+      !owner ||
+      !hasMatchingStablePaneLayout(tabId, stable.leafId, state.terminalLayoutsByTabId)
+    ) {
       return false
     }
+    const tab = owner.tab
     if (activationTreatsNoteAsFinished(record)) {
       return true
     }
@@ -166,6 +192,17 @@ export function recordPaneIsOwnedByPreservedPane(
     ) {
       return true
     }
+    // Why: disconnect clears ptyIdsByTabId while the remote process keeps running, so a leaf
+    // bound to an unreachable SSH target is `unverifiable`, not dead. A connected target's
+    // live-PTY map is authoritative (sleep kills the PTY but keeps its id).
+    const layout = state.terminalLayoutsByTabId[tabId]
+    const isSingleLeafLayout = layout?.root?.type === 'leaf' && layout.root.leafId === stable.leafId
+    const leafPtyId =
+      layout?.ptyIdsByLeafId?.[stable.leafId] ?? (isSingleLeafLayout ? tab.ptyId : null)
+    const sshPty = leafPtyId ? parseAppSshPtyId(leafPtyId) : null
+    if (sshPty && state.sshConnectionStates.get(sshPty.connectionId)?.status !== 'connected') {
+      return true
+    }
     // Why: active sessions rely on pane-level cold restore. A preserved leaf
     // without a PTY/session id can repaint scrollback but cannot resume.
     return (
@@ -175,7 +212,7 @@ export function recordPaneIsOwnedByPreservedPane(
         stable.leafId,
         state.ptyIdsByTabId,
         state.terminalLayoutsByTabId
-      ) && paneWillConnectOnActivation(record.worktreeId, tabId, state)
+      ) && paneWillConnectOnActivation(owner.worktreeId, tabId, state)
     )
   }
 

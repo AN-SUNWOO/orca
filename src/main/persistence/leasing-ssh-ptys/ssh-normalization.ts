@@ -66,17 +66,38 @@ export function normalizeSshTarget(t: SshTarget): SshTarget {
   if (remoteRuntimeResolution) {
     normalized.remoteRuntimeResolution = remoteRuntimeResolution
   }
-  return normalizeManagedServerLeaveBehind(
-    normalizeManagedServerMoveOffered(
-      normalizeAppVersionNote(
+  return normalizeRemoteCliControlConsent(
+    normalizeManagedServerLeaveBehind(
+      normalizeManagedServerMoveOffered(
         normalizeAppVersionNote(
-          migrateLegacyManagedOrcadOwner(normalized),
-          'managedServerUnavailable'
-        ),
-        'managedServerUpdateFailure'
+          normalizeAppVersionNote(
+            migrateLegacyManagedOrcadOwner(normalized),
+            'managedServerUnavailable'
+          ),
+          'managedServerUpdateFailure'
+        )
       )
     )
   )
+}
+
+/**
+ * The switch did nothing from 1.4.225 until the desktop browser bridge gave it a new meaning, so a
+ * `true` saved before that is not consent to it. Turn it off once and say why in settings.
+ */
+function normalizeRemoteCliControlConsent(target: SshTarget): SshTarget {
+  const {
+    allowRemoteCliControl,
+    allowRemoteCliControlConsent,
+    allowRemoteCliControlReset,
+    ...rest
+  } = target
+  if (allowRemoteCliControl === true) {
+    return allowRemoteCliControlConsent === 'desktop-browser-bridge'
+      ? { ...rest, allowRemoteCliControl, allowRemoteCliControlConsent }
+      : { ...rest, allowRemoteCliControlReset: true }
+  }
+  return allowRemoteCliControlReset === true ? { ...rest, allowRemoteCliControlReset } : rest
 }
 
 /**

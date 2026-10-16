@@ -1,7 +1,6 @@
 import { isFloatingWorkspaceId } from '../../../shared/floating-workspace-worktree'
 import { isAgentSessionCreateAdmissionRefusal } from '../../../shared/agent-session-definitive-refusal'
 import type { AgentJournalMessageItem } from '../../../shared/agent-session-journal-types'
-import { computeAgentSessionPayloadFingerprint } from '../../../shared/agent-session-mutation-envelope'
 import {
   refuse,
   type AgentSessionAttachResult,
@@ -28,8 +27,7 @@ import {
   adapterSupportsCreateIfDeclared,
   hostCanStartRecord
 } from './structured-agent-session-provider-support'
-import { performSend } from './structured-agent-session-turns'
-import { observedReceipt } from './structured-agent-session-operation-settlement'
+import { sendOpeningAgentSessionMessage } from './structured-agent-session-create-opening-message'
 import { readAgentSessionHydrationPage } from './agent-session-history-page'
 import { resolveAgentSessionReplayOutcome } from './structured-agent-session-replay-outcome'
 import type { CliSourceStopHost } from '../../runtime/structured-agent-cli-stop'
@@ -216,33 +214,9 @@ async function foundConversation(
       )
       const first = options.firstMessage
       if (first) {
-        const sent = await performSend(
-          {
-            sessionId,
-            journal: session.journal,
-            fence,
-            adapter: deps.adapter,
-            agents: deps.agents,
-            agent: params.agent,
-            logger: deps.logger,
-            resolvedBy: callerKey,
-            persistOptions: async () => {},
-            publish: () => {},
-            operationReceipt: observedReceipt(store, store.founding.receipt(request)),
-            now: context.now
-          },
-          {
-            ...first,
-            payloadFingerprint: computeAgentSessionPayloadFingerprint({
-              method: 'agentSession.send',
-              sessionId,
-              fields: { body: first.body }
-            }),
-            origin: 'client',
-            source: { kind: 'user' },
-            ...openingMessageOptions(candidate.record.options)
-          }
-        )
+        const sent = await sendOpeningAgentSessionMessage({
+          context, request, params, record: candidate.record, session, callerKey, first
+        })
         if (!sent.ok) {
           if (options.cliSourceStop) {
             await store.founding.failAdoption(request, sent.refusal)
@@ -328,13 +302,4 @@ async function foundConversation(
       await session.journal.close()
     }
   }
-}
-
-/** The model and effort the chat was created with, which its opening message runs on as a send's
- *  carried ones do. */
-function openingMessageOptions(options: Readonly<Record<string, string>> | undefined): {
-  options?: Readonly<Record<string, string>>
-} {
-  const { model, effort } = options ?? {}
-  return model ? { options: { model, ...(effort ? { effort } : {}) } } : {}
 }

@@ -12,7 +12,7 @@ export function createAgentSessionCurrentRequestsReader(args: {
   read: (request: AgentSessionCurrentRequestsRead) => Promise<AgentSessionCurrentRequestsPiece>
   complete: (marker: AgentSessionCurrentRequestsMarker, items: AgentJournalRenderItem[]) => void
   replaceMarker: (marker: AgentSessionCurrentRequestsMarker) => void
-  error: (error: unknown) => void
+  error: (error: unknown, marker: AgentSessionCurrentRequestsMarker) => void
 }) {
   let generation = 0
   let desired: AgentSessionCurrentRequestsMarker | undefined
@@ -86,7 +86,7 @@ export function createAgentSessionCurrentRequestsReader(args: {
       }
     } catch (error) {
       if (current()) {
-        args.error(error)
+        args.error(error, marker)
       }
     } finally {
       running = false

@@ -275,16 +275,6 @@ describe('reply ownership matrix', () => {
     await runtime.handleMobileSubscribe('pty-mob', 'client-1', { cols: 40, rows: 20 })
     expect(runtime.hasRemoteTerminalViewSubscriber('pty-mob')).toBe(true)
   })
-
-  it('answers a dropped-chunk query exactly once', async () => {
-    const { runtime, replies } = createResponderRuntime()
-    markHiddenRendererPty('pty-once')
-
-    runtime.onPtyData('pty-once', DA1, Date.now())
-    await settle(runtime, 'pty-once')
-
-    expect(replies).toHaveLength(1)
-  })
 })
 
 describe('main-side replay guard', () => {

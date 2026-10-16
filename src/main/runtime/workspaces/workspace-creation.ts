@@ -1,3 +1,4 @@
+import { applyClaudeTerminalImageViewerEnv } from '../terminal-image-viewer-env'
 import type { Repo } from '../../../shared/repo-types'
 import type {
   WorktreeLineageInput,
@@ -89,7 +90,18 @@ export abstract class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWi
             args.startupLaunchSource
           )
         : null
-    const effectiveStartup = args.startup ?? agentStartup?.startup ?? draftStartup?.startup
+    const resolvedStartup = args.startup ?? agentStartup?.startup ?? draftStartup?.startup
+    const effectiveStartup = resolvedStartup
+      ? applyClaudeTerminalImageViewerEnv(
+          resolvedStartup,
+          args.terminalImageViewerSupported,
+          resolvedStartup.launchAgent ??
+            args.startupAgent ??
+            args.createdWithAgent ??
+            agentStartup?.agent ??
+            draftStartup?.agent
+        )
+      : undefined
     const effectiveStartupFollowup = agentStartup?.followup
     const startupLaunchRuntime = args.startup
       ? undefined

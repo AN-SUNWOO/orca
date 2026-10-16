@@ -26,6 +26,7 @@ import {
   createRuntime,
   store
 } from '../orca-runtime-test-fixtures.spec'
+import { normalizeRuntimePathSeparators } from '../../../shared/cross-platform-path'
 
 describe('OrcaRuntimeService', () => {
   it('adopts public clone repos into host-qualified project setup', async () => {
@@ -385,7 +386,10 @@ describe('OrcaRuntimeService', () => {
     try {
       const repo = await runtime.cloneRepo('https://example.com/repo-badge-color.git', destination)
       expect(updates).toEqual([
-        { id: existing.id, updates: { kind: 'git', folderUpgradeGitRootPath: existing.path } }
+        {
+          id: existing.id,
+          updates: { kind: 'git', folderUpgradeGitRootPath: normalizeRuntimePathSeparators(existing.path) }
+        }
       ])
       expect(repo).toEqual(upgraded)
       expect(repo.badgeColor).toBe('#ec4899')

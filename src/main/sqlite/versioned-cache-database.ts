@@ -11,6 +11,8 @@ export type VersionedCacheDatabaseSchema = {
   afterSchema?: (db: SyncDatabase) => void
   // SQLite will not create the directory; this is its mode when this call does.
   directoryMode?: number
+  // Applies only to a new file; rows near half a default page waste the other half.
+  pageSize?: number
 }
 
 /**
@@ -47,7 +49,7 @@ function openExisting(path: string, schema: VersionedCacheDatabaseSchema): SyncD
   // throws ERR_INVALID_STATE, which would replace whatever really failed —
   // an unlink refused by a virus scanner or a second Orca holding the file —
   // with an error nothing classifies as worth rebuilding for.
-  let db: SyncDatabase | null = openWithPragmas(path)
+  let db: SyncDatabase | null = openWithPragmas(path, schema.pageSize)
   try {
     if (isStaleSchema(db, schema.version)) {
       // Why: DROP TABLE on a multi-GB table takes minutes and runs inside the
@@ -55,7 +57,7 @@ function openExisting(path: string, schema: VersionedCacheDatabaseSchema): SyncD
       db.close()
       db = null
       removeVersionedCacheDatabase(path)
-      db = openWithPragmas(path)
+      db = openWithPragmas(path, schema.pageSize)
     }
     db.exec('CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);')
     db.exec(schema.sql)
@@ -87,9 +89,14 @@ function isUnusableDatabaseError(error: unknown): boolean {
   )
 }
 
-function openWithPragmas(path: string): SyncDatabase {
+function openWithPragmas(path: string, pageSize: number | undefined): SyncDatabase {
   const db = new SyncDatabase(path)
   try {
+    // First, so switching to WAL below waits out another process's lock instead of failing.
+    db.pragma('busy_timeout = 5000')
+    if (pageSize !== undefined) {
+      db.pragma(`page_size = ${pageSize}`)
+    }
     // Why: only takes effect on an empty file; it is what lets a purge hand pages
     // back in bounded steps instead of a full VACUUM. Set before any table exists.
     db.pragma('auto_vacuum = INCREMENTAL')
@@ -98,7 +105,6 @@ function openWithPragmas(path: string): SyncDatabase {
     db.pragma('journal_mode = WAL')
     db.pragma('synchronous = NORMAL')
     db.pragma('journal_size_limit = 8388608')
-    db.pragma('busy_timeout = 5000')
     return db
   } catch (error) {
     db?.close()

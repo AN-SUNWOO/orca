@@ -5,10 +5,10 @@ import type { TranscriptMessageChannel } from './session-transcript-channel'
 import type { SkippedTranscriptRecord } from './session-transcript-record-budget'
 
 // Rows Session History lists have no count bound: one smaller than an Unlimited
-// scan evicts that scan's own upcoming hits, so every scan re-parsed everything
-// (STA-10405). They live as long as this process. Rows only other readers
-// created (search index, title lookups) keep a count bound, since an index build
-// reads the whole corpus. Neither bound deletes from the persisted rows.
+// scan evicts that scan's own upcoming hits (STA-10405), and each would cost a
+// database lookup per scan. They live as long as this process. Rows only other
+// readers created (search index, title lookups) keep a count bound, since an
+// index build reads the whole corpus. Neither bound deletes persisted rows.
 export const MAX_UNLISTED_ENTRIES = 4096
 // Live parser state is the heavy part of a row and is count-bounded even on
 // listed rows. Dropping it costs one whole re-read of a file that changed, never

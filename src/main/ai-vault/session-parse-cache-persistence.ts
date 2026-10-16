@@ -4,6 +4,7 @@
 // scans). The in-memory map is the hot tier; the database is read on a miss and
 // written only with what changed. Only the scanner child opens it, and every
 // failure degrades to a re-parse.
+import { stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { SessionParseCacheDatabase } from './session-parse-cache-database'
@@ -16,10 +17,11 @@ import {
 const WRITE_DEBOUNCE_MS = 1_500
 const WRITE_MAX_WAIT_MS = 15_000
 const WRITE_CHUNK_ROWS = 500
-const DAY_MS = 24 * 60 * 60_000
-// Long enough that time away doesn't empty the cache; Claude Code's own
-// transcript cleanup defaults to the same window.
-const UNUSED_ROW_TTL_MS = 30 * DAY_MS
+// How long a row goes unparsed before its transcript is checked for on disk.
+// Only a missing transcript ends a row, so time away never empties the cache.
+const RECHECK_AFTER_MS = 30 * 24 * 60 * 60_000
+// Per helper start; it restarts often enough to work through a large backlog.
+const RECHECK_BATCH_ROWS = 1_000
 
 export type SessionParseCachePersistenceOptions = {
   // The legacy JSON file; the database sits beside it.
@@ -31,7 +33,6 @@ let options: SessionParseCachePersistenceOptions | null = null
 let owner = false
 // undefined: not opened yet; null: unavailable for this process's life.
 let database: SessionParseCacheDatabase | null | undefined
-let loadPromise: Promise<void> | null = null
 const pendingWrites = new Map<string, PersistedSessionParseCacheEntry>()
 let writeTimer: NodeJS.Timeout | null = null
 let pendingSince: number | null = null
@@ -61,23 +62,7 @@ export function resetSessionParseCachePersistenceForTests(): void {
   database = undefined
   options = null
   owner = false
-  loadPromise = null
   setSessionParseCacheColdTier(null)
-}
-
-/** Opens the database and imports the old JSON file once. Memoized; a no-op outside the owner. */
-export function ensureSessionParseCacheLoaded(): Promise<void> {
-  const current = options
-  if (!owner || current === null) {
-    return Promise.resolve()
-  }
-  loadPromise ??= (async () => {
-    const db = openedDatabase()
-    if (db) {
-      await importLegacySessionParseCacheJson(current.filePath, db, Date.now())
-    }
-  })()
-  return loadPromise
 }
 
 /** Write every queued row now, before process exit. Each committed chunk survives a kill. */
@@ -99,6 +84,7 @@ export async function flushSessionParseCachePersist(): Promise<void> {
   }
 }
 
+// Opened on first need, so Electron main (which never looks rows up) never opens it.
 function openedDatabase(): SessionParseCacheDatabase | null {
   if (database !== undefined || !owner || options === null) {
     return database ?? null
@@ -107,7 +93,8 @@ function openedDatabase(): SessionParseCacheDatabase | null {
     database = new SessionParseCacheDatabase(
       join(dirname(options.filePath), 'session-parse-cache.sqlite')
     )
-    database.expireUnusedBefore(Date.now() - UNUSED_ROW_TTL_MS)
+    importLegacySessionParseCacheJson(options.filePath, database, Date.now())
+    void dropRowsForMissingTranscripts(database)
   } catch (error) {
     console.debug('[ai-vault] session parse cache database unavailable', error)
     database = null
@@ -115,16 +102,43 @@ function openedDatabase(): SessionParseCacheDatabase | null {
   return database
 }
 
+// A row for a transcript deleted outside Orca is never looked up again, so the
+// file system, not a timer, decides when it ends.
+async function dropRowsForMissingTranscripts(db: SessionParseCacheDatabase): Promise<void> {
+  let dropped = false
+  for (const path of db.pathsSeenBefore(Date.now() - RECHECK_AFTER_MS, RECHECK_BATCH_ROWS)) {
+    if (await transcriptMissing(path)) {
+      db.delete(path)
+      dropped = true
+    } else {
+      db.markSeen(path, Date.now())
+    }
+  }
+  if (dropped) {
+    db.reclaimSpace()
+  }
+}
+
+// OpenCode's SQLite sessions are keyed `<db>#<id>`, so for those the database
+// file stands in for the transcript.
+async function transcriptMissing(path: string): Promise<boolean> {
+  const hash = path.lastIndexOf('#')
+  return (await pathMissing(path)) && (hash === -1 || (await pathMissing(path.slice(0, hash))))
+}
+
+// Unreachable (a stopped WSL distro, a permission error) is not missing.
+async function pathMissing(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return false
+  } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : undefined
+    return code === 'ENOENT' || code === 'ENOTDIR'
+  }
+}
+
 function readRow(path: string): PersistedSessionParseCacheEntry | undefined {
-  const row = openedDatabase()?.read(path)
-  if (row === undefined) {
-    return undefined
-  }
-  // A rewrite stamps used_at; at most one per row per day keeps reuse nearly free.
-  if (Date.now() - row.usedAt > DAY_MS) {
-    queueWrite(path, row.entry)
-  }
-  return row.entry
+  return pendingWrites.get(path) ?? openedDatabase()?.read(path)
 }
 
 function queueWrite(path: string, entry: PersistedSessionParseCacheEntry): void {

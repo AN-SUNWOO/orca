@@ -25,19 +25,17 @@ CREATE TABLE IF NOT EXISTS rows(
   -- JSON, validated on read like any other untrusted file content.
   sidecar TEXT,
   session TEXT NOT NULL,
-  -- Wall-clock ms of the last use, refreshed at most daily. Nothing else ends a
-  -- row whose transcript was deleted outside Orca.
-  used_at INTEGER NOT NULL
+  -- Wall-clock ms the transcript was last parsed or found still on disk. Rows
+  -- past an age are re-checked, which is what ends a row whose transcript was
+  -- deleted outside Orca.
+  seen_at INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS rows_used_at ON rows(used_at);
+CREATE INDEX IF NOT EXISTS rows_seen_at ON rows(seen_at);
 `
 // Rows hold transcript-derived preview text; keep the directory user-only.
 const PRIVATE_DIRECTORY_MODE = 0o700
-
-export type StoredSessionParseCacheRow = {
-  entry: PersistedSessionParseCacheEntry
-  usedAt: number
-}
+// A ~2.3 KB row fills most of a 4 KB page; 8 KB pages fit three.
+const PAGE_SIZE = 8192
 
 export class SessionParseCacheDatabase {
   private db: SyncDatabase | null
@@ -47,14 +45,12 @@ export class SessionParseCacheDatabase {
     this.db = openDatabase(path)
   }
 
-  read(path: string): StoredSessionParseCacheRow | undefined {
+  read(path: string): PersistedSessionParseCacheEntry | undefined {
     return this.run((db) => {
       const row = db
-        .prepare(
-          'SELECT mtime_ms, size_bytes, platform, sidecar, session, used_at FROM rows WHERE path = ?'
-        )
+        .prepare('SELECT mtime_ms, size_bytes, platform, sidecar, session FROM rows WHERE path = ?')
         .get(path)
-      if (row === undefined || typeof row.used_at !== 'number') {
+      if (row === undefined) {
         return undefined
       }
       const entry = parsePersistedSessionParseCacheRow([
@@ -67,15 +63,22 @@ export class SessionParseCacheDatabase {
           session: typeof row.session === 'string' ? JSON.parse(row.session) : undefined
         }
       ])
-      return entry === null ? undefined : { entry: entry[1], usedAt: row.used_at }
+      return entry?.[1]
     }, undefined)
   }
 
-  /** One transaction; a caller chunks large writes so the event loop gets turns between them. */
-  write(rows: Iterable<[string, PersistedSessionParseCacheEntry]>, usedAt: number): void {
+  /**
+   * One transaction; a caller chunks large writes so the event loop gets turns
+   * between them. `keepExisting` leaves rows already present untouched.
+   */
+  write(
+    rows: Iterable<[string, PersistedSessionParseCacheEntry]>,
+    seenAt: number,
+    keepExisting = false
+  ): void {
     this.run((db) => {
       const insert = db.prepare(
-        'INSERT OR REPLACE INTO rows(path, mtime_ms, size_bytes, platform, sidecar, session, used_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        `INSERT OR ${keepExisting ? 'IGNORE' : 'REPLACE'} INTO rows(path, mtime_ms, size_bytes, platform, sidecar, session, seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
       db.exec('BEGIN IMMEDIATE')
       try {
@@ -87,7 +90,7 @@ export class SessionParseCacheDatabase {
             entry.platform,
             entry.sidecar === undefined ? null : JSON.stringify(entry.sidecar),
             JSON.stringify(entry.session),
-            usedAt
+            seenAt
           )
         }
         db.exec('COMMIT')
@@ -104,12 +107,28 @@ export class SessionParseCacheDatabase {
     this.run((db) => db.prepare('DELETE FROM rows WHERE path = ?').run(path), undefined)
   }
 
-  expireUnusedBefore(cutoff: number): void {
-    this.run((db) => db.prepare('DELETE FROM rows WHERE used_at < ?').run(cutoff), undefined)
+  /** Oldest first, so repeated calls work through every stale row. */
+  pathsSeenBefore(cutoff: number, limit: number): string[] {
+    return this.run(
+      (db) =>
+        db
+          .prepare('SELECT path FROM rows WHERE seen_at < ? ORDER BY seen_at LIMIT ?')
+          .all(cutoff, limit)
+          .flatMap((row) => (typeof row.path === 'string' ? [row.path] : [])),
+      []
+    )
   }
 
-  isEmpty(): boolean {
-    return this.run((db) => db.prepare('SELECT 1 FROM rows LIMIT 1').get() === undefined, false)
+  markSeen(path: string, seenAt: number): void {
+    this.run(
+      (db) => db.prepare('UPDATE rows SET seen_at = ? WHERE path = ?').run(seenAt, path),
+      undefined
+    )
+  }
+
+  /** Hands freed pages back to the file system after deletes. */
+  reclaimSpace(): void {
+    this.run((db) => db.pragma('incremental_vacuum'), undefined)
   }
 
   close(): void {
@@ -155,7 +174,8 @@ function openDatabase(path: string): SyncDatabase {
   const db = openVersionedCacheDatabase(path, {
     version: SESSION_PARSE_CACHE_SCHEMA_VERSION,
     sql: SCHEMA_SQL,
-    directoryMode: PRIVATE_DIRECTORY_MODE
+    directoryMode: PRIVATE_DIRECTORY_MODE,
+    pageSize: PAGE_SIZE
   })
   hardenSqliteDatabaseFiles(path)
   return db

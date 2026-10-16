@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import {
-  ensureSessionParseCacheLoaded,
   initSessionParseCachePersistence,
   resetSessionParseCachePersistenceForTests
 } from './session-parse-cache-persistence'
@@ -62,7 +61,6 @@ it('reparses unchanged ATIF transcripts cached before Devin source fields were s
   await writeFile(cacheFile, JSON.stringify({ schemaVersion: 2, appVersion: 'old', entries }))
   resetSessionParseCacheForTests()
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: 'new' })
-  await ensureSessionParseCacheLoaded()
 
   const stats = createSessionParseStats()
   const session = await parseAgentSessionFileCached(candidate, process.platform, stats)

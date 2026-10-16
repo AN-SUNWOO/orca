@@ -13,9 +13,6 @@ vi.mock('./session-scanner-source-discovery', () => ({
 vi.mock('./session-scanner-candidates', () => ({
   sessionCandidatesFromDiscoveries: async () => candidates()
 }))
-vi.mock('./session-parse-cache-persistence', () => ({
-  ensureSessionParseCacheLoaded: async () => {}
-}))
 vi.mock('./session-scanner-parse-cache', () => ({
   createSessionParseStats: () => ({
     reused: 0,

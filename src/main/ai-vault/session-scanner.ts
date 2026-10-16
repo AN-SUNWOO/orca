@@ -14,7 +14,6 @@ import {
   type AntigravityWorkspaceResolver
 } from './session-scanner-antigravity-history'
 import { sessionCandidatesFromDiscoveries } from './session-scanner-candidates'
-import { ensureSessionParseCacheLoaded } from './session-parse-cache-persistence'
 import {
   createSessionParseStats,
   parseListedSessionFile,
@@ -81,10 +80,7 @@ async function scanAiVaultSessionStores(options: AiVaultScanOptions): Promise<Ai
         const antigravityWorkspaceResolver = createAntigravityWorkspaceResolver((path) =>
           readLocalAntigravityHistory(path, options.signal)
         )
-        // Why: persisted entries must be seeded before any candidate is parsed, or
-        // the cold scan gains nothing from the cache file (#9210).
         throwIfAiVaultScanCancelled(options.signal)
-        await ensureSessionParseCacheLoaded()
         const discoveries = await discoverAiVaultSessionSources({
           options,
           limitPerAgent,

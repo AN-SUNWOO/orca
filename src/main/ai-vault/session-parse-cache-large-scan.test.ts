@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import SyncDatabase from '../sqlite/sync-database'
 import {
-  ensureSessionParseCacheLoaded,
   flushSessionParseCachePersist,
   initSessionParseCachePersistence,
   resetSessionParseCachePersistenceForTests
@@ -49,7 +48,6 @@ it('does not reparse an unchanged corpus past the resume bound, across scans or 
   root = await mkdtemp(join(tmpdir(), 'orca-history-no-reparse-'))
   const cacheFile = join(root, 'cache.json')
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: 'test' })
-  await ensureSessionParseCacheLoaded()
   const candidates: SessionFileCandidate[] = []
   for (let index = 0; index < CANDIDATES; index++) {
     const path = join(root, `session-${index}.jsonl`)
@@ -83,7 +81,6 @@ it('does not reparse an unchanged corpus past the resume bound, across scans or 
   resetSessionParseCachePersistenceForTests()
   resetSessionParseCacheForTests()
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: 'test' })
-  await ensureSessionParseCacheLoaded()
   expect(getSessionParseCacheEntry(candidates[0]!.file.path)).toBeDefined()
   await list(restarted)
   expect(first.fullParses).toBe(CANDIDATES)

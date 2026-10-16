@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import {
-  ensureSessionParseCacheLoaded,
   flushSessionParseCachePersist,
   initSessionParseCachePersistence,
   resetSessionParseCachePersistenceForTests
@@ -66,7 +65,6 @@ it('reparses an unchanged pre-fix cached Antigravity transcript after an update'
   await writeFile(cacheFile, JSON.stringify({ schemaVersion: 3, appVersion: 'pre-fix', entries }))
   resetSessionParseCacheForTests()
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: 'fixed' })
-  await ensureSessionParseCacheLoaded()
   const stats = createSessionParseStats()
   const session = await parseAgentSessionFileCached(input, 'linux', stats)
   expect(stats.fullParses).toBe(1)
@@ -97,7 +95,6 @@ it('retains the opening identity in current caches without retaining full prompt
   resetSessionParseCacheForTests()
   resetSessionParseCachePersistenceForTests()
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: 'next-release' })
-  await ensureSessionParseCacheLoaded()
   const reusedStats = createSessionParseStats()
   const reused = await parseAgentSessionFileCached(input, 'linux', reusedStats)
   expect(reused).toEqual(original)

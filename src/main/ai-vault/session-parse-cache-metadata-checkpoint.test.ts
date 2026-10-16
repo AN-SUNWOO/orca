@@ -68,7 +68,7 @@ async function candidate(
 function storedSession(path: string) {
   const database = new SessionParseCacheDatabase(join(root, 'session-parse-cache.sqlite'))
   try {
-    return database.read(path)?.entry.session
+    return database.read(path)?.session
   } finally {
     database.close()
   }

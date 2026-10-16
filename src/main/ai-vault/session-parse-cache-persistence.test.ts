@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SyncDatabase from '../sqlite/sync-database'
 import {
   configureSessionParseCachePersistence,
-  ensureSessionParseCacheLoaded,
   flushSessionParseCachePersist,
   getSessionParseCachePersistenceOptions,
   initSessionParseCachePersistence,
@@ -123,7 +122,6 @@ async function writeTranscript(
 
 async function parse(path: string): Promise<SessionParseStats> {
   const stats = createSessionParseStats()
-  await ensureSessionParseCacheLoaded()
   await parseAgentSessionFileCached(await claudeCandidate(path), process.platform, stats)
   return stats
 }
@@ -136,21 +134,21 @@ function simulateRestart(cacheFile: string): void {
   initSessionParseCachePersistence({ filePath: cacheFile, appVersion: APP_VERSION })
 }
 
-function databaseRows(cacheFile: string): { path: string; used_at: number }[] {
+function databaseRows(cacheFile: string): { path: string; seen_at: number }[] {
   const db = new SyncDatabase(join(dirname(cacheFile), 'session-parse-cache.sqlite'))
   try {
     return db
-      .prepare('SELECT path, used_at FROM rows ORDER BY path')
+      .prepare('SELECT path, seen_at FROM rows ORDER BY path')
       .all()
-      .map((row) => ({ path: String(row.path), used_at: Number(row.used_at) }))
+      .map((row) => ({ path: String(row.path), seen_at: Number(row.seen_at) }))
   } finally {
     db.close()
   }
 }
 
-function setUsedAt(cacheFile: string, path: string, usedAt: number): void {
+function setSeenAt(cacheFile: string, path: string, seenAt: number): void {
   const db = new SyncDatabase(join(dirname(cacheFile), 'session-parse-cache.sqlite'))
-  db.prepare('UPDATE rows SET used_at = ? WHERE path = ?').run(usedAt, path)
+  db.prepare('UPDATE rows SET seen_at = ? WHERE path = ?').run(seenAt, path)
   db.close()
 }
 
@@ -172,13 +170,11 @@ describe('session parse cache persistence', () => {
     const transcript = await writeTranscript(root)
     const candidate = await claudeCandidate(transcript)
     const stats = createSessionParseStats()
-    await ensureSessionParseCacheLoaded()
     const first = await parseAgentSessionFileCached(candidate, process.platform, stats)
     expect(stats.fullParses).toBe(1)
     await flushSessionParseCachePersist()
 
     simulateRestart(cacheFile)
-    await ensureSessionParseCacheLoaded()
     // Deleting the transcript proves the hit needs no transcript read at all.
     await rm(transcript)
     const reusedStats = createSessionParseStats()
@@ -231,7 +227,6 @@ describe('session parse cache persistence', () => {
     // incremental) whose result matches a cold parse.
     await appendFile(transcript, `${userRecord(2, 'follow-up')}\n${assistantRecord(3, 'more')}\n`)
     const stats = createSessionParseStats()
-    await ensureSessionParseCacheLoaded()
     const reparsed = await parseAgentSessionFileCached(
       await claudeCandidate(transcript),
       process.platform,
@@ -312,7 +307,6 @@ describe('session parse cache persistence', () => {
       filePath: join(root, 'session-parse-cache.json'),
       appVersion: APP_VERSION
     })
-    await ensureSessionParseCacheLoaded()
     const write = vi.spyOn(SessionParseCacheDatabase.prototype, 'write')
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     // A batch finishing every second keeps re-arming the 1.5 s debounce.
@@ -331,7 +325,7 @@ describe('session parse cache persistence', () => {
     expect(write).toHaveBeenCalledTimes(2)
   })
 
-  it('imports the old JSON file once, then removes it and any crashed-save temp file', async () => {
+  it('imports the old JSON file even when a title lookup reaches the database first', async () => {
     const root = await makeTempDir()
     const cacheFile = join(root, 'session-parse-cache.json')
     const transcript = await writeTranscript(root)
@@ -355,7 +349,9 @@ describe('session parse cache persistence', () => {
     await writeFile(orphan, '{"half":"written')
 
     simulateRestart(cacheFile)
-    await ensureSessionParseCacheLoaded()
+    // Tab-title sync parses a transcript before any History scan runs.
+    await parse(await writeTranscript(root, 'baaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'))
+    await flushSessionParseCachePersist()
     expect(existsSync(cacheFile)).toBe(false)
     expect(existsSync(orphan)).toBe(false)
     await rm(transcript)
@@ -406,7 +402,7 @@ describe('session parse cache persistence', () => {
     expect((await parse(transcript)).reused).toBe(1)
   })
 
-  it('expires rows unused for 30 days and refreshes rows still in use', async () => {
+  it('drops rows whose transcript is gone and keeps old rows whose transcript is still there', async () => {
     const root = await makeTempDir()
     const cacheFile = join(root, 'session-parse-cache.json')
     initSessionParseCachePersistence({ filePath: cacheFile, appVersion: APP_VERSION })
@@ -416,15 +412,16 @@ describe('session parse cache persistence', () => {
     await parse(deletedOutsideOrca)
     await flushSessionParseCachePersist()
     resetSessionParseCachePersistenceForTests()
-    setUsedAt(cacheFile, kept, Date.now() - 2 * DAY_MS)
-    setUsedAt(cacheFile, deletedOutsideOrca, Date.now() - 31 * DAY_MS)
+    setSeenAt(cacheFile, kept, Date.now() - 31 * DAY_MS)
+    setSeenAt(cacheFile, deletedOutsideOrca, Date.now() - 31 * DAY_MS)
+    await rm(deletedOutsideOrca)
 
     simulateRestart(cacheFile)
     expect((await parse(kept)).reused).toBe(1)
-    await flushSessionParseCachePersist()
-    const rows = databaseRows(cacheFile)
-    expect(rows.map((row) => row.path)).toEqual([kept])
-    expect(rows[0]!.used_at).toBeGreaterThan(Date.now() - DAY_MS)
+    await vi.waitFor(() => expect(databaseRows(cacheFile).map((row) => row.path)).toEqual([kept]))
+    await vi.waitFor(() =>
+      expect(databaseRows(cacheFile)[0]!.seen_at).toBeGreaterThan(Date.now() - DAY_MS)
+    )
   })
 
   it('invalidating before the first lookup does not bring the row back', async () => {
@@ -447,7 +444,6 @@ describe('session parse cache persistence', () => {
       appVersion: APP_VERSION
     })
     vi.clearAllMocks()
-    await ensureSessionParseCacheLoaded()
     invalidateSessionParseCacheEntry(join(root, 'deleted.jsonl'))
     await flushSessionParseCachePersist()
     expect(fsPromises.readFile).not.toHaveBeenCalled()
@@ -496,7 +492,6 @@ describe('sidecar observations survive the round trip', () => {
     await flushSessionParseCachePersist()
 
     simulateRestart(cacheFile)
-    await ensureSessionParseCacheLoaded()
     expect(getSessionParseCacheEntry(path)?.sidecar).toEqual(sidecar)
   })
 })

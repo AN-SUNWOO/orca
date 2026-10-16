@@ -33,6 +33,11 @@ function deleteWorktreeFailureToastId(worktreeId: string): string {
   return `delete-worktree-failure:${worktreeId}`
 }
 
+/** A workspace deleted from another surface must not keep a toast offering to delete it. */
+export function dismissDeleteWorktreeFailureToast(worktreeId: string): void {
+  toast.dismiss(deleteWorktreeFailureToastId(worktreeId))
+}
+
 function DeleteWorktreeFailureToastBody({
   description,
   canForceDelete,

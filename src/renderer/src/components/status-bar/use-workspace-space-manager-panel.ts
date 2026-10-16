@@ -6,6 +6,7 @@ import { composeWorktreeHostIdentity } from '../../../../shared/worktree/host-qu
 import { useAppStore } from '../../store'
 import { getWorktreeOnHostFromState } from '../../store/selectors'
 import { runWorktreeBatchDelete } from '../sidebar/delete-worktree-flow'
+import { dismissDeleteWorktreeFailureToast } from '../sidebar/delete-worktree-failure-toast'
 import { showWorkspaceListChangedToast } from '../sidebar/stale-workspace-list-toast'
 import { toWorktreeDeleteIdentities } from '../sidebar/worktree-delete-request'
 import { prepareActiveWorktreeFocusAfterDelete } from '../sidebar/active-worktree-focus-after-delete'
@@ -99,6 +100,9 @@ export function useWorkspaceSpaceManagerPanel() {
         return
       }
       removeWorkspaceSpaceWorktrees(deletedTargets)
+      for (const target of deletedTargets) {
+        dismissDeleteWorktreeFailureToast(target.id)
+      }
       const deletedIdentities = new Set(
         deletedTargets.map((target) =>
           composeWorktreeHostIdentity(target.executionHostId ?? undefined, target.id)

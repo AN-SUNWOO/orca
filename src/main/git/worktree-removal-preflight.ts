@@ -1,3 +1,4 @@
+import { SUBMODULE_DIRTY_REMOVAL_DETAIL } from '../../shared/worktree/removal'
 import { gitExecFileAsync } from './runner'
 import type { WorktreeRemovalPreflightOptions } from './worktree-operation-options'
 import { WORKTREE_REMOVAL_PREFLIGHT_TIMEOUT_MS, gitExecOptions } from './worktree-operation-options'
@@ -39,6 +40,16 @@ export async function assertWorktreeCleanForRemoval(
     return
   }
 
+  const entries = blockingEntries ?? stdout.split('\n').filter(Boolean)
+  if (
+    entries.some((entry) => !entry.startsWith('??')) &&
+    (await hasChangedSubmodule(worktreePath, gitOptions))
+  ) {
+    // Why no status lines: Force Delete here also destroys never-pushed submodule commits, so the
+    // refusal must say submodules; the detail still reads as dirty to older classifiers.
+    throw new Error(SUBMODULE_DIRTY_REMOVAL_DETAIL)
+  }
+
   const error = new Error('Worktree has uncommitted or untracked changes.')
   // Why not the raw stdout: `-z` output is NUL-delimited and `.trim()` leaves
   // interior NULs, so attaching it verbatim put raw control bytes into the
@@ -48,6 +59,26 @@ export async function assertWorktreeCleanForRemoval(
     ? blockingEntries.join('\n')
     : stdout
   throw error
+}
+
+/** Porcelain v1 cannot tell a submodule from a file; v2 marks one with an `S...` field. */
+async function hasChangedSubmodule(
+  worktreePath: string,
+  gitOptions: Omit<WorktreeRemovalPreflightOptions, 'ignoredUntrackedPaths'>
+): Promise<boolean> {
+  try {
+    const { stdout } = await gitExecFileAsync(
+      ['status', '--porcelain=v2', '--untracked-files=no', '--ignore-submodules=none'],
+      {
+        ...gitExecOptions(worktreePath, gitOptions),
+        timeout: gitOptions.timeout ?? WORKTREE_REMOVAL_PREFLIGHT_TIMEOUT_MS
+      }
+    )
+    return /^[12u] \S\S S/m.test(stdout)
+  } catch {
+    // The plain dirty refusal still blocks the delete; only its wording is lost.
+    return false
+  }
 }
 
 /** The `git status --porcelain -z` entries that genuinely block removal:

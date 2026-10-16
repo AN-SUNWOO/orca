@@ -105,11 +105,19 @@ export function getLockedWorktreeRemovalReason(error: string): string | null {
   return reason || null
 }
 
+// Why: Orca's dirty check refuses before Git can, so a changed submodule would read as plain
+// changed files. Keeps the dirty sentence so older classifiers still offer Force Delete.
+export const SUBMODULE_DIRTY_REMOVAL_DETAIL =
+  'Worktree has uncommitted or untracked changes, including changed submodules.'
+
 // Why: non-force `git worktree remove` refuses any checkout with an initialized submodule, clean or
 // not; only --force deletes it, and with it the submodule's never-pushed history. Git output is
 // pinned to English on every host, and the renderer classifies, so older hosts get this too.
 export function isSubmoduleWorktreeRemovalRefusal(error: string): boolean {
-  return error.includes('working trees containing submodules cannot be moved or removed')
+  return (
+    error.includes('working trees containing submodules cannot be moved or removed') ||
+    error.includes(SUBMODULE_DIRTY_REMOVAL_DETAIL)
+  )
 }
 
 const FORMATTED_DIRTY_WORKTREE_REMOVAL_PATTERN =

@@ -9,9 +9,10 @@ import type {
   AgentSessionSubscribeEvent
 } from '../../../../shared/agent-session-wire'
 
-const mocks = vi.hoisted(() => ({ subscribe: vi.fn(), watchHostContact: vi.fn() }))
+const mocks = vi.hoisted(() => ({ call: vi.fn(), subscribe: vi.fn(), watchHostContact: vi.fn() }))
 
 vi.mock('@/runtime/structured-agent-session-client', () => ({
+  callStructuredAgentSession: mocks.call,
   subscribeStructuredAgentSession: mocks.subscribe
 }))
 
@@ -19,6 +20,7 @@ vi.mock('@/runtime/runtime-host-contact-regained', () => ({
   subscribeRuntimeHostContactRegained: mocks.watchHostContact
 }))
 
+import { AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY } from '../../../../shared/agent-session-current-requests-capability'
 import { RuntimeRpcCallError } from '@/runtime/runtime-rpc-result'
 import { startStructuredAgentSessionReadTransport } from './structured-agent-session-read-transport'
 
@@ -228,6 +230,38 @@ describe('structured agent-session read transport generations', () => {
       await vi.advanceTimersByTimeAsync(750)
       attempts[1].onEvent(batch(4))
       expect(applied.at(-1)).toEqual([4, true])
+      transport.dispose()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reopens once for a current-request version whose read keeps failing', async () => {
+    vi.useFakeTimers()
+    try {
+      mocks.call.mockRejectedValue(new Error('Invalid current requests'))
+      const currentRequests = {
+        contract: AGENT_SESSION_CURRENT_REQUESTS_CLIENT_CAPABILITY,
+        sessionId: 'session-a',
+        epoch: 'epoch-a',
+        publisher: 'publisher-a',
+        revision: 1,
+        owner: 'owner-a',
+        version: 'version-a'
+      }
+      const transport = start(vi.fn())
+      attempts[0].closed.resolve({ unsubscribe: attempts[0].unsubscribe })
+      await flushPromises()
+      attempts[0].onEvent({ ...snapshot(1), currentRequests })
+      await vi.advanceTimersByTimeAsync(750)
+      expect(attempts).toHaveLength(2)
+
+      attempts[1].closed.resolve({ unsubscribe: attempts[1].unsubscribe })
+      await flushPromises()
+      attempts[1].onEvent({ ...snapshot(1), currentRequests })
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(mocks.call).toHaveBeenCalledTimes(2)
+      expect(attempts).toHaveLength(2)
       transport.dispose()
     } finally {
       vi.useRealTimers()

@@ -29,7 +29,7 @@ vi.mock('./ssh-relay-exec-command', async (importOriginal) => {
   }
 })
 
-const { acquireInstallLock } = await import('./ssh-relay-install-lock')
+const { acquireInstallLock, RemoteInstallLockBusyError } = await import('./ssh-relay-install-lock')
 const { exitedOwnLockProof } = await import('./orcad-exited-own-lock')
 const { initOrcadHeldFenceTokenFile, ORCAD_HELD_FENCE_TOKENS_FILE_NAME } =
   await import('./orcad-held-fence-tokens')
@@ -112,7 +112,8 @@ describe.skipIf(process.platform === 'win32')(
           return token
         }
       }
-      await expect(acquire(1_500, replacing)).rejects.toThrow()
+      // One attempt includes the proof and guarded steal; later polls only repeat creation.
+      await expect(acquire(0, replacing)).rejects.toBeInstanceOf(RemoteInstallLockBusyError)
       expect(readFileSync(join(lock, '.orca-fence-owner'), 'utf-8')).toBe('live-successor')
       expect(Date.now() - statSync(lock).mtimeMs).toBeLessThan(60_000)
       expect(readFileSync(store, 'utf-8')).toContain('t-exited')
@@ -120,7 +121,7 @@ describe.skipIf(process.platform === 'win32')(
 
     it('is left to the stale window when another desktop holds it', async () => {
       const { lock, acquire } = versionDirWithLock('t-foreign', 't-exited')
-      await expect(acquire(1_500)).rejects.toThrow()
+      await expect(acquire(0)).rejects.toBeInstanceOf(RemoteInstallLockBusyError)
       expect(existsSync(lock)).toBe(true)
       expect(readFileSync(join(lock, '.orca-fence-owner'), 'utf-8')).toBe('t-foreign')
     })

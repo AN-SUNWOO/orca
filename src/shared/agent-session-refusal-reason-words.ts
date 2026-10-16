@@ -118,6 +118,7 @@ const REASON_WORDS = {
     claudeAccountFolderMissing: { fact: 'claudeAccountFolderMissing', action: 'actFirst' },
     claudeAccountSetupFailed: { fact: 'claudeAccountSetupFailed', action: 'retry' },
     agentCommandNotRunnable: { fact: 'agentCommandNotRunnable', action: 'actFirst' },
+    runtimeNotInstalled: { fact: 'runtimeNotInstalled', action: 'actFirst' },
     attachFailed: codeWords('retry')
   },
   agent_session_ownership_unknown: {

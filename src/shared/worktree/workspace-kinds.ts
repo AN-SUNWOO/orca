@@ -1,5 +1,6 @@
 import { isFolderRepo } from '../repo-kind'
 import type { Repo } from '../repo-types'
+import type { RuntimeWorktreePsSummary } from '../runtime-worktree-contracts'
 import { getWorktreeGitIdentityDisplay } from './git-identity-display'
 import type { Worktree } from './types'
 
@@ -59,12 +60,42 @@ export function isDetachedHeadWorkspace(
   return getWorktreeGitIdentityDisplay(worktree)?.kind === 'detached'
 }
 
+/** The workspace kinds a Filters switch can hide. */
+export const WORKSPACE_KINDS = [
+  'defaultBranch',
+  'automationCreated',
+  'cliCreated',
+  'detachedHead'
+] as const
+export type WorkspaceKind = (typeof WORKSPACE_KINDS)[number]
+
+/** Which Filters switch hides each kind: the one list every surface applies. */
+export const WORKSPACE_KIND_SWITCH = {
+  defaultBranch: 'hideDefaultBranchWorkspace',
+  automationCreated: 'hideAutomationGeneratedWorkspaces',
+  cliCreated: 'hideCliCreatedWorkspaces',
+  detachedHead: 'hideDetachedHeadWorkspaces'
+} as const satisfies Record<WorkspaceKind, string>
+
 /** The Filters switches that hide a workspace by its kind alone, with no live renderer state. */
-export type WorkspaceKindSwitches = {
-  hideDefaultBranchWorkspace: boolean
-  hideAutomationGeneratedWorkspaces: boolean
-  hideCliCreatedWorkspaces: boolean
-  hideDetachedHeadWorkspaces: boolean
+export type WorkspaceKindSwitches = Record<(typeof WORKSPACE_KIND_SWITCH)[WorkspaceKind], boolean>
+
+/** Whether a switch that is on hides a kind this row is; `isKind` is asked only for those kinds. */
+export function isHiddenByKindSwitch(
+  switches: WorkspaceKindSwitches,
+  isKind: (kind: WorkspaceKind) => boolean
+): boolean {
+  return WORKSPACE_KINDS.some((kind) => switches[WORKSPACE_KIND_SWITCH[kind]] && isKind(kind))
+}
+
+const KIND_PREDICATES: Record<
+  WorkspaceKind,
+  (worktree: WorkspaceKindFields, repo: Pick<Repo, 'kind'> | undefined) => boolean
+> = {
+  defaultBranch: isDefaultBranchWorkspace,
+  automationCreated: isAutomationGeneratedWorkspace,
+  cliCreated: isCliCreatedWorkspace,
+  detachedHead: isDetachedHeadWorkspace
 }
 
 export function isHiddenByWorkspaceKindSwitch(
@@ -72,10 +103,26 @@ export function isHiddenByWorkspaceKindSwitch(
   repo: Pick<Repo, 'kind'> | undefined,
   switches: WorkspaceKindSwitches
 ): boolean {
-  return (
-    (switches.hideDefaultBranchWorkspace && isDefaultBranchWorkspace(worktree, repo)) ||
-    (switches.hideAutomationGeneratedWorkspaces && isAutomationGeneratedWorkspace(worktree)) ||
-    (switches.hideCliCreatedWorkspaces && isCliCreatedWorkspace(worktree)) ||
-    (switches.hideDetachedHeadWorkspaces && isDetachedHeadWorkspace(worktree))
-  )
+  return isHiddenByKindSwitch(switches, (kind) => KIND_PREDICATES[kind](worktree, repo))
+}
+
+/** What a host stamps on each worktree.ps row, so a phone's filters match this host's sidebar. */
+export function getWorkspaceRowKindFacts(
+  worktree: WorkspaceKindFields,
+  repo: Pick<Repo, 'kind'> | undefined
+): Pick<
+  RuntimeWorktreePsSummary,
+  'defaultBranch' | 'automationCreated' | 'automationName' | 'cliCreated' | 'detachedHead'
+> {
+  // Persisted provenance is not validated, so an older record may lack the snapshot.
+  const snapshot: unknown = worktree.automationProvenance?.automationNameSnapshot
+  const automationName = typeof snapshot === 'string' ? snapshot.trim() : ''
+  return {
+    defaultBranch: isDefaultBranchWorkspace(worktree, repo),
+    ...(isAutomationGeneratedWorkspace(worktree)
+      ? { automationCreated: true, ...(automationName ? { automationName } : {}) }
+      : {}),
+    ...(isCliCreatedWorkspace(worktree) ? { cliCreated: true } : {}),
+    ...(isDetachedHeadWorkspace(worktree) ? { detachedHead: true } : {})
+  }
 }

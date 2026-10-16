@@ -1062,6 +1062,14 @@
       "aiVaultResumeRefusal": {
         "openInChat": "この {{value0}} の会話はチャットで開かれています。開くにはセッション履歴を更新してください。",
         "ownershipUnknown": "Orca はこの {{value0}} の会話の所有者を確認できませんでした。セッション履歴を更新して、再試行してください。"
+      },
+      "pendingWorktreeCreation": {
+        "checkingOutFiles": "ファイルをチェックアウト中… {{percent}}%",
+        "provisioningVm": "VMをプロビジョニング中…",
+        "settingUpWorkspace": "ワークスペースをセットアップ中…",
+        "preparingWorkspace": "ワークスペースを準備中…",
+        "creatingWorktree": "ワークツリーを作成中…",
+        "fetchingBaseBranch": "ベースブランチを取得中…"
       }
     },
     "hooks": {
@@ -3134,7 +3142,11 @@
               "command_label": "コマンド",
               "agent_toolbar_hint": "/目標、スキル、パスをサポートします",
               "agent_footer_hint": "複数行のプロンプトは問題ありません。焦点を合わせてください。",
-              "resize_hint": "角をドラッグしてサイズを変更します"
+              "resize_hint": "角をドラッグしてサイズを変更します",
+              "length_over_limit": "長すぎるため保存できません。",
+              "length_count": "{{value0}} / {{value1}} 文字",
+              "size_count": "{{value0}} / {{value1}}",
+              "prompt_over_host_limit": "このホストには長すぎます。より長いプロンプトを保存するには、ホストの Orca を更新してください。"
             },
             "TerminalQuickCommandDialogFooter": {
               "2e2b958dfc": "保存",
@@ -4787,6 +4799,7 @@
           "peopleRequired": "少なくとも 1 人のチームメイトを選択してください。",
           "publishCancelled": "アップロードがキャンセルされました。準備されたコピーは引き続き再試行できます。",
           "publishFailed": "このスキルを公開できませんでした。準備されたコピーは引き続き再試行できます。",
+          "nameTaken": "スキル名「{{name}}」はすでに使用されています。共有するにはスキルの名前を変更してください。",
           "copied": "共有リンクがコピーされました",
           "preparing": "プレビューを準備しています…",
           "ready": "スキルリンク準備完了",
@@ -5595,8 +5608,6 @@
           "projectRuntimeHost": "プロジェクトサーバー",
           "631b97eea9": "ホストスコープ",
           "2d4f0eb933": "デフォルト",
-          "1a0eec0d35": "状態",
-          "b5536d5a88": "タスク",
           "8d62c68b35": "ノート",
           "2d74665a56": "ポート",
           "65a9820bd1": "Agent ステータス",
@@ -12534,6 +12545,7 @@
           "unsupportedUnknown": "このバージョンの Orca はこのホストをサポートしていません。引き続き使用するには、以前のバージョンの Orca をインストールしてください。",
           "tunnelUnsupported": "このバージョンの Orca はこのホストをサポートしていません。ホストの SSH サーバーがポート転送を許可しておらず、SSH セッション経由でも Orca のサーバーに接続できませんでした。引き続き使用するには、以前のバージョンの Orca をインストールしてください。",
           "setupRetry": "Orca はこのホストでサーバーを起動できませんでした。もう一度接続してください。",
+          "moveHeld": "サーバー側のコピーを確認できなかったため、Orca はこのホストのプロジェクトを管理対象サーバーへ移動する処理を一時停止しました。データは失われていません。移動が完了するまで、ホストはプロジェクトを保持したままロックされます。再接続すると再開します。サーバーが復帰できない場合は、設定 > 管理対象サーバーで停止するか登録を解除してください。",
           "olderTerminalsUncounted": "以前のバージョンの Orca で開始されたターミナルがこのホストでまだ実行中で、自動では終了しません。そのバージョンの Orca で閉じるか、ホスト上で終了してから再接続してください。",
           "olderTerminalsUnverifiable": "以前のバージョンの Orca で開始されたターミナルが終了したことを確認できませんでした。再接続してもう一度お試しください。",
           "olderTerminals_one": "以前のバージョンの Orca で開始された {{count}} 個のターミナルがこのホストでまだ実行中で、自動では終了しません。そのバージョンの Orca で閉じるか、ホスト上で終了してから再接続してください。",
@@ -12565,6 +12577,13 @@
           "description": "このホストはそのまま管理対象サーバーに戻ります。古いバージョンの Orca がここに追加または変更したものは移動されず、クリーンアップされるまでこのコンピュータの保存済み設定にのみ残ります。",
           "cancel": "キャンセル",
           "confirm": "サーバーのバージョンを保持"
+        },
+        "moveAnyway": {
+          "action": "それでも移行…",
+          "title": "このホストをそれでも移行",
+          "description": "Orca はこのホストを管理サーバーへ移行しますが、以下の保存済み項目は含めません。これらはこのコンピューターに残り、管理サーバーには表示されません。未保存の編集は保持され、削除されることはありません。",
+          "cancel": "キャンセル",
+          "confirm": "それでも移行"
         },
         "ZcodeCliSetupSection": {
           "title": "ZCode で GLM を使用する",
@@ -14130,6 +14149,15 @@
             "sourceMissing": "トランスクリプトは利用できなくなりました",
             "metadataMatch": "セッションメタデータ内の一致",
             "sourceActionsUnavailable": "トランスクリプトのソースが利用できません。"
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "{{value0}} 個のファイル",
+            "fileCount_other": "{{value0}} 個のファイル",
+            "databaseCount_one": "{{value0}} 個のデータベース",
+            "databaseCount_other": "{{value0}} 個のデータベース",
+            "scanning": "{{value0}}をスキャン中",
+            "reading": "{{value0}} ファイルを読み込み中",
+            "scanned": "{{value0}}をスキャン済み"
           }
         }
       },
@@ -18010,6 +18038,7 @@
         "claudeAccountFolderMissing": "選択した Claude アカウントのフォルダーが見つかりません。もう一度サインインするか、別のアカウントを選択してください。",
         "claudeAccountSetupFailed": "選択した Claude アカウントを設定できませんでした。もう一度試すか、別のアカウントを選択してください。",
         "agentCommandNotRunnable": "[設定] → [Agent] にある {{agent}} の [コマンド] には、Orca が見つけられるプログラムのパスまたは名前を、引数や変数なしで指定する必要があります。変更するか、[リセット] してください。",
+        "runtimeNotInstalled": "{{agent}} はこのチャットを実行しているコンピューターにインストールされていません。最新バージョンの Orca でチャットからインストールしてください。",
         "chooseClaudeAccount": "Claude アカウントの設定で選択または追加してください。",
         "chooseClaudeAccountThenRunCommand": "Claude アカウントの設定で選択または追加してから、/{{command}} をもう一度実行してください。",
         "chooseClaudeAccountThenSend": "Claude アカウントの設定で選択または追加してから、メッセージをもう一度送信してください。",
@@ -18631,15 +18660,7 @@
         "withdrawnHold": "送信前に停止されました",
         "pausedSendFailed": "送信できませんでした。「送信」を押して再試行してください。",
         "paused": "一時停止中",
-        "queuePausedStopped": "中断したため、キューを一時停止しました",
-        "queuePaused": "キューは一時停止中です",
         "resume": "再開",
-        "sendConfirmTitle": "メッセージを送信しますか？",
-        "sendConfirmBody": "メッセージを送信しようとしています。キューに入っている {{count}} 件のメッセージを消去しますか？",
-        "sendConfirmBody_one": "メッセージを送信しようとしています。キューに入っている {{count}} 件のメッセージを消去しますか？",
-        "sendConfirmBody_other": "メッセージを送信しようとしています。キューに入っている {{count}} 件のメッセージを消去しますか？",
-        "sendConfirmClear": "キューを消去",
-        "sendConfirmSend": "メッセージを送信",
         "fromSender": "送信元:",
         "pausedSendFailedWaiting": "送信できませんでした。Agent の処理が終わったら「送信」を押して再試行してください。",
         "save": "保存",
@@ -18649,7 +18670,11 @@
         "editChangedPrompt": "編集中にこのメッセージが変更されました。Agent に回答すると、編集したテキストがチャット入力欄に表示されます。",
         "editFailed": "このメッセージは編集できません。",
         "editGone": "このメッセージはすでに送信または削除されています。編集したテキストはチャット入力欄にあります。",
-        "editGonePrompt": "このメッセージはすでに送信または削除されています。Agent に回答すると、編集したテキストがチャット入力欄に表示されます。"
+        "editGonePrompt": "このメッセージはすでに送信または削除されています。Agent に回答すると、編集したテキストがチャット入力欄に表示されます。",
+        "collapse": "折りたたむ",
+        "expand": "展開",
+        "queued": "キュー待ち",
+        "clearAll": "すべてクリア"
       },
       "thought": "考えました",
       "thoughtForDuration": "{{duration}} 考えました",

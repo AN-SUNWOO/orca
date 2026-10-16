@@ -126,7 +126,7 @@ export function clearManagedServerNotes(targetId: string, environmentId: string)
   if (current?.kind !== 'managed' || current.environmentId !== environmentId) {
     return
   }
-  if (current.update || current.serving) {
+  if (current.update || current.serving || current.launchSessionEnded) {
     publishHostServerStatus(targetId, { kind: 'managed', environmentId })
   }
 }

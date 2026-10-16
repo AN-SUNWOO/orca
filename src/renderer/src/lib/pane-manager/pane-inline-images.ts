@@ -1,5 +1,7 @@
 import type { ImageAddon } from '@xterm/addon-image'
 import type { Terminal } from '@xterm/xterm'
+import type { KittyFileRequest } from './terminal-kitty-file-reader'
+import { readTerminalKittyFile } from './terminal-kitty-file-reader'
 import { refreshTerminalDa1Owner } from './terminal-da1-ownership'
 import type { ManagedPaneInternal } from './pane-manager-types'
 import {
@@ -57,7 +59,11 @@ export function attachInlineImages(pane: ManagedPaneInternal): void {
   pane.imageAttachmentDeferred = false
   let imageAddon: ImageAddon | null = null
   try {
-    imageAddon = new ImageAddonConstructor(buildInlineImageAddonOptions())
+    const options = {
+      ...buildInlineImageAddonOptions(),
+      readKittyFile: (request: KittyFileRequest) => readTerminalKittyFile(pane.terminal, request)
+    }
+    imageAddon = new ImageAddonConstructor(options)
     pane.terminal.loadAddon(imageAddon)
     pane.imageAddon = imageAddon
     terminalsRenderingInlineImages.add(pane.terminal)

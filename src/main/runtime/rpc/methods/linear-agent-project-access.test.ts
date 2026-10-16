@@ -2,6 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from '../../orca-runtime'
 import type * as LinearIssueMutationsModule from '../../../linear/linear-issue-mutations'
 
+const mocks = vi.hoisted(() => ({ createIssueForAgent: vi.fn() }))
+
+vi.mock('../../../linear/linear-issue-mutations', async (importOriginal) => ({
+  ...(await importOriginal<typeof LinearIssueMutationsModule>()),
+  createIssueForAgent: mocks.createIssueForAgent
+}))
+
 type LinearProjectResolverTester = {
   resolveLinearCreateProject(
     input: string,
@@ -212,8 +219,7 @@ describe('Linear agent project access helpers', () => {
   })
 
   it('passes the resolved project id into agent issue create', async () => {
-    vi.resetModules()
-    const createIssueForAgent = vi.fn().mockResolvedValue({
+    const createIssueForAgent = mocks.createIssueForAgent.mockReset().mockResolvedValue({
       id: 'issue-created',
       identifier: 'ENG-123',
       title: 'Follow up',
@@ -223,47 +229,37 @@ describe('Linear agent project access helpers', () => {
       parent: null,
       project: { id: 'project-1', name: 'Launch' }
     })
-    vi.doMock('../../../linear/linear-issue-mutations', async (importOriginal) => {
-      const actual = await importOriginal<typeof LinearIssueMutationsModule>()
-      return { ...actual, createIssueForAgent }
+    const runtime = new OrcaRuntimeService()
+    const tester = runtime as unknown as LinearCreateTester
+    vi.spyOn(tester, 'resolveLinearCreateTeam').mockResolvedValue({
+      id: 'team-1',
+      key: 'ENG',
+      name: 'Engineering',
+      workspaceId: 'workspace-1'
     })
-    try {
-      const { OrcaRuntimeService: RuntimeService } = await import('../../orca-runtime')
-      const runtime = new RuntimeService()
-      const tester = runtime as unknown as LinearCreateTester
-      vi.spyOn(tester, 'resolveLinearCreateTeam').mockResolvedValue({
-        id: 'team-1',
-        key: 'ENG',
-        name: 'Engineering',
-        workspaceId: 'workspace-1'
-      })
-      vi.spyOn(tester, 'resolveLinearCreateProject').mockResolvedValue({
-        id: 'project-1',
-        name: 'Launch'
-      } as never)
+    vi.spyOn(tester, 'resolveLinearCreateProject').mockResolvedValue({
+      id: 'project-1',
+      name: 'Launch'
+    } as never)
 
-      const result = await runtime.linearIssueCreate({
-        title: 'Follow up',
-        teamInput: 'ENG',
-        projectInput: 'Launch',
-        writeId: '33333333-3333-4333-8333-333333333333'
-      })
+    const result = await runtime.linearIssueCreate({
+      title: 'Follow up',
+      teamInput: 'ENG',
+      projectInput: 'Launch',
+      writeId: '33333333-3333-4333-8333-333333333333'
+    })
 
-      expect(result.issue.project).toMatchObject({ id: 'project-1', name: 'Launch' })
-      expect(createIssueForAgent).toHaveBeenCalledWith(
-        'team-1',
-        'Follow up',
-        undefined,
-        'workspace-1',
-        expect.objectContaining({
-          id: '33333333-3333-4333-8333-333333333333',
-          parentId: null,
-          projectId: 'project-1'
-        })
-      )
-    } finally {
-      vi.doUnmock('../../../linear/linear-issue-mutations')
-      vi.resetModules()
-    }
+    expect(result.issue.project).toMatchObject({ id: 'project-1', name: 'Launch' })
+    expect(createIssueForAgent).toHaveBeenCalledWith(
+      'team-1',
+      'Follow up',
+      undefined,
+      'workspace-1',
+      expect.objectContaining({
+        id: '33333333-3333-4333-8333-333333333333',
+        parentId: null,
+        projectId: 'project-1'
+      })
+    )
   })
 })

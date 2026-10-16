@@ -103,6 +103,8 @@ export const ORCAD_PARCEL_WATCHER_ENTRY = 'node_modules/@parcel/watcher/index.js
 export const ORCAD_PARCEL_WATCHER_NATIVE = 'node_modules/@parcel/watcher/watcher.node'
 export const ORCAD_EMOJI_SHORTCODE_DATASET =
   'node_modules/emojibase-data/en/shortcodes/emojibase.json'
+// linear-sdk.ts loads it through createRequire, which the server bundle cannot follow.
+export const ORCAD_LINEAR_SDK_ENTRY = 'node_modules/@linear/sdk/index.js'
 
 export const ORCAD_VERSION = '0.1.0'
 export const ORCAD_LAUNCHER_FILENAME = 'orcad.js'
@@ -181,6 +183,9 @@ export const ORCAD_ARTIFACTS: readonly OrcadArtifact[] = [
   { filename: ORCAD_PORT_SCAN_COMMAND_WORKER_ENTRY },
   // Forked so transcript parsing stays off the server's event loop; session search stays in-process.
   { filename: ORCAD_SESSION_SCANNER_SERVICE_ENTRY },
+  // Worker threads the account services start: CLI probes off the event loop, Claude account setup.
+  { filename: 'worker-thread-child-process-entry.js' },
+  { filename: 'claude-profile-setup-worker-entry.js' },
   // Target-specific even when the JavaScript bundle is shared across packaged slots.
   { filename: ORCAD_SERVER_TARGET_FILENAME },
   // orcad never depends on a host runtime or host-installed native module.
@@ -188,6 +193,7 @@ export const ORCAD_ARTIFACTS: readonly OrcadArtifact[] = [
   { filename: ORCAD_PARCEL_WATCHER_ENTRY },
   { filename: ORCAD_PARCEL_WATCHER_NATIVE },
   { filename: ORCAD_EMOJI_SHORTCODE_DATASET },
+  { filename: ORCAD_LINEAR_SDK_ENTRY },
   ...ORCAD_NODE_PTY_JS_ARTIFACTS.map((filename) => ({ filename })),
   ...ORCAD_RIPGREP_LICENSE_ARTIFACTS.map((filename) => ({ filename })),
   ...ORCAD_NATIVE_CHAT_VISUALS_ARTIFACTS.map((filename) => ({ filename }))

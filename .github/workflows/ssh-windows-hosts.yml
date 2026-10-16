@@ -6,7 +6,7 @@ name: SSH Windows hosts
 # sessions behind logging shims, and deploys orcad on the pinned node.exe in both DefaultShell cases.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     paths:
       - 'src/main/ssh/ssh-relay-*'
       - 'src/main/ssh/*runtime*'
@@ -161,6 +161,8 @@ jobs:
           arches: ${{ matrix.arch }}
       - name: Build the win32 template
         shell: bash
+        env:
+          ORCA_REUSE_PREPARED_WINDOWS_SECURITY: ${{ github.event_name == 'pull_request' && steps.dependencies.outcome == 'success' }}
         run: |
           pnpm build:orcad-prebuilds --require-slots "win32-${{ matrix.arch }}"
           node config/scripts/build-orcad-template.mjs --targets "win32-${{ matrix.arch }}"

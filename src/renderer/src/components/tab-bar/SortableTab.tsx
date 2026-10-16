@@ -169,7 +169,7 @@ export default function SortableTab({
     const closeMenu = (): void => setMenuOpen(false)
     window.addEventListener(CLOSE_ALL_CONTEXT_MENUS_EVENT, closeMenu)
     return () => window.removeEventListener(CLOSE_ALL_CONTEXT_MENUS_EVENT, closeMenu)
-  }, [])
+  }, [setMenuOpen])
 
   // Why: webview clicks miss the renderer pointerdown Radix uses for outside-click, so dismiss on window blur instead.
   useEffect(() => {
@@ -179,7 +179,7 @@ export default function SortableTab({
     const dismiss = (): void => setMenuOpen(false)
     window.addEventListener('blur', dismiss)
     return () => window.removeEventListener('blur', dismiss)
-  }, [menuOpen])
+  }, [menuOpen, setMenuOpen])
 
   // Why: while editing, drop drag listeners so typing can't start a drag; attributes stay spread to keep dnd-kit a11y.
   const dragListeners = isEditing ? undefined : listeners
@@ -402,13 +402,13 @@ export default function SortableTab({
       </div>
 
       <SortableTabContextMenu
+        sessionSwitchOpening={openingId}
+        onSessionSwitchComplete={onComplete}
         tab={tab}
         unifiedTabId={unifiedTabId}
         groupId={groupId}
         isActive={isActive}
         open={menuOpen}
-        openingId={openingId}
-        onSessionSwitchComplete={onComplete}
         point={menuPoint}
         tabCount={tabCount}
         hasTabsToRight={hasTabsToRight}

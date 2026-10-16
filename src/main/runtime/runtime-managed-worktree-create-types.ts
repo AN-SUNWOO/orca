@@ -42,6 +42,7 @@ export type RuntimeManagedWorktreeCreateArgs = {
   telemetrySource?: WorkspaceCreateTelemetrySource
   workspaceStatus?: string
   manualOrder?: number
+  nestWorkspaces?: boolean
   sparseCheckout?: { directories: string[]; presetId?: string }
   pushTarget?: GitPushTarget
   runHooks?: boolean
@@ -56,6 +57,7 @@ export type RuntimeManagedWorktreeCreateArgs = {
   /** Main-internal launch registration before catalog notification or activation. */
   onWorkspaceCreated?: (worktreeId: string) => void
   startupAgent?: TuiAgent
+  terminalImageViewerSupported?: boolean
   startupLaunchPreferences?: AgentLaunchPreferences
   startupPrompt?: string
   /** Main-internal: set by a caller that delivers an uncarried `startupPrompt` itself, so the text

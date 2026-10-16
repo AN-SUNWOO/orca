@@ -15,7 +15,7 @@ import { NativeChatMessageList } from './NativeChatMessageList'
 import { installNativeChatMessageListTestViewport } from './native-chat-message-list-test-viewport'
 import { projectNativeChatTaskListFrames } from './native-chat-task-list-frames'
 import { openToolRunMembers } from './native-chat-tool-run-members-test-support'
-import { projectStructuredQuestionMessages } from './structured-agent-question-projection'
+import { projectStructuredQuestionMessages } from '../../../../shared/structured-agent-question-projection'
 import type { NativeChatLiveSession } from './use-native-chat-live-session'
 
 {

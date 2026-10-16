@@ -1,3 +1,4 @@
+import { sameAgentStatusTerminalOwner } from '../../../../shared/agent-status-terminal-owner'
 import { isWslHookRelayConnectionId } from '../../../../shared/wsl-hook-relay-contract'
 import type { AgentStatusIpcPayload } from '../../../../shared/agent-status-types'
 import {
@@ -196,22 +197,30 @@ export function createAgentStatusEventApplicator(args: {
       ? { ...statusPayloadWithProvenance, observation: data.observation }
       : statusPayloadWithProvenance
     const identity = resolveAgentStatusIdentity({
-      existing: existingStatus
-        ? {
-            agentType: existingStatus.agentType,
-            state: existingStatus.state,
-            updatedAt: existingStatus.updatedAt,
-            restoredUnconfirmed: existingStatus.restoredUnconfirmed
+      existing:
+        existingStatus &&
+        sameAgentStatusTerminalOwner(
+          {
+            connectionId: existingStatus.connectionId ?? null,
+            worktreeId: existingStatus.worktreeId
+          },
+          {
+            connectionId:
+              (ownershipConnectionId === undefined
+                ? existingStatus.connectionId
+                : ownershipConnectionId) ?? null,
+            worktreeId: data.worktreeId ?? owningWorktreeId ?? existingStatus.worktreeId
           }
-        : undefined,
+        )
+          ? existingStatus
+          : undefined,
       incoming: statusPayload.agentType,
       now: data.receivedAt
     })
     if (
       existingStatus &&
       shouldSuppressInheritedTerminalStatus({
-        inheritedFromActivePane: identity.inheritedFromActivePane,
-        incomingState: statusPayload.state
+        inheritedFromActivePane: identity.inheritedFromActivePane
       })
     ) {
       return 'dropped'
@@ -238,8 +247,10 @@ export function createAgentStatusEventApplicator(args: {
       },
       metadata: normalizeAgentStatusMetadata(data, authorityRestartId)
     }
+    // Why: a host-flagged replay is cached state, so it seeds completion tracking like the startup snapshot.
+    const replayed = options?.replay === true || data.isReplay === true
     const applyPostCommitNotification = (): void => {
-      if (statusWorktreeId && (options?.replay !== true || resolvedPayload.state === 'working')) {
+      if (statusWorktreeId && (!replayed || resolvedPayload.state === 'working')) {
         const notificationPayload =
           typeof data.stateStartedAt === 'number'
             ? { ...resolvedPayload, stateStartedAt: data.stateStartedAt }
@@ -248,7 +259,7 @@ export function createAgentStatusEventApplicator(args: {
           paneKey,
           worktreeId: statusWorktreeId,
           payload: notificationPayload,
-          ...(options?.replay === true ? { seedOnly: true } : {})
+          ...(replayed ? { seedOnly: true } : {})
         })
       }
     }

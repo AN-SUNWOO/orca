@@ -97,8 +97,11 @@ export class RepoLifecycleOperations {
       delete this[repoLifecycleOperationsContext].runtime.state.retiredWorktreeNamesByRepo?.[id]
     }
     syncProjectHostSetupCompatibilityState(this)
-    pruneWorktreeStateForRepo(this, id, idStillPresent ? hostId : null)
-    if (!idStillPresent) {
+    // Why host-scoped: a paired client never registers that host's repos, so `idStillPresent` is
+    // false even when another paired host (or a re-pairing of this one) holds rows under the same id.
+    const pairedHost = parseExecutionHostId(hostId)?.kind === 'runtime'
+    pruneWorktreeStateForRepo(this, id, idStillPresent || pairedHost ? hostId : null)
+    if (!idStillPresent && !pairedHost) {
       this[repoLifecycleOperationsContext].runtime.state.workspaceSession = removeLocalRepoSession(
         this[repoLifecycleOperationsContext].runtime.state.workspaceSession,
         id
@@ -108,7 +111,7 @@ export class RepoLifecycleOperations {
           this[repoLifecycleOperationsContext].runtime.state.workspaceSessionsByHostId,
           id
         )
-    } else if (parseExecutionHostId(hostId)?.kind === 'runtime') {
+    } else if (pairedHost) {
       const session =
         this[repoLifecycleOperationsContext].runtime.state.workspaceSessionsByHostId?.[hostId]
       if (session) {

@@ -1062,6 +1062,14 @@
       "aiVaultResumeRefusal": {
         "openInChat": "此 {{value0}} 会话已在聊天中打开。请刷新会话历史以打开它。",
         "ownershipUnknown": "Orca 无法确认此 {{value0}} 会话的归属。请刷新会话历史并重试。"
+      },
+      "pendingWorktreeCreation": {
+        "checkingOutFiles": "正在检出文件… {{percent}}%",
+        "provisioningVm": "正在预配虚拟机…",
+        "settingUpWorkspace": "正在设置工作区…",
+        "preparingWorkspace": "正在准备工作区…",
+        "creatingWorktree": "正在创建工作树…",
+        "fetchingBaseBranch": "正在获取基础分支…"
       }
     },
     "hooks": {
@@ -3134,7 +3142,11 @@
               "command_label": "命令",
               "agent_toolbar_hint": "支持/目标、技能、路径",
               "agent_footer_hint": "多行提示很好——让他们保持专注。",
-              "resize_hint": "拖动角点以调整大小"
+              "resize_hint": "拖动角点以调整大小",
+              "length_over_limit": "内容过长，无法保存。",
+              "length_count": "{{value0}} / {{value1}} 个字符",
+              "size_count": "{{value0}} / {{value1}}",
+              "prompt_over_host_limit": "对此主机来说过长。请在主机上更新 Orca 以保存更长的提示词。"
             },
             "TerminalQuickCommandDialogFooter": {
               "2e2b958dfc": "保存",
@@ -4813,6 +4825,7 @@
           "peopleRequired": "选择至少一名队友。",
           "publishCancelled": "上传已取消。准备好的副本仍然可以重试。",
           "publishFailed": "无法发布该技能。准备好的副本仍然可以重试。",
+          "nameTaken": "技能名称“{{name}}”已被使用。请重命名您的技能后再共享。",
           "copied": "分享链接已复制",
           "preparing": "正在准备预览...",
           "ready": "技能链接已准备好",
@@ -5595,8 +5608,6 @@
           "projectRuntimeHost": "项目服务器",
           "631b97eea9": "主机范围",
           "2d4f0eb933": "默认",
-          "1a0eec0d35": "状态",
-          "b5536d5a88": "任务",
           "8d62c68b35": "笔记",
           "2d74665a56": "端口",
           "65a9820bd1": "智能体状态",
@@ -12548,6 +12559,7 @@
           "unsupportedUnknown": "此版本的 Orca 不支持此主机。如需继续使用，请安装旧版本的 Orca。",
           "tunnelUnsupported": "此版本的 Orca 不支持此主机：其 SSH 服务器不允许端口转发，Orca 也无法通过 SSH 会话连接到其服务器。如需继续使用，请安装旧版本的 Orca。",
           "setupRetry": "Orca 无法在此主机上启动其服务器。请重新连接。",
+          "moveHeld": "由于无法确认服务器上的副本，Orca 已暂停将此主机的项目迁移到其受管服务器。没有任何数据丢失：在迁移完成之前，主机会保留其项目并保持锁定。重新连接即可继续。如果服务器无法恢复，请在“设置 > 受管服务器”中停止或忘记它。",
           "olderTerminalsUncounted": "由旧版本 Orca 启动的终端仍在此主机上运行，且不会自行停止。请在该版本的 Orca 中关闭它们，或在主机上结束它们，然后重新连接。",
           "olderTerminalsUnverifiable": "Orca 无法确认由旧版本 Orca 启动的终端是否已退出。请重新连接后重试。",
           "olderTerminals_one": "由旧版本 Orca 启动的 {{count}} 个终端仍在此主机上运行，且不会自行停止。请在该版本的 Orca 中关闭它们，或在主机上结束它们，然后重新连接。",
@@ -12579,6 +12591,13 @@
           "description": "此主机将按原样恢复为使用其受管服务器。较旧版本的 Orca 在此处添加或更改的内容不会被迁移；它们只会保留在这台电脑保存的设置中，直到被清理。",
           "cancel": "取消",
           "confirm": "保留服务器的版本"
+        },
+        "moveAnyway": {
+          "action": "仍要迁移…",
+          "title": "仍要迁移此主机",
+          "description": "Orca 会将此主机迁移到其受管服务器，但不包含下列已保存的项目。它们会保留在这台电脑上，不会出现在受管服务器上。未保存的编辑会被保留，绝不会被删除。",
+          "cancel": "取消",
+          "confirm": "仍要迁移"
         },
         "SettingsHostScopePicker": {
           "label": "主机",
@@ -14130,6 +14149,15 @@
             "sourceMissing": "成绩单不再可用",
             "metadataMatch": "会话元数据中的匹配",
             "sourceActionsUnavailable": "转录来源不可用。"
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "{{value0}} 个文件",
+            "fileCount_other": "{{value0}} 个文件",
+            "databaseCount_one": "{{value0}} 个数据库",
+            "databaseCount_other": "{{value0}} 个数据库",
+            "scanning": "正在扫描 {{value0}}",
+            "reading": "正在读取 {{value0}} 个文件",
+            "scanned": "已扫描 {{value0}}"
           }
         }
       },
@@ -17975,6 +18003,7 @@
         "claudeAccountFolderMissing": "所选 Claude 账户的文件夹不存在。请重新登录该账户或选择其他账户。",
         "claudeAccountSetupFailed": "无法设置所选 Claude 账户。请重试或选择其他账户。",
         "agentCommandNotRunnable": "{{agent}} 在设置 → 智能体中的命令必须是 Orca 能找到的程序路径或名称，且不能包含参数或变量。请修改或重置。",
+        "runtimeNotInstalled": "运行此聊天的计算机上未安装 {{agent}}。请在最新版本的 Orca 中从聊天里安装。",
         "chooseClaudeAccount": "请在 Claude 账户设置中选择或添加一个。",
         "chooseClaudeAccountThenRunCommand": "请在 Claude 账户设置中选择或添加一个，然后重新运行 /{{command}}。",
         "chooseClaudeAccountThenSend": "请在 Claude 账户设置中选择或添加一个，然后重新发送您的消息。",
@@ -18596,15 +18625,7 @@
         "withdrawnHold": "在发送前已停止",
         "pausedSendFailed": "无法发送。点按发送以重试。",
         "paused": "已暂停",
-        "queuePausedStopped": "因你中断了操作，队列已暂停",
-        "queuePaused": "队列已暂停",
         "resume": "继续",
-        "sendConfirmTitle": "发送消息？",
-        "sendConfirmBody": "你即将发送一条消息。是否清除之前排队的 {{count}} 条消息？",
-        "sendConfirmBody_one": "你即将发送一条消息。是否清除之前排队的 {{count}} 条消息？",
-        "sendConfirmBody_other": "你即将发送一条消息。是否清除之前排队的 {{count}} 条消息？",
-        "sendConfirmClear": "清空队列",
-        "sendConfirmSend": "发送消息",
         "fromSender": "来自",
         "pausedSendFailedWaiting": "无法发送。智能体完成后，点按发送以重试。",
         "save": "保存",
@@ -18614,7 +18635,11 @@
         "editChangedPrompt": "你编辑时此消息已更改。回答智能体后，你编辑的内容会出现在聊天输入框中。",
         "editFailed": "此消息无法编辑。",
         "editGone": "此消息已发送或移除。你编辑的内容已放入聊天输入框。",
-        "editGonePrompt": "此消息已发送或移除。回答智能体后，你编辑的内容会出现在聊天输入框中。"
+        "editGonePrompt": "此消息已发送或移除。回答智能体后，你编辑的内容会出现在聊天输入框中。",
+        "collapse": "收起",
+        "expand": "展开",
+        "queued": "已排队",
+        "clearAll": "全部清除"
       },
       "thought": "已思考",
       "thoughtForDuration": "思考了 {{duration}}",

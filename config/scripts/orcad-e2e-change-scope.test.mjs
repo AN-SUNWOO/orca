@@ -99,7 +99,7 @@ for (const [lane, { excluded, retained, product }] of Object.entries(cases)) {
 
 it('re-includes the real WSL distro root after excluding unit tests', () => {
   const paths = workflows.wsl.on.pull_request.paths
-  const exclude = paths.indexOf('!src/main/wsl/**/*.test.ts')
+  const exclude = paths.indexOf('!**/*.test.ts')
   expect(exclude).toBeGreaterThan(paths.indexOf('src/main/wsl/**'))
   expect(paths.indexOf('src/main/wsl/wsl-orcad-real-distro-lane.test.ts')).toBeGreaterThan(exclude)
   const steps = workflows.wsl.jobs.wsl2.steps

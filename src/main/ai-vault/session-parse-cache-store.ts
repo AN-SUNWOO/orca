@@ -167,14 +167,14 @@ export function storeSessionParseCacheEntry(path: string, entry: SessionParseCac
   cache.delete(path)
   cache.set(path, entry)
   resumePaths.delete(path)
-  if (entry.resume !== null) {
-    resumePaths.add(path)
-    trimOldestTranscripts(resumePaths, MAX_RESUME_ENTRIES, dropResumePoint)
-  }
-  // After the resume bookkeeping, so a trim that drops this very row clears it.
   if (!listedPaths.has(path)) {
     unlistedPaths.add(path)
     trimOldestTranscripts(unlistedPaths, MAX_UNLISTED_ENTRIES, dropRow)
+  }
+  // Skipped when the trim above dropped this very row, so it can't cost others.
+  if (entry.resume !== null && cache.has(path)) {
+    resumePaths.add(path)
+    trimOldestTranscripts(resumePaths, MAX_RESUME_ENTRIES, dropResumePoint)
   }
   if (changed) {
     notifyChange()

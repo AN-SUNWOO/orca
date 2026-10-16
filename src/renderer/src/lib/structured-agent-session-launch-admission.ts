@@ -13,6 +13,7 @@ import {
   type StructuredLaunchAdmission
 } from '@/lib/structured-agent-session-host-admission'
 import { holdEmptyWorkspaceDefaultSurfaceForLaunch } from '@/lib/empty-workspace-default-surface-claims'
+import { StructuredAgentSessionCreateRefusalError } from '@/lib/structured-agent-session-launch-errors'
 import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-label'
 import type {
   StructuredAgentLaunchHooks,

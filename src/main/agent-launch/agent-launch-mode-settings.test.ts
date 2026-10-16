@@ -8,7 +8,7 @@ vi.mock('electron', () => ({ app: { getPath: () => '/orca-state', isPackaged: tr
 
 describe('host launch preference ownership', () => {
   it.each([false, true])('reads saved choices privately with Agents disabled=%s', (disabled) => {
-    const settings = {
+    const settings: ReturnType<RuntimeStore['getSettings']> = {
       ...getDefaultSettings('/tmp'),
       experimentalNativeChat: true,
       nativeChatProviders: { claude: false },

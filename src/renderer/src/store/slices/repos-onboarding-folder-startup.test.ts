@@ -107,7 +107,7 @@ it.each(['paired-linux', 'local-bash', 'withheld', 'structured-withheld'] as con
     const hostId = target === 'local-bash' ? 'local' : 'runtime:box'
     const worktree = makeWorktree({ id: 'repo::/folder', repoId: 'repo', path: '/folder', hostId })
     store.setState({
-      repos: [{ id: 'repo', path: '/folder', displayName: 'Folder', addedAt: 1 }],
+      repos: [{ id: 'repo', path: '/folder', displayName: 'Folder', badgeColor: '', addedAt: 1 }],
       worktreesByRepo: { repo: [worktree] },
       settings: {
         ...getDefaultSettings('/tmp/orca-workspaces'),

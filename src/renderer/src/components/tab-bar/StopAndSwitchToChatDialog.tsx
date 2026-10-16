@@ -27,11 +27,11 @@ export function StopAndSwitchToChatDialog({
     <Dialog open={open} onOpenChange={(next) => { if (!next) { onCancel() } }}>
       <DialogContent className="max-w-sm" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle className="text-sm">
+          <DialogTitle>
             {translate('components.native-chat.stopAndSwitch.title',
               'Stop {{agent}} and continue in chat?', { agent })}
           </DialogTitle>
-          <DialogDescription className="text-xs">
+          <DialogDescription>
             {translate('components.native-chat.stopAndSwitch.description',
               'This closes the terminal and stops the current step. Everything saved so far stays in the conversation.')}
           </DialogDescription>

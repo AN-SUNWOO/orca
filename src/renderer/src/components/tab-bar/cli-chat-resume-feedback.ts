@@ -17,7 +17,9 @@ export async function reportCliChatResumeFailure(
   const refusal =
     error instanceof StructuredAgentSessionCreateRefusalError ? error.refusal : undefined
   if (refusal?.details?.reason === 'terminalStopUnconfirmed') {
-    toast.error('The terminal agent could not be confirmed stopped. Retry from the chat after it exits.')
+    toast.error(
+      `Could not confirm ${agentLabel(source.agent)} stopped in the terminal. Exit it there, then retry from the chat.`
+    )
     return
   }
   if (error instanceof Error && error.message.startsWith('Exit the agent in the terminal first')) {
@@ -38,7 +40,7 @@ export async function reportCliChatResumeFailure(
           'auto.components.right.sidebar.AiVaultPanel.resumeInChatConflict',
           'Another chat is already holding this conversation.'
         )
-      : `${agentLabel(source.agent)} is still running in a terminal. Exit it there, then switch to chat.`)
+      : `Exit ${agentLabel(source.agent)} in the terminal first, then resume this conversation in chat.`)
     return
   }
   if (refusal?.code === 'agent_session_identity_required') {

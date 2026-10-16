@@ -6,7 +6,8 @@ const processTable = vi.hoisted(() => ({
   read: vi.fn(),
   capture: vi.fn()
 }))
-vi.mock('../pty-descendant-termination', () => ({
+vi.mock('../pty-descendant-termination', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../pty-descendant-termination')>(),
   readProcessTable: processTable.read,
   captureDescendantSnapshot: processTable.capture
 }))
@@ -64,11 +65,16 @@ it('refuses an unconsented writer or another live pane before any stop', async (
   expect(await inspectCliSourceWriters(host([row('source')]), input)).toMatchObject({
     ptyId: 'source', writerMayLive: true
   })
-  expect(await inspectCliSourceWriters(host([{ ...row('source'), state: 'done' }]), {
+  await expect(inspectCliSourceWriters(host([{ ...row('source'), state: 'done' }]), {
     ...input, resumeFrom: { ...input.resumeFrom, cliSource: {
       ...input.resumeFrom.cliSource, stopRunningAgent: false
     } }
-  })).toMatchObject({ ptyId: 'source', writerMayLive: true })
+  })).rejects.toMatchObject({ refusal: { details: { reason: 'conversationHeldElsewhere' } } })
+  await expect(inspectCliSourceWriters(host([{ ...row('source'), state: 'done' }]), {
+    ...input, resumeFrom: { ...input.resumeFrom, cliSource: {
+      workspaceId: 'workspace-1', paneKey: 'source'
+    } }
+  })).rejects.toMatchObject({ refusal: { details: { reason: 'conversationHeldElsewhere' } } })
 })
 
 it('keeps a sleeping pane held even without a current PTY', async () => {

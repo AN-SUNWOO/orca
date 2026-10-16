@@ -42,7 +42,7 @@ export function CliChatResumeMenuItems({
           if (needsConfirmation) {
             setConfirmOpen(true)
           } else {
-            void runCliChatResume(source).finally(() => onComplete?.())
+            void runCliChatResume(source, false, true).finally(() => onComplete?.())
           }
         }}
       />

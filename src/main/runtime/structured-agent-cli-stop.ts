@@ -4,7 +4,13 @@ import type { StructuredAgentSessionResumeSource } from '../../shared/structured
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import { CLI_CONVERSATION_ADOPTING_AGENTS, adoptsCliConversations } from '../../shared/structured-agent-cli-conversation-adoption'
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
-import { captureDescendantSnapshot, readProcessTable } from '../pty-descendant-termination'
+import {
+  captureDescendantSnapshot,
+  DESCENDANT_SNAPSHOT_TIMEOUT_MS,
+  readProcessTable,
+  readProcessTableBeforeDeadline
+} from '../pty-descendant-termination'
+import { DESCENDANT_KILL_VERIFY_MS } from '../pty-descendant-exit-verification'
 import { findStructuredAgentCliSourceRow } from '../native-chat/structured-agent-cli-source'
 
 export type CliSourceStopHost = {
@@ -75,11 +81,7 @@ export async function inspectCliSourceWriters(
       ? true
       : await host.shellForeground(pane.ptyId).catch(() => false)
     const writerMayLive = presence !== 'exited' && !shell
-    if (
-      writerMayLive &&
-      (row !== source || (row.state !== 'done' &&
-        input.resumeFrom.cliSource?.stopRunningAgent !== true))
-    ) {
+    if (writerMayLive && (row !== source || input.resumeFrom.cliSource?.stopRunningAgent !== true)) {
       throw conflict()
     }
     if (row === source) {
@@ -134,7 +136,7 @@ export async function probeCliSourceSurvivors(
   if (process.platform === 'win32') {
     return [...survivors]
   }
-  const table = await readProcessTable().catch(() => null)
+  const table = await readProcessTableBeforeDeadline(readProcessTable, DESCENDANT_SNAPSHOT_TIMEOUT_MS)
   if (!table) {
     return [...survivors]
   }
@@ -151,10 +153,10 @@ export async function stopCliSourceAndJudge(
   identities: readonly AgentProcessIdentity[]
 ): Promise<AgentProcessIdentity[]> {
   const stopped = await host.stop(workspaceId, ptyId).catch(() => ({ postStopVerified: false }))
-  const deadline = Date.now() + 3_500
+  const deadline = Date.now() + DESCENDANT_KILL_VERIFY_MS
   let survivors = await probeCliSourceSurvivors(identities)
   while (survivors.length > 0 && Date.now() < deadline) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 50))
+    await new Promise<void>((resolve) => setTimeout(resolve, 250))
     survivors = await probeCliSourceSurvivors(survivors)
   }
   return stopped.postStopVerified ? survivors : [...identities]

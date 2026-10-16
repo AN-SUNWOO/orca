@@ -58,7 +58,7 @@ export function TerminalPaneResumeInChatButton({
               if (needsConfirmation) {
                 setConfirmOpen(true)
               } else {
-                void runCliChatResume(source, true)
+                void runCliChatResume(source, true, true)
               }
             }
           }}

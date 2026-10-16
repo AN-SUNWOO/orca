@@ -21,6 +21,7 @@ vi.mock('@/store', () => ({
   useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector({})
 }))
 vi.mock('../tab-bar/cli-chat-resume-source', () => ({
+  cliChatResumeNeedsConfirmation: () => false,
   resolveCliChatResumeSource: (_state: unknown, args: unknown) => {
     mocks.resolve(args)
     return mocks.source
@@ -38,12 +39,12 @@ it('dispatches the exact pane with owner-opening intent and shares pending', () 
       <TerminalPaneResumeInChatButton tabId="tab-1" worktreeId="wt-1" paneKey="tab-1:leaf" />
     </TooltipProvider>
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Resume in New Native Chat' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Switch to Chat (closes terminal)' }))
   expect(mocks.resolve).toHaveBeenCalledWith({
     tab: { id: 'tab-1', worktreeId: 'wt-1' },
     paneKey: 'tab-1:leaf'
   })
-  expect(mocks.run).toHaveBeenCalledWith(mocks.source, true)
+  expect(mocks.run).toHaveBeenCalledWith(mocks.source, true, true)
   mocks.pending = true
   rerender(
     <TooltipProvider>

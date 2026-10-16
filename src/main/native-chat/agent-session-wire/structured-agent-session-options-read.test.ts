@@ -40,7 +40,7 @@ describe('options at rest', () => {
       const resting = {
         child: null,
         params: { provider: 'codex' },
-        journal: { context: { floor: () => null } }
+        journal: { threadGoal: () => null, context: { floor: () => null } }
       }
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the resting read touches only these members.
       const context = {
@@ -124,7 +124,7 @@ describe('live Codex option reads', () => {
     const live = {
       child: { fence: 7 },
       params: { provider: 'codex' },
-      journal: { context: { floor: () => null } }
+      journal: { threadGoal: () => null, context: { floor: () => null } }
     }
     const failure = new Error('model/list unavailable')
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the failed read ends before touching the remaining context fields.
@@ -162,7 +162,7 @@ describe('live Codex option reads', () => {
     const live = {
       child: { fence: 7 },
       params: { provider: 'codex' },
-      journal: { context: { floor: () => null } }
+      journal: { threadGoal: () => null, context: { floor: () => null } }
     }
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this read touches only the declared context fields.
     const context = {

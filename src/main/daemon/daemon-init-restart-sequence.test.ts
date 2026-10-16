@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PROTOCOL_VERSION } from './types'
+const { recoverRetired } = vi.hoisted(() => ({ recoverRetired: vi.fn(async () => {}) }))
+vi.mock('./macos-retired-daemon-recovery', () => ({ recoverRetiredMacDaemonJobs: recoverRetired }))
 
 const {
   probeSocketExistsMock,
@@ -45,6 +47,7 @@ vi.mock('../ipc/pty/provider/listener-lifecycle', () => moduleFactories.ptyListe
 
 describe('daemon-init: runRestartDaemon (7-step sequence)', () => {
   beforeEach(() => {
+    recoverRetired.mockReset().mockResolvedValue(undefined)
     installDefaultNetConnectStub()
   })
 
@@ -79,6 +82,22 @@ describe('daemon-init: runRestartDaemon (7-step sequence)', () => {
     })
     // Ordering invariant: synthetic exits must reach the renderer *before* listeners are torn down (Step 1 before 2).
     expect(order).toEqual(['fanout', 'unbind'])
+    expect(recoverRetired).toHaveBeenCalledOnce()
+    expect(recoverRetired.mock.invocationCallOrder[0]).toBeLessThan(
+      originalAdapter.fanoutSyntheticExits.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('still restarts the current daemon when retired-daemon recovery cannot prove cleanup', async () => {
+    const mod = await importFresh()
+    await mod.initDaemonPtyProvider()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    recoverRetired.mockRejectedValueOnce(new Error('retired descendants unverifiable'))
+    await expect(mod.restartDaemon()).resolves.toBeDefined()
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('retired descendants unverifiable'))
+    expect(adapterInstances[0].fanoutSyntheticExits).toHaveBeenCalled()
+    expect(spawnerInstances[0].resetHandle).toHaveBeenCalled()
+    warn.mockRestore()
   })
 
   it('refuses a targeted restart before ending anything when another daemon owns the endpoint', async () => {
@@ -101,6 +120,7 @@ describe('daemon-init: runRestartDaemon (7-step sequence)', () => {
 
     expect(originalAdapter.fanoutSyntheticExits).not.toHaveBeenCalled()
     expect(unbindLocalProviderListenersMock).not.toHaveBeenCalled()
+    expect(recoverRetired).not.toHaveBeenCalled()
   })
 
   it('uses daemon-owned idle retirement after a failed manual-restart adoption', async () => {

@@ -574,7 +574,8 @@ describe('aiVault.listSessions handler + shared cache', () => {
     expect(response).toMatchObject({ ok: true })
     expect(scanAiVaultSessionsInService).toHaveBeenCalledWith(
       expect.objectContaining({ limit: undefined, unlimited: true }),
-      expect.any(AbortSignal)
+      expect.any(AbortSignal),
+      expect.objectContaining({ sent: expect.any(Function), work: expect.any(Function) })
     )
   })
 

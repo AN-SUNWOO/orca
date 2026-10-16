@@ -42,7 +42,7 @@ describe('OMP fresh launch intent', () => {
     expect(withFreshOmpLaunch('omp', 'powershell')).toContain(
       'omp --config "$env:ORCA_OMP_FRESH_CONFIG"'
     )
-    expect(withFreshOmpLaunch('omp', 'cmd')).toContain('omp --config "%ORCA_OMP_FRESH_CONFIG%"')
+    expect(withFreshOmpLaunch('omp', 'cmd')).toContain('omp --config "%~$ORCA_OMP_FRESH_CONFIG:!"')
   })
   it('keeps fresh intent out of saved resume command and environment', () => {
     const plan = buildAgentStartupPlan({

@@ -46,7 +46,6 @@ const rows: HostSectionRow[] = ['a', 'b', 'c'].map((id) => ({
   repo,
   depth: 0,
   groupDepth: 0,
-  lineageTrail: [],
   isLastLineageChild: false,
   lineageChildCount: 0
 }))

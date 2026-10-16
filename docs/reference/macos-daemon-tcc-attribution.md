@@ -126,6 +126,13 @@ keeps about 124 MiB.
 RPC and signal shutdown share a five-second process-exit deadline, armed before terminal teardown.
 A stalled teardown must not leave the endpoint retired while the launchd job stays alive forever.
 
+An explicit, untargeted Restart also recovers signed-helper jobs left by older builds after they
+retired their PID record and endpoint but failed to exit. Recovery uses exact launchd labels and
+arguments for this profile, ignores newer protocols, and preserves live or unreadable endpoints
+and services still publishing a PID record. It verifies descendant exits before killing the old
+root and releasing its label. Startup never runs this cleanup, and a failed recovery is logged
+without blocking the current daemon's restart. Node/SSH hosts do not perform GUI-service recovery.
+
 Running old daemons keep their terminals; settings reports app and terminal-host Full Disk Access
 separately, and a denied terminal is recovered by closing it or restarting the daemon. The packaging
 hook also gives the main bundle and every Helper the Desktop, Documents and Downloads descriptions,

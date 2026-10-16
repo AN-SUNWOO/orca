@@ -42,7 +42,11 @@ function acpMetadata(spec: AcpLaunchSpec): StructuredAgentRuntimeMetadata {
           launchCheck: {
             resolveLaunch: (shellEnv, commandSettings) => {
               const env = { ...shellEnv, ...spec.env }
-              return { command: resolveAcpLaunchCommand(spec, env, { commandSettings }), env }
+              const command = resolveAcpLaunchCommand(spec, env, {
+                commandSettings,
+                dataDirectory: null
+              })
+              return { command, env }
             },
             supportsVersion: (launch) => acpLaunchVersionSupported(spec, launch)
           }

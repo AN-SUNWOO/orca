@@ -114,9 +114,10 @@ describe('AI Vault service entry cache invalidation', () => {
       now += 1_000
       noteAiVaultScanProgress(signal)
       const progress = (): typeof sent => sent.filter((message) => message.type === 'progress')
+      const work = expect.objectContaining({ stage: 'finding' })
       expect(progress()).toEqual([
-        { type: 'progress', id: 20, units: 1 },
-        { type: 'progress', id: 20, units: 3 }
+        { type: 'progress', id: 20, units: 1, work },
+        { type: 'progress', id: 20, units: 3, work }
       ])
 
       releaseScan?.()

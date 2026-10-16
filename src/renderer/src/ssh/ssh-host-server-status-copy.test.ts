@@ -173,6 +173,24 @@ describe('SSH host server status line', () => {
     })
   })
 
+  it('says a move that stopped short is paused and kept, not a plain try-again', () => {
+    const detail = 'Could not connect to the remote Orca runtime.'
+    const state = {
+      managedServer: {
+        kind: 'relay' as const,
+        reason: 'failed' as const,
+        detail,
+        held: true as const
+      }
+    }
+    expect(sshHostServerStatusLine(plain, state)).toMatchObject({
+      tone: 'warning',
+      text: expect.stringContaining('Nothing is lost'),
+      detail
+    })
+    expect(sshConnectFailureText(state, 'raw')).toContain('Settings > Managed servers')
+  })
+
   it('puts an unserved host’s translated reason in the connect toast', () => {
     const state = {
       managedServer: { kind: 'relay' as const, reason: 'orcad_unavailable' as const }

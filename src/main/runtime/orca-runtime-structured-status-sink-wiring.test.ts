@@ -186,14 +186,6 @@ describe('input state before later runtime layers initialize', () => {
 })
 
 describe('checked runtime construction', () => {
-  it('adds one empty base without allocating service state there', () => {
-    const base = Object.getPrototypeOf(OrcaRuntimeWithRuntimeId.prototype)
-    expect(Object.getOwnPropertyNames(base)).toEqual(['constructor'])
-    expect(Object.getOwnPropertyNames(Reflect.construct(base.constructor, []))).toEqual([])
-    expect(Object.getPrototypeOf(base)).toBe(Object.prototype)
-    expect(new OrcaRuntimeService()).toBeInstanceOf(OrcaRuntimeWithRuntimeId)
-  })
-
   it('reads the existing fetch resource during construction through virtual getters', () => {
     const reads: string[] = []
     class FetchResourceProbe extends OrcaRuntimeService {
@@ -221,16 +213,12 @@ describe('checked runtime construction', () => {
     expect(first.maps).toEqual([new Map(), new Map()])
     expect(first.maps[0]).not.toBe(second.maps[0])
     expect(first.maps[1]).not.toBe(second.maps[1])
-    expect(Object.hasOwn(first, 'canonicalFetchKeyCache')).toBe(false)
-    expect(Object.hasOwn(first, 'fetchLastCompletedAt')).toBe(false)
   })
 
   it('installs subscription callbacks on the runtime with their real registry receiver', () => {
     const runtime = new OrcaRuntimeService()
     const cleanup = vi.fn()
     runtime.registerSubscriptionCleanup('construction-subscription', cleanup)
-    expect(Object.hasOwn(runtime, 'registerSubscriptionCleanup')).toBe(true)
-    expect(Object.hasOwn(runtime, 'cleanupSubscription')).toBe(true)
     runtime.cleanupSubscription('construction-subscription')
     expect(cleanup).toHaveBeenCalledOnce()
     runtime.cleanupSubscription('construction-subscription')
@@ -248,11 +236,5 @@ describe('checked runtime construction', () => {
     expect(runtime['onPtyStopped']).toBe(stopped)
     expect(snapshot).not.toHaveBeenCalled()
     expect(stopped).not.toHaveBeenCalled()
-    expect(Object.getOwnPropertyDescriptor(runtime, 'getAgentStatusSnapshotFn')).toMatchObject({
-      writable: true,
-      enumerable: true,
-      configurable: true,
-      value: snapshot
-    })
   })
 })

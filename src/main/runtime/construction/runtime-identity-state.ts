@@ -83,6 +83,9 @@ export abstract class OrcaRuntimeWithRuntimeId extends RuntimeConstructionServic
 
   protected headlessGraphFallbackAvailable = false
 
+  /** Unlike the fallback flag, promotion never clears this: a serve host owns its graph for life. */
+  protected servesHeadlessGraph = false
+
   protected pendingHeadlessPromotionWindowId: number | null = null
 
   protected rendererGeneration: string | null = null

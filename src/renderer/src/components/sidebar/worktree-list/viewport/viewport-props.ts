@@ -1,3 +1,4 @@
+import type { WorktreeOccurrencePlan } from '../../../../../../shared/worktree-occurrence-plan'
 import type React from 'react'
 import type { AppState } from '@/store/types'
 import type { VirtualizedScrollAnchor } from '@/hooks/useVirtualizedScrollAnchor'
@@ -26,6 +27,7 @@ import type { PinnedWorktreeDisplayPolicy, WorktreeGroupBy } from '../grouping/r
 
 export const EMPTY_PROJECT_GROUPS: readonly ProjectGroup[] = []
 export type VirtualizedWorktreeViewportProps = {
+  occurrencePlan?: WorktreeOccurrencePlan<Worktree>
   rows: HostSectionRow[]
   activeWorktreeId: string | null
   activeWorkspaceExecutionHostId: ExecutionHostId | null

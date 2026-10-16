@@ -14,10 +14,12 @@ import type {
   AgentSessionMutationResult,
   AgentSessionOptionResult,
   AgentSessionPromptResult,
-  AgentSessionSendResult,
+  AgentSessionSendResult
+} from '../../../shared/agent-session-wire'
+import type {
   AgentSessionThreadGoalChange,
   AgentSessionThreadGoalResult
-} from '../../../shared/agent-session-wire'
+} from '../../../shared/agent-session-thread-goal-wire'
 import type { AgentSessionPromptRequest } from './structured-agent-session-turns-prompt'
 import { threadGoalPlan } from './structured-agent-session-thread-goal'
 import {

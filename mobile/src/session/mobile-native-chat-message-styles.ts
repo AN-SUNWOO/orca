@@ -2,6 +2,11 @@ import { StyleSheet } from 'react-native'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 
 export const TEXT_SIZE = 17
+
+/** Pinch-zoomed type keeps its leading, so zoomed lines never overlap. */
+export function scaledType(size: number, fontScale: number, leading = 6) {
+  return { fontSize: size * fontScale, lineHeight: (size + leading) * fontScale }
+}
 export const MONO_SIZE = 12
 
 export const styles = StyleSheet.create({

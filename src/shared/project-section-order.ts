@@ -40,7 +40,7 @@ export function recentRankForEntry(
   entry: readonly [string, ProjectSectionEntry<ActivityItem, ProjectSectionRepo>]
 ): RecentRank {
   let max = Number.NEGATIVE_INFINITY
-  for (const worktree of entry[1].items) {
+  for (const worktree of entry[1].activityItems ?? entry[1].items) {
     // Why: phone rows from older hosts may omit the timestamp; the desktop's always carry one.
     if ((worktree.lastActivityAt ?? Number.NEGATIVE_INFINITY) > max) {
       max = worktree.lastActivityAt ?? max

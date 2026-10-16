@@ -70,6 +70,7 @@ export type RuntimeStore = {
   persistPtyBinding?: Store['persistPtyBinding']
   admitTerminalPane?: Store['admitTerminalPane']
   withdrawTerminalPane?: Store['withdrawTerminalPane']
+  applyLayoutCommand?: Store['applyLayoutCommand']
   getSshRemotePtyLeases?: Store['getSshRemotePtyLeases']
   getUI?: Store['getUI']
   onUIChanged?: Store['onUIChanged']

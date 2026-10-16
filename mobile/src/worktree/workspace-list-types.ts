@@ -1,11 +1,16 @@
 import type { ExecutionHostId } from '../../../src/shared/execution-host'
 import type { AgentWorkingMode } from '../../../src/shared/agent-status-types'
-import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
+import type {
+  RuntimeWorktreeAgentRow,
+  RuntimeWorktreePsSummary
+} from '../../../src/shared/runtime-types'
 import type { ProjectSectionRepo } from '../../../src/shared/project-section-grouping'
 import type { WorkspaceRowFilters } from '../../../src/shared/workspace-view/workspace-row-filters'
 
 export type Worktree = {
   sectionListKey?: string
+  /** Show the existing project-name surface for a child from another repo. */
+  showProjectName?: boolean
   workspaceKind?: 'git' | 'folder-workspace'
   worktreeId: string
   repoId: string
@@ -58,6 +63,8 @@ export type Worktree = {
   linkedLinearIssue?: string | null
   linkedGitLabMR?: number | null
   linkedGitLabIssue?: number | null
+  /** Every linked issue and review; hosts before the attachment list omit it. Unchecked wire data. */
+  linkedItems?: RuntimeWorktreePsSummary['linkedItems']
   comment?: string
   status?: 'working' | 'active' | 'permission' | 'done' | 'inactive'
   workingMode?: AgentWorkingMode

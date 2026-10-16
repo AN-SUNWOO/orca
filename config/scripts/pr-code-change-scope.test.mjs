@@ -204,10 +204,9 @@ describe('per-job path classification', () => {
   })
 
   it('runs native package jobs only for the platform that ships the changed native', () => {
-    expectClassification(['native/windows-cli-launcher/src/main.rs'], {
-      package_windows: true
-    })
-    expectClassification(['native/computer-use-linux/runtime.py'], {
+    expectClassification(['native/windows-cli-launcher/src/main.rs'], { package_windows: true })
+    expectClassification(['native/computer-use-linux/runtime.py'], { package: true })
+    expectClassification(['native/wayland-clipboard/wayland-clipboard.c'], {
       package: true
     })
     expectClassification(['native/computer-use-macos/Package.swift'], {})
@@ -220,6 +219,7 @@ describe('per-job path classification', () => {
       'config/scripts/process-failure-message.mjs',
       'config/scripts/space-sharing-copy.mjs',
       '.github/actions/prepare-linux-package-fixture/action.yml',
+      '.github/actions/prepare-wayland-clipboard/action.yml',
       'config/docker/cli-launch-contract/Dockerfile',
       'config/docker/cli-launch-contract/run-cli-case.sh',
       'config/docker/headless-pairing/Dockerfile',

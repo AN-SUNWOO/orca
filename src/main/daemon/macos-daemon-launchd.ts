@@ -13,6 +13,7 @@ import { DaemonEndpointOwnershipError, holdDaemonAdoptionLease } from './daemon-
 import { buildDaemonScriptArgs, type DaemonChildSpawnOptions } from './daemon-launched-child-spawn'
 import { PROTOCOL_VERSION } from './daemon-protocol-version'
 import type { DaemonProcessHandle } from './daemon-spawner'
+import { DAEMON_SHUTDOWN_TIMEOUT_MS } from './daemon-shutdown-deadline'
 import {
   getMacDaemonBundleRoot,
   materializeMacDaemonBundle,
@@ -139,8 +140,12 @@ export async function launchMacDaemonFromStableBundle(
     return fallBackToFork(reason, error, deadlineMs)
   }
 
-  // A stopped job from an earlier daemon holds the label; a running one may own the endpoint.
-  if (!(await releaseMacDaemonJob(service))) {
+  // Reserve bootstrap/readiness time while shutdown and launchd finish retiring the old job.
+  const releaseByMs = Math.min(
+    Date.now() + DAEMON_SHUTDOWN_TIMEOUT_MS + 2_000,
+    deadlineMs - BOOTSTRAP_TIMEOUT_MS - STARTUP_TIMEOUT_MS
+  )
+  if (!(await releaseMacDaemonJob(service, releaseByMs))) {
     throw new Error('A macOS terminal service from an earlier launch is still registered')
   }
   // The inherited environment can contain credentials; never leave it on disk after bootstrap.

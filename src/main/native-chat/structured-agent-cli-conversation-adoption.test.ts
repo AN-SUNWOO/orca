@@ -39,8 +39,9 @@ const SESSION_ID = '0198c2a4-7d1e-7c3a-9a4b-1f2e3d4c5b6a'
 let root: string | null = null
 
 beforeEach(() => {
-  // Grok also looks where Session History lists it from; keep that off the real home.
+  // Grok and Pi also look where Session History lists them from; keep that off the real home.
   vi.stubEnv('GROK_HOME', join(tmpdir(), 'orca-adopt-no-grok-home'))
+  vi.stubEnv('PI_CODING_AGENT_DIR', join(tmpdir(), 'orca-adopt-no-pi-home'))
 })
 
 afterEach(async () => {
@@ -54,7 +55,7 @@ afterEach(async () => {
 })
 
 /** Each agent's CLI conversation as its own CLI lays it out under an account home. */
-const RECORDED: Record<'grok' | 'omp', (home: string, text: string) => Promise<string>> = {
+const RECORDED: Record<'grok' | 'omp' | 'pi', (home: string, text: string) => Promise<string>> = {
   grok: async (home, text) => {
     const dir = join(home, 'sessions', encodeURIComponent('/repo/orca'), SESSION_ID)
     await mkdir(dir, { recursive: true })
@@ -90,11 +91,46 @@ const RECORDED: Record<'grok' | 'omp', (home: string, text: string) => Promise<s
         .join('\n')
     )
     return file
+  },
+  // Pi's documented format: a system message carries the prompt in `sections`, its content empty.
+  pi: async (home, text) => {
+    const dir = join(home, 'sessions', '--repo-orca--')
+    await mkdir(dir, { recursive: true })
+    const file = join(dir, `2026-10-12T00-00-00-000Z_${SESSION_ID}.jsonl`)
+    const records = [
+      { type: 'session', version: 3, id: SESSION_ID, cwd: '/repo/orca' },
+      {
+        type: 'message',
+        id: 'a0b1c2d3',
+        parentId: null,
+        message: { role: 'system', content: '', sections: { preamble: 'You are Pi' } }
+      },
+      {
+        type: 'message',
+        id: 'a1b2c3d4',
+        parentId: 'a0b1c2d3',
+        message: { role: 'user', content: text, timestamp: 1_791_763_201_000 }
+      },
+      {
+        type: 'message',
+        id: 'b2c3d4e5',
+        parentId: 'a1b2c3d4',
+        message: { role: 'assistant', content: [{ type: 'text', text: 'Hi!' }], stopReason: 'stop' }
+      }
+    ]
+    await writeFile(file, `${records.map((record) => JSON.stringify(record)).join('\n')}\n`)
+    return file
   }
 }
 
+const ACCOUNT_VARIABLE = {
+  grok: 'GROK_HOME',
+  omp: 'PI_CODING_AGENT_DIR',
+  pi: 'PI_CODING_AGENT_DIR'
+}
+
 function adopt(
-  agent: 'grok' | 'omp' | 'opencode',
+  agent: 'grok' | 'omp' | 'opencode' | 'pi',
   selectedAccountHome: AgentSessionAccountHome,
   providerSessionId = SESSION_ID,
   launchEnv: NodeJS.ProcessEnv = process.env,
@@ -287,15 +323,15 @@ it('refuses OMP history from another workspace without creating a blank chat', a
   })
 })
 
-describe.each(['grok', 'omp'] as const)('adopting a %s CLI conversation', (agent) => {
+describe.each(['grok', 'omp', 'pi'] as const)('adopting a %s CLI conversation', (agent) => {
   it('finds the conversation under the chat account and imports its history', async () => {
     root = await mkdtemp(join(tmpdir(), `orca-${agent}-adopt-`))
     const recorded = await RECORDED[agent](root, `ORCA-${agent}-ADOPT`)
-
-    const accountHome = {
-      variable: agent === 'grok' ? 'GROK_HOME' : 'PI_CODING_AGENT_DIR',
-      path: root
+    if (agent === 'pi') {
+      vi.stubEnv('PI_CODING_AGENT_DIR', root)
     }
+
+    const accountHome = { variable: ACCOUNT_VARIABLE[agent], path: root }
     const adoption = await adopt(agent, accountHome)
 
     expect(adoption).toEqual({ accountHome, transcriptPath: recorded })
@@ -305,14 +341,36 @@ describe.each(['grok', 'omp'] as const)('adopting a %s CLI conversation', (agent
       options: { filePath: adoption.transcriptPath }
     })
     expect(imported.ok && JSON.stringify(imported.items)).toContain(`ORCA-${agent}-ADOPT`)
+    if (agent === 'pi' && imported.ok) {
+      expect(imported.items.map((item) => item.body.kind === 'message' && item.body.role)).toEqual([
+        'user',
+        'assistant'
+      ])
+    }
   })
 
   it('refuses a conversation the account does not hold, rather than opening a blank chat', async () => {
     root = await mkdtemp(join(tmpdir(), `orca-${agent}-adopt-missing-`))
     await expect(
-      adopt(agent, { variable: agent === 'grok' ? 'GROK_HOME' : 'PI_CODING_AGENT_DIR', path: root })
+      adopt(agent, { variable: ACCOUNT_VARIABLE[agent], path: root })
     ).rejects.toMatchObject({
       refusal: { code: 'agent_session_identity_required' }
+    })
+  })
+})
+
+describe('adopting a Pi CLI conversation', () => {
+  it('pins the Session History account when another Pi home has the same id', async () => {
+    root = await mkdtemp(join(tmpdir(), 'orca-pi-adopt-homes-'))
+    const selected = join(root, 'selected')
+    const history = join(root, 'history')
+    await RECORDED.pi(selected, 'SELECTED')
+    const source = await RECORDED.pi(history, 'HISTORY')
+    vi.stubEnv('PI_CODING_AGENT_DIR', history)
+
+    expect(await adopt('pi', { variable: 'PI_CODING_AGENT_DIR', path: selected })).toEqual({
+      accountHome: { variable: 'PI_CODING_AGENT_DIR', path: history },
+      transcriptPath: source
     })
   })
 })
@@ -352,7 +410,8 @@ describe('adopting an OpenCode CLI conversation', () => {
     const launch = await resolveAcpLaunchInvocation(spec, unmanaged, {
       resolveEnvironment: async () => baseEnvironment,
       resolveLaunchEnv: () => launchEnv,
-      resolveCommand: () => '/test/opencode'
+      resolveCommand: () => '/test/opencode',
+      dataDirectory: root
     })
 
     expect(adoption.transcriptPath).toBe(configuredDb)

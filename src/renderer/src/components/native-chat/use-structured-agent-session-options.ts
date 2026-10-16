@@ -298,6 +298,8 @@ export function useStructuredAgentSessionOptions(args: {
     conversationCommands: support?.commands ?? [],
     /** Absent unless this host and session can change the goal. */
     threadGoal: support?.threadGoal,
+    /** A goal only the agent's own `/goal` changes; absent from a host that predates it. */
+    reportedThreadGoal: support?.reportedThreadGoal,
     /** Absent from a host that predates it or a session that writes no context facts. */
     contextUsage: support?.contextUsage,
     /** Absent from a host that predates it, and until the options read answers. */

@@ -18,6 +18,7 @@ import { buildMobileSessionTabSnapshots } from './mobile-session-snapshots'
 import { isWebOnlyMirroredTerminalTab } from './mobile-session-surfaces'
 import { resolveRuntimeTerminalTitle } from './sync-projections'
 import { measureTerminalGroupGridSizes } from './terminal-group-grid-sizes'
+import { getProjectSectionCatalogFromState } from './project-section-catalog'
 import {
   collectAmbiguousTerminalTabIds,
   graphState,
@@ -60,6 +61,7 @@ export async function syncRuntimeGraph(): Promise<void> {
   )
   const publication = partitionMobileSessionPublication(mobileSessionTabs)
   const gridSizes = measureTerminalGroupGridSizes(state.settings?.terminalFontSize ?? 14)
+  const projectSectionCatalog = getProjectSectionCatalogFromState(state)
   const graph: RuntimeRendererSyncWindowGraph = {
     tabs: [],
     leaves: [],
@@ -69,6 +71,9 @@ export async function syncRuntimeGraph(): Promise<void> {
     ...(gridSizes ? { terminalGroupGridSizes: gridSizes.groups } : {}),
     ...(gridSizes?.singleGroupWorkspace
       ? { singleGroupWorkspaceGridSize: gridSizes.singleGroupWorkspace }
+      : {}),
+    ...(projectSectionCatalog && projectSectionCatalog !== graphState.publishedProjectSectionCatalog
+      ? { projectSectionCatalog }
       : {})
   }
 
@@ -198,6 +203,8 @@ export async function syncRuntimeGraph(): Promise<void> {
   try {
     const result = await window.api.runtime.syncWindowGraph(graph)
     graphState.publishedTerminalGroupGridSizesKey = JSON.stringify(gridSizes ?? null)
+    graphState.publishedProjectSectionCatalog =
+      projectSectionCatalog ?? graphState.publishedProjectSectionCatalog
     commitMobileSessionPublication(mobileSessionTabs, result?.mobileSessionResyncWorktrees)
     const currentState = graphState.getStoreState()
     currentState?.setRuntimeAgentOrchestrationByPaneKey?.(result?.agentOrchestrationByPaneKey ?? {})

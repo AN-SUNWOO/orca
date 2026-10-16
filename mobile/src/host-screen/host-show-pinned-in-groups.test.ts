@@ -43,11 +43,13 @@ function screenState(clientRef: ClientRef, applied: boolean[]) {
     newWorktreeModalVisibleRef: { current: false },
     repoMetadataFetchedAtRef: { current: 0 },
     worktreeCatalogRef: { current: null },
+    viewRef: { current: null },
     setShowPinnedInGroups: (show: boolean) => applied.push(show),
     ...Object.fromEntries(
       [
         'setActionError',
         'setCatalogError',
+        'setDesktopRepos',
         'setError',
         'setHostLabelById',
         'setHostHealthById',
@@ -57,9 +59,9 @@ function screenState(clientRef: ClientRef, applied: boolean[]) {
         'setLastKnownWorktrees',
         'setOptimisticActiveWorktreeIdentity',
         'setPinnedIds',
-        'setRepoColorsByName',
+        'setView',
         'setRepoHostIdByRepoId',
-        'setRepoIconsByName',
+        'setServedProjectSections',
         'setSleptIds',
         'setWorktrees',
         'setWorktreesLoaded'

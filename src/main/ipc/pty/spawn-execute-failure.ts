@@ -29,8 +29,8 @@ export function failPtySpawnExecute(
     /** This spawn minted the session id, so the state built for it must go. */
     ownsNewSession: boolean
     telemetry: { agent_kind?: unknown } | undefined
-    // TEMPORARY(C5a-2): keeps host starts out of agent_error as on main; C5a-2 deletes this input.
-    recordsAgentError: boolean
+    /** This request awaited another request's claimed start, whose own catch records its failure. */
+    joinedAnotherStart?: boolean
   }
 ): Error {
   const runtime = ctx.deps.runtime
@@ -79,7 +79,7 @@ export function failPtySpawnExecute(
     : ctx.isClaudeLaunch
       ? ('claude-code' as const)
       : null
-  if (lane.recordsAgentError && agentKind) {
+  if (agentKind && !lane.joinedAnotherStart) {
     track('agent_error', {
       agent_kind: agentKind,
       error_class: classifyError(spawnError).error_class,

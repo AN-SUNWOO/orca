@@ -259,9 +259,22 @@ describe('migrating saved state from released SSH clients', () => {
       expect(census(state).counts['workspace-session']).toBe(1)
     })
 
-    it('refuses when the host holds an empty tab list and local holds tabs', () => {
+    // #27281: the app shows the local tabs here, because an empty row is not a close.
+    it('exports the local tabs when the host holds an empty tab list', () => {
       const { state, local, host } = split()
       host.tabsByWorktree = { [WORKTREE]: [] }
+      local.tabsByWorktree = { [WORKTREE]: [terminal('local')] }
+      expect(census(state).totalCount).toBe(0)
+      const session = exportState(state).payload.dormantState?.workspaceSession
+      expect(session?.tabsByWorktree[WORKTREE]?.map((tab) => tab.id)).toEqual(['local'])
+    })
+
+    it('refuses an empty host row beside local tabs the host recorded as closed', () => {
+      const { state, local, host } = split()
+      host.tabsByWorktree = { [WORKTREE]: [] }
+      host.closedTerminalTabTombstonesByTabId = {
+        local: { worktreeId: WORKTREE, reason: 'user', closedAt: Date.now() }
+      }
       local.tabsByWorktree = { [WORKTREE]: [terminal('local')] }
       expect(census(state).counts['workspace-session']).toBe(1)
     })

@@ -11,6 +11,7 @@ import { agentSessionFailureWords } from '../../../shared/agent-session-failure-
 import { computeAgentSessionPayloadFingerprint } from '../../../shared/agent-session-mutation-envelope'
 import type { AgentJournalSubmission } from '../../../shared/agent-session-journal-types'
 import type { AgentSessionQueuePause } from '../../../shared/agent-session-wire'
+import type { AgentSessionExecutionLocation } from '../../../shared/agent-session-record'
 import type { AgentMessageSource } from '../../../shared/agent-session-message-source'
 import { agentSessionMessagePayload } from '../../../shared/structured-agent-session-send-mutation'
 import { openTestAgentSessionRecordStore } from '../../runtime/agent-session-record-store-test-harness'
@@ -54,6 +55,8 @@ export async function createQueuedMessageTestRig(
     idleSweep?: { idleMs: number; intervalMs: number }
     /** Teardown records its restart offers, which `restartOffers` lists. */
     recoveryCapsule?: true
+    /** Where the chat runs, when not the default worktree. */
+    location?: AgentSessionExecutionLocation
   } = {}
 ) {
   const root = await mkdtemp(join(tmpdir(), 'orca-queued-messages-'))
@@ -75,9 +78,11 @@ export async function createQueuedMessageTestRig(
       ...(options.recoveryCapsule ? { recoveryCapsule: new AgentSessionRecoveryCapsule(root) } : {})
     })
   let host = makeHost()
-  expect(await host.attach(QUEUED_RIG_CALLER, hostTestAttachParams(null))).toMatchObject({
-    ok: true
-  })
+  const firstAttach = hostTestAttachParams(
+    null,
+    options.location ? { location: options.location } : {}
+  )
+  expect(await host.attach(QUEUED_RIG_CALLER, firstAttach)).toMatchObject({ ok: true })
 
   function envelope(
     fields: Record<string, unknown>,

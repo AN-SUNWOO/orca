@@ -31,7 +31,10 @@ export type AgentAttentionDeliveryRequest = {
 }
 
 export type AgentAttentionDecision =
-  | { admitted: false; cause: 'no-live-session' | 'unknown-surface' | 'superseded-surface' }
+  | {
+      admitted: false
+      cause: 'muted-workspace' | 'no-live-session' | 'unknown-surface' | 'superseded-surface'
+    }
   | {
       admitted: true
       unread: AgentAttentionUnreadWrite | null
@@ -56,6 +59,10 @@ export function resolveAgentAttention(
   surface: AgentAttentionSurface
 ): AgentAttentionDecision {
   const { workspaceId } = request.subject
+  // Why first: a muted workspace earns nothing, so unread, banner, sound and push stay in agreement.
+  if (surface.isWorkspaceMuted(workspaceId)) {
+    return { admitted: false, cause: 'muted-workspace' }
+  }
   const subjectKey = request.subject.surfaceKey ?? null
   const hasLiveSession = surface.hasLiveSession(request.subject)
   if (!hasLiveSession && !request.hasFreshActivityEvidence) {

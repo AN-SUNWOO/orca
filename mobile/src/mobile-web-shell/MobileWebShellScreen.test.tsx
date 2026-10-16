@@ -47,6 +47,7 @@ import {
   readBridgeHostMessage
 } from './bridge/bridge-envelope'
 import { MobileWebShellScreen } from './MobileWebShellScreen'
+import { connectionLogStore } from '../transport/persisted-connection-log-store'
 import type { MobileWebShellSessionState } from './mobile-web-shell-session-contract'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 
@@ -244,8 +245,12 @@ describe('the hybrid shell screen', () => {
     // page re-posting `ready` on its backoff for as long as the screen is open.
     dependencies.snapshotUnreadable = true
     const warned = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const logged = () => connectionLogStore.get('host-1').map((entry) => entry.message)
+    const before = logged().length
     await renderScreen(readyState('session-one'))
     expect(dependencies.reportShellFailure.mock.calls).toEqual([['document-load-failed']])
+    // Named in the exported log, not only as the generic failure it causes.
+    expect(logged().slice(before)).toEqual(['Web shell: host profile unreadable'])
     warned.mockRestore()
   })
 

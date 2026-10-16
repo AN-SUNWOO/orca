@@ -113,8 +113,6 @@ import {
 } from '../../../shared/setup-agent-sequencing'
 import { FOLDER_WORKSPACE_INSTANCE_SEPARATOR } from '../../../shared/worktree/id'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
-import { RpcDispatcher } from '../rpc/dispatcher'
-import { TERMINAL_METHODS } from '../rpc/methods/terminal'
 import { beginWatcherInstall } from '../../ipc/watcher-removal-gate'
 import { WATCHER_REMOVAL_DRAIN_BUDGET_MS } from '../../ipc/watcher-removal-drain'
 import {
@@ -146,7 +144,6 @@ export const exportedOrchestrationDb = RuntimeOrchestrationDb
 export const exportedREVIEW_HEAD_FETCH_TIMEOUT_MS = REVIEW_HEAD_FETCH_TIMEOUT_MS
 export const exportedRUNTIME_GRAPH_RELOAD_TIMEOUT_MS = RUNTIME_GRAPH_RELOAD_TIMEOUT_MS
 export const exportedRecentPtyOutputBuffer = RecentPtyOutputBuffer
-export const exportedRpcDispatcher = RpcDispatcher
 export const exportedRuntimeBrowserCommands = RuntimeBrowserCommands
 export const exportedSETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV =
   SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV
@@ -155,7 +152,6 @@ export const exportedSETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV =
 export const exportedTERMINAL_INPUT_CHUNK_MAX_BYTES = TERMINAL_INPUT_CHUNK_MAX_BYTES
 export const exportedTERMINAL_INPUT_MAX_BYTES = TERMINAL_INPUT_MAX_BYTES
 export const exportedTERMINAL_INPUT_TOO_LARGE_ERROR = TERMINAL_INPUT_TOO_LARGE_ERROR
-export const exportedTERMINAL_METHODS = TERMINAL_METHODS
 export const exportedTUI_AGENT_CONFIG = TUI_AGENT_CONFIG
 export const exportedWATCHER_REMOVAL_DRAIN_BUDGET_MS = WATCHER_REMOVAL_DRAIN_BUDGET_MS
 export const exportedWORKTREE_PROCESS_SWEEP_TIMEOUT_MS = WORKTREE_PROCESS_SWEEP_TIMEOUT_MS

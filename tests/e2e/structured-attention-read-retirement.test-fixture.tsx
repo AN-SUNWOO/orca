@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import '../../src/main/runtime/rpc/unused-default-rpc-methods.test-fixture'
 import { transport } from './__mocks__/structured-attention-read-surfaces'
 import { cleanup } from '@testing-library/react'
 import { beforeEach, afterEach, vi } from 'vitest'
@@ -55,7 +56,8 @@ export const NOTIFICATION_SETTINGS: NotificationSettings = {
   customSoundId: 'system',
   customSoundPath: null,
   customSoundVolume: 1,
-  mutedNotificationSourceIds: []
+  mutedNotificationSourceIds: [],
+  notifyHiddenWorkspaces: false
 }
 export const SCOPE = {
   executionHostId: 'local',
@@ -208,6 +210,7 @@ beforeEach(() => {
   const delivery = createStructuredAttentionMobileDelivery({
     readNotificationSettings: () => ({ ...NOTIFICATION_SETTINGS, suppressWhenFocused: false }),
     readWorkspaceLabels: () => ({}),
+    isWorkspaceHidden: () => false,
     dispatch: (event) => controller.dispatch(event),
     reconcile: (state) => controller.reconcileStructuredPromptAttention(state),
     now: () => 42

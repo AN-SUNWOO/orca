@@ -122,7 +122,7 @@ function rewriteValue(
 ): string {
   switch (kind) {
     case 'worktree-id':
-      return rewriteWorktreeId(value, rewriter)
+      return rewriteOrcadMigrationWorktreeId(value, rewriter)
     case 'owner-key':
       return rewriteOwnerKey(value, rewriter)
     case 'pty-session-id':
@@ -137,7 +137,11 @@ function rewriteValue(
   }
 }
 
-function rewriteWorktreeId(value: string, rewriter: OrcadMigrationPathRewriter): string {
+/** The worktree id the destination will hold for `value`, as the catalog rewrite computes it. */
+export function rewriteOrcadMigrationWorktreeId(
+  value: string,
+  rewriter: OrcadMigrationPathRewriter
+): string {
   const parsed = splitWorktreeId(value)
   if (!parsed || !parsed.repoId || !parsed.worktreePath) {
     return value
@@ -159,10 +163,10 @@ function rewriteOwnerKey(value: string, rewriter: OrcadMigrationPathRewriter): s
     return value
   }
   if (scope?.type === 'worktree') {
-    const mapped = rewriteWorktreeId(scope.worktreeId, rewriter)
+    const mapped = rewriteOrcadMigrationWorktreeId(scope.worktreeId, rewriter)
     return mapped === scope.worktreeId ? value : `worktree:${mapped}`
   }
-  return rewriteWorktreeId(value, rewriter)
+  return rewriteOrcadMigrationWorktreeId(value, rewriter)
 }
 
 function rewritePtySessionId(value: string, rewriter: OrcadMigrationPathRewriter): string {
@@ -187,7 +191,7 @@ function rewriteEditorFileId(value: string, rewriter: OrcadMigrationPathRewriter
     return value
   }
   const [worktreeId, runtime, filePath] = decoded
-  const mappedWorktreeId = rewriteWorktreeId(worktreeId, rewriter)
+  const mappedWorktreeId = rewriteOrcadMigrationWorktreeId(worktreeId, rewriter)
   const mappedFilePath = rewriter.path(filePath, 'absolute')
   if (mappedWorktreeId === worktreeId && mappedFilePath === filePath) {
     return value

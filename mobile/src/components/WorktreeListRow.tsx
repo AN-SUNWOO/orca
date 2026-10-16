@@ -52,6 +52,7 @@ function WorktreeListRowComponent({
   const metaText = isFolderWorkspace ? folderMeta : displayBranch(item.branch)
   const lineageDepth = Math.max(0, item.lineageDepth ?? 0)
   const lineageChildCount = item.lineageChildCount ?? 0
+  const shouldHideRepo = hideRepo && !item.showProjectName
 
   return (
     <Pressable
@@ -147,7 +148,7 @@ function WorktreeListRowComponent({
           {/* Repo glyph+name only when not already grouped under this repo;
               MobileRepoIcon falls back to a Folder (matching desktop's default)
               rather than a bare colored dot. */}
-          {!hideRepo && (
+          {!shouldHideRepo && (
             <>
               <MobileRepoIcon repoIcon={repoIcon} size={11} color={repoColor} />
               <Text style={styles.repoName} numberOfLines={1}>
@@ -285,7 +286,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     fontFamily: typography.monoFamily,
-    flexShrink: 1
+    // Why: path takes only leftover space so badges truncate last.
+    flex: 1
   },
   childBadge: {
     flexDirection: 'row',

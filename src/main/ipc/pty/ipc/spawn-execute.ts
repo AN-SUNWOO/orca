@@ -107,8 +107,7 @@ export async function executePtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<void> {
     throw failPtySpawnExecute(ctx, err, {
       sessionId: ctx.effectiveSessionId,
       ownsNewSession: ctx.isMintedSessionId,
-      telemetry: args.telemetry,
-      recordsAgentError: true
+      telemetry: args.telemetry
     })
   } finally {
     if (ctx.preAllocatedHandle) {

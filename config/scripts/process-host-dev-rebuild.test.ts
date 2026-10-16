@@ -69,6 +69,7 @@ function fixture(): { root: string; packageDir: string; main: string } {
       extends: '../../../tsconfig.base.json',
       compilerOptions: {
         target: 'ES2022',
+        lib: ['ES2022'],
         module: 'Node16',
         moduleResolution: 'Node16',
         rootDir: 'src',

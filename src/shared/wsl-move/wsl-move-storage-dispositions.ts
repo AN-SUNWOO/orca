@@ -103,6 +103,7 @@ export const SQLITE_SCHEMA_FILE_DATABASES: Record<string, string> = {
     'agent-session-journal',
   'src/main/native-chat/agent-session-journal/command-receipt-schema.ts': 'agent-session-journal',
   'src/main/native-chat/agent-session-journal/journal-database-schema.ts': 'agent-session-journal',
+  'src/main/native-chat/agent-session-journal/journal-pi-active-branch.ts': 'pi-branch-import',
   'src/main/native-chat/agent-session-journal/queued-message-schema.ts': 'agent-session-journal',
   'src/main/persistence/profile-state/profile-state-database-schema.ts': 'profile-state',
   'src/main/runtime/orchestration/db/schema/create-core-tables-sql.ts': 'orchestration',
@@ -220,6 +221,11 @@ export const SQLITE_TABLE_DISPOSITIONS: Record<string, WslMoveFieldDisposition> 
       'browser-cookie-import',
       ['${IMPORT_SCOPE_TABLE}'],
       notApplicableDisposition(58, 'Cookie import staging; the partition is bound, not copied.')
+    ),
+    ...tables(
+      'pi-branch-import',
+      ['entries'],
+      notApplicableDisposition(52, 'Operation-local Pi import scratch, outside workspace state.')
     ),
     ...tables(
       'test-fixture',

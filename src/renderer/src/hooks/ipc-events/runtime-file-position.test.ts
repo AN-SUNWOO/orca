@@ -173,7 +173,11 @@ it('scopes the floating reveal to its selected split pane', () => {
   if (!siblingGroupId) {
     throw new Error('Split missing')
   }
-  store.getState().copyUnifiedTabToGroup(tab.id, siblingGroupId)
+  store.getState().createUnifiedTab(FLOATING, tab.contentType, {
+    entityId: tab.entityId,
+    label: tab.label,
+    targetGroupId: siblingGroupId
+  })
   store.getState().focusGroup(FLOATING, tab.groupId)
   position(fileId, { line: 300, column: 7 }, true)
   flushFrames()

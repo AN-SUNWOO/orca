@@ -1,3 +1,4 @@
+import { settledDaemonRestart } from '../../daemon/daemon-restart-state'
 import { getAppEnvironment } from '../../../shared/app-environment'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import type { Store } from '../../persistence'
@@ -104,7 +105,12 @@ export function registerPtyHandlers(
       return undefined
     }
     // Why: during cold start the daemon provider swap overlaps first paint, so local spawns must wait; SSH/headless don't use the desktop daemon.
-    return options?.awaitLocalPtyStartup?.()
+    const startup = options?.awaitLocalPtyStartup?.()
+    // A pane replaced by a restart spawns while it runs; it must reach the new daemon, not the old.
+    const restart = settledDaemonRestart()
+    return startup && restart
+      ? Promise.all([startup, restart]).then(() => undefined)
+      : (startup ?? restart)
   }
 
   const getLocalPtyProviderStartupPromise = (

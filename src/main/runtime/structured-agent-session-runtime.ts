@@ -51,10 +51,7 @@ import {
 import type { NativeChatShellEnvironmentPolicy } from '../../shared/native-chat-shell-environment'
 import { createStructuredAgentEnvironmentResolvers } from './structured-agent-shell-environment'
 import type { ClaudeStructuredAuthPolicy } from '../claude-accounts/claude-structured-auth-policy'
-import {
-  STRUCTURED_AGENT_RUNTIME_REGISTRATIONS,
-  type StructuredAgentAdapterContext
-} from './structured-agent-runtime-registrations'
+import type { StructuredAgentAdapterContext } from './structured-agent-runtime-registration-types'
 import { createStructuredAgentSessionLifecycleDelivery } from './structured-agent-session-lifecycle-delivery'
 import { createStructuredAgentSessionDispatchFollowUps } from './structured-agent-session-dispatch-followups'
 import { agentModelCatalogStore } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
@@ -67,10 +64,8 @@ import {
   type RuntimeAgentAccountHomeResolver
 } from './structured-agent-model-catalog-wiring'
 import type { ClaudeCliFlagSupport } from '../claude/claude-cli-flag-support'
-import {
-  scheduleNativeChatVisualsSweep,
-  type NativeChatVisualsSweepDeps
-} from '../native-chat/native-chat-visuals-sweep'
+import { scheduleNativeChatVisualsSweep } from '../native-chat/native-chat-visuals-sweep'
+import { readJournalSessionLastActivityAt } from '../native-chat/agent-session-journal/journal-row-table'
 
 /** Whether this profile holds a structured chat: a record or tab in the journal database. */
 export function hasPersistedStructuredAgentSessionStore(
@@ -104,11 +99,11 @@ export type StructuredAgentSessionRuntimeDeps = {
   /** Which version-gated flags a Claude CLI takes; absent never passes one. */
   claudeCliFlags?: ClaudeCliFlagSupport
   /** Gives each chat a scratch folder and the visuals skill that teaches it, and sweeps folders
-   *  whose chat is gone. Wired by the real hosts only, so a test runtime never loads the bundled skill. */
+   *  whose chat is gone or long unused. Wired by the real hosts only, so a test runtime never loads
+   *  the bundled skill. */
   nativeChatVisuals?: {
     /** Read this host's preference when a chat starts a provider process. */
     isEnabled: () => boolean
-    workspaceVerdicts: NonNullable<NativeChatVisualsSweepDeps['workspaceVerdicts']>
   }
   /** Provider transports are overridden only to drive the runtime against scripted children. */
   openCodexConnection?: CodexStructuredSessionAdapterDeps['openConnection']
@@ -243,9 +238,7 @@ export async function stopStructuredAgentSessionRuntime(options?: {
 }
 
 async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<InstalledRuntime> {
-  // Why thrown rather than defaulted: the caller is `@ts-nocheck`, so a dropped
-  // field arrives here as `undefined`. Refusing to install is loud; guessing a
-  // policy is the silent under-strip this assertion exists to prevent.
+  // A default policy could attribute sign-in failures to the wrong account.
   if (typeof deps.resolveClaudeAuthPolicy !== 'function') {
     throw new Error(CLAUDE_STRUCTURED_AUTH_POLICY_REQUIRED)
   }
@@ -306,6 +299,8 @@ async function installOnJournal(
     }),
     host: () => host
   }
+  const { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } =
+    await import('./structured-agent-runtime-registrations')
   const registrations = STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map(
     ({ definition, createAdapter }) => ({ definition, adapter: createAdapter(context) })
   )
@@ -368,8 +363,9 @@ async function installOnJournal(
     ? scheduleNativeChatVisualsSweep({
         stateDirectory: deps.stateDirectory,
         listHeldSessionIds: () => (store.readOnly ? null : store.listHeldSessionIds()),
-        locationOf: (sessionId) => store.getRecord(sessionId)?.location ?? null,
-        workspaceVerdicts: deps.nativeChatVisuals.workspaceVerdicts,
+        lastJournalActivityAt: (sessionId) =>
+          readJournalSessionLastActivityAt(journalDatabase.db, sessionId),
+        runWhileExecutionIdle: host.runWhileExecutionIdle,
         logger: deps.logger
       })
     : undefined

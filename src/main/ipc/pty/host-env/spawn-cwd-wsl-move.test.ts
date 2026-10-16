@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { wslMoveCutoverFixture as cutover } from '../../../persistence/__fixtures__/wsl-mover/wsl-move-cutover-fixture'
-import { writeWslMoveCutover } from '../../../persistence/moving-wsl-projects/wsl-move-cutover-journal'
+import { seedWslMoveCutover } from '../../../persistence/__fixtures__/wsl-mover/wsl-move-journal-seeding'
 import {
   WslMoveProjectFencedError,
   loadWslMoveFence,
@@ -24,7 +24,7 @@ const accept = (worktreeId: string, sessionId?: string) =>
 beforeEach(() => {
   userDataPath = mkdtempSync(join(tmpdir(), 'wsl-move-spawn-'))
   loadWslMoveFence(userDataPath)
-  writeWslMoveCutover(userDataPath, cutover('move-1', 'source-fenced'))
+  seedWslMoveCutover(userDataPath, cutover('move-1', 'source-fenced'))
   listLiveDaemonPtyIds.mockReset()
 })
 afterEach(() => {

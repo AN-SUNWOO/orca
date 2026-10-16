@@ -57,6 +57,8 @@ export const AGENT_SESSION_REFUSAL_REASONS = {
     'rewindUnconfirmed',
     // A prompt card or an option
     'promptGone',
+    /** The agent that raised the prompt has ended, so nothing can take its answer. */
+    'promptOwnerEnded',
     'optionRejected',
     // The provider
     'providerStarting',
@@ -82,6 +84,8 @@ export const AGENT_SESSION_REFUSAL_REASONS = {
     'claudeAccountSetupFailed',
     /** Settings → Agents → Command names no program this host can run. */
     'agentCommandNotRunnable',
+    /** The runtime Orca installs for the agent is not installed on this host. */
+    'runtimeNotInstalled',
     /** The agent started, then Orca could not open the chat's conversation for it. */
     'attachFailed'
   ],

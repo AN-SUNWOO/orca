@@ -126,6 +126,9 @@ export class Store {
     const sweptRepoIds = this.domains.repos.sweepDeregisteredRepoResidue()
     // Imported snapshots cannot own the live hook server or write their source file.
     if (!imported) {
+      // A committed migration whose blob install failed or was cut short is finished here; shell
+      // history waits for the runtime's post-attach pass, which can see live shells.
+      this.domains.orcadMigrationBlobInstalls.installPendingOrcadMigrationReceivedBlobs()
       for (const entry of initial?.unboundPaneAliases ?? []) {
         agentHookServer.registerPaneKeyAlias(
           entry.legacyPaneKey,

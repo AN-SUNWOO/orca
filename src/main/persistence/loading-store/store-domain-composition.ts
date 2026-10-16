@@ -24,6 +24,7 @@ import { RetiredWorktreeNamePersistence } from './retired-worktree-name-persiste
 import { SshLeaseRecoveryOperations } from './ssh-lease-recovery-operations'
 import { OrcadSourceExportPersistence } from '../migrating-orcad-catalog/orcad-source-export'
 import { OrcadCatalogImportPersistence } from '../migrating-orcad-catalog/orcad-catalog-import'
+import { OrcadMigrationBlobInstallPersistence } from '../migrating-orcad-catalog/orcad-migration-blob-install-persistence'
 
 export type StoreDomainOperations = WriteSchedulingOperations &
   PrimaryStateWriteOperations &
@@ -43,6 +44,7 @@ export type StoreDomainOperations = WriteSchedulingOperations &
   SshLeaseRecoveryOperations &
   OrcadSourceExportPersistence &
   OrcadCatalogImportPersistence &
+  OrcadMigrationBlobInstallPersistence &
   WriteFlushBarrierOperations
 
 export type StoreDomains = {
@@ -70,6 +72,7 @@ export type StoreDomains = {
   sshLeases: SshLeaseRecoveryOperations
   orcadSourceExport: OrcadSourceExportPersistence
   orcadCatalogImports: OrcadCatalogImportPersistence
+  orcadMigrationBlobInstalls: OrcadMigrationBlobInstallPersistence
 }
 
 export const STORE_DOMAIN_OPERATION_CLASSES = [
@@ -91,6 +94,7 @@ export const STORE_DOMAIN_OPERATION_CLASSES = [
   SshLeaseRecoveryOperations,
   OrcadSourceExportPersistence,
   OrcadCatalogImportPersistence,
+  OrcadMigrationBlobInstallPersistence,
   WriteFlushBarrierOperations
 ] as const
 
@@ -163,6 +167,7 @@ export function createStoreDomains(runtime: StoreRuntimeState): StoreDomains {
     sshLeases,
     // Read-only: holds the runtime state and nothing that writes.
     orcadSourceExport: new OrcadSourceExportPersistence(runtime),
-    orcadCatalogImports
+    orcadCatalogImports,
+    orcadMigrationBlobInstalls: new OrcadMigrationBlobInstallPersistence(runtime)
   }
 }

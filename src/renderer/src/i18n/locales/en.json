@@ -4925,6 +4925,7 @@
           "peopleRequired": "Select at least one teammate.",
           "publishCancelled": "Upload cancelled. The prepared copy is still available to retry.",
           "publishFailed": "Could not publish this skill. The prepared copy is still available to retry.",
+          "nameTaken": "The skill name “{{name}}” is already in use. Rename your skill to share it.",
           "copied": "Share link copied",
           "preparing": "Preparing preview…",
           "ready": "Skill link ready",
@@ -5869,8 +5870,6 @@
           "680043342f": "compact",
           "c7591b6014": "repo",
           "2d4f0eb933": "Default",
-          "1a0eec0d35": "Status",
-          "b5536d5a88": "Tasks",
           "8d62c68b35": "Notes",
           "2d74665a56": "Ports",
           "65a9820bd1": "Agent statuses",
@@ -8107,6 +8106,8 @@
           "2a2033c388": "Choose the alert Orca plays when a desktop notification is delivered.",
           "88686e6ca8": "Notification Sound",
           "b6fc369244": "A background terminal emits a bell character.",
+          "ba07e60f38": "Notify About Hidden Workspaces",
+          "e4b5e909ff": "When off, workspaces hidden by a Hide switch in the sidebar's Filters menu show no unread dot and send no notifications to this computer or your phone.",
           "591fe605b9": "Terminal Bell",
           "55f901a59b": "A coding agent finishes and becomes idle.",
           "ca76d06fd2": "Agent Task Complete",
@@ -9105,7 +9106,6 @@
           "6e6480a7df": "Let programs in the terminal (Zellij, tmux, Neovim, fzf, Grok, SSH) copy to your system clipboard.",
           "3338dcf8c1": "Allow TUI Clipboard Writes (OSC 52)",
           "69c64a479c": "Let Zellij, tmux, Neovim, fzf, and Grok copy to the system clipboard over the PTY (including over SSH).",
-          "4729c645fc": "Automatically copy terminal selections to the clipboard.",
           "902f5dee1f": "Copy on Select",
           "9129b7e805": "Hovering a terminal pane activates it without needing to click.",
           "8eefeaa3da": "Focus Follows Mouse",
@@ -10933,7 +10933,6 @@
               "664789b73a": "auto",
               "c38c18be15": "selection",
               "797fdfe4ca": "select",
-              "603818e8d8": "Automatically copy terminal selections to the clipboard as soon as a selection is made.",
               "3bdc84f059": "Copy on Select",
               "zellij": "zellij",
               "grok": "grok"
@@ -12717,11 +12716,16 @@
           "unsupportedUnknown": "This host isn’t supported by this version of Orca. To keep using it, install an older version of Orca.",
           "tunnelUnsupported": "This host isn’t supported by this version of Orca: its SSH server doesn’t allow port forwarding, and Orca couldn’t reach its server through the SSH session either. To keep using it, install an older version of Orca.",
           "setupRetry": "Orca couldn’t start its server on this host. Try connecting again.",
+          "moveHeld": "Orca paused moving this host’s projects to its managed server because it couldn’t confirm the server’s copy. Nothing is lost: the host keeps its projects and stays locked until the move finishes. Connect again to resume. If the server can’t come back, stop or forget it in Settings > Managed servers.",
           "olderTerminalsUncounted": "Terminals started by an older version of Orca are still running on this host, and they don’t stop on their own. Close them in that version of Orca or end them on the host, then reconnect.",
           "olderTerminalsUnverifiable": "Orca couldn’t confirm that terminals started by an older version of Orca have exited. Reconnect to try again.",
           "olderTerminals_one": "{{count}} terminal started by an older version of Orca is still running on this host, and it doesn’t stop on its own. Close it in that version of Orca or end it on the host, then reconnect.",
           "olderTerminals_other": "{{count}} terminals started by an older version of Orca are still running on this host, and they don’t stop on their own. Close them in that version of Orca or end them on the host, then reconnect.",
-          "olderTerminals": "{{count}} terminals started by an older version of Orca are still running on this host, and they don’t stop on their own. Close them in that version of Orca or end them on the host, then reconnect."
+          "olderTerminals": "{{count}} terminals started by an older version of Orca are still running on this host, and they don’t stop on their own. Close them in that version of Orca or end them on the host, then reconnect.",
+          "linkedProjects_one": "This host’s Orca server already had {{paths}}, so this desktop now uses the server’s copy. This desktop’s tabs and {{count}} automation there were not moved, and worktrees it created there show as external worktrees.",
+          "linkedProjects_other": "This host’s Orca server already had {{paths}}, so this desktop now uses the server’s copy. This desktop’s tabs and {{count}} automations there were not moved, and worktrees it created there show as external worktrees.",
+          "linkedProjects": "This host’s Orca server already had {{paths}}, so this desktop now uses the server’s copy. This desktop’s tabs and {{count}} automations there were not moved, and worktrees it created there show as external worktrees.",
+          "linkedProjectsNoAutomations": "This host’s Orca server already had {{paths}}, so this desktop now uses the server’s copy. This desktop’s tabs there were not moved, and worktrees it created there show as external worktrees."
         },
         "ZcodeCliSetupSection": {
           "title": "Use GLM with ZCode",
@@ -14356,6 +14360,18 @@
             "sourceMissing": "Transcript is no longer available",
             "metadataMatch": "Match in session metadata",
             "sourceActionsUnavailable": "The transcript source is unavailable."
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "{{value0}} file",
+            "fileCount_other": "{{value0}} files",
+            "databaseCount_one": "{{value0}} database",
+            "databaseCount_other": "{{value0}} databases",
+            "scanning": "Scanning {{value0}}",
+            "reading": "Reading {{value0}} files",
+            "stoppedAfter": "Stopped after {{value0}}",
+            "scanned": "Scanned {{value0}}",
+            "stoppedAt": "stopped at {{value0}}",
+            "refresh": "Refresh"
           }
         }
       },
@@ -16793,13 +16809,9 @@
         },
         "AutomationEditorDialogHeader": {
           "31f9253920": "Use template",
-          "7e35393632": "Hermes",
-          "6f309eef8d": "Orca",
           "58f56b73d9": "Automation name",
           "1d9826933e": "Weekday repo audit",
           "4133d33862": "Create automation",
-          "0a75e5e2fa": "Create Hermes automation",
-          "03142e7721": "Edit Hermes automation",
           "17086b48ee": "Edit automation",
           "4c8e1a72b9": "A recurring agent task"
         },
@@ -16873,7 +16885,6 @@
           "295698292f": "Rerun",
           "0e110a3469": "Runs",
           "bb1b2cd31e": "Overview",
-          "97ff587ee3": "Connect this source to check for Hermes automations in the remote profile.",
           "aaa007846f": "source unavailable",
           "25060635c6": "Add new",
           "d207ab4c25": "Start from a template",
@@ -16915,9 +16926,6 @@
           "moved": "Automation moved to {host}.",
           "moveOriginalKept": "Created on {host}, but the original could not be deleted. Remove it on the old host.",
           "moveOriginalUnverified": "Created on {host}, but the original deletion could not be verified. Check the old host before retrying.",
-          "77b81bc4ac": "Hermes automation created.",
-          "08efc3ae12": "Hermes automation updated.",
-          "e431bb85d4": "Choose a workspace on the same host as this Hermes automation.",
           "32534e7c9c": "Choose an available workspace before saving.",
           "2360ffc956": "Choose an enabled agent before saving.",
           "6e91dab317": "Enter a valid advanced schedule before saving.",
@@ -16928,7 +16936,6 @@
           "8705757e27": "job",
           "376631ef2b": "Resume",
           "b457436d6a": "Pause",
-          "0ae52dd760": "hermes",
           "e059042585": "Read-only",
           "aecdc3681f": "Manageable",
           "8500baacb4": "external source",
@@ -16986,17 +16993,11 @@
           "a42bf2b27e": "Delete external automation",
           "1c3bfd38fe": "Resume external automation",
           "0def1693bb": "Pause external automation",
-          "1df491fd00": "Edit external automation",
           "cc77ba88ff": "Run external automation",
           "5820648765": "Last",
-          "844f1acb72": "found",
           "20fd7a3a15": "next",
           "c6695e6fbd": "External automations",
           "5524365227": "OpenClaw",
-          "766abf833c": "Hermes",
-          "bf5f67b590": "hermes",
-          "e66091daf4": "runs",
-          "8e9165af08": "run",
           "2b0adbce21": "Paused",
           "b3feba84c7": "Active",
           "92405f1431": "Unavailable",
@@ -17005,25 +17006,6 @@
           "330b3c32e8": "available",
           "e2532150ed": "automations",
           "701515f010": "automation"
-        },
-        "ExternalAutomationRunTable": {
-          "0ba9c0a95c": "Next run page",
-          "52d468a0b8": "Previous run page",
-          "7475c0ce96": "of",
-          "be551397ca": "Status",
-          "a813df9808": "Preview",
-          "d4b34feb66": "Run time",
-          "2d4388a908": "Runs",
-          "9c080765ff": "No Hermes runs found yet.",
-          "8ea934cacf": "Loading runs...",
-          "d5527d8fe7": "runs",
-          "872d032d05": "run"
-        },
-        "HermesCronOutputView": {
-          "e27c716b43": "Prompt",
-          "4557213074": "Response",
-          "05affc68e3": "Error",
-          "88d48157fc": "default"
         },
         "WorkspaceCombobox": {
           "ee5b280eba": "No workspaces found.",
@@ -17918,6 +17900,7 @@
           "fbb5018602": "This file is empty.",
           "6112db5a1c": "This artifact is too large to share.",
           "e2ed5acd8c": "Orca couldn't read this file. Open it from a workspace and try again.",
+          "visualUnreadable": "Couldn't read this visual to share it.",
           "6d475e9b25": "Only local HTML and Markdown files can be shared as artifacts.",
           "29a406be09": "Artifacts must contain text."
         },
@@ -18224,11 +18207,13 @@
         "claudeAccountFolderMissing": "The selected Claude account's folder is missing. Sign in to it again or choose another account.",
         "claudeAccountSetupFailed": "The selected Claude account could not be set up. Try again or choose another account.",
         "agentCommandNotRunnable": "{{agent}}'s Command in Settings → Agents must be a program path or name Orca can find, with no arguments or variables. Change it or reset it.",
+        "runtimeNotInstalled": "{{agent}} isn't installed on the computer running this chat. Install it from the chat in a current version of Orca.",
         "chooseClaudeAccount": "Choose or add one in Claude Accounts settings.",
         "chooseClaudeAccountThenRunCommand": "Choose or add one in Claude Accounts settings, then run /{{command}} again.",
         "chooseClaudeAccountThenSend": "Choose or add one in Claude Accounts settings, then send your message again.",
         "providerExitedRow": "{{agent}} stopped while this response was in progress. You can continue in this conversation.",
         "providerExitedRejection": "{{agent}} stopped before this message was sent.",
+        "providerExitedAnswer": "{{agent}} has stopped, so your answer was not sent. Send a message to continue.",
         "providerRejected": "{{agent}} didn't accept this message.",
         "providerRejectedQuoted": "{{agent}} didn't accept this message: {{detail}}.",
         "attachmentEmpty": "An image on this message is empty, so the message was not sent.",
@@ -18670,6 +18655,8 @@
         "groupTasks": "Tasks"
       },
       "jumpToLatest": "Jump to latest",
+      "newRowsAnnouncement": "New messages arrived while you were away",
+      "newRowsMarker": "New",
       "find": {
         "label": "Find in chat",
         "noResults": "No results",
@@ -18823,6 +18810,7 @@
         "pause": "Pause goal",
         "resume": "Resume goal",
         "pursuing": "Pursuing goal",
+        "set": "Goal set",
         "paused": "Paused goal",
         "blocked": "Goal blocked",
         "limited": "Goal limited",
@@ -18873,15 +18861,7 @@
         "withdrawnHold": "Stopped before it was sent",
         "pausedSendFailed": "Couldn't send — press Send to retry.",
         "paused": "Paused",
-        "queuePausedStopped": "Queue paused because you interrupted",
-        "queuePaused": "Queue paused",
         "resume": "Resume",
-        "sendConfirmTitle": "Send message?",
-        "sendConfirmBody": "You are about to send a message. Do you want to clear the {{count}} messages previously queued?",
-        "sendConfirmBody_one": "You are about to send a message. Do you want to clear the {{count}} message previously queued?",
-        "sendConfirmBody_other": "You are about to send a message. Do you want to clear the {{count}} messages previously queued?",
-        "sendConfirmClear": "Clear queue",
-        "sendConfirmSend": "Send message",
         "fromSender": "From",
         "pausedSendFailedWaiting": "Couldn't send — press Send to retry once the agent finishes.",
         "save": "Save",
@@ -18891,7 +18871,11 @@
         "editChangedPrompt": "This message changed while you were editing. Your edit will be in the chat box after you answer the agent.",
         "editFailed": "This message can't be edited.",
         "editGone": "This message was already sent or removed. Your edit is in the chat box.",
-        "editGonePrompt": "This message was already sent or removed. Your edit will be in the chat box after you answer the agent."
+        "editGonePrompt": "This message was already sent or removed. Your edit will be in the chat box after you answer the agent.",
+        "collapse": "Collapse",
+        "expand": "Expand",
+        "queued": "Queued",
+        "clearAll": "Clear all"
       },
       "thought": "Thought",
       "thoughtForDuration": "Thought for {{duration}}",
@@ -19241,11 +19225,15 @@
     "settings": {
       "TerminalInteraction": {
         "copyTrimsGutter": "Trim Gutter on Copy",
-        "copyTrimsGutterDescription": "Drop the left gutter agent output is painted behind, so copied text is not indented. Only the indent every selected line shares is removed."
+        "copyTrimsGutterDescription": "Drop the left gutter agent output is painted behind, so copied text is not indented. Only the indent every selected line shares is removed.",
+        "copyOnSelectDescription": "Automatically copy text you select in a terminal or chat to the clipboard."
       },
       "terminal": {
         "clipboard": {
           "search": {
+            "copyOnSelectDescription": "Automatically copy text you select in a terminal or chat to the clipboard as soon as the selection is made.",
+            "highlight": "highlight",
+            "chat": "chat",
             "gutter": "gutter",
             "indent": "indent",
             "margin": "margin",
@@ -19734,6 +19722,11 @@
       "resumed_one": "{{count}} agent session resumed.",
       "resumed_other": "{{count}} agent sessions resumed."
     },
+    "stalledDaemonBanner": {
+      "body": "Background work on this computer is stalled. Typing and new terminals may not work. Restarting the terminal service ends its running terminals and commands.",
+      "review": "Review restart options",
+      "title": "Terminal service may need a restart"
+    },
     "severedDaemonBanner": {
       "unknownCount": "its running terminals",
       "count": "{{count}} running terminals",
@@ -20112,6 +20105,22 @@
       "cancel": "Cancel",
       "noTransition": "No status change to {{column}} is available for {{key}}.",
       "queryTooLong": "The Jira query is too long. Shorten the query or clear filters."
+    },
+    "favourites": {
+      "loadFailed": "Could not load Jira favourites.",
+      "clearFailed": "Could not clear the saved filter. Retry after it finishes loading or saving.",
+      "applyFailed": "Could not apply the Jira favourite.",
+      "siteMismatch": "Choose a project from the favourite’s Jira site, or clear the project filter.",
+      "label": "Jira favourites",
+      "chooseSite": "Choose one connected Jira site to use its favourites.",
+      "unsupported": "Update the Jira host to use favourites.",
+      "refresh": "Refresh",
+      "loading": "Loading favourites…",
+      "find": "Find a Jira favourite",
+      "empty": "No Jira favourites found.",
+      "truncated": "Some favourites could not be listed. Manage your favourites in Jira to narrow the list.",
+      "clear": "Clear Jira favourite",
+      "activeLabel": "Jira favourites: {{name}}"
     }
   }
 }

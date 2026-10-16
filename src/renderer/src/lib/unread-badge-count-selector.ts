@@ -1,5 +1,5 @@
 import { getVisibleWorkspaceHostIdSet } from '@/components/sidebar/visible-worktree-host-scope'
-import { getPairedDeviceIdsByEnvironment } from '@/components/sidebar/workspace-creator-visibility'
+import { getPairedDeviceIdsByEnvironment } from '../../../shared/workspace-creator-visibility'
 import { getRepoMapFromState } from '@/store/selectors'
 import type { AppState } from '@/store/types'
 import { getSettingsFocusedExecutionHostId } from '../../../shared/execution-host'

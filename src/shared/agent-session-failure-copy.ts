@@ -71,6 +71,8 @@ export const AGENT_SESSION_FAILURE_COPY = {
   claudeAccountSetupFailed: CLAUDE_PROFILE_SETUP_FAILED_MESSAGE,
   agentCommandNotRunnable:
     "{{agent}}'s Command in Settings → Agents must be a program path or name Orca can find, with no arguments or variables. Change it or reset it.",
+  runtimeNotInstalled:
+    "{{agent}} isn't installed on the computer running this chat. Install it from the chat in a current version of Orca.",
   chooseClaudeAccount: 'Choose or add one in Claude Accounts settings.',
   chooseClaudeAccountThenRunCommand:
     'Choose or add one in Claude Accounts settings, then run /{{command}} again.',
@@ -79,6 +81,8 @@ export const AGENT_SESSION_FAILURE_COPY = {
   providerExitedRow:
     '{{agent}} stopped while this response was in progress. You can continue in this conversation.',
   providerExitedRejection: '{{agent}} stopped before this message was sent.',
+  providerExitedAnswer:
+    '{{agent}} has stopped, so your answer was not sent. Send a message to continue.',
   providerRejected: "{{agent}} didn't accept this message.",
   providerRejectedQuoted: "{{agent}} didn't accept this message: {{detail}}.",
   attachmentEmpty: 'An image on this message is empty, so the message was not sent.',

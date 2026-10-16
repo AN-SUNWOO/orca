@@ -195,6 +195,7 @@ export class SshConnection {
   // Only a sign-in the host accepted may be handed on; a typed or re-asked one is unproven until then.
   private signInVerified = false
   private keyboardInteractiveCancelled = false
+  private openCredentialPrompts = 0
   // A rejected cached password must reach the user on the next round.
   private keyboardInteractivePasswordState = { passwordAutoAnswered: false }
   private hostKeyFingerprint: string | undefined
@@ -274,6 +275,15 @@ export class SshConnection {
   // Why: lets ssh:needsPassphrasePrompt skip redundant passphrase prompts on reconnect when the credential is already cached in-memory.
   hasCachedCredential(): boolean {
     return this.cachedPassphrase != null || this.cachedPassword != null
+  }
+
+  /** The user is answering a prompt, or answered one this connection's own retry has yet to use. */
+  isAwaitingCredential(): boolean {
+    if (this.openCredentialPrompts > 0) {
+      return true
+    }
+    const retrying = this.state.status === 'connecting' || this.state.status === 'reconnecting'
+    return retrying && !this.signInVerified && this.hasCachedCredential()
   }
 
   /** Null unless the host accepted it, so a wrong password is asked for again, not replayed. */
@@ -495,13 +505,18 @@ export class SshConnection {
     if (!this.isCurrentConnectAttempt(connectGeneration)) {
       return undefined
     }
-    return this.callbacks.onCredentialRequest?.(
-      this.target.id,
-      kind,
-      detail,
-      echo,
-      this.credentialAbortController.signal
-    )
+    this.openCredentialPrompts += 1
+    try {
+      return await this.callbacks.onCredentialRequest?.(
+        this.target.id,
+        kind,
+        detail,
+        echo,
+        this.credentialAbortController.signal
+      )
+    } finally {
+      this.openCredentialPrompts -= 1
+    }
   }
 
   private async answerKeyboardInteractive(
@@ -1100,6 +1115,7 @@ export class SshConnection {
       let settled = false
       let startupTimer: ReturnType<typeof setTimeout> | null = null
       let keyboardInteractiveRounds = 0
+      let keyboardInteractiveAnswer: Promise<void> | null = null
       const clearStartupTimer = (): void => {
         if (startupTimer) {
           clearTimeout(startupTimer)
@@ -1201,7 +1217,7 @@ export class SshConnection {
           return
         }
         rearmStartupTimer(SSH_KEYBOARD_INTERACTIVE_READY_TIMEOUT_MS)
-        void this.answerKeyboardInteractive(
+        const answer = this.answerKeyboardInteractive(
           config.host || this.target.label,
           name,
           instructions,
@@ -1224,7 +1240,7 @@ export class SshConnection {
                   ),
                   { level: 'client-authentication' }
                 )
-                onStartupError(cancelledError)
+                failStartup(cancelledError)
               }
               return
             }
@@ -1234,6 +1250,13 @@ export class SshConnection {
           },
           () => finish([])
         )
+        keyboardInteractiveAnswer = answer
+        const forgetAnswer = (): void => {
+          if (keyboardInteractiveAnswer === answer) {
+            keyboardInteractiveAnswer = null
+          }
+        }
+        void answer.then(forgetAnswer, forgetAnswer)
       }
 
       const cleanupStartupListeners = (): void => {
@@ -1276,7 +1299,19 @@ export class SshConnection {
         resolve()
       }
 
+      // Why: a host that drops an unanswered login (sshd LoginGraceTime) must not close the open
+      // prompt for a retry that opens another; the user's answer decides, and a typed password is
+      // cached for that retry.
       const onStartupError = (err: Error): void => {
+        if (keyboardInteractiveAnswer && !settled) {
+          const fail = (): void => failStartup(err)
+          void keyboardInteractiveAnswer.then(fail, fail)
+          return
+        }
+        failStartup(err)
+      }
+
+      const failStartup = (err: Error): void => {
         if (settled) {
           return
         }

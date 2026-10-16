@@ -168,8 +168,8 @@
         "remoteUnsupported": "Orca CLI を使用して、リモートホスト上のブラウザ ID を管理します。",
         "loading": "読み込み中…",
         "resetRequired": "ID データは変更する前に明示的にリセットする必要があります。",
-        "resetRequiredCommand": "コマンドラインからリセットします: orca Browser Identity set --mode <mode> --reset",
-        "optionClean": "掃除済み",
+        "resetRequiredCommand": "コマンドラインからリセットします: orca browser identity set --mode <mode> --reset",
+        "optionClean": "クリーン",
         "optionCleanTooltip": "インポートされた Chrome セッションと一致するように Orca トークンと Electron トークンを削除します。",
         "optionNative": "ネイティブ",
         "optionNativeTooltip": "クリーンアップされた ID を拒否するサイトのために Electron の組み込み ID を保持します。 Google サインインはネイティブモードでは利用できません。",
@@ -196,7 +196,8 @@
       "readFailed": "Agent設定を読み込めませんでした。ホストへの接続を確認して再試行してください。",
       "saveFailed": "Agent設定を保存できませんでした。ホストへの接続を確認して再試行してください。",
       "hostDefaults": "選択したホストで起動する新しいAgentの既定値。",
-      "save": "保存"
+      "save": "保存",
+      "clearDefault": "デフォルトの Agent をクリア"
     },
     "followSymlinkedDirectoriesKeywords": {
       "symlink": "シンボリックリンク",
@@ -299,7 +300,12 @@
     "taskUrl": {
       "loadingHint": "{{value0}}を読み込んでいます…",
       "createHint": "{{value0}} からワークツリーを作成"
-    }
+    },
+    "tasksHeader": "タスク",
+    "taskCreate": "ワークスペースを作成",
+    "taskSearchLoading": "タスクを検索しています…",
+    "taskSearchFailed": "一部のタスクソースを検索できませんでした",
+    "taskSearchRetry": "再試行"
   },
   "auto": {
     "App": {
@@ -1052,6 +1058,10 @@
             }
           }
         }
+      },
+      "aiVaultResumeRefusal": {
+        "openInChat": "この {{value0}} の会話はチャットで開かれています。開くにはセッション履歴を更新してください。",
+        "ownershipUnknown": "Orca はこの {{value0}} の会話の所有者を確認できませんでした。セッション履歴を更新して、再試行してください。"
       }
     },
     "hooks": {
@@ -2327,7 +2337,14 @@
         "jiraLinkSourceUnavailable": "この Jira Issue をリンクできませんでした。Jira に再接続するか該当するサイトを選択してから、もう一度お試しください。",
         "loadPageUnreachable": "ページ {{value0}} は GitHub 検索が返せる範囲を超えています。",
         "loadPageFailed": "GitHub からページ {{value0}} を読み込めませんでした。",
-        "loadPageNoMoreResults": "ページ {{value0}} にはこれ以上結果がありません。"
+        "loadPageNoMoreResults": "ページ {{value0}} にはこれ以上結果がありません。",
+        "jiraColumnsPicker": "列",
+        "jiraColumnParent": "親",
+        "jiraColumnSprint": "スプリント",
+        "jiraColumnStoryPoints": "ポイント",
+        "jiraColumnOriginalEstimate": "見積もり",
+        "jiraColumnRemainingEstimate": "残り",
+        "jiraBoardEmptyColumn": "Issue はありません"
       },
       "Terminal": {
         "73768427cf": "閉じる",
@@ -2447,8 +2464,8 @@
         "projectBadge": "プロジェクト",
         "repoGroupBadge": "リポジトリグループ",
         "pluginCommandFailed": "プラグインのコマンドを実行できませんでした。",
-        "27f10cca63": "チャット、ターミナル、ワークスペース、設定、操作を検索します…",
-        "2770f02910": "チャット、ターミナル、ワークスペース、設定、操作を検索します",
+        "27f10cca63": "チャット、ターミナル、ワークスペース、タスク、設定、操作を検索します…",
+        "2770f02910": "チャット、ターミナル、ワークスペース、タスク、設定、操作を検索します",
         "recentChatsTerminalsHeader": "最近のチャットとターミナル",
         "lastActiveTime": "最後にアクティブになったのは{{value0}}前です"
       },
@@ -3244,8 +3261,8 @@
           "zcode": {
             "missing": {
               "tui": {
-                "title": "This ZCode build has no terminal UI",
-                "description": "Orca's hooks installed correctly — the zcode on your PATH just cannot open a session. The ZCode desktop app bundles the agent runtime without its terminal UI. Install a zcode that ships the TUI, then run zcode outside Orca to confirm."
+                "title": "この ZCode ビルドにはターミナル UI がありません",
+                "description": "Orca のフックは正しくインストールされていますが、PATH 上の zcode はセッションを開けません。ZCode デスクトップアプリには、ターミナル UI のない Agent ランタイムが同梱されています。TUI を含む zcode をインストールし、Orca の外部で zcode を実行して確認してください。"
               }
             }
           },
@@ -3442,7 +3459,8 @@
             "sessionQueued": "セッションをキューに追加しました",
             "openSupportedWorkspace": "セッションを再開する前に、ワークスペースを開いてください。",
             "localSessionSshWorkspaceUnsupported": "このセッションの履歴はこのマシンに保存されているため、SSH ワークスペースでは再開できません。代わりにローカルワークスペースにドロップしてください。",
-            "sessionHostMismatchUnsupported": "このセッションは別のホストに属しています。同じホスト上のワークスペースにドロップしてください。"
+            "sessionHostMismatchUnsupported": "このセッションは別のホストに属しています。同じホスト上のワークスペースにドロップしてください。",
+            "oldPayload": "このセッションは古い Orca ウィンドウからドラッグされました。代わりにセッション履歴から再開してください。"
           },
           "TabGroupDropOverlay": {
             "paneColumnLabel": "新規分割"
@@ -4769,6 +4787,7 @@
           "peopleRequired": "少なくとも 1 人のチームメイトを選択してください。",
           "publishCancelled": "アップロードがキャンセルされました。準備されたコピーは引き続き再試行できます。",
           "publishFailed": "このスキルを公開できませんでした。準備されたコピーは引き続き再試行できます。",
+          "nameTaken": "スキル名「{{name}}」はすでに使用されています。共有するにはスキルの名前を変更してください。",
           "copied": "共有リンクがコピーされました",
           "preparing": "プレビューを準備しています…",
           "ready": "スキルリンク準備完了",
@@ -5577,8 +5596,6 @@
           "projectRuntimeHost": "プロジェクトサーバー",
           "631b97eea9": "ホストスコープ",
           "2d4f0eb933": "デフォルト",
-          "1a0eec0d35": "状態",
-          "b5536d5a88": "タスク",
           "8d62c68b35": "ノート",
           "2d74665a56": "ポート",
           "65a9820bd1": "Agent ステータス",
@@ -7575,7 +7592,11 @@
           "compareAgainstUpstreamDescription": "ソース管理がコミット済み変更の比較に既定で使うベースを選択します。ブランチの upstream は現在のブランチに自動的に追従し、upstream がない場合はリポジトリの既定ブランチにフォールバックします。比較ベースは各ワークツリーの Git パネルからワークツリーごとに変更できます。Pull Request やリベースの対象は変更されません。",
           "compareBaseRepositoryDefault": "リポジトリ既定",
           "compareBaseBranchUpstream": "ブランチの upstream",
-          "refreshLocalBaseDescription": "ワークスペースを作成すると、Orca はリモートのベースを更新し、<mainBranch>main</mainBranch> や <masterBranch>master</masterBranch> など、対応するローカルブランチを安全に fast-forward します。これにより、<diffCommand>git diff main...HEAD</diffCommand> などのコマンドが古い履歴と比較されるのを防ぎます。対象のブランチにコミットしていない変更やローカルのみのコミットがある場合、Orca は更新をスキップします。"
+          "refreshLocalBaseDescription": "ワークスペースを作成すると、Orca はリモートのベースを更新し、<mainBranch>main</mainBranch> や <masterBranch>master</masterBranch> など、対応するローカルブランチを安全に fast-forward します。これにより、<diffCommand>git diff main...HEAD</diffCommand> などのコマンドが古い履歴と比較されるのを防ぎます。対象のブランチにコミットしていない変更やローカルのみのコミットがある場合、Orca は更新をスキップします。",
+          "jiraIssueKeyCasingTitle": "Jira キーの大文字/小文字",
+          "jiraIssueKeyCasingDescription": "Orca が新規の Jira 連携ワークスペースに提案するワークスペース名とブランチ名で、Jira Issue キーを大文字と小文字のどちらで表記するかを指定します。たとえば proj-123-fix-login ではなく PROJ-123-fix-login のようになります。既存のワークスペースと入力した名前は変更されません。",
+          "jiraIssueKeyCasingLowercase": "小文字",
+          "jiraIssueKeyCasingPreserve": "大文字のキー"
         },
         "HiddenExperimentalGroup": {
           "7c4e18d2f6": "このマシンで太字グリッチのキャプチャジェスチャーを有効にします。{{samplingShortcut}} でサンプリングバーストを開始し、{{captureShortcut}} でペインの証拠をディスクに保存します。",
@@ -7841,6 +7862,8 @@
           "2a2033c388": "デスクトップ通知が配信されたときに Orca が再生するアラートを選択します。",
           "88686e6ca8": "通知音",
           "b6fc369244": "バックグラウンドターミナルはベルの文字を発します。",
+          "ba07e60f38": "非表示のワークスペースを通知",
+          "e4b5e909ff": "オフの場合、サイドバーのフィルターメニューの「非表示」スイッチで隠したワークスペースは、未読ドットを表示せず、このコンピューターにもスマートフォンにも通知を送りません。",
           "591fe605b9": "ターミナルベル",
           "55f901a59b": "コーディング Agent が終了し、アイドル状態になります。",
           "ca76d06fd2": "Agent のタスクが完了しました",
@@ -8829,7 +8852,6 @@
           "6e6480a7df": "ターミナル内のプログラム (Zellij、tmux、Neovim、fzf、Grok、SSH) をシステムのクリップボードにコピーします。",
           "3338dcf8c1": "TUI クリップボードへの書き込みを許可する (OSC 52)",
           "69c64a479c": "Zellij、tmux、Neovim、fzf、および Grok が PTY 経由 (SSH 経由を含む) でシステムクリップボードにコピーできるようにします。",
-          "4729c645fc": "ターミナルの選択内容をクリップボードに自動的にコピーします。",
           "902f5dee1f": "選択時にコピー",
           "9129b7e805": "ターミナルペインにマウスを移動すると、クリックしなくてもターミナルペインがアクティブになります。",
           "8eefeaa3da": "フォーカスはマウスに追従します",
@@ -9568,7 +9590,7 @@
               "identity": "身元",
               "userAgent": "ユーザー Agent",
               "native": "ネイティブ",
-              "cleaned": "掃除された",
+              "cleaned": "クリーン",
               "restart": "再起動"
             }
           },
@@ -10050,7 +10072,13 @@
             "defaultBranch": "デフォルトブランチ",
             "repositoryDefault": "リポジトリ既定",
             "branchUpstream": "ブランチ upstream",
-            "diffBase": "デフベース"
+            "diffBase": "デフベース",
+            "jiraIssueKeyCasingTitle": "Jira キーの大文字/小文字",
+            "jiraIssueKeyCasingDescription": "Orca が新規の Jira 連携ワークスペースに提案するワークスペース名とブランチ名で、Jira Issue キーを大文字と小文字のどちらで表記するかを指定します。たとえば proj-123-fix-login ではなく PROJ-123-fix-login のようになります。既存のワークスペースと入力した名前は変更されません。",
+            "jira": "Jira",
+            "issueKey": "Issue キー",
+            "uppercase": "大文字",
+            "lowercase": "小文字"
           }
         },
         "input": {
@@ -10653,7 +10681,6 @@
               "664789b73a": "自動",
               "c38c18be15": "選択",
               "797fdfe4ca": "選択する",
-              "603818e8d8": "ターミナルの選択が行われるとすぐに、その選択内容をクリップボードに自動的にコピーします。",
               "3bdc84f059": "選択時にコピー",
               "zellij": "ゼリジ",
               "grok": "グロク"
@@ -12057,26 +12084,26 @@
           "leaveToTerminalLabel": "ターミナルへ出発"
         },
         "ReleaseChannelSection": {
-          "switchFailed": "そのビルドに切り替えることができませんでした。",
+          "switchFailed": "そのバージョンに切り替えられませんでした。",
           "title": "リリースチャンネル",
-          "description": "更新チャネルを切り替えるか、古いビルドを含む公開されているビルドにジャンプします。ダウングレードは許可されており、検証されていないビルドは壊れる可能性があります。",
-          "devOnly": "開発のみ",
-          "channelAriaLabel": "チャンネルを更新する",
-          "hourlyWarning": "時間ごとのビルドはテストゲートなしでメインから直接出荷され、Windows ビルドは署名されていません。安定したビルドを手元に置いておいてください。",
-          "dailyWarning": "デイリービルドはテストゲートなしでメインから直接出荷され、Windows ビルドは署名されていません。安定したビルドを手元に置いておいてください。",
-          "adhocWarning": "アドホックビルドはランディングされていないブランチからのものであり、Windows ビルドは署名されていません。誰がそれをカットしても、それを放棄する可能性があります。安定したビルドを手元に置いてください。",
-          "loadingBuilds": "ビルドを読み込み中…",
-          "noBuilds": "ビルドが見つかりません",
-          "refresh": "ビルドリストを更新する",
-          "cacheHint": "ビルドリストは 5 分間キャッシュされます。更新して新規ビルドを確認します。",
-          "switchTo": "ビルドに切り替える",
-          "alreadyRunning": "これが実行しているビルドです。",
+          "description": "更新チャンネルや、旧バージョンを含む公開済みのバージョンに切り替えられます。ダウングレードも可能ですが、未検証のバージョンは正常に動作しない場合があります。",
+          "devOnly": "開発用",
+          "channelAriaLabel": "更新チャンネル",
+          "hourlyWarning": "Hourly のバージョンはテストを経ずに main ブランチから直接公開され、Windows 版は署名されていません。安定版を手元に用意しておいてください。",
+          "dailyWarning": "Daily のバージョンはテストを経ずに main ブランチから直接公開され、Windows 版は署名されていません。安定版を手元に用意しておいてください。",
+          "adhocWarning": "Adhoc のバージョンは未マージのブランチから作成され、Windows 版は署名されていません。公開者がメンテナンスを終了する可能性があるため、安定版を手元に用意しておいてください。",
+          "loadingBuilds": "バージョンを読み込み中…",
+          "noBuilds": "バージョンが見つかりません",
+          "refresh": "バージョン一覧を更新",
+          "cacheHint": "バージョン一覧は5分間キャッシュされます。新しいバージョンを確認するには一覧を更新してください。",
+          "switchTo": "このバージョンに切り替える",
+          "alreadyRunning": "現在このバージョンを使用しています。",
           "willSwitch": "{{value0}} → {{value1}}",
-          "webUnavailable": "ビルドの切り替えはデスクトップアプリでのみ利用できます。",
+          "webUnavailable": "バージョンの切り替えはデスクトップアプリでのみ利用できます。",
           "devChannelUnsupportedAria": "{{value0}} ({{value1}} のみ)",
-          "devChannelUnsupported": "{{value0}} ビルドは {{value1}} 用にのみ生成されます。 Linux は Stable または RC のままです。",
+          "devChannelUnsupported": "{{value0}} のバージョンは {{value1}} 向けにのみ提供されます。Linux では Stable または RC を利用してください。",
           "downloadInstaller": "インストーラーをダウンロードする",
-          "manualInstallHint": "{{value0}} ビルドは Windows では署名されていないため、アプリ内アップデーターは署名付きビルドの上にビルドをインストールできません。ダウンロードしたインストーラーを 1 回実行すると、不明な発行元について Windows が警告します。その後、安定版に戻す場合も含め、すべての切り替えがここから機能します。"
+          "manualInstallHint": "{{value0}} の Windows 版は署名されていないため、アプリ内の更新機能では署名済みのバージョンに上書きインストールできません。ダウンロードしたインストーラーを一度実行してください。Windows に発行元不明の警告が表示されます。その後は、Stable に戻す場合も含め、ここからバージョンを切り替えられます。"
         },
         "VoiceMicrophoneSetting": {
           "systemDefault": "システムのデフォルト",
@@ -12283,9 +12310,9 @@
           }
         },
         "EphemeralVmCleanupStopDialog": {
-          "title": "掃除をやめますか？",
+          "title": "クリーンアップを停止しますか？",
           "description": "VM は実行されたままになり、料金が発生する可能性があります。後でクリーンアップを再試行できます。",
-          "cancel": "掃除を続ける",
+          "cancel": "クリーンアップを続ける",
           "stopping": "停止中…",
           "confirm": "クリーンアップを停止する"
         },
@@ -12506,11 +12533,16 @@
           "unsupportedUnknown": "このバージョンの Orca はこのホストをサポートしていません。引き続き使用するには、以前のバージョンの Orca をインストールしてください。",
           "tunnelUnsupported": "このバージョンの Orca はこのホストをサポートしていません。ホストの SSH サーバーがポート転送を許可しておらず、SSH セッション経由でも Orca のサーバーに接続できませんでした。引き続き使用するには、以前のバージョンの Orca をインストールしてください。",
           "setupRetry": "Orca はこのホストでサーバーを起動できませんでした。もう一度接続してください。",
+          "moveHeld": "サーバー側のコピーを確認できなかったため、Orca はこのホストのプロジェクトを管理対象サーバーへ移動する処理を一時停止しました。データは失われていません。移動が完了するまで、ホストはプロジェクトを保持したままロックされます。再接続すると再開します。サーバーが復帰できない場合は、設定 > 管理対象サーバーで停止するか登録を解除してください。",
           "olderTerminalsUncounted": "以前のバージョンの Orca で開始されたターミナルがこのホストでまだ実行中で、自動では終了しません。そのバージョンの Orca で閉じるか、ホスト上で終了してから再接続してください。",
           "olderTerminalsUnverifiable": "以前のバージョンの Orca で開始されたターミナルが終了したことを確認できませんでした。再接続してもう一度お試しください。",
           "olderTerminals_one": "以前のバージョンの Orca で開始された {{count}} 個のターミナルがこのホストでまだ実行中で、自動では終了しません。そのバージョンの Orca で閉じるか、ホスト上で終了してから再接続してください。",
           "olderTerminals_other": "以前のバージョンの Orca で開始された {{count}} 個のターミナルがこのホストでまだ実行中で、自動では終了しません。そのバージョンの Orca で閉じるか、ホスト上で終了してから再接続してください。",
-          "olderTerminals": "以前のバージョンの Orca で開始された {{count}} 個のターミナルがこのホストでまだ実行中で、自動では終了しません。そのバージョンの Orca で閉じるか、ホスト上で終了してから再接続してください。"
+          "olderTerminals": "以前のバージョンの Orca で開始された {{count}} 個のターミナルがこのホストでまだ実行中で、自動では終了しません。そのバージョンの Orca で閉じるか、ホスト上で終了してから再接続してください。",
+          "linkedProjects_one": "このホストの Orca サーバーには {{paths}} が既にあったため、このデスクトップはサーバーのコピーを使用します。このデスクトップのタブと {{count}} 件のオートメーションは移動されず、ここで作成したワークツリーは外部ワークツリーとして表示されます。",
+          "linkedProjects_other": "このホストの Orca サーバーには {{paths}} が既にあったため、このデスクトップはサーバーのコピーを使用します。このデスクトップのタブと {{count}} 件のオートメーションは移動されず、ここで作成したワークツリーは外部ワークツリーとして表示されます。",
+          "linkedProjects": "このホストの Orca サーバーには {{paths}} が既にあったため、このデスクトップはサーバーのコピーを使用します。このデスクトップのタブと {{count}} 件のオートメーションは移動されず、ここで作成したワークツリーは外部ワークツリーとして表示されます。",
+          "linkedProjectsNoAutomations": "このホストの Orca サーバーには {{paths}} が既にあったため、このデスクトップはサーバーのコピーを使用します。このデスクトップのタブは移動されず、ここで作成したワークツリーは外部ワークツリーとして表示されます。"
         },
         "deltaMove": {
           "action": "新規プロジェクトを移動…",
@@ -14098,6 +14130,18 @@
             "sourceMissing": "トランスクリプトは利用できなくなりました",
             "metadataMatch": "セッションメタデータ内の一致",
             "sourceActionsUnavailable": "トランスクリプトのソースが利用できません。"
+          },
+          "AiVaultScanProgressStrip": {
+            "fileCount_one": "{{value0}} 個のファイル",
+            "fileCount_other": "{{value0}} 個のファイル",
+            "databaseCount_one": "{{value0}} 個のデータベース",
+            "databaseCount_other": "{{value0}} 個のデータベース",
+            "scanning": "{{value0}}をスキャン中",
+            "reading": "{{value0}} ファイルを読み込み中",
+            "stoppedAfter": "{{value0}}で停止",
+            "scanned": "{{value0}}をスキャン済み",
+            "stoppedAt": "{{value0}} で停止",
+            "refresh": "更新"
           }
         }
       },
@@ -16564,13 +16608,9 @@
         },
         "AutomationEditorDialogHeader": {
           "31f9253920": "テンプレートを使用する",
-          "7e35393632": "Hermes",
-          "6f309eef8d": "Orca",
           "58f56b73d9": "オートメーション名",
           "1d9826933e": "平日のリポジトリ監査",
           "4133d33862": "オートメーションの作成",
-          "0a75e5e2fa": "Hermes オートメーションを作成する",
-          "03142e7721": "Hermes オートメーションを編集する",
           "17086b48ee": "オートメーションの編集",
           "4c8e1a72b9": "定期的な Agent タスク"
         },
@@ -16641,7 +16681,6 @@
           "295698292f": "再実行",
           "0e110a3469": "実行履歴",
           "bb1b2cd31e": "概要",
-          "97ff587ee3": "このソースに接続すると、リモートプロファイル内の Hermes オートメーションを確認できます。",
           "aaa007846f": "ソースが利用できない",
           "25060635c6": "新規追加",
           "d207ab4c25": "テンプレートから始める",
@@ -16683,9 +16722,6 @@
           "moved": "自動化を {host} に移動しました。",
           "moveOriginalKept": "{host} に作成しましたが、元の自動化を削除できませんでした。元のホストで削除してください。",
           "moveOriginalUnverified": "{host} に作成しましたが、元の自動化の削除を確認できませんでした。再試行する前に元のホストを確認してください。",
-          "77b81bc4ac": "Hermes オートメーションが作成されました。",
-          "08efc3ae12": "Hermes オートメーションが更新されました。",
-          "e431bb85d4": "この Hermes オートメーションと同じホスト上のワークスペースを選択します。",
           "32534e7c9c": "保存する前に、使用可能なワークスペースを選択してください。",
           "2360ffc956": "保存する前に、有効な Agent を選択してください。",
           "6e91dab317": "保存する前に、有効な詳細スケジュールを入力してください。",
@@ -16696,7 +16732,6 @@
           "8705757e27": "仕事",
           "376631ef2b": "再開",
           "b457436d6a": "一時停止",
-          "0ae52dd760": "Hermes",
           "e059042585": "読み取り専用",
           "aecdc3681f": "管理可能",
           "8500baacb4": "外部ソース",
@@ -16751,17 +16786,11 @@
           "a42bf2b27e": "外部オートメーションを削除する",
           "1c3bfd38fe": "外部自動化を再開する",
           "0def1693bb": "外部オートメーションを一時停止する",
-          "1df491fd00": "外部オートメーションを編集する",
           "cc77ba88ff": "外部オートメーションを実行する",
           "5820648765": "最後",
-          "844f1acb72": "見つかった",
           "20fd7a3a15": "次",
           "c6695e6fbd": "外部自動化",
           "5524365227": "OpenClaw",
-          "766abf833c": "Hermes",
-          "bf5f67b590": "Hermes",
-          "e66091daf4": "回",
-          "8e9165af08": "回",
           "2b0adbce21": "一時停止中",
           "b3feba84c7": "アクティブ",
           "92405f1431": "利用不可",
@@ -16770,25 +16799,6 @@
           "330b3c32e8": "利用可能",
           "e2532150ed": "自動化",
           "701515f010": "オートメーション"
-        },
-        "ExternalAutomationRunTable": {
-          "0ba9c0a95c": "次回実行ページ",
-          "52d468a0b8": "前回の実行ページ",
-          "7475c0ce96": "の",
-          "be551397ca": "状態",
-          "a813df9808": "プレビュー",
-          "d4b34feb66": "実行時間",
-          "2d4388a908": "実行履歴",
-          "9c080765ff": "Hermes のランはまだ見つかりません。",
-          "8ea934cacf": "実行を読み込み中…",
-          "d5527d8fe7": "回",
-          "872d032d05": "回"
-        },
-        "HermesCronOutputView": {
-          "e27c716b43": "プロンプト",
-          "4557213074": "応答",
-          "05affc68e3": "エラー",
-          "88d48157fc": "デフォルト"
         },
         "WorkspaceCombobox": {
           "ee5b280eba": "ワークスペースが見つかりません。",
@@ -17607,6 +17617,7 @@
           "fbb5018602": "このファイルは空です。",
           "6112db5a1c": "この成果物は大きすぎるため共有できません。",
           "e2ed5acd8c": "Orca はこのファイルを読み取れませんでした。ワークスペースから開いて再試行してください。",
+          "visualUnreadable": "共有するためにこのビジュアルを読み取れませんでした。",
           "6d475e9b25": "成果物として共有できるのはローカルの HTML ファイルと Markdown ファイルのみです。",
           "29a406be09": "成果物にはテキストが含まれている必要があります。"
         },
@@ -18011,11 +18022,13 @@
         "claudeAccountFolderMissing": "選択した Claude アカウントのフォルダーが見つかりません。もう一度サインインするか、別のアカウントを選択してください。",
         "claudeAccountSetupFailed": "選択した Claude アカウントを設定できませんでした。もう一度試すか、別のアカウントを選択してください。",
         "agentCommandNotRunnable": "[設定] → [Agent] にある {{agent}} の [コマンド] には、Orca が見つけられるプログラムのパスまたは名前を、引数や変数なしで指定する必要があります。変更するか、[リセット] してください。",
+        "runtimeNotInstalled": "{{agent}} はこのチャットを実行しているコンピューターにインストールされていません。最新バージョンの Orca でチャットからインストールしてください。",
         "chooseClaudeAccount": "Claude アカウントの設定で選択または追加してください。",
         "chooseClaudeAccountThenRunCommand": "Claude アカウントの設定で選択または追加してから、/{{command}} をもう一度実行してください。",
         "chooseClaudeAccountThenSend": "Claude アカウントの設定で選択または追加してから、メッセージをもう一度送信してください。",
         "providerExitedRow": "この応答の途中で {{agent}} が停止しました。この会話で続けることができます。",
         "providerExitedRejection": "このメッセージが送信される前に {{agent}} が停止しました。",
+        "providerExitedAnswer": "{{agent}} が停止したため、回答は送信されませんでした。続けるにはメッセージを送信してください。",
         "providerRejected": "{{agent}} はこのメッセージを受け付けませんでした。",
         "providerRejectedQuoted": "{{agent}} はこのメッセージを受け付けませんでした: {{detail}}。",
         "attachmentEmpty": "このメッセージの画像が空のため、メッセージは送信されませんでした。",
@@ -18151,7 +18164,7 @@
         "send": "送信",
         "noPty": "ライブターミナルがありません - 再接続するには元に切り替えてください。",
         "locked": "入力は別のデバイスによって保持されます。",
-        "placeholder": "何でも質問、@ でファイルをメンション、/ でコマンド",
+        "placeholder": "何でも聞いてください。@ でファイルを参照、/ でコマンドを実行",
         "loadingFiles": "ファイルを読み込み中…",
         "noFiles": "一致するファイルがありません",
         "filesLoadFailed": "ファイルを読み込めませんでした",
@@ -18359,6 +18372,8 @@
         "toggleDetails": "ターンの詳細を切り替えます"
       },
       "jumpToLatest": "最新にジャンプ",
+      "newRowsAnnouncement": "離れている間に新しいメッセージが届きました",
+      "newRowsMarker": "新着",
       "find": {
         "label": "チャット内を検索",
         "noResults": "結果はありません",
@@ -18629,15 +18644,7 @@
         "withdrawnHold": "送信前に停止されました",
         "pausedSendFailed": "送信できませんでした。「送信」を押して再試行してください。",
         "paused": "一時停止中",
-        "queuePausedStopped": "中断したため、キューを一時停止しました",
-        "queuePaused": "キューは一時停止中です",
         "resume": "再開",
-        "sendConfirmTitle": "メッセージを送信しますか？",
-        "sendConfirmBody": "メッセージを送信しようとしています。キューに入っている {{count}} 件のメッセージを消去しますか？",
-        "sendConfirmBody_one": "メッセージを送信しようとしています。キューに入っている {{count}} 件のメッセージを消去しますか？",
-        "sendConfirmBody_other": "メッセージを送信しようとしています。キューに入っている {{count}} 件のメッセージを消去しますか？",
-        "sendConfirmClear": "キューを消去",
-        "sendConfirmSend": "メッセージを送信",
         "fromSender": "送信元:",
         "pausedSendFailedWaiting": "送信できませんでした。Agent の処理が終わったら「送信」を押して再試行してください。",
         "save": "保存",
@@ -18647,7 +18654,11 @@
         "editChangedPrompt": "編集中にこのメッセージが変更されました。Agent に回答すると、編集したテキストがチャット入力欄に表示されます。",
         "editFailed": "このメッセージは編集できません。",
         "editGone": "このメッセージはすでに送信または削除されています。編集したテキストはチャット入力欄にあります。",
-        "editGonePrompt": "このメッセージはすでに送信または削除されています。Agent に回答すると、編集したテキストがチャット入力欄に表示されます。"
+        "editGonePrompt": "このメッセージはすでに送信または削除されています。Agent に回答すると、編集したテキストがチャット入力欄に表示されます。",
+        "collapse": "折りたたむ",
+        "expand": "展開",
+        "queued": "キュー待ち",
+        "clearAll": "すべてクリア"
       },
       "thought": "考えました",
       "thoughtForDuration": "{{duration}} 考えました",
@@ -19026,7 +19037,8 @@
     "settings": {
       "TerminalInteraction": {
         "copyTrimsGutter": "コピー時に余白をトリミングする",
-        "copyTrimsGutterDescription": "左側のガターをドロップすると、Agent の出力が後ろに描画されるため、コピーされたテキストはインデントされません。選択した行ごとに共有されるインデントのみが削除されます。"
+        "copyTrimsGutterDescription": "左側のガターをドロップすると、Agent の出力が後ろに描画されるため、コピーされたテキストはインデントされません。選択した行ごとに共有されるインデントのみが削除されます。",
+        "copyOnSelectDescription": "ターミナルやチャットで選択したテキストをクリップボードに自動的にコピーします。"
       },
       "terminal": {
         "clipboard": {
@@ -19036,7 +19048,10 @@
             "margin": "マージン",
             "leading": "先頭",
             "whitespace": "空白",
-            "spaces": "スペース"
+            "spaces": "スペース",
+            "copyOnSelectDescription": "ターミナルやチャットでテキストを選択するとすぐに、その内容をクリップボードに自動的にコピーします。",
+            "highlight": "ハイライト",
+            "chat": "チャット"
           }
         }
       },
@@ -19074,6 +19089,42 @@
     },
     "automations": {
       "runTerminalUnavailable": "実行ターミナルを利用できません。"
+    },
+    "jiraIssueTitleField": {
+      "generate": "説明からタイトルを生成",
+      "stop": "タイトルの生成を停止",
+      "canceled": "生成をキャンセルしました。",
+      "webUnavailable": "Web クライアントでは Jira のタイトル生成を利用できません。",
+      "hostUpdateRequired": "Jira のタイトルを生成するには、更新された Orca サーバーが必要です。Jira 接続のホストを更新して、再試行してください。",
+      "generating": "タイトルを生成しています。クリックして停止します。",
+      "failed": "説明から概要を生成できませんでした。"
+    },
+    "agentCombobox": {
+      "clearSelection": "Agent の選択をクリア"
+    },
+    "newWorkspace": {
+      "agentOptional": "Agent [オプション]",
+      "createDescription": "プロジェクトとワークスペース名を選択します。開始する場合は Agent を選択してください。"
+    },
+    "JiraIssueWorkspace": {
+      "pendingChange": "別の Issue の変更が進行中です。"
+    },
+    "jiraProjectPicker": {
+      "search": "Jira プロジェクトを検索",
+      "empty": "プロジェクトが見つかりませんでした。",
+      "label": "Jira プロジェクト",
+      "all": "すべての Jira プロジェクト"
+    },
+    "RepositoryJiraProjectSection": {
+      "saveFailed": "デフォルトの Jira プロジェクトを保存できませんでした。",
+      "runtimeUpdate": "デフォルトの Jira プロジェクトを保存するには、このランタイムを更新してください。",
+      "title": "デフォルトの Jira プロジェクト",
+      "description": "Jira の Issue ピッカーとタスクリストのデフォルトをこのプロジェクトに設定します。ワークツリーごとに変更できます。",
+      "none": "デフォルトプロジェクトなし",
+      "connect": "プロジェクトを選択するには、連携で Jira に接続してください。",
+      "keywordJira": "Jira",
+      "keywordDefaultProject": "デフォルトプロジェクト",
+      "keywordIssuePicker": "Issue ピッカー"
     }
   },
   "dashboardPopout": {
@@ -19540,7 +19591,8 @@
     "continueInCliNewTab": "新規タブで CLI を続行する"
   },
   "common": {
-    "retry": "再試行"
+    "retry": "再試行",
+    "cancel": "キャンセル"
   },
   "fileExplorer": {
     "root": {
@@ -19943,6 +19995,96 @@
       "jql": "ステータスフィルターの JQL",
       "editJql": "JQL として編集",
       "catalogHint": "ステータスは読み込まれた課題から取得されます。このビューで他のステータスを表示するには、選択をクリアしてください。"
+    },
+    "connect": {
+      "scopedTokenGuide": "スコープ付きトークンには read:jira-work、write:jira-work、read:jira-user が必要です。Bearer 認証を使用するには、メールアドレスを空のままにします。",
+      "oldHostGuide": "このリモートランタイムには、メールアドレスとスコープなしの API トークンが必要です。スコープ付きトークンを使用するには、リモートランタイムを更新してください。",
+      "scopedDescription": "Jira Cloud のサイト URL と API トークンを使って Issue を閲覧します。スコープ付きトークンではメールアドレスを省略できます。",
+      "optionalEmail": "Atlassian のメールアドレス (スコープ付きトークンではオプション)"
+    },
+    "workspace": {
+      "open": "{{key}} にリンクされたワークスペースを開く",
+      "count": "{{key}} にリンクされたワークスペース {{count}} 件",
+      "startAnother": "新規ワークスペースを開始",
+      "empty": "Jira Issue をワークスペースにリンクするか、別のビューを選択してください。",
+      "openFailed": "この Jira Issue にリンクされたワークスペースを開けませんでした。",
+      "mode": "ワークスペースあり",
+      "search": "リンクされた Issue を検索",
+      "single": "{{key}} にリンクされたワークスペース 1 件"
+    },
+    "prompt": {
+      "dialogTitle": "テンプレートからプロンプトをコピー",
+      "template": "テンプレート",
+      "custom": "カスタムテンプレート",
+      "templateText": "テンプレートテキスト",
+      "variables": "$jira-issue は Issue のコンテキストに、$other-prompt は追加の指示に使用します。このデバイスに保存されます。",
+      "other": "追加の指示 (オプション)",
+      "preview": "プレビュー",
+      "implementation": "実装を開始",
+      "bug": "バグを調査",
+      "testPlan": "テストプランを作成",
+      "prSummary": "PR サマリーの下書きを作成"
+    },
+    "copy": {
+      "context": "{{key}} のコンテキストをコピー",
+      "actions": "Issue のコンテキストをコピー"
+    },
+    "transitions": {
+      "changeStatus": "ステータスを変更: {{status}}",
+      "loadError": "ステータス変更を読み込めませんでした。",
+      "retry": "再試行",
+      "loading": "ステータス変更を読み込んでいます…",
+      "completeInJira": "Jira で「{{name}}」を完了",
+      "unsupported": "Jira には、Orca がまだ取得できないフィールドが必要です: {{fields}}。",
+      "chooseResolution": "解決策を選択",
+      "comment": "コメント",
+      "back": "戻る",
+      "apply": "ステータスを変更",
+      "empty": "利用可能なステータス変更はありません。"
+    },
+    "board": {
+      "currentSprint": "現在のスプリント",
+      "viewMode": "Jira ビュー",
+      "list": "リスト",
+      "board": "ボード",
+      "moveIssue": "{{key}} を移動",
+      "moveTitle": "{{key}} を {{column}} に移動",
+      "moveDescription": "利用できるステータス変更と必要なフィールドは Jira が制御します。",
+      "chooseTransition": "ステータス変更を選択:",
+      "cancel": "キャンセル",
+      "noTransition": "{{key}} では {{column}} へのステータス変更を利用できません。",
+      "queryTooLong": "Jira クエリが長すぎます。クエリを短くするか、フィルターをクリアしてください。"
+    }
+  },
+  "updates": {
+    "installBlock": {
+      "instancesLabel": "Orca を使用中のインスタンス",
+      "browserLabel": "バックグラウンドブラウザ",
+      "serverLabel": "バックグラウンドサーバー",
+      "windowLabel": "別の Orca ウィンドウ",
+      "instanceLabel": "別の Orca インスタンス",
+      "processId": "PID {{pid}}",
+      "preparingTitle": "更新を準備しています",
+      "preparingSummary": "再起動する前に、実行中の Orca インスタンスを確認しています。",
+      "later": "後で",
+      "retainedDownload": "Orca は開いたままです。再度ダウンロードする必要はありません。",
+      "retryInstallation": "インストールを再試行",
+      "waitingLabel": "更新を待機中",
+      "busyTitle": "別の Orca が更新中です",
+      "busySummary": "別の Orca インスタンスがすでに更新をインストールしています。",
+      "busyGuidance": "しばらく待ってから、再試行してください。ダウンロード済みの更新は準備できています。",
+      "unresponsiveTitle": "バックグラウンドサーバーを待機中",
+      "unresponsiveSummary": "Orca は更新のためにバックグラウンドサーバーを一時停止できませんでした。",
+      "unresponsiveGuidance": "起動元のターミナルまたはサービスから停止して、再試行してください。接続中のデバイスは切断されます。",
+      "readyTitle": "更新の準備ができました",
+      "serverSummary": "バックグラウンドの Orca サーバーがこのアプリをまだ使用しています。",
+      "instanceSummary": "別の Orca インスタンスがこのアプリをまだ使用しています。",
+      "serverGuidance": "起動元のターミナルまたはサービスから停止して、再試行してください。接続中のデバイスは切断されます。",
+      "mixedGuidance": "他の Orca ウィンドウをすべて閉じ、起動元のターミナルまたはサービスからサーバーを停止してください。接続中のデバイスは切断されます。その後、再試行してください。",
+      "instanceGuidance": "他の Orca インスタンスを終了してから、再試行してください。ダウンロード済みの更新は準備されたままになります。",
+      "waitingAriaLabel": "他の Orca インスタンスを待機中の更新。クリックして展開します。",
+      "preparingLabel": "更新を準備中",
+      "preparingAriaLabel": "更新を準備中。クリックして展開します。"
     }
   }
 }

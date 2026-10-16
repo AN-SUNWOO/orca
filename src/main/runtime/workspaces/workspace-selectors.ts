@@ -1,4 +1,4 @@
-import { OrcaRuntimeWithResolveBrowserNetworkExecutionHostForWorktree } from '../orca-runtime-resolve-browser-network-execution-host-for-worktree'
+import { OrcaRuntimeWithResolveBrowserNetworkExecutionHostForWorktree } from '../terminal/launch/terminal-workspace-scope'
 import type { ResolvedWorktree } from '../runtime-worktree-path-identity'
 import { splitWorktreeIdForFilesystem, worktreeIdComparisonKey } from '../../../shared/worktree/id'
 import { branchSelectorMatches, runtimePathsEqual } from '../runtime-worktree-path-identity'
@@ -186,7 +186,7 @@ export abstract class RuntimeWorkspaceSelectors extends OrcaRuntimeWithResolveBr
     throw new Error('repo_not_found')
   }
 
-  protected requireStore(): RuntimeStore {
+  requireStore(): RuntimeStore {
     if (!this.store) {
       throw new Error('runtime_unavailable')
     }

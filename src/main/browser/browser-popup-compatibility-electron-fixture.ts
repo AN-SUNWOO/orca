@@ -286,6 +286,8 @@ async function run(): Promise<void> {
       writeStatus()
     }
   })
+  // Playwright must attach before Electron changes guest targets from pages to webviews.
+  await fetch(`${fixtureOrigin}/fixture-cdp-connected`)
   await createHost('local', localPartition)
   phase = 'local'
   writeStatus()

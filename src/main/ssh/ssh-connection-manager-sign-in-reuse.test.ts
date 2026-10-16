@@ -119,6 +119,9 @@ describe('SshConnectionManager on a password host', () => {
     onCredentialRequest.mockImplementationOnce(() => new Promise(() => {}))
     emitSshEvent('keyboard-interactive', '', '', '', passwordPrompt, vi.fn())
     await vi.waitFor(() => expect(onCredentialRequest).toHaveBeenCalledTimes(2))
+    // A background dial may not close the dialog the user is answering.
+    await expect(manager.connect(createTarget())).rejects.toThrow('already in progress')
+    await manager.disconnectConnection('target-1', manager.getConnection('target-1')!)
 
     ssh2Mock.connectSequence = [authFailure(), 'ready']
     await manager.connect(createTarget())

@@ -6,6 +6,7 @@ import type { Section, Worktree } from '../worktree/workspace-list-types'
 const { rowRenders } = vi.hoisted(() => ({ rowRenders: vi.fn() }))
 
 vi.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
   Pressable: 'Pressable',
   RefreshControl: 'RefreshControl',
   // Renders every row through the list's own renderItem, as a mounted SectionList would.
@@ -45,6 +46,7 @@ vi.mock('../components/MobileSearchField', () => ({}))
 vi.mock('../components/NewWorkspaceFab', () => ({ FAB_SIZE: 56 }))
 
 import { buildSections } from '../worktree/workspace-list-sections'
+import { NO_WORKSPACE_ROW_FILTERS } from '../../../src/shared/workspace-view/workspace-row-filters'
 import { HostWorkspaceList } from './host-workspace-list'
 
 function worktree(id: string, overrides: Partial<Worktree> = {}): Worktree {
@@ -67,17 +69,12 @@ function worktree(id: string, overrides: Partial<Worktree> = {}): Worktree {
 }
 
 const noop = () => {}
-const stable = { ref: { current: null }, repoColors: new Map(), repoIcons: new Map() }
+const stable = { ref: { current: null }, repoById: new Map() }
 
 function listProps(worktrees: Worktree[]) {
   // Each poll re-parses the payload, so rows are fresh objects even when nothing changed.
   const polled: Worktree[] = JSON.parse(JSON.stringify(worktrees))
-  const filters = {
-    filterRepoIds: new Set<string>(),
-    hideSleeping: false,
-    hideDefaultBranch: false
-  }
-  const sections = buildSections(polled, 'name', filters, '', 'none', new Set())
+  const sections = buildSections(polled, 'name', NO_WORKSPACE_ROW_FILTERS, '', 'none', new Set())
   const controller = {
     actions: { openWorktreeSession: noop, openNewWorktreeModal: noop },
     activeWorktreeScroll: { sectionListRef: stable.ref, onScrollToIndexFailed: noop },
@@ -90,13 +87,12 @@ function listProps(worktrees: Worktree[]) {
     now: 1_000,
     reconnectAttempts: 0,
     relayRecovery: { pairingRejected: false },
-    sectionsResult: { rawSections: sections, sections, uniqueRepoColors: stable.repoColors },
+    sectionsResult: { rawSections: sections, sections, repoById: stable.repoById },
     settings: { activeFilterCount: 0, toggleWorktreeLineage: noop },
     state: {
       actionError: '',
       setActionTarget: noop,
-      groupMode: 'none',
-      repoIconsByName: stable.repoIcons,
+      view: { groupBy: 'none' },
       search: '',
       showSearch: false,
       worktreesLoaded: true

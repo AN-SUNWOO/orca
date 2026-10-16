@@ -1,3 +1,4 @@
+import './rpc/unused-default-rpc-methods.test-fixture'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from './orca-runtime'
 import { RpcDispatcher } from './rpc/dispatcher'
@@ -86,12 +87,13 @@ it('refuses an agent whose WSL distro is gone, under its own code', async () => 
   expect(response).toMatchObject({ error: { code: PROJECT_RUNTIME_REPAIR_REQUIRED_CODE, message } })
 })
 
-// TEMPORARY parity: in a `\\wsl$` repo set to Windows host, OpenCode's model is checked on Windows,
-// as on main; its command is still written for Linux, where it runs.
-it('checks an OpenCode model on Windows in a WSL-share repo set to Windows host', async () => {
+// OpenCode runs in WSL in a `\\wsl$` repo, where Orca can't verify a model yet, so picking one is
+// refused rather than checked on Windows.
+it('refuses an OpenCode model in a WSL-share repo set to Windows host', async () => {
   const shareScope = { ...scope, id: 's', path: share.path, repo: share, folderWorkspace: null }
   Object.assign(runtime, { resolveTerminalWorkspaceLaunchScope: async () => shareScope })
   const request = { clientOperationId, worktree: 'id:s', agent: 'opencode' } as const
-  await runtime.createAgentSession({ ...request, launchPreferences: { model: 'm' } })
-  expect(spawned()).toEqual(['linux'])
+  const picked = runtime.createAgentSession({ ...request, launchPreferences: { model: 'm' } })
+  await expect(picked).rejects.toThrow('cannot verify this OpenCode')
+  expect(spawned()).toEqual([])
 })

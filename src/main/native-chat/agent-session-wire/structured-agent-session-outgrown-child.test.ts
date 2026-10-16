@@ -131,7 +131,6 @@ const conversation = (
     child?: StructuredAgentSessionProviderChild | null
     items?: Row[]
     submissions?: ReturnType<typeof rejected>[]
-    activeTurnId?: string
     newestTurnEndedAt?: number
   } = {}
 ) => {
@@ -147,7 +146,6 @@ const conversation = (
           visit(item.itemId, index, item.body, item.agentId ? { agentId: item.agentId } : {})
         ),
       itemFence: (itemId: string) => items.find((item) => item.itemId === itemId)?.fence,
-      activeTurnId: () => input.activeTurnId ?? null,
       newestTurn: (): AgentJournalTurnLifecycle | null =>
         input.newestTurnEndedAt === undefined
           ? null
@@ -202,10 +200,14 @@ describe('retireOutgrownStructuredAgentSessionChild', () => {
     invocation: { invocationId: 'spawn-subagent-1', generation: 1 }
   }
   const idle: StructuredAgentSessionChildWorkReads = {
+    currentWork: () => ({ activeTurnId: () => null, hasActionablePrompt: () => false }),
     childWork: () => [],
     hasOpenDispatch: () => false,
     providerHoldsDispatch: () => false
   }
+  const owing = (turnId: string | null, prompt: boolean): Partial<typeof idle> => ({
+    currentWork: () => ({ activeTurnId: () => turnId, hasActionablePrompt: () => prompt })
+  })
   const signedOut = { submissions: [rejected(2)] }
   const retire = async (
     input: Parameters<typeof conversation>[0],
@@ -230,7 +232,7 @@ describe('retireOutgrownStructuredAgentSessionChild', () => {
   it('keeps it while it owes work the idle sweep also protects', async () => {
     // A pending prompt is the shared check's too; the idle sweep's tests cover that case.
     for (const kept of [
-      await retire({ ...signedOut, activeTurnId: 'turn-1' }),
+      await retire(signedOut, owing('turn-1', false)),
       await retire(signedOut, { childWork: () => [liveChildWork] }),
       await retire(signedOut, { hasOpenDispatch: () => true }),
       await retire(signedOut, { providerHoldsDispatch: () => true })
@@ -286,9 +288,9 @@ describe('retireOutgrownStructuredAgentSessionChild', () => {
 
     it('is kept while it owes work, as a signed-out one is', async () => {
       for (const kept of [
-        await retire({ ...askChild, activeTurnId: 'turn-1' }, {}, undefined, now('auto')),
+        await retire(askChild, owing('turn-1', false), undefined, now('auto')),
         await retire(askChild, { childWork: () => [liveChildWork] }, undefined, now('auto')),
-        await retire({ ...askChild, items: [pendingPrompt] }, {}, undefined, now('auto'))
+        await retire(askChild, owing(null, true), undefined, now('auto'))
       ]) {
         expect(kept.stopAgent).not.toHaveBeenCalled()
       }
@@ -390,15 +392,3 @@ describe('retireOutgrownStructuredAgentSessionChild', () => {
     })
   })
 })
-
-const pendingPrompt: Row = {
-  itemId: 'approval-1',
-  fence: 2,
-  body: {
-    kind: 'approval',
-    title: 'Run a command',
-    detail: null,
-    options: [],
-    resolution: { state: 'pending', selectedOptionId: null, resolvedBy: null, resolvedAt: null }
-  }
-}

@@ -50,7 +50,9 @@ export class SshConnectionManager {
       throw createSshCredentialDeclinedError(target.label)
     }
 
-    if (this.connectingTargets.has(target.id)) {
+    // Why: replacing a connection whose own reconnect is asking the user would close that dialog
+    // and open another one.
+    if (this.connectingTargets.has(target.id) || existing?.isAwaitingCredential()) {
       throw new Error(`Connection to ${target.label} is already in progress`)
     }
 

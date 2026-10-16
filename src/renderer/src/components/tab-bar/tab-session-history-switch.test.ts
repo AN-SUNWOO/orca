@@ -46,7 +46,10 @@ vi.mock('@/runtime/local-runtime-capabilities', async (importOriginal) => ({
 vi.mock('@/runtime/host-structured-agents', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   readHostStructuredAgents: () =>
-    ['claude', 'codex', 'grok', 'omp', 'opencode'].map((agent) => ({ agent, capabilities: {} }))
+    ['claude', 'codex', 'grok', 'omp', 'opencode', 'pi'].map((agent) => ({
+      agent,
+      capabilities: {}
+    }))
 }))
 vi.mock('@/lib/renderer-app-platform', () => ({ getRendererAppPlatform: () => mocks.platform }))
 
@@ -192,24 +195,15 @@ describe('resolveTabSessionHistorySubject', () => {
     ).toEqual({ ...chatSubject })
   })
 
-  it('finds a chat of any agent whose CLI can open a copy', () => {
-    expect(
-      resolveTabSessionHistorySubject(makeState(), {
-        tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
-        nativeChat: { sessionId: 'orca-chat-1', agent: 'grok' }
-      })
-    ).toEqual({ ...chatSubject })
-  })
-
-  it.each(['opencode', 'omp'] as const)(
-    'skips a %s chat, whose CLI cannot open a copy',
+  it.each(['grok', 'opencode', 'omp'] as const)(
+    'finds a %s chat, whose conversation can be copied to its CLI',
     (agent) => {
       expect(
         resolveTabSessionHistorySubject(makeState(), {
           tab: { id: 'unified-1', worktreeId: WORKTREE_ID },
           nativeChat: { sessionId: 'orca-chat-1', agent }
         })
-      ).toBeNull()
+      ).toEqual({ ...chatSubject })
     }
   )
 
@@ -287,7 +281,7 @@ describe('resolveTabSessionHistorySubject', () => {
     ).toEqual(cliSubject)
   })
 
-  it.each(['grok', 'omp', 'opencode', 'opencode2'] as const)(
+  it.each(['grok', 'omp', 'opencode', 'opencode2', 'pi'] as const)(
     'finds a %s terminal tab, whose conversation a chat can take over',
     (agentType) => {
       const state = makeState({
@@ -305,7 +299,7 @@ describe('resolveTabSessionHistorySubject', () => {
     }
   )
 
-  it.each(['pi'] as const)(
+  it.each(['gemini'] as const)(
     'skips a %s terminal tab, whose conversation no chat can take over',
     (agentType) => {
       const state = makeState({
@@ -404,7 +398,7 @@ describe('one pane of a terminal tab', () => {
     expect(paneGate(state, geminiPane)).toBe(false)
   })
 
-  it.each(['grok', 'omp', 'opencode', 'opencode2'] as const)(
+  it.each(['grok', 'omp', 'opencode', 'opencode2', 'pi'] as const)(
     "finds a %s pane's own conversation",
     (agentType) => {
       const paneKey = 'term-1:leaf-1'

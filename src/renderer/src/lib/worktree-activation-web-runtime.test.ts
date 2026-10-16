@@ -4,7 +4,8 @@ import { ensureWorktreeHasInitialTerminal } from './worktree-initial-terminal-se
 import type { AppStoreState } from './worktree-activation-test-harness'
 import {
   createMockStore,
-  registerWorktreeActivationReset
+  registerWorktreeActivationReset,
+  createdTabStartups
 } from './worktree-activation-test-harness'
 import { useAppStore } from '@/store'
 import {
@@ -299,14 +300,12 @@ describe('ensureWorktreeHasInitialTerminal', () => {
     expect(store.setTabCustomTitle).toHaveBeenCalledWith('tab-2', 'Setup', {
       recordInteraction: false
     })
-    expect(store.queueTabStartupCommand).toHaveBeenCalledWith(
-      'tab-2',
+    expect(createdTabStartups(store)['tab-2']).toEqual(
       expect.objectContaining({
         command: expect.stringContaining('bash /tmp/repo/.git/orca/setup-runner.sh')
       })
     )
-    expect(store.queueTabStartupCommand).toHaveBeenCalledWith(
-      'tab-2',
+    expect(createdTabStartups(store)['tab-2']).toEqual(
       expect.objectContaining({
         command: expect.stringContaining('printf')
       })

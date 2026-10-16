@@ -157,6 +157,8 @@ export class ElectronServeBrowserProcess {
 
   createCommands(host: RuntimeBrowserCommandHost): RuntimeBrowserCommands {
     return new Proxy({} as RuntimeBrowserCommands, {
+      // Why: startup checks membership before invoking dynamically resolved commands.
+      has: (_target, property) => typeof property === 'string' && property !== 'then',
       get: (_target, property) => {
         if (property === 'then') {
           return undefined

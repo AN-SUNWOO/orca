@@ -11,6 +11,7 @@ import {
   resolveStructuredAgentSessionAdoption,
   structuredAdoptionConflictError
 } from '../native-chat/structured-agent-session-history-adoption'
+import { structuredAgentRuntimeMetadata } from './structured-agent-runtime-metadata'
 import type {
   StructuredAgentTranscriptImport,
   StructuredAgentTranscriptImportSettings
@@ -25,11 +26,13 @@ export function resolveCommittedStructuredAgentSessionAdoptionIntent(input: {
   location: AgentSessionExecutionLocation
   options?: Readonly<Record<string, string>>
 }): AgentSessionAttachParams | null {
+  const history = structuredAgentRuntimeMetadata(input.agent)?.sessionHistory
   const replay =
-    input.resumeFrom && input.callerKey && input.host
+    input.resumeFrom && input.callerKey && input.host && history
       ? findCommittedStructuredAgentSessionAdoptionReplay({
           agent: input.agent,
           providerSessionId: input.resumeFrom.providerSessionId,
+          rowSessionId: history.rowSessionId,
           selfSessionId: input.envelope.sessionId,
           callerKey: input.callerKey,
           operationId: input.envelope.clientOperationId,

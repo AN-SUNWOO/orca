@@ -130,7 +130,7 @@ it('is saved before it interrupts, and a retry of its id never stops the newer t
 
   expect(rig.cancelTurn).toHaveBeenCalledOnce()
   expect(stopEvents()).toHaveLength(1)
-  expect(journal().activeTurnId()).toBe('turn-2')
+  expect(journal().runningTurn()?.turnId ?? null).toBe('turn-2')
   expect((await rig.submission(behind))?.dispatchState).not.toBe('rejected')
   expect((await rig.submission(newer))?.dispatchState).not.toBe('rejected')
   expect(await rig.drafts()).toEqual([])

@@ -24,6 +24,7 @@ function createPlainShellSession(overrides: Partial<Session> = {}): Session {
     scheduleForceDisposeFallback: vi.fn(),
     signalTerminationRoot: vi.fn(),
     ...overrides
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: teardown reads only the members this fake defines.
   } as unknown as Session
 }
 

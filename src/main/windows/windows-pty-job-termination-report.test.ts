@@ -4,6 +4,7 @@ import { terminatePtyJobAndReport } from './windows-pty-job-termination-report'
 import type { WindowsProcessIdentityRow } from './windows-process-table'
 import type { JobTerminationOutcome } from './windows-pty-job'
 
+// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the report only passes proc to the injected readMembers and terminate fakes.
 const proc = { pid: 10 } as unknown as IPty
 const row = (pid: number, name: string, creationTimeMs?: number): WindowsProcessIdentityRow => ({
   pid,

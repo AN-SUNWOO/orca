@@ -424,6 +424,28 @@ describe('session parse cache persistence', () => {
     )
   })
 
+  it('never stats WSL transcripts; their rows age out after half a year unparsed', async () => {
+    const root = await makeTempDir()
+    const cacheFile = join(root, 'session-parse-cache.json')
+    initSessionParseCachePersistence({ filePath: cacheFile, appVersion: APP_VERSION })
+    const row = { sizeBytes: 1, platform: 'win32', session: null, resume: null } as const
+    const recent = '\\\\wsl.localhost\\Ubuntu\\home\\me\\recent.jsonl'
+    const ancient = '\\\\wsl$\\Ubuntu\\home\\me\\ancient.jsonl'
+    storeSessionParseCacheEntry(recent, { ...row, mtimeMs: 1 })
+    storeSessionParseCacheEntry(ancient, { ...row, mtimeMs: 2 })
+    await flushSessionParseCachePersist()
+    resetSessionParseCachePersistenceForTests()
+    setSeenAt(cacheFile, recent, Date.now() - 31 * DAY_MS)
+    setSeenAt(cacheFile, ancient, Date.now() - 181 * DAY_MS)
+    const stat = vi.mocked(fsPromises.stat)
+
+    simulateRestart(cacheFile)
+    stat.mockClear()
+    invalidateSessionParseCacheEntry(join(root, 'opens-the-database.jsonl'))
+    await vi.waitFor(() => expect(databaseRows(cacheFile).map((r) => r.path)).toEqual([recent]))
+    expect(stat.mock.calls.map(([path]) => String(path))).not.toContain(recent)
+  })
+
   it('invalidating before the first lookup does not bring the row back', async () => {
     const root = await makeTempDir()
     const cacheFile = join(root, 'session-parse-cache.json')

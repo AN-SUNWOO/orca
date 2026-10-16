@@ -107,15 +107,28 @@ export class SessionParseCacheDatabase {
     this.run((db) => db.prepare('DELETE FROM rows WHERE path = ?').run(path), undefined)
   }
 
-  /** Oldest first, so repeated calls work through every stale row. */
-  pathsSeenBefore(cutoff: number, limit: number): string[] {
+  /** Oldest first, so repeated calls work through every stale row outside `excludeGlob`. */
+  pathsSeenBefore(cutoff: number, limit: number, excludeGlob: string): string[] {
     return this.run(
       (db) =>
         db
-          .prepare('SELECT path FROM rows WHERE seen_at < ? ORDER BY seen_at LIMIT ?')
-          .all(cutoff, limit)
+          .prepare(
+            'SELECT path FROM rows WHERE seen_at < ? AND path NOT GLOB ? ORDER BY seen_at LIMIT ?'
+          )
+          .all(cutoff, excludeGlob, limit)
           .flatMap((row) => (typeof row.path === 'string' ? [row.path] : [])),
       []
+    )
+  }
+
+  /** True when any row was deleted. */
+  deleteSeenBefore(cutoff: number, glob: string): boolean {
+    return this.run(
+      (db) =>
+        Number(
+          db.prepare('DELETE FROM rows WHERE seen_at < ? AND path GLOB ?').run(cutoff, glob).changes
+        ) > 0,
+      false
     )
   }
 

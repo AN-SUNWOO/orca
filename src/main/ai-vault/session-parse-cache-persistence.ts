@@ -7,6 +7,7 @@
 import { stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
+import { splitOpenCodeSqliteCandidate } from '../../shared/opencode-sqlite-session-path'
 import { SessionParseCacheDatabase } from './session-parse-cache-database'
 import { importLegacySessionParseCacheJson } from './session-parse-cache-legacy-json'
 import {
@@ -22,6 +23,12 @@ const WRITE_CHUNK_ROWS = 500
 const RECHECK_AFTER_MS = 30 * 24 * 60 * 60_000
 // Per helper start; it restarts often enough to work through a large backlog.
 const RECHECK_BATCH_ROWS = 1_000
+// WSL transcripts (`\\wsl.localhost\…`, `\\wsl$\…`) are never stat-checked here:
+// that could boot a stopped distro or hang on a stuck one outside the scanner's
+// running-distro filter. Their rows age out instead, after half a year unparsed.
+const WSL_PATH_GLOB = '[\\/][\\/][wW][sS][lL][.$]*'
+const WSL_EXPIRE_AFTER_MS = 180 * 24 * 60 * 60_000
+const SQLITE_SESSION_AGENTS = ['opencode', 'opencode2', 'zcode'] as const
 
 export type SessionParseCachePersistenceOptions = {
   // The legacy JSON file; the database sits beside it.
@@ -105,8 +112,9 @@ function openedDatabase(): SessionParseCacheDatabase | null {
 // A row for a transcript deleted outside Orca is never looked up again, so the
 // file system, not a timer, decides when it ends.
 async function dropRowsForMissingTranscripts(db: SessionParseCacheDatabase): Promise<void> {
-  let dropped = false
-  for (const path of db.pathsSeenBefore(Date.now() - RECHECK_AFTER_MS, RECHECK_BATCH_ROWS)) {
+  let dropped = db.deleteSeenBefore(Date.now() - WSL_EXPIRE_AFTER_MS, WSL_PATH_GLOB)
+  const stale = db.pathsSeenBefore(Date.now() - RECHECK_AFTER_MS, RECHECK_BATCH_ROWS, WSL_PATH_GLOB)
+  for (const path of stale) {
     if (await transcriptMissing(path)) {
       db.delete(path)
       dropped = true
@@ -119,14 +127,16 @@ async function dropRowsForMissingTranscripts(db: SessionParseCacheDatabase): Pro
   }
 }
 
-// OpenCode's SQLite sessions are keyed `<db>#<id>`, so for those the database
-// file stands in for the transcript.
+// SQLite-backed sessions (OpenCode and its forks) are keyed `<db>#<id>`, so for
+// those the database file stands in for the transcript.
 async function transcriptMissing(path: string): Promise<boolean> {
-  const hash = path.lastIndexOf('#')
-  return (await pathMissing(path)) && (hash === -1 || (await pathMissing(path.slice(0, hash))))
+  const sqliteSession = SQLITE_SESSION_AGENTS.map((agent) =>
+    splitOpenCodeSqliteCandidate(path, agent)
+  ).find((split) => split !== null)
+  return (await pathMissing(path)) && (!sqliteSession || (await pathMissing(sqliteSession.dbPath)))
 }
 
-// Unreachable (a stopped WSL distro, a permission error) is not missing.
+// Unreachable (a permission error, a slow mount) is not missing.
 async function pathMissing(path: string): Promise<boolean> {
   try {
     await stat(path)

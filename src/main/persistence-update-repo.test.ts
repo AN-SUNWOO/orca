@@ -13,7 +13,11 @@ import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { getDefaultPersistedState } from '../shared/constants'
-import { updateProjectHostSetupWithProvenKind } from './folder-repo-git-conversion'
+import {
+  commitProvenRepoKindChange,
+  proveRepoKindChange,
+  updateProjectHostSetupWithProvenKind
+} from './folder-repo-git-conversion'
 
 import {
   getLocalWorktreeScanGeneration,
@@ -376,7 +380,36 @@ describe('Store', () => {
     await expect(changeToGit('inner')).rejects.toThrow("isn't the top folder of a Git repository")
     expect(store.getRepo('inner')?.kind).toBe('folder')
     const converted = await changeToGit('outer')
-    expect(converted?.repo).toMatchObject({ kind: 'git', folderUpgradeGitRootPath: expect.any(String) })
+    expect(converted?.repo).toMatchObject({
+      kind: 'git',
+      folderUpgradeGitRootPath: expect.any(String)
+    })
+  })
+
+  it('keeps an SSH-owned folder with only executionHostId on the unchecked path', async () => {
+    const repo = makeRepo({
+      id: 'remote-folder',
+      path: '/remote-only/folder',
+      kind: 'folder',
+      executionHostId: 'ssh:build-host'
+    })
+    expect(await proveRepoKindChange(repo, 'git')).toEqual({})
+  })
+
+  it('refuses a proven conversion if the selected folder path changed before commit', async () => {
+    const root = join(testState.dir, 'moved-project')
+    mkdirSync(root, { recursive: true })
+    execFileSync('git', ['init', '-q'], { cwd: root })
+    const repo = makeRepo({ id: 'moving-folder', path: root, kind: 'folder' })
+    const write = vi.fn()
+    await expect(
+      commitProvenRepoKindChange(
+        { getRepos: () => [{ ...repo, path: join(root, 'new-path') }] },
+        repo,
+        write
+      )
+    ).rejects.toThrow("isn't the top folder of a Git repository")
+    expect(write).not.toHaveBeenCalled()
   })
 
   it('deletes independent project host setup records without deleting the project', async () => {

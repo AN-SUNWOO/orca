@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import type { Store } from '../../persistence'
 import type { Repo } from '../../../shared/repo-types'
+import { isFolderRepo } from '../../../shared/repo-kind'
 import { DEFAULT_REPO_BADGE_COLOR } from '../../../shared/constants'
 import { getGitCloneFailureMessage } from '../../../shared/git-clone-failure-message'
 import { gitSpawnAfterWindowsEnvironmentReady, promptGuardGitEnv } from '../../git/runner'
@@ -253,8 +254,16 @@ export function registerRepoCloneHandlers(mainWindow: BrowserWindow, store: Stor
           const existing = findSaved()
           if (existing) {
             const conversion = await resolveClonedFolderConversion(store, existing)
-            if (conversion) {
-              const updated = store.updateRepo(existing.id, {
+            const current = findSaved()
+            if (
+              current &&
+              conversion &&
+              current.id === existing.id &&
+              current.path === existing.path &&
+              isFolderRepo(current) &&
+              getRepoExecutionHostId(current) === getRepoExecutionHostId(existing)
+            ) {
+              const updated = store.updateRepo(current.id, {
                 kind: 'git',
                 ...conversion,
                 projectHostSetupMethod: 'cloned'
@@ -270,11 +279,13 @@ export function registerRepoCloneHandlers(mainWindow: BrowserWindow, store: Stor
             }
             // Why: git re-created this project's folder, so its worktree root is gone with it and
             // the authorized-roots cache still holds the answers from before the folder came back.
-            await prepareLocalWorktreeRootForRepo(store, existing)
-            invalidateAuthorizedRootsCache()
-            notifyReposChanged(mainWindow)
-            emitRepoAdded('clone_url', true, true)
-            return existing
+            if (current) {
+              await prepareLocalWorktreeRootForRepo(store, current)
+              invalidateAuthorizedRootsCache()
+              notifyReposChanged(mainWindow)
+              emitRepoAdded('clone_url', true, true)
+              return current
+            }
           }
 
           const detected = await detectRepoIconAndUpstream({

@@ -117,7 +117,10 @@ export function registerProjectHostSetupHandlers(mainWindow: BrowserWindow, stor
       assertWslMoveHostSetupIdWritable(store, args.setupId)
       const result = await updateProjectHostSetupWithProvenKind(
         store,
-        (setupArgs) => store.updateProjectHostSetup(setupArgs),
+        (setupArgs) => {
+          assertWslMoveHostSetupIdWritable(store, setupArgs.setupId)
+          return store.updateProjectHostSetup(setupArgs)
+        },
         args
       )
       if (!result) {

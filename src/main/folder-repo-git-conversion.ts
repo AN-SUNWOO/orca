@@ -4,7 +4,11 @@ import type {
   ProjectHostSetupUpdateArgs,
   ProjectHostSetupUpdateResult
 } from '../shared/project-types'
-import { getRepoExecutionHostId } from '../shared/execution-host'
+import {
+  getRepoExecutionHostId,
+  LOCAL_EXECUTION_HOST_ID,
+  parseExecutionHostId
+} from '../shared/execution-host'
 import type { Store } from './persistence'
 import { isFolderRepo } from '../shared/repo-kind'
 import { normalizeRuntimePathForComparison } from '../shared/cross-platform-path'
@@ -56,9 +60,17 @@ export async function resolveFolderToGitConversion(
  */
 export async function proveRepoKindChange(
   repo: Repo | undefined,
-  nextKind: Repo['kind'] | undefined
+  nextKind: Repo['kind'] | undefined,
+  allowRuntimeHost = false
 ): Promise<Pick<Repo, 'folderUpgradeGitRootPath'>> {
   if (!repo || nextKind !== 'git' || !isFolderRepo(repo) || repo.connectionId) {
+    return {}
+  }
+  const hostId = getRepoExecutionHostId(repo)
+  if (
+    hostId !== LOCAL_EXECUTION_HOST_ID &&
+    !(allowRuntimeHost && parseExecutionHostId(hostId)?.kind === 'runtime')
+  ) {
     return {}
   }
   const conversion = await resolveFolderToGitConversion(repo.path)
@@ -68,6 +80,28 @@ export async function proveRepoKindChange(
     )
   }
   return conversion.updates
+}
+
+/** Recheck the selected row after Git yields, then apply the synchronous write to that row. */
+export async function commitProvenRepoKindChange<T>(
+  store: Pick<Store, 'getRepos'>,
+  repo: Repo,
+  commit: (proven: Pick<Repo, 'folderUpgradeGitRootPath'>) => T,
+  allowRuntimeHost = false
+): Promise<T> {
+  const proven = await proveRepoKindChange(repo, 'git', allowRuntimeHost)
+  const current = store
+    .getRepos()
+    .find(
+      (entry) =>
+        entry.id === repo.id && getRepoExecutionHostId(entry) === getRepoExecutionHostId(repo)
+    )
+  if (!current || current.path !== repo.path || !isFolderRepo(current)) {
+    throw new Error(
+      `${repo.path} isn't the top folder of a Git repository, so this project's type was not changed.`
+    )
+  }
+  return commit(proven)
 }
 
 type ProjectHostSetupStore = Pick<Store, 'getRepos' | 'updateRepo'> & {
@@ -82,8 +116,12 @@ type ProjectHostSetupStore = Pick<Store, 'getRepos' | 'updateRepo'> & {
 export async function updateProjectHostSetupWithProvenKind(
   store: ProjectHostSetupStore,
   updateSetup: Store['updateProjectHostSetup'],
-  args: ProjectHostSetupUpdateArgs
+  args: ProjectHostSetupUpdateArgs,
+  allowRuntimeHost = false
 ): Promise<ProjectHostSetupUpdateResult | null> {
+  if (args.updates.kind !== 'git') {
+    return updateSetup(args)
+  }
   const setup = store.getProjectHostSetups?.().find((entry) => entry.id === args.setupId)
   const repo = setup?.repoId
     ? store
@@ -92,13 +130,22 @@ export async function updateProjectHostSetupWithProvenKind(
           (entry) => entry.id === setup.repoId && getRepoExecutionHostId(entry) === setup.hostId
         )
     : undefined
-  const proven = await proveRepoKindChange(repo, args.updates.kind)
-  const result = updateSetup(args)
-  if (!result?.repo || !proven.folderUpgradeGitRootPath) {
-    return result
+  if (!repo || !isFolderRepo(repo)) {
+    return updateSetup(args)
   }
-  const stamped = store.updateRepo(result.repo.id, proven, getRepoExecutionHostId(result.repo))
-  return stamped ? { ...result, repo: stamped } : result
+  return commitProvenRepoKindChange(
+    store,
+    repo,
+    (proven) => {
+      const result = updateSetup(args)
+      if (!result?.repo || !proven.folderUpgradeGitRootPath) {
+        return result
+      }
+      const stamped = store.updateRepo(result.repo.id, proven, getRepoExecutionHostId(result.repo))
+      return stamped ? { ...result, repo: stamped } : result
+    },
+    allowRuntimeHost
+  )
 }
 
 /**

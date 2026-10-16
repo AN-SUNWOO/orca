@@ -374,6 +374,7 @@ describe('repos:add + repos:clone', () => {
     expect(mockStore.updateRepo).toHaveBeenCalledWith(updated.id, {
       worktreeBasePath: '../worktrees'
     })
+    expect(mockStore.getRepos).not.toHaveBeenCalled()
     expect(prepareLocalWorktreeRootForRepoMock).toHaveBeenCalledWith(mockStore, updated)
     expect(invalidateAuthorizedRootsCacheMock).toHaveBeenCalled()
   })

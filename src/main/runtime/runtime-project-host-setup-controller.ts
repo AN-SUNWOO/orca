@@ -159,7 +159,15 @@ export class RuntimeProjectHostSetupController {
     updateProjectHostSetup: NonNullable<RuntimeStore['updateProjectHostSetup']>,
     args: ProjectHostSetupUpdateArgs
   ): Promise<ProjectHostSetupUpdateResult> {
-    const result = await updateProjectHostSetupWithProvenKind(store, updateProjectHostSetup, args)
+    const result = await updateProjectHostSetupWithProvenKind(
+      store,
+      (setupArgs) => {
+        assertWslMoveHostSetupIdWritable(store, setupArgs.setupId)
+        return updateProjectHostSetup(setupArgs)
+      },
+      args,
+      true
+    )
     if (!result) {
       throw new Error(`Project host setup not found: ${args.setupId}`)
     }

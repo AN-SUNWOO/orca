@@ -1,6 +1,6 @@
 import { getRepoExecutionHostId } from '../../shared/execution-host'
 import { isFolderRepo } from '../../shared/repo-kind'
-import { proveRepoKindChange } from '../folder-repo-git-conversion'
+import { commitProvenRepoKindChange } from '../folder-repo-git-conversion'
 import type { Repo } from '../../shared/repo-types'
 import type { GhAccountBinding } from '../../shared/github/account-binding'
 import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
@@ -92,10 +92,14 @@ export class RuntimeRepositorySettingsController {
     if ('sourceControlAi' in updates && updates.sourceControlAi === null) {
       sanitizedUpdates.sourceControlAi = null
     }
-    const updated = store.updateRepo(repo.id, {
-      ...sanitizedUpdates,
-      ...(await proveRepoKindChange(repo, sanitizedUpdates.kind))
-    })
+    const write = (proven: Pick<Repo, 'folderUpgradeGitRootPath'>): Repo | null => {
+      assertWslMoveRepoWritable(store, repo)
+      return store.updateRepo(repo.id, { ...sanitizedUpdates, ...proven })
+    }
+    const updated =
+      sanitizedUpdates.kind === 'git' && isFolderRepo(repo)
+        ? await commitProvenRepoKindChange(store, repo, write, true)
+        : write({})
     if (!updated) {
       throw new Error('repo_not_found')
     }

@@ -30,6 +30,7 @@ import { registerRepoHandlers } from './repos'
 import { clearGitCapabilityStateForTests } from '../git/git-capability-state'
 import { resetSshProviderAuthorities } from '../ssh/ssh-provider-authority'
 import { DEFAULT_REPO_BADGE_COLOR } from '../../shared/constants'
+import { isGitRepoAsync } from '../git/repo'
 import { listSubmodulePaths } from '../git/status'
 import {
   createMockCloneProcess,
@@ -185,6 +186,34 @@ describe('repos:add + repos:clone', () => {
     expect(prepareLocalWorktreeRootForRepoMock).toHaveBeenCalledWith(mockStore, upgraded)
     expect(invalidateAuthorizedRootsCacheMock).toHaveBeenCalled()
     expect(mockStore.addRepo).not.toHaveBeenCalled()
+  })
+
+  it('registers the completed clone with a fresh id when its saved folder is removed during proof', async () => {
+    const destination = await createTempRoot()
+    const clonePath = join(destination, 'orca')
+    const existing = {
+      id: 'removed-folder',
+      path: clonePath,
+      displayName: 'orca',
+      badgeColor: '#8b5cf6',
+      addedAt: 1,
+      kind: 'folder' as const
+    }
+    mockStore.getRepos.mockReturnValue([existing])
+    vi.mocked(isGitRepoAsync).mockImplementationOnce(async () => {
+      mockStore.getRepos.mockReturnValue([])
+      return true
+    })
+
+    const result = await handlers.get('repos:clone')!(null, {
+      url: 'https://example.com/orca.git',
+      destination
+    })
+
+    expect(result.id).not.toBe(existing.id)
+    expect(result).toMatchObject({ path: clonePath, kind: 'git' })
+    expect(mockStore.addRepo).toHaveBeenCalledWith(result)
+    expect(mockStore.updateRepo).not.toHaveBeenCalled()
   })
 
   it('rejects a dot-segment URL before creating the destination or spawning git', async () => {

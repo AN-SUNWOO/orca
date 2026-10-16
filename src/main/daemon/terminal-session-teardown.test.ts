@@ -13,6 +13,7 @@ vi.mock('../pty-descendant-termination', () => ({
 }))
 
 function createPlainShellSession(overrides: Partial<Session> = {}): Session {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: teardown reads only the members this fake defines.
   return {
     launchAgent: undefined,
     pid: 4242,
@@ -24,7 +25,6 @@ function createPlainShellSession(overrides: Partial<Session> = {}): Session {
     scheduleForceDisposeFallback: vi.fn(),
     signalTerminationRoot: vi.fn(),
     ...overrides
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: teardown reads only the members this fake defines.
   } as unknown as Session
 }
 

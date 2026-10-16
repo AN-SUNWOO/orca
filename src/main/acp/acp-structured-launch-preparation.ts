@@ -11,12 +11,16 @@ import type { AcpStructuredSessionAdapterDeps } from './acp-structured-session-a
 /** The launch a start spawns; `closedBeforeSpawn` throws once the start was abandoned. */
 export async function prepareAcpStructuredLaunch(
   deps: Pick<AcpStructuredSessionAdapterDeps, 'spec' | 'resolveLaunch'>,
-  acquire: Pick<StructuredAgentSessionAcquireInput, 'identity' | 'spawnToken'>,
+  acquire: Pick<StructuredAgentSessionAcquireInput, 'identity' | 'spawnToken' | 'permissionMode'>,
   closedBeforeSpawn: () => void
 ): Promise<AcpStructuredLaunch> {
   const { spec } = deps
   const launch = await deps
-    .resolveLaunch({ identity: acquire.identity, spawnToken: acquire.spawnToken })
+    .resolveLaunch({
+      identity: acquire.identity,
+      spawnToken: acquire.spawnToken,
+      ...(acquire.permissionMode ? { permissionMode: acquire.permissionMode } : {})
+    })
     .catch((error: unknown) => {
       throw new AgentSessionPreSpawnError(error)
     })

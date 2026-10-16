@@ -34,6 +34,15 @@ const CODEX_DESCRIPTIONS: Partial<Record<AgentChatPermissionMode, string>> = {
   'full-access': 'Never asks; can edit any file and use the network'
 }
 
+// Claude's copy names the person's own settings; other agents decide what they already allow.
+const OTHER_AGENT_DESCRIPTIONS: Partial<Record<AgentChatPermissionMode, string>> = {
+  ask: "Asks before edits or commands it isn't already allowed to make"
+}
+
+function agentDescriptions(agent: string): Partial<Record<AgentChatPermissionMode, string>> {
+  return agent === 'codex' ? CODEX_DESCRIPTIONS : agent === 'claude' ? {} : OTHER_AGENT_DESCRIPTIONS
+}
+
 /** Only decides whether the menu offers Approve for me, by the host's own rule. */
 function currentModelSupportsAutoMode(
   catalog: AgentSessionOptionCatalog | null,
@@ -70,9 +79,7 @@ export function structuredAgentSessionPermissionDescriptor(state: {
       choices: offered.map((value) => ({
         value,
         label: MODE_COPY[value].label,
-        description:
-          (state.record.agent === 'codex' ? CODEX_DESCRIPTIONS[value] : undefined) ??
-          MODE_COPY[value].description
+        description: agentDescriptions(state.record.agent)[value] ?? MODE_COPY[value].description
       }))
     },
     valueSource: 'applied',

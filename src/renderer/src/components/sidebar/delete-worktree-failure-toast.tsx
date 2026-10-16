@@ -146,7 +146,10 @@ export function showDeleteWorktreeFailureToast({
         description={toastCopy.description}
         canForceDelete={canForceDelete}
         canWaiveArchiveHook={canWaiveArchiveHook === true}
-        showViewChanges={!isLockedWorktreeRemovalError(error) || hasKnownChanges === true}
+        showViewChanges={
+          !(isLockedWorktreeRemovalError(error) || forceDeleteReason === 'submodules') ||
+          hasKnownChanges === true
+        }
         onViewChanges={onViewChanges}
         onForceDelete={onForceDelete}
         onAlwaysForceDelete={onAlwaysForceDelete}

@@ -129,6 +129,9 @@ describe('worktree removal against the real Git binary', () => {
     ).toBe('submodules')
     expect(await isRegistered(subWorktreePath)).toBe(true)
     expect((await git(['cat-file', '-t', localCommit], vendorPath)).trim()).toBe('commit')
+
+    await removeWorktree(repoPath, subWorktreePath, true)
+    expect(await isRegistered(subWorktreePath)).toBe(false)
   })
 
   it('does not delete a checkout through a malformed registration that names its git file', async () => {

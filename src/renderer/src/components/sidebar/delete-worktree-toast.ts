@@ -14,7 +14,7 @@ export type DeleteWorktreeToastCopy = {
 export function getSubmoduleRemovalRefusalCopy(): string {
   return translate(
     'auto.components.sidebar.delete.worktree.toast.submodules',
-    'This workspace contains submodules, and Git deletes those only with Force Delete. Force Delete also permanently removes anything in them that was never pushed: commits, local branches and stashes.'
+    'This workspace contains submodules, so Git deletes it only with Force Delete. Force Delete also permanently removes anything in those submodules that was never pushed: commits, local branches and stashes.'
   )
 }
 

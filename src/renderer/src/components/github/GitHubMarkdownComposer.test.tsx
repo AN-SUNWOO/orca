@@ -4,11 +4,14 @@ import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { GHCommentComposer } from '@/components/github-item-dialog/discuss-item/gh-comment-composer'
+import type { AppState } from '@/store/types'
 import type { GitHubCommentResult, PRComment } from '../../../../shared/github/comment-types'
 import { GitHubMarkdownComposer } from './GitHubMarkdownComposer'
 
+type ComposerStoreState = { settings: Partial<AppState['settings']> }
+
 vi.mock('@/store', () => ({
-  useAppStore: (selector: (state: object) => unknown) => selector({ settings: {} })
+  useAppStore: (selector: (state: ComposerStoreState) => unknown) => selector({ settings: {} })
 }))
 vi.mock('@/components/editor/RichMarkdownToolbar', () => ({
   RichMarkdownToolbar: () => null
